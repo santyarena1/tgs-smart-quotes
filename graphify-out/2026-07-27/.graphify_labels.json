@@ -124,9 +124,5 @@
   "122": "database/src/index.ts",
   "123": "vitest.setup.ts",
   "124": "playwright.config.ts",
-  "125": "vitest.config.ts",
-  "126": "QuotesView.tsx",
-  "127": "RequestsView.tsx",
-  "128": "PcLinesView.tsx",
-  "129": "changelog.ts"
+  "125": "vitest.config.ts"
 }

@@ -1,18 +1,13 @@
-# Graph Report - tgs-smart-quotes  (2026-07-27)
+# Graph Report - tgs-smart-quotes  (2026-07-26)
 
 ## Corpus Check
-- 173 files · ~89,743 words
+- 160 files · ~76,234 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1609 nodes · 2724 edges · 130 communities (92 shown, 38 thin omitted)
+- 1620 nodes · 2783 edges · 126 communities (88 shown, 38 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 13 edges (avg confidence: 0.75)
 - Token cost: 0 input · 0 output
-
-## Graph Freshness
-- Built from commit: `e547c94e`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - scripts
@@ -134,10 +129,6 @@
 - zod
 - database/src/index.ts
 - vitest.setup.ts
-- QuotesView.tsx
-- RequestsView.tsx
-- PcLinesView.tsx
-- changelog.ts
 
 ## God Nodes (most connected - your core abstractions)
 1. `RequestUser` - 54 edges
@@ -146,9 +137,9 @@
 4. `statusEvent()` - 24 edges
 5. `audit()` - 22 edges
 6. `QuotesController` - 21 edges
-7. `errorMessage()` - 18 edges
-8. `SettingsController` - 17 edges
-9. `api()` - 17 edges
+7. `errorMessage()` - 20 edges
+8. `api()` - 19 edges
+9. `SettingsController` - 17 edges
 10. `api()` - 17 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -157,16 +148,16 @@
 - `audit()` --calls--> `jsonSafe()`  [EXTRACTED]
   apps/api/src/products.ts → apps/api/src/infrastructure.ts
 - `audit()` --calls--> `jsonSafe()`  [EXTRACTED]
-  apps/api/src/quotes.ts → apps/api/src/infrastructure.ts
-- `statusEvent()` --calls--> `jsonSafe()`  [EXTRACTED]
-  apps/api/src/quotes.ts → apps/api/src/infrastructure.ts
-- `audit()` --calls--> `jsonSafe()`  [EXTRACTED]
   apps/api/src/settings.ts → apps/api/src/infrastructure.ts
+- `Panel()` --calls--> `detectChat()`  [EXTRACTED]
+  apps/extension/src/content.tsx → apps/extension/src/dom-selectors.ts
+- `Panel()` --calls--> `errorMessage()`  [EXTRACTED]
+  apps/extension/src/content.tsx → apps/extension/src/lib/api.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (130 total, 38 thin omitted)
+## Communities (126 total, 38 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
@@ -218,7 +209,7 @@ Nodes (8): name, private, scripts, build, dev, lint, typecheck, version
 
 ### Community 12 - "extension/manifest.json"
 Cohesion: 0.11
-Nodes (17): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, jsonSafe() (+9 more)
+Nodes (18): background, service_worker, type, content_scripts, externally_connectable, matches, host_permissions, downloads (+10 more)
 
 ### Community 13 - "public/manifest.json"
 Cohesion: 0.11
@@ -313,12 +304,12 @@ Cohesion: 0.50
 Nodes (3): name, private, version
 
 ### Community 36 - "layout.tsx"
-Cohesion: 0.27
-Nodes (19): Get, CurrentUser, RequestUser, activeVersion(), assertDraftMutable(), audit(), jsonField(), loadFamily() (+11 more)
+Cohesion: 0.06
+Nodes (61): PERSISTABLE_TASKS, avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get (+53 more)
 
 ### Community 37 - "page.tsx"
-Cohesion: 0.22
-Nodes (9): App(), NAV_GROUPS, LoginView(), Alert(), initials(), apiBaseUrl(), ApiError, AuthUser (+1 more)
+Cohesion: 0.19
+Nodes (11): App(), NAV_GROUPS, CustomersView(), empty(), LoginView(), Alert(), initials(), apiBaseUrl() (+3 more)
 
 ### Community 50 - "BACKUP_RESTORE.md"
 Cohesion: 0.50
@@ -337,8 +328,8 @@ Cohesion: 0.12
 Nodes (27): applyCoefficient(), buildFinancing(), buildItemsRows(), createLocalPdfStorage(), createPdfStorageFromEnv(), createS3PdfStorage(), escapeHtml(), formatArsFromCents() (+19 more)
 
 ### Community 62 - "testing/src/index.ts"
-Cohesion: 0.11
-Nodes (28): addPriceHistory(), audit(), createProduct(), CustomerController, customerData(), generalMarkupBps(), PcLineController, pcLineData() (+20 more)
+Cohesion: 0.27
+Nodes (10): actorFrom(), Baseline, BaselineOptions, createTestDb(), fixtureUser, hasTestDatabase(), resetDatabase(), seedBaseline() (+2 more)
 
 ### Community 64 - "background.ts"
 Cohesion: 0.33
@@ -353,36 +344,36 @@ Cohesion: 0.02
 Nodes (95): AiAnalyzeRequestInput, aiAnalyzeRequestSchema, AiCompatibilityInput, aiCompatibilitySchema, AiIntentInput, aiIntentSchema, AiSettingsInput, aiSettingsInputSchema (+87 more)
 
 ### Community 72 - "CurrentUser"
-Cohesion: 0.09
-Nodes (25): assertSafeBrandingFilename(), BRANDING_DIR, brandingFilePath(), EXT_TO_MIME, filenameFromLogoUrl(), logoPublicUrl(), MIME_TO_EXT, mimeForBrandingFilename() (+17 more)
+Cohesion: 0.07
+Nodes (44): buildCacheRepo(), QuoteAiController, RequestAiController, resolveAiDeps(), Body, Controller, Param, Post (+36 more)
 
 ### Community 73 - "shared.tsx"
-Cohesion: 0.18
-Nodes (11): CustomersView(), Draft, empty(), Drawer(), Modal(), SearchInput(), Stat(), StatStrip() (+3 more)
+Cohesion: 0.12
+Nodes (24): Draft, RankBlock, Summary, CONCEPT_LABEL, Draft, empty(), PcLinesView(), Draft (+16 more)
 
 ### Community 74 - "QuotesView.tsx"
-Cohesion: 0.17
-Nodes (15): Draft, emptyDraft(), ProductsView(), Checkbox(), centsFieldFromArs(), centsToInput(), displayArs(), formatArs() (+7 more)
+Cohesion: 0.20
+Nodes (22): blankItem(), ItemDraft, itemFromProduct(), itemsToPayload(), QUOTE_STATES, QuotesView(), STATE_LABEL, STATE_TONE (+14 more)
 
 ### Community 75 - "src/lib/api.ts"
 Cohesion: 0.16
 Nodes (19): api(), ApiError, ApiOptions, BackgroundApiResponse, BackgroundDownloadResponse, buildPath(), changeQuoteState(), createQuickRequest() (+11 more)
 
 ### Community 76 - "web/lib/types.ts"
-Cohesion: 0.15
-Nodes (13): AiSettings, CompanySettings, DashboardSummary, FinancingPlan, getActiveVersion(), getQuoteItems(), NavId, PdfSettings (+5 more)
+Cohesion: 0.13
+Nodes (17): COLUMNS, Draft, empty(), NEXT_STATE, RequestsView(), AiSettings, Collection, Customer (+9 more)
 
 ### Community 77 - "SettingsView.tsx"
-Cohesion: 0.18
-Nodes (15): centsToInput(), emptyFin(), ExtensionInfo, ExtensionInstructions, FinDraft, PDF_FLAGS, SettingsView(), Tab (+7 more)
+Cohesion: 0.14
+Nodes (18): centsToInput(), emptyFin(), ExtensionInfo, ExtensionInstructions, FinDraft, PDF_FLAGS, SettingsView(), Tab (+10 more)
 
 ### Community 78 - "branding-storage.ts"
-Cohesion: 0.15
-Nodes (13): buildItemRows(), CollectionsController, eventTypeForState(), formatVisibleNumber(), nextVisibleNumber(), QuoteItemCreateInput, QuotesController, requestData() (+5 more)
+Cohesion: 0.18
+Nodes (15): assertSafeBrandingFilename(), BRANDING_DIR, brandingFilePath(), EXT_TO_MIME, filenameFromLogoUrl(), logoPublicUrl(), MIME_TO_EXT, mimeForBrandingFilename() (+7 more)
 
 ### Community 79 - "module.ts"
-Cohesion: 0.39
-Nodes (4): ExtensionSettingsController, resolveExtensionZip(), Controller, Get
+Cohesion: 0.17
+Nodes (10): ExtensionSettingsController, resolveExtensionZip(), Controller, Get, Public(), AppModule, HealthController, Controller (+2 more)
 
 ### Community 80 - "similarity.ts"
 Cohesion: 0.18
@@ -401,8 +392,8 @@ Cohesion: 0.12
 Nodes (16): BLOCK-3 — PDF, trazabilidad, precios, búsqueda, envíos, respuestas, notificaciones e IA, Búsqueda (`apps/api/src/search.ts`), Configuración operativa (`apps/api/src/settings.ts`), Dependencias y configuración, Endpoints entregados, Envíos (`apps/api/src/quotes.ts`), IA (`apps/api/src/ai.ts`, opcional/mejor esfuerzo), Integridad y convenciones respetadas (+8 more)
 
 ### Community 84 - "infrastructure.ts"
-Cohesion: 0.07
-Nodes (30): AuthController, fakeUser, Body, Controller, Post, Req, Res, AuthGuard (+22 more)
+Cohesion: 0.19
+Nodes (9): AuthController, fakeUser, Controller, AuthGuard, buildSessionCookie(), RateLimitGuard, secureCookies(), Inject (+1 more)
 
 ### Community 85 - "compilerOptions"
 Cohesion: 0.12
@@ -437,8 +428,8 @@ Cohesion: 0.13
 Nodes (14): compilerOptions, declaration, declarationMap, outDir, sourceMap, types, exclude, extends (+6 more)
 
 ### Community 93 - "errorMessage"
-Cohesion: 0.18
-Nodes (17): CollectionsView(), Draft, empty(), DashboardView(), msToHuman(), RankBlock, Summary, NotificationRow (+9 more)
+Cohesion: 0.22
+Nodes (12): CollectionsView(), Draft, empty(), DashboardView(), msToHuman(), NotificationRow, NotificationsView(), emptyDraft() (+4 more)
 
 ### Community 94 - "1. Invariantes NO NEGOCIABLES (todo el código las respeta)"
 Cohesion: 0.14
@@ -469,8 +460,8 @@ Cohesion: 0.29
 Nodes (7): devDependencies, @tgs/testing, tsx, typescript, @tgs/testing, tsx, typescript
 
 ### Community 101 - ".login"
-Cohesion: 0.21
-Nodes (10): buildRenderInput(), PdfController, pdfStorage, storageKeyFor(), Body, Controller, Get, Param (+2 more)
+Cohesion: 0.47
+Nodes (4): Body, Post, Req, Res
 
 ### Community 102 - "E2E — Playwright"
 Cohesion: 0.33
@@ -484,10 +475,6 @@ Nodes (5): Credenciales locales, Estado, Handoff — TGS Smart Quotes, Invariant
 Cohesion: 0.40
 Nodes (5): Panel(), listNotifications(), probeExtensionConnection(), sendToBackground(), injectPanelStyles()
 
-### Community 105 - "SpanishExceptionFilter"
-Cohesion: 0.31
-Nodes (9): buildCacheRepo(), PERSISTABLE_TASKS, QuoteAiController, RequestAiController, resolveAiDeps(), Body, Controller, Param (+1 more)
-
 ### Community 106 - "build.mjs"
 Cohesion: 0.50
 Nodes (3): nextBin, require, result
@@ -496,34 +483,22 @@ Nodes (3): nextBin, require, result
 Cohesion: 0.50
 Nodes (3): Contrato de aceptación, Evidencia de comandos (2026-07-26), Regla de cierre
 
-### Community 126 - "QuotesView.tsx"
-Cohesion: 0.26
-Nodes (13): blankItem(), buildPcSlots(), emptyLineSlot(), filledItems(), isSlotEmpty(), ItemDraft, itemFromProduct(), itemsToPayload() (+5 more)
-
-### Community 127 - "RequestsView.tsx"
-Cohesion: 0.24
-Nodes (8): COLUMNS, Draft, empty(), NEXT_STATE, RequestsView(), Tone, QuoteRequest, RequestState
-
-### Community 128 - "PcLinesView.tsx"
-Cohesion: 0.33
-Nodes (6): CONCEPT_LABEL, Draft, empty(), PcLinesView(), Field(), PcLine
-
 ## Knowledge Gaps
-- **704 isolated node(s):** `ItemDraft`, `QUOTE_STATES`, `STATE_TONE`, `STATE_LABEL`, `ChangelogEntry` (+699 more)
+- **712 isolated node(s):** `graphify-mcp`, `name`, `version`, `private`, `dev` (+707 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **38 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `jsonSafe()` connect `extension/manifest.json` to `layout.tsx`, `.login`, `CurrentUser`, `SpanishExceptionFilter`, `branding-storage.ts`, `similarity.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.051) - this node is a cross-community bridge._
-- **Why does `Query` connect `similarity.ts` to `src/lib/api.ts`, `extension/manifest.json`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
-- **Why does `ProductsView()` connect `QuotesView.tsx` to `errorMessage`, `extension/manifest.json`, `page.tsx`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
-- **What connects `ItemDraft`, `QUOTE_STATES`, `STATE_TONE` to the rest of the system?**
-  _704 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `jsonSafe()` connect `layout.tsx` to `CurrentUser`, `similarity.ts`, `infrastructure.ts`?**
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+- **Why does `Query` connect `similarity.ts` to `CurrentUser`, `src/lib/api.ts`, `layout.tsx`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **Why does `ProductsView()` connect `errorMessage` to `shared.tsx`, `QuotesView.tsx`, `layout.tsx`, `page.tsx`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
+- **What connects `graphify-mcp`, `name`, `version` to the rest of the system?**
+  _712 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tasks` be split into smaller, more focused modules?**
   _Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**
