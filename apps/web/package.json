@@ -1,0 +1,22 @@
+{
+  "name": "@tgs/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --conditions=development node_modules/next/dist/bin/next dev",
+    "build": "node ./scripts/build.mjs",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^15.4.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "@types/react": "^19.1.8",
+    "typescript": "^5.8.3"
+  }
+}

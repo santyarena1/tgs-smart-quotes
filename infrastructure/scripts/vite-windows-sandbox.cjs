@@ -1,0 +1,1 @@
+const cp=require('node:child_process');const original=cp.exec;cp.exec=function(command,...args){if(command==='net use'){const callback=args.find(x=>typeof x==='function');if(callback)queueMicrotask(()=>callback(null,'',''));return{on(){return this}}}return original.call(this,command,...args)};

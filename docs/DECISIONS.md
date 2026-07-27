@@ -1,0 +1,29 @@
+# Decisiones
+
+- Centavos `BigInt` y markup/coficientes en basis points; redondeo entero half-up documentado y centralizado en `@tgs/pricing`.
+- En `retarget`, el residuo se asigna por subtotal descendente y luego `position` ascendente; si las cantidades impiden alcanzar exactamente el objetivo se devuelve error tipado.
+- El teléfono AR canónico se guarda como dígitos con prefijo país `54`; el valor visible original se conserva en su campo separado.
+- Lockout: ventana móvil por coincidencia de usuario o IP, con límites configurables por entorno. La limitación HTTP global usa una ventana en memoria por instancia; la protección persistente de login vive en `LoginAttempt`.
+- La renovación deslizante ocurre cuando resta menos de `SESSION_RENEWAL_PERCENT` del TTL original.
+- La cookie de sesión es siempre `HttpOnly`, `SameSite=Lax`, `Path=/`; la base sólo recibe SHA-256 del token aleatorio de 32 bytes. El flag `Secure` usa un switch automático (`secureCookies()` en `apps/api/src/infrastructure.ts`): activo salvo en `NODE_ENV=development` (donde el navegador descarta cookies Secure sobre http). `COOKIE_SECURE=true|false` es un override explícito opcional; sin la variable, producción/staging quedan seguras por defecto. `.env.example` viene con `NODE_ENV=production` para no dejar defaults inseguros.
+- `PUT /settings/ai` admite `clearApiKey`; las respuestas nunca incluyen el secreto cifrado y la auditoría sólo registra el marcador `[CIFRADA]`.
+- `test-connection` acepta una key transitoria opcional para probar antes de guardar; si falla devuelve `{ ok: false }` sin persistir ni bloquear.
+- `appliesOn` se valida en contratos como `LISTA | EFECTIVO | BASE`, aunque permanece `String` en el schema según la spec autoritativa.
+- El seed exige credenciales admin explícitas y re-hashea el password con argon2id en cada ejecución idempotente.
+- Los packages de librería emiten ESM y declaraciones en `dist`; producción usa la condición `default` de `exports`, mientras API/worker con `tsx` y Next se arrancan en desarrollo con `--conditions=development` para resolver directamente `src/index.ts` sin exigir un pre-build.
+- Producto con precio bidireccional: editar `costCents` recalcula venta desde markup; editar `saleCents` recalcula el markup implícito; con `usesGeneralMarkup` se toma el markup general de `AiSettings`. Cada cambio de precio real deja una fila de historial.
+- Detección de duplicados de productos/clientes por similitud trigram sobre el campo normalizado (mismos índices GIN que la búsqueda); es una advertencia, no un bloqueo duro.
+- Presupuestos: familia → versiones → ítems. Los ítems congelan nombre y precios al crearse (`frozenName`/precios) para que la versión sea un snapshot. Una versión `SENT`/`ENVIADO` es inmutable (`assertDraftMutable`); enviar una nueva versión reemplaza la anterior enviada como activa.
+- Los tests de integración de `apps/api` corren contra una `TEST_DATABASE_URL` real y en serie (`fileParallelism:false`), con `resetDatabase`/`seedBaseline` de `@tgs/testing`; `vitest.setup.ts` fuerza `DATABASE_URL=TEST_DATABASE_URL` para no tocar datos reales.
+- PDF: render HTML/CSS A4 con Playwright/Chromium; `inputHash` evita regenerar sin cambios; PDFs históricos de versiones enviadas no se regeneran (salvo política explícita). No existe “válido hasta”.
+- Envío WhatsApp: `QuoteSendAttempt` es la fuente de verdad del intento; `QuoteDelivery` confirma; `sentAt` es resumen derivado. La extensión solo prepara PDF/mensaje; el vendedor confirma el envío.
+- `OperationsSettings` controla staleDays/aviso previo y pesos de similitud; el worker no hardcodea el umbral de 10 días.
+- Extensión PRO: `VITE_WEB_APP_URL` configura “Abrir editor completo” y usa `http://localhost:3000` sólo como fallback de desarrollo.
+- La detección de envío observa únicamente el contenedor del chat por 45 segundos: 100 para texto+PDF, 70 para texto y 40 para un saliente no concluyente. Nunca acciona el botón Enviar.
+- El adjunto PDF se intenta como Documento mediante `DataTransfer`; cualquier cambio incompatible del DOM activa un fallback visible de abrir/descargar.
+- Se ajustó estrictamente `apps/api/src/quotes.ts` para persistir `pdfOverrides` ya aceptado por los contratos en crear/editar/crear versión. Sin esa corrección los toggles triestado de la extensión eran aceptados pero descartados por el endpoint.
+- EXTENSION UI REBUILD: un único `ModalShell` impone header/body/footer, Escape y autofocus; esto evita divergencia estructural entre confirmaciones, cliente, versión, picker y edición rápida.
+- El editor usa una grilla común de 840 px (100/180+/96/100/68/100/104/48 más gaps/padding), por debajo de los 880 px útiles del modal wide; el scroll horizontal queda como resguardo para viewport reducido.
+- Los últimos cinco presupuestos vistos viven sólo en estado React de la sesión. Colecciones rápidas priorizan `favorite` y no agregan persistencia ni reglas de negocio.
+- `preview.html` es un entrypoint de Vite exclusivamente de QA. El empaquetador copia `dist` excepto `preview.html` y `preview.js`; el content script se construye autocontenido en la primera pasada.
+- El build de preview usa `vite.preview.config.ts` como segunda pasada con `emptyOutDir: false`: evita que Rollup extraiga dependencias compartidas del content script MV3, por lo que `content.js` queda autocontenido y ejecutable por Chrome.

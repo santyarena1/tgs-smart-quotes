@@ -1,0 +1,57 @@
+TGS Presupuestos Pro — Extensión Chrome (WhatsApp Web)
+=================================================
+
+REQUISITOS
+----------
+1. Google Chrome (o Chromium / Edge basado en Chromium).
+2. Sistema TGS en marcha:
+   - Web:  http://localhost:3000
+   - API:  http://localhost:3001/api
+3. Sesión iniciada en la web TGS en ESTE mismo navegador
+   (la extensión reutiliza la cookie de sesión de localhost).
+
+INSTALACIÓN (modo desarrollador)
+--------------------------------
+1. Descargá el ZIP desde Configuración → Extensión Chrome en TGS.
+2. Descomprimí el ZIP en una carpeta fija (ej. C:\TGS\extension).
+   Importante: no borres esa carpeta después; Chrome la usa cargada.
+3. Abrí Chrome y andá a:  chrome://extensions
+4. Activá "Modo de desarrollador" (arriba a la derecha).
+5. Pulsá "Cargar descomprimida" / "Load unpacked".
+6. Elegí la carpeta donde descomprimiste el ZIP
+   (debe contener manifest.json, background.js y content.js).
+7. Verificá que aparezca "TGS Presupuestos Pro" activa.
+   Si ya tenías una versión anterior cargada: descomprimí el ZIP nuevo
+   SOBRE LA MISMA CARPETA (reemplazando los archivos), volvé a
+   chrome://extensions y pulsá el ícono de recargar (↻) en la tarjeta
+   de la extensión. Después recargá también la pestaña de WhatsApp Web.
+
+USO EN WHATSAPP WEB
+-------------------
+1. Abrí https://web.whatsapp.com e iniciá sesión.
+2. A la derecha debería aparecer el panel flotante "TGS".
+3. Arriba del panel verás el estado de conexión:
+   - Conectado = API + sesión OK
+   - Sin sesión = abrí http://localhost:3000 e iniciá sesión
+   - API offline = levantá el backend en el puerto 3001
+4. Abrí un chat. El panel detecta teléfono/nombre (con barra de confianza).
+5. Buscá o seleccioná un presupuesto, generá PDF SIMPLE/DETALLADO,
+   prepará el mensaje y usá "Insertar en el chat".
+6. NUNCA se envía solo: vos tenés que pulsar Enviar en WhatsApp.
+7. Después del envío, confirmá el intento en el panel
+   (Confirmar / No se envió / Revisar).
+
+PROBAR LA CONEXIÓN
+------------------
+Desde TGS → Configuración → Extensión Chrome:
+  - "Probar conexión API" verifica health + sesión del sistema.
+Desde el panel en WhatsApp Web:
+  - Botón "Probar" al lado del estado de conexión.
+
+NOTAS
+-----
+- La extensión NO automatiza el botón Enviar de WhatsApp (a propósito).
+- Si WhatsApp cambia el DOM, la detección de chat puede bajar de confianza;
+  podés corregir teléfono/nombre a mano.
+- Si recargás la extensión en chrome://extensions, recargá también
+  la pestaña de WhatsApp Web.

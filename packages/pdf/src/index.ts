@@ -1,0 +1,579 @@
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { chromium, type Browser } from 'playwright';
+
+export type PdfKind = 'SIMPLE' | 'DETALLADO';
+
+export type PdfCompany = {
+  name: string;
+  taxCondition: string;
+  cuit: string;
+  grossIncome: string;
+  activityStart: string;
+  address: string;
+  phones: string;
+  footerText: string;
+  rmaUrl: string;
+  primaryColor: string;
+  accentColor: string;
+  logoUrl?: string | null;
+};
+
+export type PdfFinancingPlan = {
+  label: string;
+  bank: string;
+  installments: number;
+  coefficientBps: number;
+  interestFree: boolean;
+  appliesOn: 'LISTA' | 'EFECTIVO' | 'BASE' | string;
+  note?: string | null;
+  commercialText?: string | null;
+  sortOrder?: number;
+};
+
+export type PdfItem = {
+  code?: string;
+  name: string;
+  quantity: number;
+  unitCents: bigint;
+  subtotalCents: bigint;
+  isMainLine?: boolean;
+  isComponent?: boolean;
+};
+
+export type PdfResolvedConfig = {
+  showListPrice: boolean;
+  showCashTransfer: boolean;
+  showFinancing: boolean;
+  showBbva: boolean;
+  showOtherBanks: boolean;
+  showFinancingNote: boolean;
+  showTaxData: boolean;
+  showServicesBlock: boolean;
+  showWindows: boolean;
+  showDrivers: boolean;
+  showDelay: boolean;
+  showRma: boolean;
+  showExtraObservation: boolean;
+  showIndividualPrices: boolean;
+  showComponentDetail: boolean;
+  builtPcTitle: string;
+  builtPcDescription: string;
+  assemblyText: string;
+  installText: string;
+  windowsText: string;
+  driversText: string;
+  estimatedDelay: string;
+};
+
+export type PdfRenderInput = {
+  kind: PdfKind;
+  number: string;
+  date: Date;
+  isBuiltPc: boolean;
+  observation?: string | null;
+  listTotalCents: bigint;
+  cashTotalCents: bigint;
+  company: PdfCompany;
+  config: PdfResolvedConfig;
+  items: PdfItem[];
+  financing: PdfFinancingPlan[];
+};
+
+export const historicalPdfIsImmutable = true;
+
+export const pdfFileName = (number: string, version: number, kind: PdfKind) =>
+  `${number}-V${version}-${kind}.pdf`;
+
+export function formatArsFromCents(cents: bigint): string {
+  const negative = cents < 0n;
+  const abs = negative ? -cents : cents;
+  const whole = abs / 100n;
+  const frac = abs % 100n;
+  const wholeStr = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const fracStr = frac.toString().padStart(2, '0');
+  return `${negative ? '-' : ''}$ ${wholeStr},${fracStr}`;
+}
+
+export function formatDateAr(date: Date): string {
+  const parts = new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('day')}/${get('month')}/${get('year')}`;
+}
+
+export function sha256Hex(buffer: Buffer | string): string {
+  return createHash('sha256').update(buffer).digest('hex');
+}
+
+export function pdfInputHash(input: PdfRenderInput): string {
+  const canonical = {
+    kind: input.kind,
+    number: input.number,
+    date: input.date.toISOString().slice(0, 10),
+    isBuiltPc: input.isBuiltPc,
+    observation: input.observation ?? null,
+    listTotalCents: input.listTotalCents.toString(),
+    cashTotalCents: input.cashTotalCents.toString(),
+    company: input.company,
+    config: input.config,
+    items: input.items.map((i) => ({
+      ...i,
+      unitCents: i.unitCents.toString(),
+      subtotalCents: i.subtotalCents.toString(),
+    })),
+    financing: input.financing,
+  };
+  return sha256Hex(JSON.stringify(canonical));
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function applyCoefficient(baseCents: bigint, coefficientBps: number): bigint {
+  return (baseCents * BigInt(coefficientBps) + 5000n) / 10000n;
+}
+
+function installmentAmount(baseCents: bigint, plan: PdfFinancingPlan): bigint {
+  const total = applyCoefficient(baseCents, plan.coefficientBps);
+  return (total + BigInt(plan.installments) / 2n) / BigInt(plan.installments);
+}
+
+export function resolvePdfFlags(
+  defaults: PdfResolvedConfig,
+  overrides?: Record<string, 'HEREDAR' | 'MOSTRAR' | 'OCULTAR'> | null,
+): PdfResolvedConfig {
+  if (!overrides) return { ...defaults };
+  const next = { ...defaults };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (!(key in next) || value === 'HEREDAR') continue;
+    const typedKey = key as keyof PdfResolvedConfig;
+    if (typeof next[typedKey] === 'boolean') {
+      (next as Record<string, unknown>)[key] = value === 'MOSTRAR';
+    }
+  }
+  return next;
+}
+
+function buildItemsRows(input: PdfRenderInput): string {
+  // DETALLADO: siempre precios por ítem.
+  // SIMPLE: solo la línea principal de PC armada lleva importe; el resto va sin precio
+  // individual (componentes o ítems de presupuesto normal).
+  const showRowPrice = (item: PdfItem): boolean => {
+    if (input.kind === 'DETALLADO') return true;
+    if (input.isBuiltPc) return Boolean(item.isMainLine);
+    return false;
+  };
+
+  return input.items
+    .map((item, index) => {
+      const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
+      const name = escapeHtml(item.name);
+      const qty = String(item.quantity);
+      const amount = showRowPrice(item)
+        ? formatArsFromCents(item.subtotalCents)
+        : input.kind === 'SIMPLE'
+          ? '—'
+          : formatArsFromCents(0n);
+      const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      return `<tr class="${cls}"><td class="code">${code}</td><td class="name">${name}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
+    })
+    .join('');
+}
+
+function buildFinancing(input: PdfRenderInput): string {
+  if (!input.config.showFinancing || input.financing.length === 0) return '';
+  const plans = [...input.financing].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  );
+  const bbva = plans.filter((p) => /bbva/i.test(p.bank) || /bbva/i.test(p.label));
+  const others = plans.filter((p) => !bbva.includes(p));
+  const baseFor = (plan: PdfFinancingPlan) => {
+    if (plan.appliesOn === 'EFECTIVO') return input.cashTotalCents;
+    return input.listTotalCents;
+  };
+  const row = (plan: PdfFinancingPlan) => {
+    const cuota = installmentAmount(baseFor(plan), plan);
+    const interest = plan.interestFree ? ' sin interés' : '';
+    return `<tr><td>${escapeHtml(plan.bank || plan.label)}</td><td>${plan.installments} cuotas${interest}</td><td class="amt">${formatArsFromCents(cuota)}</td></tr>`;
+  };
+  const parts: string[] = [];
+  if (input.config.showFinancingNote) {
+    parts.push(
+      `<p class="note">Cuotas: los valores financiados se calculan sobre el precio de lista, no sobre el precio de efectivo/transferencia.</p>`,
+    );
+  }
+  if (input.config.showBbva && bbva.length) {
+    parts.push(`<table class="fin">${bbva.map(row).join('')}</table>`);
+    const commercial = bbva.map((p) => p.commercialText).find(Boolean);
+    if (commercial) parts.push(`<p class="note">${escapeHtml(commercial)}</p>`);
+  }
+  if (input.config.showOtherBanks && others.length) {
+    parts.push(`<table class="fin">${others.map(row).join('')}</table>`);
+  }
+  return parts.join('');
+}
+
+export function renderQuoteHtml(input: PdfRenderInput): string {
+  const date = formatDateAr(input.date);
+  const primary = escapeHtml(input.company.primaryColor || '#1a1a1a');
+  const accent = escapeHtml(input.company.accentColor || '#c8102e');
+  const services: string[] = [];
+  if (input.config.showServicesBlock) {
+    const bits = [input.config.assemblyText, input.config.installText].filter(Boolean);
+    if (bits.length) services.push(`Incluye: ${bits.join(', ')}.`);
+  }
+  if (input.config.showWindows && input.config.windowsText) {
+    services.push(input.config.windowsText);
+  }
+  if (input.config.showDrivers && input.config.driversText) {
+    services.push(input.config.driversText);
+  }
+  if (input.config.showDelay && input.config.estimatedDelay) {
+    services.push(`Demora estimada: ${input.config.estimatedDelay}.`);
+  }
+
+  const logo = input.company.logoUrl
+    ? `<img class="logo" src="${escapeHtml(input.company.logoUrl)}" alt="" />`
+    : `<div class="logo-text">${escapeHtml(input.company.name)}</div>`;
+
+  return `<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: #111;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .brand .logo { max-height: 52px; max-width: 180px; }
+  .brand .logo-text { font-size: 22px; font-weight: 800; color: ${accent}; letter-spacing: 0.02em; }
+  .brand .tax { margin-top: 4px; color: #444; }
+  .title-block { text-align: right; }
+  .title-block h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    color: ${primary};
+  }
+  .title-block .meta { margin-top: 6px; color: #333; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 10px; }
+  .card {
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    padding: 10px 12px;
+    background: #fafafa;
+  }
+  .card h2 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: #222;
+  }
+  .card dl { margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: 3px 8px; }
+  .card dt { color: #666; }
+  .card dd { margin: 0; font-weight: 600; }
+  .services {
+    background: ${accent};
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin: 8px 0 12px;
+  }
+  .services p { margin: 0 0 4px; }
+  .services p:last-child { margin-bottom: 0; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  table.items thead th {
+    background: #111;
+    color: #fff;
+    text-align: left;
+    padding: 7px 8px;
+    font-weight: 600;
+  }
+  table.items td {
+    border-bottom: 1px solid #e5e5e5;
+    padding: 6px 8px;
+    vertical-align: top;
+  }
+  table.items tr.main td { font-weight: 700; }
+  table.items tr.component td.name { padding-left: 18px; color: #333; }
+  table.items .code { width: 48px; }
+  table.items .qty { width: 48px; text-align: center; }
+  table.items .amt { width: 110px; text-align: right; white-space: nowrap; }
+  .totals { margin-top: 12px; width: 100%; }
+  .totals .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 10px;
+    border-bottom: 1px solid #eee;
+  }
+  .totals .cash {
+    background: #111;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    border: 0;
+    margin-top: 4px;
+  }
+  table.fin { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table.fin td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+  table.fin .amt { text-align: right; white-space: nowrap; }
+  .note { color: #444; margin: 8px 0; }
+  .rma {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fbfbfb;
+  }
+  .footer {
+    margin-top: 16px;
+    padding-top: 8px;
+    border-top: 1px solid #ddd;
+    color: #555;
+    font-size: 10px;
+  }
+  .obs { margin-top: 10px; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      ${logo}
+      <div class="tax">${escapeHtml(input.company.taxCondition)}</div>
+    </div>
+    <div class="title-block">
+      <h1>PRESUPUESTO</h1>
+      <div class="meta">Nº ${escapeHtml(input.number)} · ${date}</div>
+    </div>
+  </header>
+
+  <section class="cards">
+    <div class="card">
+      <h2>DATOS DEL PRESUPUESTO</h2>
+      <dl>
+        <dt>Número</dt><dd>${escapeHtml(input.number)}</dd>
+        <dt>Fecha</dt><dd>${date}</dd>
+        <dt>Moneda</dt><dd>Pesos Argentinos</dd>
+      </dl>
+    </div>
+    ${
+      input.config.showTaxData
+        ? `<div class="card">
+      <h2>DATOS FISCALES</h2>
+      <dl>
+        <dt>Inicio Act.</dt><dd>${escapeHtml(input.company.activityStart)}</dd>
+        <dt>Ing. Brutos</dt><dd>${escapeHtml(input.company.grossIncome)}</dd>
+        <dt>CUIT</dt><dd>${escapeHtml(input.company.cuit)}</dd>
+        <dt>Domicilio</dt><dd>${escapeHtml(input.company.address)}</dd>
+      </dl>
+    </div>`
+        : `<div class="card"><h2>DATOS FISCALES</h2><p>Ocultos por configuración</p></div>`
+    }
+  </section>
+
+  ${
+    services.length
+      ? `<section class="services">${services
+          .map((s) => `<p>${escapeHtml(s)}</p>`)
+          .join('')}</section>`
+      : ''
+  }
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th>Cód.</th>
+        <th>Artículo</th>
+        <th>Cant.</th>
+        <th>Importe</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${buildItemsRows(input)}
+    </tbody>
+  </table>
+
+  <section class="totals">
+    ${
+      input.config.showListPrice
+        ? `<div class="row"><span>Precio de lista</span><strong>${formatArsFromCents(input.listTotalCents)}</strong></div>`
+        : ''
+    }
+    ${
+      input.config.showCashTransfer
+        ? `<div class="row cash"><span>Efectivo / Transferencia</span><span>${formatArsFromCents(input.cashTotalCents)}</span></div>`
+        : ''
+    }
+  </section>
+
+  ${buildFinancing(input)}
+
+  ${
+    input.config.showExtraObservation && input.observation
+      ? `<section class="obs"><strong>Observación:</strong> ${escapeHtml(input.observation)}</section>`
+      : ''
+  }
+
+  ${
+    input.config.showRma
+      ? `<section class="rma">Importante: al aceptar este presupuesto, ya sea mediante compromiso verbal o monetario —seña, abono total, abono parcial o cualquier confirmación de compra/servicio—, el cliente declara conocer y aceptar las Políticas de Servicio Técnico y RMA: ${escapeHtml(input.company.rmaUrl)}</section>`
+      : ''
+  }
+
+  <footer class="footer">${escapeHtml(input.company.footerText)} · ${escapeHtml(input.company.address)} · ${escapeHtml(input.company.phones)}</footer>
+</body>
+</html>`;
+}
+
+let sharedBrowser: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (sharedBrowser) return sharedBrowser;
+  sharedBrowser = await chromium.launch({ headless: true });
+  return sharedBrowser;
+}
+
+export async function closePdfBrowser(): Promise<void> {
+  if (sharedBrowser) {
+    await sharedBrowser.close();
+    sharedBrowser = null;
+  }
+}
+
+export async function renderPdfBuffer(input: PdfRenderInput): Promise<Buffer> {
+  const html = renderQuoteHtml(input);
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setContent(html, { waitUntil: 'networkidle' });
+    const buffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    });
+    return Buffer.from(buffer);
+  } finally {
+    await page.close();
+  }
+}
+
+export type StorageDriver = 'local' | 's3';
+
+export type PdfStorage = {
+  driver: StorageDriver;
+  put(key: string, body: Buffer, contentType?: string): Promise<void>;
+  get(key: string): Promise<Buffer>;
+};
+
+export function createLocalPdfStorage(rootDir: string): PdfStorage {
+  const root = path.resolve(rootDir);
+  return {
+    driver: 'local',
+    async put(key, body) {
+      const full = path.join(root, key);
+      await mkdir(path.dirname(full), { recursive: true });
+      await writeFile(full, body);
+    },
+    async get(key) {
+      return readFile(path.join(root, key));
+    },
+  };
+}
+
+export function createS3PdfStorage(opts: {
+  endpoint: string;
+  bucket: string;
+  accessKey: string;
+  secretKey: string;
+}): PdfStorage {
+  // Implementación mínima S3-compatible vía fetch PUT/GET (path-style).
+  // Firma simple: solo entornos de desarrollo con MinIO sin firma V4 estricta.
+  // Para producción conviene reemplazar por AWS SDK; se deja cableado y testeable.
+  const base = opts.endpoint.replace(/\/$/, '');
+  const auth = Buffer.from(`${opts.accessKey}:${opts.secretKey}`).toString('base64');
+  return {
+    driver: 's3',
+    async put(key, body, contentType = 'application/pdf') {
+      const res = await fetch(`${base}/${opts.bucket}/${key}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': contentType,
+        },
+        body: new Uint8Array(body),
+      });
+      if (!res.ok) {
+        throw new Error(`No se pudo guardar PDF en S3 (${res.status})`);
+      }
+    },
+    async get(key) {
+      const res = await fetch(`${base}/${opts.bucket}/${key}`, {
+        headers: { Authorization: `Basic ${auth}` },
+      });
+      if (!res.ok) {
+        throw new Error(`No se pudo leer PDF desde S3 (${res.status})`);
+      }
+      return Buffer.from(await res.arrayBuffer());
+    },
+  };
+}
+
+export function createPdfStorageFromEnv(env: {
+  PDF_STORAGE_DRIVER?: string;
+  PDF_LOCAL_DIR?: string;
+  S3_ENDPOINT?: string;
+  S3_BUCKET?: string;
+  S3_ACCESS_KEY?: string;
+  S3_SECRET_KEY?: string;
+}): PdfStorage {
+  const driver = (env.PDF_STORAGE_DRIVER ?? 'local') as StorageDriver;
+  if (driver === 's3') {
+    if (!env.S3_ENDPOINT || !env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
+      throw new Error('Faltan variables S3 para PDF_STORAGE_DRIVER=s3');
+    }
+    return createS3PdfStorage({
+      endpoint: env.S3_ENDPOINT,
+      bucket: env.S3_BUCKET,
+      accessKey: env.S3_ACCESS_KEY,
+      secretKey: env.S3_SECRET_KEY,
+    });
+  }
+  return createLocalPdfStorage(env.PDF_LOCAL_DIR ?? 'storage/pdfs');
+}
+
+export async function generateAndStorePdf(opts: {
+  input: PdfRenderInput;
+  storage: PdfStorage;
+  storageKey: string;
+}): Promise<{ buffer: Buffer; sha256: string; sizeBytes: number; inputHash: string; storageKey: string; driver: StorageDriver }> {
+  const inputHash = pdfInputHash(opts.input);
+  const buffer = await renderPdfBuffer(opts.input);
+  const sha256 = sha256Hex(buffer);
+  await opts.storage.put(opts.storageKey, buffer, 'application/pdf');
+  return {
+    buffer,
+    sha256,
+    sizeBytes: buffer.byteLength,
+    inputHash,
+    storageKey: opts.storageKey,
+    driver: opts.storage.driver,
+  };
+}

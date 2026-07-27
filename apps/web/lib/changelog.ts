@@ -1,0 +1,114 @@
+export type ChangelogEntry = {
+  version: string;
+  date: string;
+  title: string;
+  items: string[];
+};
+
+/** Historial de novedades de la app. La primera entrada es la versión actual. */
+export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "0.2.8",
+    date: "2026-07-27",
+    title: "Preview de líneas, redondeo y total claro",
+    items: [
+      "En PC armada vuelve el orden de armado (preview) con estado vacío/completo",
+      "Opción para redondear precios de venta a $100 / $500 / $1.000 / $5.000",
+      "El total del presupuesto queda más visible al pie de la tabla y del editor",
+    ],
+  },
+  {
+    version: "0.2.7",
+    date: "2026-07-27",
+    title: "Líneas PC opcionales",
+    items: [
+      "En PC armada las líneas vacías ya no aparecen en el presupuesto",
+      "Se agregan productos con botones por línea; ninguna línea es obligatoria",
+    ],
+  },
+  {
+    version: "0.2.6",
+    date: "2026-07-27",
+    title: "PC armada por líneas",
+    items: [
+      "Al marcar PC armada aparecen todas las líneas como ranuras para elegir producto",
+      "Al asignar un producto a una línea, el sistema recuerda esa asociación",
+      "Sugerencias por línea (historial + usos previos) y componentes habituales clickeables",
+      "Base lista para futuras sugerencias de armado y detección de compatibilidad",
+    ],
+  },
+  {
+    version: "0.2.5",
+    date: "2026-07-27",
+    title: "Líneas PC solo como referencia",
+    items: [
+      "Líneas PC: solo nombre, orden y activa (sin concepto/aliases/clave en la UI)",
+      "Ya no se asocia línea por defecto a productos",
+      "En presupuestos de PC armada se muestra el orden de referencia; los ítems se ordenan a mano",
+      "Se quitó el campo duplicado de orden de líneas en Configuración → PDF",
+    ],
+  },
+  {
+    version: "0.2.4",
+    date: "2026-07-26",
+    title: "Buscadores con teclado",
+    items: [
+      "En pickers de productos/combos/presupuestos: ↑↓ para moverse y Enter para seleccionar",
+      "Escape cierra el desplegable",
+    ],
+  },
+  {
+    version: "0.2.3",
+    date: "2026-07-26",
+    title: "Solicitudes: asociar y arrastrar",
+    items: [
+      "Asociar un presupuesto existente a una solicitud, con 3 sugerencias según el pedido",
+      "Arrastrar tarjetas del kanban entre columnas",
+      "Seguir creando un presupuesto nuevo desde la solicitud",
+    ],
+  },
+  {
+    version: "0.2.2",
+    date: "2026-07-26",
+    title: "Último uso de productos",
+    items: [
+      "Cada producto muestra la fecha de último uso en presupuestos",
+      "Al abrir un producto se listan los presupuestos donde aparece",
+      "El buscador de presupuestos también muestra cuándo se usó por última vez",
+    ],
+  },
+  {
+    version: "0.2.1",
+    date: "2026-07-26",
+    title: "Productos: borrado masivo y unificación",
+    items: [
+      "Selección múltiple y eliminación masiva de productos",
+      "Buscar duplicados por similitud de nombre y unificar eligiendo cuál conservar",
+      "Al unificar, los ítems de presupuestos y combos pasan al producto elegido",
+    ],
+  },
+  {
+    version: "0.2.0",
+    date: "2026-07-26",
+    title: "Combos y novedades",
+    items: [
+      "Nuevo módulo Combos en Catálogo para agrupar productos frecuentes",
+      "En el buscador de presupuestos podés elegir un combo y se expanden los productos individuales con su precio actual",
+      "Changelog visible en el menú lateral con el historial de versiones",
+    ],
+  },
+  {
+    version: "0.1.0",
+    date: "2026-07-26",
+    title: "Suite base",
+    items: [
+      "Presupuestos, solicitudes, productos, clientes y colecciones",
+      "Logo de empresa, PDF y extensión Chrome",
+      "Crear presupuesto desde una solicitud de WhatsApp",
+    ],
+  },
+];
+
+export function currentAppVersion(): string {
+  return CHANGELOG[0]?.version ?? "0.0.0";
+}

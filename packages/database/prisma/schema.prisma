@@ -1,0 +1,706 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuoteState {
+  BORRADOR
+  ENVIADO
+  ACEPTADO
+  RECHAZADO
+  REEMPLAZADO
+  NO_CONCRETADO
+}
+
+enum RequestState {
+  PENDIENTE
+  EN_PREPARACION
+  LISTA
+  ENVIADA
+  CERRADA
+}
+
+enum PdfKind {
+  SIMPLE
+  DETALLADO
+}
+
+enum PcConcept {
+  CPU
+  MOTHERBOARD
+  GPU
+  OTHER
+}
+
+enum FieldOverride {
+  HEREDAR
+  MOSTRAR
+  OCULTAR
+}
+
+enum SendAttemptStatus {
+  PENDIENTE
+  CONFIRMADO_AUTO
+  CONFIRMADO_MANUAL
+  NO_ENVIADO
+  AMBIGUO
+}
+
+enum AiTaskType {
+  REQUEST_ANALYSIS
+  COMPATIBILITY
+  RESPONSE_SUGGESTION
+  SEMANTIC_SIMILARITY
+}
+
+enum SuggestionTone {
+  AMIGABLE
+  INTERMEDIO
+  TECNICO
+}
+
+enum StatusEventType {
+  SOLICITUD_CREADA
+  SOLICITUD_ASIGNADA
+  SOLICITUD_LISTA
+  ANALISIS_IA
+  PRESUPUESTO_CREADO
+  VERSION_CREADA
+  PRECIOS_ACTUALIZADOS
+  PDF_GENERADO
+  MENSAJE_PREPARADO
+  ENVIO_DETECTADO
+  ENVIO_CONFIRMADO_MANUAL
+  ENVIO_DESCARTADO
+  ACEPTACION
+  RECHAZO
+  REEMPLAZO
+  NO_CONCRETADO
+  REACTIVADO
+  REVISION_REQUERIDA
+  INTENCION_DETECTADA
+  SUGERENCIA_IA
+  COMPATIBILIDAD_IA
+  CAMBIO_ESTADO
+  CLIENTE_CREADO
+  PRODUCTO_MODIFICADO
+  COLECCION_MODIFICADA
+  COSTO_AJUSTADO
+  TOTAL_AJUSTADO
+}
+
+/// Intención detectada en la respuesta del cliente. Nunca muta estado sin confirmación humana.
+enum ReplyIntent {
+  ACEPTA
+  RECHAZA
+  PIDE_CAMBIO
+  CONSULTA
+  AMBIGUA
+}
+
+model User {
+  id            String                @id @default(uuid())
+  username      String                @unique
+  passwordHash  String
+  displayName   String?
+  active        Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  lastAccessAt  DateTime?
+  sessions      Session[]
+  products      Product[]
+  combos        Combo[]
+  versions      QuoteVersion[]
+  audits        AuditLog[]
+  priceChanges  ProductPriceHistory[]
+  sendAttempts  QuoteSendAttempt[]
+  deliveries    QuoteDelivery[]
+  notifications Notification[]
+  events        QuoteStatusEvent[]
+  requests      QuoteRequest[]        @relation("RequestCreator")
+  assignments   QuoteRequest[]        @relation("RequestAssignee")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  renewedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+
+  @@index([userId, expiresAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  username  String
+  ip        String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+  @@index([ip, createdAt])
+}
+
+model Product {
+  id                String                @id @default(uuid())
+  name              String
+  normalizedName    String
+  costCents         BigInt
+  salePriceCents    BigInt
+  markupBps         Int
+  usesGeneralMarkup Boolean               @default(true)
+  defaultLineId     String?
+  defaultLine       PcLine?               @relation(fields: [defaultLineId], references: [id])
+  active            Boolean               @default(true)
+  /// Última vez que el producto se usó en un presupuesto (ítem con productId).
+  lastUsedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  updatedById       String
+  updatedBy         User                  @relation(fields: [updatedById], references: [id])
+  history           ProductPriceHistory[]
+  items             QuoteItem[]
+  comboItems        ComboItem[]
+
+  @@index([normalizedName])
+  @@index([active])
+  @@index([lastUsedAt])
+}
+
+model Combo {
+  id             String      @id @default(uuid())
+  name           String      @unique
+  normalizedName String
+  description    String?
+  active         Boolean     @default(true)
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  updatedById    String
+  updatedBy      User        @relation(fields: [updatedById], references: [id])
+  items          ComboItem[]
+
+  @@index([normalizedName])
+  @@index([active])
+}
+
+model ComboItem {
+  id        String  @id @default(uuid())
+  comboId   String
+  combo     Combo   @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  position  Int     @default(0)
+
+  @@index([comboId, position])
+  @@unique([comboId, productId])
+}
+
+model ProductPriceHistory {
+  id             String   @id @default(uuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  costCents      BigInt
+  salePriceCents BigInt
+  markupBps      Int
+  reason         String?
+  changedById    String
+  changedBy      User     @relation(fields: [changedById], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([productId, createdAt])
+}
+
+model PcLine {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  sortOrder Int
+  active    Boolean     @default(true)
+  aliases   String[]
+  keyLine   Boolean     @default(false)
+  concept   PcConcept   @default(OTHER)
+  products  Product[]
+  items     QuoteItem[]
+}
+
+model Customer {
+  id              String          @id @default(uuid())
+  name            String
+  normalizedName  String
+  phone           String?
+  normalizedPhone String?
+  dni             String?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  requests        QuoteRequest[]
+  families        QuoteFamily[]
+  deliveries      QuoteDelivery[]
+
+  @@index([normalizedName])
+  @@index([normalizedPhone])
+  @@index([dni])
+}
+
+model QuoteRequest {
+  id                 String        @id @default(uuid())
+  title              String
+  originalText       String        @default("")
+  internalNotes      String        @default("")
+  customerId         String?
+  customer           Customer?     @relation(fields: [customerId], references: [id])
+  detectedPhone      String?
+  maximumBudgetCents BigInt?
+  expectedUse        String?
+  requiredComponents String[]
+  creatorId          String
+  creator            User          @relation("RequestCreator", fields: [creatorId], references: [id])
+  assigneeId         String?
+  assignee           User?         @relation("RequestAssignee", fields: [assigneeId], references: [id])
+  state              RequestState  @default(PENDIENTE)
+  readyAt            DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  families           QuoteFamily[]
+  analyses           AiRequest[]
+
+  @@index([state, createdAt])
+  @@index([detectedPhone])
+}
+
+model QuoteFamily {
+  id             String             @id @default(uuid())
+  visibleNumber  String             @unique
+  internalName   String
+  requestId      String?
+  request        QuoteRequest?      @relation(fields: [requestId], references: [id])
+  customerId     String?
+  customer       Customer?          @relation(fields: [customerId], references: [id])
+  isBuiltPc      Boolean            @default(false)
+  activeVersion  Int                @default(1)
+  lastActivityAt DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  versions       QuoteVersion[]
+  collections    CollectionQuote[]
+  events         QuoteStatusEvent[]
+
+  @@index([internalName])
+  @@index([customerId, createdAt])
+  @@index([lastActivityAt])
+}
+
+model QuoteVersion {
+  id                 String             @id @default(uuid())
+  familyId           String
+  family             QuoteFamily        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  version            Int
+  state              QuoteState         @default(BORRADOR)
+  creatorId          String
+  creator            User               @relation(fields: [creatorId], references: [id])
+  reason             String?
+  totalCostCents     BigInt
+  totalSaleCents     BigInt
+  profitCents        BigInt
+  effectiveMarkupBps Int
+  publicObservation  String?
+  /// Overrides triestado (HEREDAR|MOSTRAR|OCULTAR) elegidos por el operador para esta versión.
+  pdfOverrides       Json?
+  /// Configuración efectiva congelada al generar el PDF: defaults globales + overrides resueltos.
+  resolvedPdfConfig  Json
+  financingSnapshot  Json?
+  /// Resumen derivado del primer QuoteDelivery confirmado; la fuente de verdad es QuoteSendAttempt/QuoteDelivery.
+  sentMessage        String?
+  sentAt             DateTime?
+  lastActivityAt     DateTime?
+  /// Marcado cuando la IA o la extensión detectan un cambio de estado ambiguo que requiere confirmación humana.
+  reviewPending      Boolean            @default(false)
+  reviewReason       String?
+  reactivatedAt      DateTime?
+  staleNotifiedAt    DateTime?
+  autoClosedAt       DateTime?
+  createdAt          DateTime           @default(now())
+  items              QuoteItem[]
+  pdfs               QuotePdf[]
+  attempts           QuoteSendAttempt[]
+  deliveries         QuoteDelivery[]
+  events             QuoteStatusEvent[]
+  replies            QuoteReply[]
+
+  @@unique([familyId, version])
+  @@index([state, sentAt])
+  @@index([state, lastActivityAt])
+  @@index([reviewPending])
+}
+
+model QuoteItem {
+  id                   String       @id @default(uuid())
+  versionId            String
+  version              QuoteVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  productId            String?
+  product              Product?     @relation(fields: [productId], references: [id])
+  frozenName           String
+  lineId               String?
+  line                 PcLine?      @relation(fields: [lineId], references: [id])
+  quantity             Int
+  frozenCostCents      BigInt
+  frozenMarkupBps      Int
+  frozenSalePriceCents BigInt
+  subtotalCents        BigInt
+  /// Fecha del precio maestro congelado; permite detectar diferencias contra el catálogo actual.
+  masterPriceAt        DateTime?
+  masterCostCents      BigInt?
+  masterSaleCents      BigInt?
+  position             Int
+  observation          String?
+  /// Ítem principal del PDF SIMPLE cuando la familia es una PC armada.
+  isPcMainLine         Boolean      @default(false)
+
+  @@index([productId])
+  @@index([versionId, position])
+}
+
+model QuotePdf {
+  id         String          @id @default(uuid())
+  versionId  String
+  version    QuoteVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  kind       PdfKind
+  storageKey String
+  sha256     String
+  sizeBytes  Int
+  /// Hash del payload de render: si cambia, el PDF quedó obsoleto y debe regenerarse.
+  inputHash  String
+  driver     String          @default("local")
+  configJson Json?
+  createdAt  DateTime        @default(now())
+  deliveries QuoteDelivery[]
+
+  @@unique([versionId, kind])
+  @@index([sha256])
+}
+
+/// Fuente de verdad del intento de envío asistido por WhatsApp. Nunca autoenvía.
+model QuoteSendAttempt {
+  id           String            @id @default(uuid())
+  versionId    String
+  version      QuoteVersion      @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  chatPhone    String?
+  chatName     String?
+  message      String
+  pdfKind      PdfKind?
+  pdfName      String?
+  status       SendAttemptStatus @default(PENDIENTE)
+  /// Confianza 0-100 de la detección de chat/envío. Baja confianza obliga confirmación humana.
+  confidence   Int?
+  detectionLog Json?
+  internalNote String?
+  userId       String?
+  user         User?             @relation(fields: [userId], references: [id])
+  createdAt    DateTime          @default(now())
+  resolvedAt   DateTime?
+  delivery     QuoteDelivery?
+
+  @@index([status, createdAt])
+  @@index([versionId, createdAt])
+  @@index([chatPhone, createdAt])
+}
+
+/// Confirmación del envío: destinatario, PDF, mensaje y fecha. `QuoteVersion.sentAt` es su resumen.
+model QuoteDelivery {
+  id          String            @id @default(uuid())
+  versionId   String
+  version     QuoteVersion      @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  attemptId   String?           @unique
+  attempt     QuoteSendAttempt? @relation(fields: [attemptId], references: [id])
+  customerId  String?
+  customer    Customer?         @relation(fields: [customerId], references: [id])
+  chatPhone   String?
+  chatName    String?
+  message     String?
+  pdfKind     PdfKind?
+  pdfId       String?
+  pdf         QuotePdf?         @relation(fields: [pdfId], references: [id])
+  confirmedBy SendAttemptStatus @default(CONFIRMADO_MANUAL)
+  deliveredAt DateTime          @default(now())
+  userId      String?
+  user        User?             @relation(fields: [userId], references: [id])
+  createdAt   DateTime          @default(now())
+
+  @@index([versionId, deliveredAt])
+  @@index([chatPhone, deliveredAt])
+  @@index([customerId, deliveredAt])
+}
+
+/// Respuesta recibida del cliente y su intención clasificada. La transición de estado siempre es explícita.
+model QuoteReply {
+  id           String       @id @default(uuid())
+  versionId    String
+  version      QuoteVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  chatPhone    String?
+  text         String
+  intent       ReplyIntent  @default(AMBIGUA)
+  confidence   Int?
+  source       String       @default("EXTENSION")
+  appliedState QuoteState?
+  appliedAt    DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@index([versionId, createdAt])
+  @@index([intent, createdAt])
+}
+
+/// Timeline unificada de presupuesto, versión, solicitud y cliente.
+model QuoteStatusEvent {
+  id         String          @id @default(uuid())
+  type       StatusEventType
+  familyId   String?
+  family     QuoteFamily?    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  versionId  String?
+  version    QuoteVersion?   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  requestId  String?
+  customerId String?
+  userId     String?
+  user       User?           @relation(fields: [userId], references: [id])
+  previous   Json?
+  next       Json?
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+
+  @@index([familyId, createdAt])
+  @@index([versionId, createdAt])
+  @@index([requestId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Collection {
+  id                 String            @id @default(uuid())
+  name               String            @unique
+  normalizedName     String            @default("")
+  description        String?
+  sortOrder          Int               @default(0)
+  icon               String?
+  archived           Boolean           @default(false)
+  favorite           Boolean           @default(false)
+  visibleInExtension Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @default(now()) @updatedAt
+  quotes             CollectionQuote[]
+
+  @@index([archived, sortOrder])
+  @@index([normalizedName])
+}
+
+model CollectionQuote {
+  collectionId String
+  collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  familyId     String
+  family       QuoteFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  sortOrder    Int         @default(0)
+  addedAt      DateTime    @default(now())
+
+  @@id([collectionId, familyId])
+  @@index([familyId])
+  @@index([collectionId, sortOrder])
+}
+
+model FinancingPlan {
+  id             String   @id @default(uuid())
+  label          String
+  bank           String
+  installments   Int
+  coefficientBps Int
+  interestFree   Boolean  @default(false)
+  appliesOn      String
+  note           String?
+  commercialText String?
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CompanySettings {
+  id            String   @id @default("singleton")
+  logoUrl       String?
+  name          String
+  taxCondition  String
+  cuit          String
+  grossIncome   String
+  activityStart String
+  address       String
+  phones        String
+  footerText    String
+  rmaUrl        String
+  primaryColor  String
+  accentColor   String
+  updatedAt     DateTime @updatedAt
+}
+
+model PdfSettings {
+  id                   String   @id @default("singleton")
+  showListPrice        Boolean  @default(true)
+  showCashTransfer     Boolean  @default(true)
+  showFinancing        Boolean  @default(true)
+  showBbva             Boolean  @default(true)
+  showOtherBanks       Boolean  @default(true)
+  showFinancingNote    Boolean  @default(true)
+  showTaxData          Boolean  @default(true)
+  showServicesBlock    Boolean  @default(true)
+  showWindows          Boolean  @default(true)
+  showDrivers          Boolean  @default(true)
+  showDelay            Boolean  @default(true)
+  showRma              Boolean  @default(true)
+  showExtraObservation Boolean  @default(false)
+  showIndividualPrices Boolean  @default(true)
+  showComponentDetail  Boolean  @default(true)
+  builtPcTitle         String
+  builtPcDescription   String
+  assemblyText         String
+  installText          String
+  windowsText          String
+  driversText          String
+  estimatedDelay       String
+  lineOrder            Json
+  updatedAt            DateTime @updatedAt
+}
+
+model AiSettings {
+  id                         String         @id @default("singleton")
+  enabled                    Boolean        @default(false)
+  model                      String         @default("gpt-5.2")
+  apiKeyEncrypted            String?
+  analysisEnabled            Boolean        @default(true)
+  similarityEnabled          Boolean        @default(true)
+  compatibilityEnabled       Boolean        @default(true)
+  responsesEnabled           Boolean        @default(true)
+  ambiguousSimilarityAi      Boolean        @default(false)
+  /// Feedback de compatibilidad al guardar el borrador; si es false solo corre bajo acción explícita.
+  compatibilityOnSave        Boolean        @default(false)
+  intentEnabled              Boolean        @default(true)
+  /// Debajo de esta confianza, la intención detectada exige confirmación humana.
+  minIntentConfidence        Int            @default(70)
+  defaultTone                SuggestionTone @default(INTERMEDIO)
+  monthlyBudgetUsdCents      BigInt?
+  generalMarkupBps           Int            @default(3000)
+  productSimilarityThreshold Int            @default(70)
+  frequentSupportThreshold   Int            @default(3)
+  updatedAt                  DateTime       @updatedAt
+}
+
+/// Parámetros operativos del circuito comercial. Sin vencimiento de presupuestos: solo inactividad.
+model OperationsSettings {
+  id                     String   @id @default("singleton")
+  /// Días sin actividad para que una versión ENVIADO pase a NO_CONCRETADO.
+  staleDays              Int      @default(10)
+  /// Días antes del cierre automático en los que se notifica al vendedor.
+  staleNoticeDays        Int      @default(2)
+  autoStaleEnabled       Boolean  @default(true)
+  /// Pesos de similitud determinística entre presupuestos (bps sobre 10000).
+  similarityCpuBps       Int      @default(3500)
+  similarityMotherBps    Int      @default(2000)
+  similarityGpuBps       Int      @default(3500)
+  similarityOtherBps     Int      @default(1000)
+  /// Rango de puntaje considerado ambiguo; solo ahí se consulta IA si está habilitada.
+  similarityAmbiguousMin Int      @default(55)
+  similarityAmbiguousMax Int      @default(75)
+  updatedAt              DateTime @default(now()) @updatedAt
+}
+
+model AiRequest {
+  id           String        @id @default(uuid())
+  task         AiTaskType
+  model        String
+  inputHash    String
+  entityType   String?
+  entityId     String?
+  requestId    String?
+  request      QuoteRequest? @relation(fields: [requestId], references: [id])
+  success      Boolean
+  error        String?
+  durationMs   Int?
+  usageJson    Json?
+  costUsdCents BigInt        @default(0)
+  cacheHit     Boolean       @default(false)
+  resultJson   Json?
+  createdAt    DateTime      @default(now())
+
+  @@index([task, inputHash])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AiSuggestion {
+  id         String          @id @default(uuid())
+  entityType String
+  entityId   String
+  tone       SuggestionTone?
+  text       String
+  usedText   String?
+  usedAt     DateTime?
+  model      String
+  inputHash  String
+  createdAt  DateTime        @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model SimilarityCache {
+  id         String @id @default(uuid())
+  sourceType String
+  sourceId   String
+  inputHash  String
+
+  resultJson Json
+  createdAt  DateTime @default(now())
+
+  @@unique([sourceType, sourceId, inputHash])
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  chatPhone  String?
+  type       String
+  title      String
+  body       String
+  entityType String?
+  entityId   String?
+  /// Borrador de mensaje sugerido para el vendedor; editable antes de insertar en WhatsApp.
+  draft      String?
+  metadata   Json?
+  readAt     DateTime?
+  actedAt    DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([chatPhone, createdAt])
+  @@index([entityType, entityId])
+  @@index([readAt, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  entityType String
+  entityId   String
+  action     String
+  previous   Json?
+  next       Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+}

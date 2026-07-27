@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: tgs
+      POSTGRES_PASSWORD: tgs_dev
+      POSTGRES_DB: tgs_quotes
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tgs -d tgs_quotes"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://tgs:tgs_dev@postgres:5432/tgs_quotes
+      PDF_STORAGE_DRIVER: local
+      PDF_LOCAL_DIR: /data/pdfs
+      APP_ORIGIN: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    volumes:
+      - pdf_data:/data/pdfs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://tgs:tgs_dev@postgres:5432/tgs_quotes
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  pdf_data:

@@ -1,0 +1,227 @@
+import type {
+  AiSuggestion,
+  Collection,
+  NotificationRow,
+  PdfKind,
+  Quote,
+  QuoteRequest,
+  QuoteSearchResult,
+  QuoteState,
+  QuoteTimeline,
+  RequestState,
+  SendAttempt,
+  SendAttemptStatus,
+  Customer,
+  PcLine,
+  Product,
+  QuoteItemInput,
+  ReplyIntent,
+} from "./types";
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return "Error desconocido";
+}
+
+type Query = Record<string, string | number | boolean | null | undefined>;
+type ApiOptions = { method?: string; body?: unknown; query?: Query };
+
+type BackgroundApiResponse = { ok: boolean; status: number; data?: unknown; error?: string };
+type BackgroundDownloadResponse = { ok: boolean; error?: string };
+
+function buildPath(path: string, query?: Query): string {
+  if (!query) return path;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === "") continue;
+    params.set(key, String(value));
+  }
+  const qs = params.toString();
+  if (!qs) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}${qs}`;
+}
+
+/**
+ * El content script no puede hacer fetch cross-origin de forma confiable en web.whatsapp.com
+ * (CSP de la página), así que todo pasa por el service worker (`background.ts`), que sí tiene
+ * `host_permissions` sobre la API.
+ */
+function sendToBackground<T>(message: Record<string, unknown>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
+      reject(new ApiError("La extensión no tiene acceso a chrome.runtime; recargá la página.", 0));
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(
+            new ApiError(
+              `No se pudo comunicar con la extensión: ${chrome.runtime.lastError.message}`,
+              0,
+            ),
+          );
+          return;
+        }
+        resolve(response as T);
+      });
+    } catch (error) {
+      reject(new ApiError(`Fallo interno de mensajería de la extensión: ${String(error)}`, 0));
+    }
+  });
+}
+
+export async function api<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
+  const { method, body, query } = options;
+  const init: RequestInit = {
+    method: method ?? (body !== undefined ? "POST" : "GET"),
+    headers: {
+      Accept: "application/json",
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  };
+
+  const response = await sendToBackground<BackgroundApiResponse>({
+    type: "API",
+    path: buildPath(path, query),
+    init,
+  });
+
+  if (!response) {
+    throw new ApiError("Sin respuesta del background de la extensión.", 0);
+  }
+  if (response.status === 0) {
+    throw new ApiError(
+      `No se pudo conectar con la API. Verificá que el backend esté en marcha. (${response.error ?? "sin detalle"})`,
+      0,
+    );
+  }
+  if (!response.ok) {
+    const payload = response.data as { message?: string | string[] } | null;
+    const message = Array.isArray(payload?.message)
+      ? payload.message.join("; ")
+      : typeof payload?.message === "string"
+        ? payload.message
+        : `Error HTTP ${response.status}`;
+    throw new ApiError(message, response.status);
+  }
+  return response.data as T;
+}
+
+/** Descarga un PDF disparando `chrome.downloads` desde el background (requiere permiso "downloads"). */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const response = await sendToBackground<BackgroundDownloadResponse>({
+    type: "DOWNLOAD",
+    path,
+    filename,
+  });
+  if (!response?.ok) {
+    throw new ApiError(response?.error ?? "No se pudo iniciar la descarga del PDF.", 0);
+  }
+}
+
+export type ExtensionConnection = {
+  ok: boolean;
+  extensionVersion: string;
+  apiBase: string;
+  healthOk: boolean;
+  sessionOk: boolean;
+  user?: { username?: string; displayName?: string | null };
+  error?: string;
+};
+
+/** Prueba API + sesión vía el service worker de la extensión. */
+export function probeExtensionConnection(): Promise<ExtensionConnection> {
+  return sendToBackground<ExtensionConnection>({ type: "PING" });
+}
+
+// ---- Endpoints cableados (Block 7) ----
+
+export const searchQuotes = (params: { q?: string; phone?: string; state?: QuoteState; customerId?: string }) =>
+  api<QuoteSearchResult>("/quotes/search", {
+    query: { q: params.q, phone: params.phone, state: params.state, customerId: params.customerId, pageSize: 15 },
+  });
+
+export const getQuote = (id: string) => api<Quote>(`/quotes/${id}`);
+
+export const listCollections = () => api<Collection[]>("/collections");
+
+export const listRequests = () => api<QuoteRequest[]>("/requests");
+
+export const createQuickRequest = (body: {
+  title: string;
+  originalText?: string;
+  detectedPhone?: string | null;
+  state?: RequestState;
+}) => api<QuoteRequest>("/requests", { body });
+
+export const generatePdf = (id: string, kind: PdfKind, force = false) =>
+  api<{ id: string; kind: PdfKind; reused?: boolean; immutable?: boolean }>(`/quotes/${id}/pdf`, {
+    body: { kind, force },
+  });
+
+export const pdfDownloadPath = (id: string, kind: PdfKind) => `/quotes/${id}/pdf/${kind}`;
+
+export const createSendAttempt = (
+  id: string,
+  body: {
+    chatPhone?: string | null;
+    chatName?: string | null;
+    message: string;
+    pdfKind?: PdfKind | null;
+    pdfName?: string | null;
+    confidence?: number | null;
+    internalNote?: string | null;
+  },
+) => api<SendAttempt>(`/quotes/${id}/send-attempts`, { body });
+
+export const resolveSendAttempt = (
+  id: string,
+  attemptId: string,
+  body: { status: SendAttemptStatus; internalNote?: string | null; confidence?: number | null; createDelivery?: boolean },
+) => api(`/quotes/${id}/send-attempts/${attemptId}/resolve`, { body });
+
+export const changeQuoteState = (id: string, state: QuoteState, reason?: string | null) =>
+  api(`/quotes/${id}/state`, { body: { state, reason: reason || null } });
+
+export const reactivateQuote = (id: string, reason: string) =>
+  api(`/quotes/${id}/reactivate`, { body: { reason } });
+
+export const createQuoteVersion = (id: string, reason: string) =>
+  api(`/quotes/${id}/version`, { body: { reason } });
+
+export const getTimeline = (id: string) => api<QuoteTimeline>(`/quotes/${id}/timeline`);
+
+/** IA siempre opcional: si el endpoint falla o está deshabilitado, el llamador cae a texto vacío editable. */
+export const suggestResponse = (id: string) =>
+  api<AiSuggestion>(`/quotes/${id}/ai/suggest-response`, { body: {} });
+
+export const listNotifications = (unreadOnly = false) =>
+  api<NotificationRow[]>("/notifications", { query: unreadOnly ? { unread: true, limit: 30 } : { limit: 30 } });
+
+export const markNotification = (id: string, body: { read?: boolean; acted?: boolean }) =>
+  api(`/notifications/${id}/mark`, { body });
+
+export const listCustomers=()=>api<Customer[]>("/customers");
+export const createCustomer=(body:{name:string;phone?:string|null;dni?:string|null})=>api<Customer>("/customers",{body});
+export const updateCustomer=(id:string,body:{name:string;phone?:string|null;dni?:string|null})=>api<Customer>(`/customers/${id}`,{method:"PUT",body});
+export const listProducts=(q="")=>api<Product[]>("/products",{query:{q}});
+export const listPcLines=()=>api<PcLine[]>("/pc-lines");
+export const updateQuote=(id:string,body:{customerId?:string|null;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}`,{method:"PUT",body});
+export const updateRequest=(id:string,body:Record<string,unknown>)=>api<QuoteRequest>(`/requests/${id}`,{method:"PUT",body});
+export const createQuoteVersionWithChanges=(id:string,body:{reason:string;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}/version`,{body});
+export const retargetQuote=(id:string,targetTotalCents:string,previewOnly=false)=>api<Quote>(`/quotes/${id}/retarget`,{body:{targetTotalCents,previewOnly}});
+export const createQuoteReply=(id:string,body:{chatPhone?:string|null;text:string;intent:ReplyIntent;confidence?:number|null;source:string;applyState?:QuoteState|null})=>api(`/quotes/${id}/replies`,{body});
+export async function fetchBlob(path:string):Promise<Blob>{const response=await sendToBackground<{ok:boolean;status:number;bytes?:number[];contentType?:string;error?:string}>({type:"FETCH_BLOB",path});if(!response?.ok||!response.bytes)throw new ApiError(response?.error??"No se pudo descargar el PDF.",response?.status??0);return new Blob([new Uint8Array(response.bytes)],{type:response.contentType??"application/pdf"})}
+export async function openAuthenticated(path:string):Promise<void>{const response=await sendToBackground<{ok:boolean;error?:string}>({type:"OPEN_URL",path});if(!response?.ok)throw new ApiError(response?.error??"No se pudo abrir el PDF.",0)}
+export const classifyIntent=(id:string,replyText:string)=>api<{result:{intent:ReplyIntent;confidence:number};metadata:{usedAi:boolean};requiresReview:boolean}>(`/quotes/${id}/ai/intent`,{body:{replyText}});

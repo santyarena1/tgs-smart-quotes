@@ -1,0 +1,15 @@
+node_modules/
+.turbo/
+.env
+.env.local
+dist/
+.next/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+*.zip
+.seed-dist/
+**/storage/pdfs/
+**/storage/uploads/
+**/storage/extension/
