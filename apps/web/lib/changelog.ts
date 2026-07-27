@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.9",
+    date: "2026-07-27",
+    title: "Líneas en el presupuesto, ocultas en el PDF si vacías",
+    items: [
+      "En PC armada las líneas se listan en el presupuesto para cargar productos",
+      "Si una línea queda vacía no se guarda ni aparece en el PDF",
+      "Se quitó la preview duplicada de arriba; el aprendizaje de líneas se mantiene",
+    ],
+  },
+  {
     version: "0.2.8",
     date: "2026-07-27",
     title: "Preview de líneas, redondeo y total claro",

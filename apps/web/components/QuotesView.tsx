@@ -77,6 +77,10 @@ function isSlotEmpty(item: ItemDraft): boolean {
   return !item.productId && !item.name.trim() && !item.costArs.trim();
 }
 
+function emptyLineSlot(lineId: string): ItemDraft {
+  return { ...blankItem(), lineId };
+}
+
 function itemFromProduct(p: Product, quantity = "1", lineId = ""): ItemDraft {
   return {
     key: crypto.randomUUID(),
@@ -92,27 +96,62 @@ function itemFromProduct(p: Product, quantity = "1", lineId = ""): ItemDraft {
   };
 }
 
-/** Solo ítems con producto/datos; ordenados por Líneas PC. No crea ranuras vacías. */
-function orderPcItems(
+/**
+ * Una fila por cada línea PC (vacía o con producto) + extras.
+ * Las vacías se ven en el editor; no se envían al guardar/PDF.
+ */
+function buildPcSlots(
   lines: PcLine[],
   existing: ItemDraft[],
   productById: Map<string, Product>,
 ): ItemDraft[] {
-  const filled = existing
-    .filter((i) => !isSlotEmpty(i))
-    .map((item) => {
-      if (item.lineId) return item;
-      const product = item.productId ? productById.get(item.productId) : undefined;
-      const lineId = product?.defaultLineId ?? "";
-      return lineId ? { ...item, lineId } : item;
+  if (!lines.length) return existing.filter((i) => !isSlotEmpty(i));
+
+  const used = new Set<string>();
+  const result: ItemDraft[] = [];
+
+  for (const line of lines) {
+    const tagged = existing.filter(
+      (i) => !used.has(i.key) && !isSlotEmpty(i) && i.lineId === line.id,
+    );
+    if (tagged.length) {
+      for (const item of tagged) {
+        used.add(item.key);
+        result.push({ ...item, lineId: line.id });
+      }
+      continue;
+    }
+
+    const byDefault = existing.filter((i) => {
+      if (used.has(i.key) || isSlotEmpty(i) || i.lineId) return false;
+      const product = i.productId ? productById.get(i.productId) : undefined;
+      return product?.defaultLineId === line.id;
     });
-  if (!lines.length) return filled;
-  const order = new Map(lines.map((l, i) => [l.id, i]));
-  return [...filled].sort((a, b) => {
-    const ai = a.lineId ? (order.get(a.lineId) ?? 10_000) : 10_000;
-    const bi = b.lineId ? (order.get(b.lineId) ?? 10_000) : 10_000;
-    return ai - bi || a.name.localeCompare(b.name);
-  });
+    if (byDefault.length) {
+      for (const item of byDefault) {
+        used.add(item.key);
+        result.push({ ...item, lineId: line.id });
+      }
+      continue;
+    }
+
+    const keepEmpty = existing.find(
+      (i) => !used.has(i.key) && isSlotEmpty(i) && i.lineId === line.id,
+    );
+    if (keepEmpty) {
+      used.add(keepEmpty.key);
+      result.push({ ...keepEmpty, lineId: line.id });
+    } else {
+      result.push(emptyLineSlot(line.id));
+    }
+  }
+
+  for (const item of existing) {
+    if (used.has(item.key) || isSlotEmpty(item)) continue;
+    result.push(item);
+  }
+
+  return result;
 }
 
 const QUOTE_STATES: QuoteState[] = [
@@ -359,7 +398,7 @@ export function QuotesView({
       }));
       setItems(
         quote.isBuiltPc && pcLines.length
-          ? orderPcItems(pcLines, mapped, productById)
+          ? buildPcSlots(pcLines, mapped, productById)
           : mapped.filter((i) => !isSlotEmpty(i)),
       );
       setEditingKey(null);
@@ -529,7 +568,7 @@ export function QuotesView({
     setPickerQuery("");
 
     if (next) {
-      setItems((prev) => orderPcItems(pcLines, prev, productById));
+      setItems((prev) => buildPcSlots(pcLines, prev, productById));
     } else {
       setItems((prev) => prev.filter((item) => !isSlotEmpty(item)));
     }
@@ -538,7 +577,7 @@ export function QuotesView({
     if (!selectedId || !draftNow) {
       setNotice(
         next
-          ? "PC armada: sumá productos por línea cuando quieras. Las líneas vacías no aparecen en el presupuesto."
+          ? "PC armada: las líneas aparecen en el presupuesto. Si quedan vacías, no salen en el PDF."
           : "PC armada desactivada.",
       );
       return;
@@ -553,7 +592,7 @@ export function QuotesView({
       setDetail((prev) => (prev ? { ...prev, isBuiltPc: next } : prev));
       setNotice(
         next
-          ? "PC armada activada. Elegí productos por línea; solo figuran las que tengan producto."
+          ? "PC armada activada. Completá las líneas; las vacías no se incluyen en el PDF."
           : "PC armada desactivada.",
       );
       await loadList();
@@ -672,19 +711,25 @@ export function QuotesView({
 
   function assignProductToLine(product: Product, lineId: string, replaceKey: string | null = null) {
     setItems((prev) => {
-      const nextItem = {
-        ...itemFromProduct(product, "1", lineId),
-        key: replaceKey ?? crypto.randomUUID(),
-      };
-      const withoutEmpty = prev.filter((i) => !isSlotEmpty(i));
-      const replaced = replaceKey
-        ? withoutEmpty.map((item) =>
-            item.key === replaceKey
-              ? { ...nextItem, quantity: item.quantity || "1", key: item.key }
-              : item,
-          )
-        : [...withoutEmpty, nextItem];
-      return orderPcItems(pcLines, replaced, productById);
+      const drafted = itemFromProduct(product, "1", lineId);
+      let next: ItemDraft[];
+      if (replaceKey) {
+        next = prev.map((item) =>
+          item.key === replaceKey
+            ? { ...drafted, quantity: item.quantity || "1", key: item.key }
+            : item,
+        );
+      } else {
+        const emptyIdx = prev.findIndex((i) => i.lineId === lineId && isSlotEmpty(i));
+        if (emptyIdx >= 0) {
+          next = prev.map((item, i) =>
+            i === emptyIdx ? { ...drafted, key: item.key } : item,
+          );
+        } else {
+          next = [...prev, drafted];
+        }
+      }
+      return buildPcSlots(pcLines, next, productById);
     });
     setPickingLineId(null);
     setReplaceItemKey(null);
@@ -698,8 +743,9 @@ export function QuotesView({
   }
 
   function openAddToLine(lineId: string) {
+    const empty = items.find((i) => i.lineId === lineId && isSlotEmpty(i));
     setPickingLineId(lineId);
-    setReplaceItemKey(null);
+    setReplaceItemKey(empty?.key ?? null);
     setPickerQuery("");
     setPickerOpen(true);
     setEditingKey(null);
@@ -719,8 +765,19 @@ export function QuotesView({
       (item.productId ? productById.get(item.productId)?.defaultLineId ?? "" : "");
     const draft = lineId ? { ...item, lineId } : item;
     setItems((prev) => {
-      const next = [...prev.filter((i) => !isSlotEmpty(i)), draft];
-      return isBuiltPc && pcLines.length ? orderPcItems(pcLines, next, productById) : next;
+      if (isBuiltPc && pcLines.length) {
+        if (draft.lineId) {
+          const emptyIdx = prev.findIndex((i) => i.lineId === draft.lineId && isSlotEmpty(i));
+          if (emptyIdx >= 0) {
+            const next = prev.map((row, i) =>
+              i === emptyIdx ? { ...draft, key: row.key, lineId: draft.lineId } : row,
+            );
+            return buildPcSlots(pcLines, next, productById);
+          }
+        }
+        return buildPcSlots(pcLines, [...prev, draft], productById);
+      }
+      return [...prev, draft];
     });
     if (draft.productId && draft.lineId) {
       const product = productById.get(draft.productId);
@@ -770,7 +827,7 @@ export function QuotesView({
     }
     setItems((prev) => {
       const next = [...prev.filter((i) => !isSlotEmpty(i)), ...expanded];
-      return isBuiltPc && pcLines.length ? orderPcItems(pcLines, next, productById) : next;
+      return isBuiltPc && pcLines.length ? buildPcSlots(pcLines, next, productById) : next;
     });
     for (const draft of expanded) {
       if (draft.productId && draft.lineId) {
@@ -792,7 +849,15 @@ export function QuotesView({
   }
 
   function removeItem(key: string) {
-    setItems((prev) => prev.filter((x) => x.key !== key && !isSlotEmpty(x)));
+    setItems((prev) => {
+      const target = prev.find((x) => x.key === key);
+      if (isBuiltPc && target?.lineId && pcLines.some((l) => l.id === target.lineId)) {
+        return prev.map((x) =>
+          x.key === key ? { ...emptyLineSlot(target.lineId), key: x.key } : x,
+        );
+      }
+      return prev.filter((x) => x.key !== key);
+    });
     if (editingKey === key) setEditingKey(null);
     if (replaceItemKey === key) {
       setReplaceItemKey(null);
@@ -1458,7 +1523,7 @@ export function QuotesView({
               />
               <p className="section-note" style={{ marginTop: "0.35rem" }}>
                 {isBuiltPc
-                  ? "Sumá productos por línea cuando quieras. Las líneas sin producto no aparecen en el presupuesto."
+                  ? "Las líneas se listan en el presupuesto. Si no les asignás producto, no aparecen en el PDF."
                   : "PDF simple: ítems sin precio unitario (solo totales). PDF detallado: cantidad, unitario y subtotal."}
               </p>
             </div>
@@ -1504,7 +1569,8 @@ export function QuotesView({
         <div className="card card-pad">
           <div className="items-head">
             <h3 className="panel-title" style={{ margin: 0 }}>
-              Ítems ({filledItems(items).length})
+              Ítems ({filledItems(items).length}
+              {isBuiltPc ? ` / ${items.length}` : ""})
               {isBuiltPc ? <span className="badge" style={{ marginLeft: "0.5rem" }}>PC armada</span> : null}
             </h3>
           </div>
@@ -1512,42 +1578,8 @@ export function QuotesView({
             <Alert tone="info">
               {pcLines.length > 0 ? (
                 <>
-                  <div className="pc-line-preview">
-                    <span className="pc-line-preview-label">Orden de armado</span>
-                    <div className="pc-line-preview-flow">
-                      {pcLines.map((line, i) => {
-                        const filled = filledItems(items).some((item) => item.lineId === line.id);
-                        return (
-                          <span key={line.id} className="pc-line-preview-step">
-                            {i > 0 ? <span className="pc-line-preview-arrow">→</span> : null}
-                            <button
-                              type="button"
-                              className={`pc-line-preview-pill${filled ? " is-filled" : ""}${
-                                pickingLineId === line.id ? " is-active" : ""
-                              }`}
-                              onClick={() => isDraft && openAddToLine(line.id)}
-                              disabled={!isDraft}
-                              title={
-                                filled
-                                  ? `${line.name}: con producto (click para agregar otro)`
-                                  : `${line.name}: vacío (click para elegir producto)`
-                              }
-                            >
-                              <span className="pc-line-preview-num">{i + 1}</span>
-                              {line.name}
-                              <span className="pc-line-preview-mark" aria-hidden="true">
-                                {filled ? "✓" : "○"}
-                              </span>
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <p className="section-note" style={{ margin: "0.55rem 0 0" }}>
-                    Las líneas vacías no se incluyen en el presupuesto. Al asignar un producto, el
-                    sistema recuerda en qué línea va.
-                  </p>
+                  Cada línea aparece abajo en el presupuesto. Completá las que necesites: las vacías
+                  no se guardan ni salen en el PDF, pero sirven para ir aprendiendo el armado.
                 </>
               ) : (
                 <>Configurá líneas en Catálogo → Líneas PC para armar el esquema de la PC.</>
@@ -1562,25 +1594,6 @@ export function QuotesView({
             </Alert>
           ) : (
             <div className="picker" ref={pickerRef}>
-              {isBuiltPc && pcLines.length > 0 ? (
-                <div className="pc-line-chips">
-                  {pcLines.map((line) => {
-                    const count = filledItems(items).filter((i) => i.lineId === line.id).length;
-                    const active = pickingLineId === line.id;
-                    return (
-                      <button
-                        key={line.id}
-                        type="button"
-                        className={`pc-line-chip${active ? " is-active" : ""}${count ? " has-product" : ""}`}
-                        onClick={() => openAddToLine(line.id)}
-                      >
-                        + {line.name}
-                        {count ? ` (${count})` : ""}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
               <div className="picker-input">
                 <div className="search">
                   <span className="ico" aria-hidden="true">
@@ -1598,7 +1611,7 @@ export function QuotesView({
                       pickingLineId
                         ? `Buscar para ${lineById.get(activeLineId)?.name ?? "línea"}… (↑↓ Enter)`
                         : isBuiltPc
-                          ? "Buscar producto o combo, o elegí una línea arriba…"
+                          ? "Buscar producto o combo, o tocá “Elegir” en una línea…"
                           : "Buscar producto o combo… (↑↓ Enter)"
                     }
                     aria-label="Buscar producto o combo"
@@ -1773,10 +1786,10 @@ export function QuotesView({
             </div>
           )}
 
-          {filledItems(items).length === 0 ? (
+          {items.length === 0 ? (
             <EmptyState icon="⌕" title="Sin ítems">
               {isBuiltPc
-                ? "Elegí una línea arriba y asignale un producto. Las líneas vacías no se incluyen."
+                ? "Configurá líneas en Catálogo → Líneas PC y activá PC armada de nuevo."
                 : "Buscá un producto o combo arriba para agregarlo. Si no existe, podés crearlo en el momento."}
             </EmptyState>
           ) : (
@@ -1794,17 +1807,25 @@ export function QuotesView({
                   </tr>
                 </thead>
                 <tbody>
-                  {filledItems(items).map((item, index) => {
+                  {items.map((item, index) => {
                     const editing = editingKey === item.key;
+                    const empty = isSlotEmpty(item);
                     const lineName = item.lineId
                       ? lineById.get(item.lineId)?.name
                       : null;
-                    const picking = replaceItemKey === item.key;
-                    const visible = filledItems(items);
+                    const picking =
+                      replaceItemKey === item.key ||
+                      (Boolean(pickingLineId) &&
+                        item.lineId === pickingLineId &&
+                        empty);
                     return (
                       <tr
                         key={item.key}
-                        className={[editing ? "editing" : "", picking ? "pc-slot-active" : ""]
+                        className={[
+                          editing ? "editing" : "",
+                          empty ? "pc-slot-empty" : "",
+                          picking ? "pc-slot-active" : "",
+                        ]
                           .filter(Boolean)
                           .join(" ") || undefined}
                       >
@@ -1814,7 +1835,19 @@ export function QuotesView({
                           </td>
                         ) : null}
                         <td className="item-name-cell">
-                          {editing ? (
+                          {empty && isDraft ? (
+                            <button
+                              type="button"
+                              className="btn-ghost pc-slot-pick"
+                              onClick={() =>
+                                item.lineId
+                                  ? openReplaceOnLine(item.key, item.lineId)
+                                  : undefined
+                              }
+                            >
+                              {picking ? "Elegí un producto arriba…" : "Elegir producto…"}
+                            </button>
+                          ) : editing ? (
                             <input
                               className="name-input"
                               value={item.name}
@@ -1832,7 +1865,9 @@ export function QuotesView({
                           )}
                         </td>
                         <td className="right num">
-                          {editing ? (
+                          {empty ? (
+                            "—"
+                          ) : editing ? (
                             <input
                               className="qty-input"
                               type="number"
@@ -1845,7 +1880,9 @@ export function QuotesView({
                           )}
                         </td>
                         <td className="right num">
-                          {editing ? (
+                          {empty ? (
+                            "—"
+                          ) : editing ? (
                             <input
                               className="money-input"
                               value={item.costArs}
@@ -1857,7 +1894,9 @@ export function QuotesView({
                           )}
                         </td>
                         <td className="right num">
-                          {editing ? (
+                          {empty ? (
+                            "—"
+                          ) : editing ? (
                             <input
                               className="pct-input"
                               value={item.markupPct}
@@ -1869,7 +1908,9 @@ export function QuotesView({
                           )}
                         </td>
                         <td className="right num">
-                          {editing ? (
+                          {empty ? (
+                            "—"
+                          ) : editing ? (
                             <input
                               className="money-input"
                               value={item.saleArs}
@@ -1900,36 +1941,40 @@ export function QuotesView({
                                     className="move-btn"
                                     title="Mover abajo"
                                     aria-label="Mover abajo"
-                                    disabled={index === visible.length - 1}
+                                    disabled={index === items.length - 1}
                                     onClick={() => move(item.key, 1)}
                                   >
                                     ↓
                                   </button>
                                 </>
                               ) : null}
-                              <button
-                                type="button"
-                                className="btn-ghost btn-sm"
-                                onClick={() => setEditingKey(editing ? null : item.key)}
-                              >
-                                {editing ? "Listo" : "Editar"}
-                              </button>
+                              {!empty ? (
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-sm"
+                                  onClick={() => setEditingKey(editing ? null : item.key)}
+                                >
+                                  {editing ? "Listo" : "Editar"}
+                                </button>
+                              ) : null}
                               {isBuiltPc && item.lineId ? (
                                 <button
                                   type="button"
                                   className="btn-ghost btn-sm"
                                   onClick={() => openReplaceOnLine(item.key, item.lineId)}
                                 >
-                                  Cambiar
+                                  {empty ? "Elegir" : "Cambiar"}
                                 </button>
                               ) : null}
-                              <button
-                                type="button"
-                                className="btn-danger btn-sm"
-                                onClick={() => removeItem(item.key)}
-                              >
-                                Eliminar
-                              </button>
+                              {!empty ? (
+                                <button
+                                  type="button"
+                                  className="btn-danger btn-sm"
+                                  onClick={() => removeItem(item.key)}
+                                >
+                                  {isBuiltPc && item.lineId ? "Vaciar" : "Eliminar"}
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
                         </td>
