@@ -13,3 +13,4 @@ test-results/
 **/storage/pdfs/
 **/storage/uploads/
 **/storage/extension/
+storage/*.dump
