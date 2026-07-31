@@ -42,6 +42,7 @@ RUN apt-get update \
     libxrandr2 \
     wget \
   && rm -rf /var/lib/apt/lists/*
+RUN corepack enable
 WORKDIR /app
 COPY --from=build /app /app
 ENV NODE_ENV=production
@@ -51,4 +52,5 @@ RUN mkdir -p /data/pdfs \
   && npx playwright install chromium
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
-CMD ["node", "apps/api/dist/main.js"]
+# Aplica migraciones pendientes antes de arrancar (idempotente; toma un lock por si hay varias instancias).
+CMD ["sh", "-c", "pnpm --filter @tgs/database migrate && node apps/api/dist/main.js"]
