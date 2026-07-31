@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { ZodType, z } from "zod";
-import { DEFAULT_AI_MODEL } from "./client.js";
+import { DEFAULT_AI_MODEL, describeOpenAiError } from "./client.js";
 import { inputHash } from "./hash.js";
 import type {
   AiEntityRef,
@@ -148,7 +148,7 @@ export async function runAiTask<TInput, TOutput>(
   } catch (error) {
     const result = params.fallback(params.input);
     const durationMs = Date.now() - started;
-    const message = error instanceof Error ? error.message : "Error desconocido de IA";
+    const message = describeOpenAiError(error).message;
     const metadata = buildMetadata({
       task: params.task,
       inputHash: hash,

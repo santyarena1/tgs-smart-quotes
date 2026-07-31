@@ -14,6 +14,9 @@ import {SimilarityController} from './similarity.js';
 import {NotificationsController} from './notifications.js';
 import {QuoteAiController, RequestAiController} from './ai.js';
 import {DashboardController} from './dashboard.js';
+import {CatalogController} from './catalog.js';
+import {ChatbotController} from './chatbot.js';
+import {BranchesController, UsersController} from './users.js';
 
 @Controller()
 class HealthController {
@@ -46,6 +49,10 @@ class HealthController {
     NotificationsController,
     DashboardController,
     SimilarityController,
+    CatalogController,
+    ChatbotController,
+    UsersController,
+    BranchesController,
   ],
   providers: [
     {provide: APP_GUARD, useClass: RateLimitGuard},

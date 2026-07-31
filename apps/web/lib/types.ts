@@ -2,6 +2,8 @@ export type AuthUser = {
   id: string;
   username: string;
   displayName: string | null;
+  role: "ADMIN" | "VENDEDOR";
+  branchId: string | null;
 };
 
 export type Product = {
@@ -119,6 +121,26 @@ export type PdfSettings = {
   updatedAt?: string;
 };
 
+export type PdfLayoutBlockKey =
+  | "logo" | "companyName" | "companyTaxData" | "quoteTitle" | "quoteMeta"
+  | "quoteData" | "companyFiscalData" | "servicesBlock" | "itemsTable"
+  | "itemsTable.colCode" | "itemsTable.colName" | "itemsTable.colQty"
+  | "itemsTable.colAmount" | "totalsBlock" | "financingBlock"
+  | "observation" | "rmaBlock" | "footerText";
+export type PdfLayoutStyle = {
+  x?: number; y?: number; width?: number; height?: number; fontSize?: number;
+  color?: string; fontFamily?: string; fontWeight?: number;
+};
+export type PdfLayoutConfig = {
+  version: 1;
+  blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
+};
+export type PdfLayoutSettings = {
+  id: "singleton";
+  layout: PdfLayoutConfig;
+  updatedAt?: string;
+};
+
 export type AiSettings = {
   id: "singleton";
   enabled: boolean;
@@ -134,6 +156,58 @@ export type AiSettings = {
   generalMarkupBps: number;
   productSimilarityThreshold: number;
   frequentSupportThreshold: number;
+  updatedAt?: string;
+};
+
+export type ChatbotMode = "OFF" | "SUGGEST" | "AUTO";
+export type ChatbotResponseEntry = {
+  id: string;
+  enabled: boolean;
+  activators: string[];
+  similarityThreshold: number;
+  answer: string;
+  context: string;
+  attachments: {
+    imageUrl: string | null;
+    url: string | null;
+    quote: {familyId: string; version: number | null; useLatest: boolean} | null;
+  };
+};
+export type ChatbotSettings = {
+  id: "singleton";
+  enabled: boolean;
+  defaultMode: ChatbotMode;
+  model: string | null;
+  persona: string;
+  openingMessages: string[];
+  closingMessages: string[];
+  responses: ChatbotResponseEntry[];
+  escalationKeywords: string[];
+  escalationInstructions: string;
+  modelCanEscalate: boolean;
+  businessHours: {
+    enabled: boolean;
+    timezone: string;
+    schedule: Record<
+      "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday",
+      Array<{ from: string; to: string }>
+    >;
+  };
+  outsideHoursBehavior: { mode: "OFF" | "STALL" | "NORMAL"; message: string };
+  responseStyle: {
+    length: "SHORT" | "MEDIUM" | "DETAILED";
+    maxCharacters: number;
+    emoji: "NONE" | "SPARING" | "NATURAL";
+    paragraphs: "COMPACT" | "SHORT" | "FREE";
+    avoidRepetition: boolean;
+  };
+  ignoredAutoMessages: string[];
+  autoDelayMaxSeconds: number;
+  reuseSimilarityThreshold: number;
+  scanIntervalSeconds: number;
+  maxRecentSnippets: number;
+  summaryRefreshEvery: number;
+  sendConfirmationTimeoutMs: number;
   updatedAt?: string;
 };
 
@@ -189,6 +263,8 @@ export type QuoteVersion = {
   items: QuoteItem[];
   sentAt?: string | null;
   reason?: string | null;
+  createdAt?: string;
+  creator?: Pick<AuthUser, "id" | "username" | "displayName">;
   pdfs?: QuotePdfRow[];
 };
 
@@ -263,12 +339,15 @@ export type NavId =
   | "dashboard"
   | "presupuestos"
   | "productos"
+  | "catalogo-acustock"
   | "combos"
   | "clientes"
   | "lineas"
   | "solicitudes"
   | "colecciones"
   | "notificaciones"
+  | "editor-pdf"
+  | "usuarios"
   | "configuracion";
 
 /** Semilla para abrir el editor de presupuesto desde una solicitud. */
@@ -285,6 +364,10 @@ export type TimelineEvent = {
   metadata?: unknown;
   previous?: unknown;
   next?: unknown;
+  versionNumber?: number | null;
+  description?: string;
+  descriptions?: string[];
+  creator?: Pick<AuthUser, "id" | "username" | "displayName"> | null;
 };
 
 export type DashboardSummary = {

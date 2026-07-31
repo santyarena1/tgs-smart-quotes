@@ -25,7 +25,7 @@
   --violet-bg: #efeafb;
 
   --font: "Segoe UI", "Candara", "Calibri", system-ui, sans-serif;
-  --brand: "Bahnschrift", "Segoe UI Semibold", "Arial Narrow", sans-serif;
+  --brand: "Bahnschrift", "Segoe UI Semibold", "Helvetica Neue", Arial, sans-serif;
 
   --r-sm: 6px;
   --r: 10px;
@@ -736,18 +736,18 @@ tbody tr.selected {
 
 .dupe-groups {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.35rem;
   max-height: min(60vh, 520px);
   overflow: auto;
 }
 
 .dupe-group {
   border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 0.75rem;
+  border-radius: var(--r-sm);
+  padding: 0.35rem 0.45rem;
   background: var(--canvas-2);
   display: grid;
-  gap: 0.55rem;
+  gap: 0.2rem;
 }
 
 .dupe-group-head {
@@ -759,23 +759,61 @@ tbody tr.selected {
 
 .dupe-members {
   display: grid;
-  gap: 0.35rem;
 }
 
 .dupe-member {
-  display: flex;
-  gap: 0.55rem;
-  align-items: flex-start;
-  padding: 0.45rem 0.5rem;
-  border-radius: var(--r-sm);
+  display: grid;
+  grid-template-columns: 18px minmax(220px, 1fr) 70px 55px 105px;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.22rem 0.35rem;
   background: var(--paper);
-  border: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   cursor: pointer;
+  font-size: 0.78rem;
 }
 
 .dupe-member:has(input:checked) {
   border-color: var(--red-line);
   box-shadow: inset 3px 0 0 var(--red);
+}
+
+.dupe-bulk-actions {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.merge-picker {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.merge-picker-row {
+  display: grid;
+  grid-template-columns: 20px minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.duplicate-suggestion {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 2px solid var(--info);
+  border-radius: var(--r);
+  background: var(--info-soft, #eef6ff);
 }
 
 .product-usage {
@@ -879,6 +917,19 @@ td.num {
   display: block;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+/* Fila de productos bajo cada presupuesto en la lista: gris, chica, a lo ancho. */
+.quote-row-main > td {
+  border-bottom: 0;
+}
+.quote-row-products > td.quote-products-cell {
+  padding-top: 0.1rem;
+  padding-bottom: 0.72rem;
+  color: var(--faint);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .linkish {
@@ -2408,4 +2459,34 @@ tr.editing {
   .quote-history {
     grid-template-columns: 1fr;
   }
+}
+/* Editor visual PDF */
+.pdf-editor-view { min-width: 0; }
+.pdf-editor-grid { display: grid; grid-template-columns: minmax(480px, 1fr) 290px; gap: 18px; align-items: start; }
+.pdf-preview-panel, .pdf-properties { background: var(--surface, #fff); border: 1px solid var(--border, #ddd); border-radius: var(--r, 10px); }
+.pdf-preview-toolbar { display: flex; justify-content: space-between; padding: 10px 14px; color: var(--muted, #666); font-size: 13px; border-bottom: 1px solid var(--border, #ddd); }
+.pdf-page-host { position: relative; width: 100%; overflow: hidden; background: #d9d9d9; }
+.pdf-page-scaled { position: absolute; top: 0; transform-origin: top left; background: white; box-shadow: 0 3px 16px #0003; }
+.pdf-page-scaled iframe { border: 0; display: block; pointer-events: none; background: #fff; }
+.pdf-block-overlay { position: absolute; inset: 0; }
+.pdf-block-box { position: absolute; padding: 0; border: 1px dashed transparent; background: transparent; cursor: move; color: transparent; touch-action: none; user-select: none; }
+.pdf-block-box:hover, .pdf-block-box.selected { border-color: #1677ff; background: #1677ff0d; color: #0756b3; }
+.pdf-block-box span { position: absolute; left: 0; top: -19px; padding: 2px 5px; white-space: nowrap; font: 11px/14px Arial, sans-serif; background: #ddebff; border-radius: 3px; opacity: 0; }
+.pdf-block-box:hover span, .pdf-block-box.selected span { opacity: 1; }
+.pdf-block-box i { position: absolute; width: 12px; height: 12px; right: -6px; bottom: -6px; background: #1677ff; border: 2px solid white; border-radius: 2px; cursor: nwse-resize; }
+.pdf-properties { position: sticky; top: 16px; padding: 18px; display: grid; gap: 12px; }
+.pdf-properties h2, .pdf-properties h3, .pdf-properties p { margin: 0; }
+.pdf-properties p, .pdf-properties small { color: var(--muted, #666); }
+.pdf-properties label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.pdf-properties input, .pdf-properties select { width: 100%; min-height: 36px; border: 1px solid var(--border, #ccc); border-radius: 6px; padding: 6px 8px; background: white; }
+.pdf-properties input[type="color"] { padding: 3px; }
+.pdf-property-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pdf-properties hr { width: 100%; border: 0; border-top: 1px solid var(--border, #ddd); }
+.pdf-field-link { display: flex; justify-content: space-between; border: 1px solid var(--border, #ddd); border-radius: 6px; padding: 8px; background: white; text-align: left; cursor: pointer; }
+.pdf-field-link.active { border-color: #1677ff; background: #eef6ff; }
+.pdf-field-list { display: grid; gap: 6px; max-height: 300px; overflow: auto; padding-right: 3px; }
+.pdf-field-link:disabled { cursor: not-allowed; }
+@media (max-width: 1050px) {
+  .pdf-editor-grid { grid-template-columns: 1fr; }
+  .pdf-properties { position: static; }
 }

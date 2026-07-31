@@ -13,9 +13,21 @@ import {
   brandingFilePath,
   mimeForBrandingFilename,
 } from './branding-storage.js';
+import {chatbotRuleImageMime, chatbotRuleImagePath} from './chatbot-storage.js';
 
 @Controller('uploads')
 export class UploadsController {
+  @Get('chatbot-rules/:file')
+  async chatbotRuleImage(@Param('file') file:string) {
+    let fullPath:string;
+    try{fullPath=chatbotRuleImagePath(file)}catch{throw new NotFoundException('Imagen de regla inexistente')}
+    try{await access(fullPath,constants.R_OK)}catch{throw new NotFoundException('Imagen de regla inexistente')}
+    return new StreamableFile(createReadStream(fullPath),{
+      type:chatbotRuleImageMime(file),
+      disposition:`inline; filename="${file}"`,
+    });
+  }
+
   @Public()
   @Get('branding/:file')
   async brandingLogo(@Param('file') file: string) {

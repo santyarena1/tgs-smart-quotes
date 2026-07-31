@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, downloadAuthenticated } from "../lib/api";
 import {
   bpsToPct,
@@ -26,6 +26,7 @@ import type {
   QuotePdfRow,
   QuoteRequest,
   QuoteState,
+  QuoteVersion,
   TimelineEvent,
 } from "../lib/types";
 import { getActiveVersion, getQuoteItems } from "../lib/types";
@@ -60,6 +61,23 @@ type ItemDraft = {
   priceMode: "markup" | "sale";
 };
 
+type CatalogPickerItem = {
+  mpn: string;
+  title: string;
+  priceCents: string;
+  salePriceCents: string | null;
+  stockQuantity: number;
+  availability: string;
+  brand: string | null;
+  productType: string | null;
+  imageUrl: string | null;
+};
+
+type CatalogPickerResponse = {
+  items: CatalogPickerItem[];
+  total: number;
+};
+
 const blankItem = (): ItemDraft => ({
   key: crypto.randomUUID(),
   productId: "",
@@ -91,6 +109,24 @@ function itemFromProduct(p: Product, quantity = "1", lineId = ""): ItemDraft {
     costArs: centsToInput(p.costCents),
     markupPct: bpsToPct(p.markupBps),
     saleArs: centsToInput(p.salePriceCents),
+    observation: "",
+    priceMode: "markup",
+  };
+}
+
+function itemFromCatalog(p: CatalogPickerItem, lineId = ""): ItemDraft {
+  const costArs = centsToInput(p.priceCents);
+  const markupPct = "30";
+  return {
+    key: crypto.randomUUID(),
+    productId: "",
+    name: p.title,
+    lineId,
+    quantity: "1",
+    costArs,
+    // El precio de AcuStock es costo distribuidor; aplicamos el margen general del alta manual.
+    markupPct,
+    saleArs: saleFromCostAndPct(costArs, markupPct),
     observation: "",
     priceMode: "markup",
   };
@@ -260,11 +296,10 @@ export function QuotesView({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [retargetArs, setRetargetArs] = useState("");
   const [roundStepPesos, setRoundStepPesos] = useState<"" | "100" | "500" | "1000" | "5000">("");
-  const [stateReason, setStateReason] = useState("");
   const [filter, setFilter] = useState("");
   const [stateFilter, setStateFilter] = useState<QuoteState | "">("");
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [pdfs, setPdfs] = useState<QuotePdfRow[]>([]);
+  const [, setPdfs] = useState<QuotePdfRow[]>([]);
   const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | null>(null);
   const [similar, setSimilar] = useState<
     { familyId: string; visibleNumber: string; internalName: string; score: number }[]
@@ -279,9 +314,15 @@ export function QuotesView({
     }[]
   >([]);
   const [openedAsNewVersion, setOpenedAsNewVersion] = useState(false);
+  const [versionEditQuote, setVersionEditQuote] = useState<Quote | null>(null);
+  const [versionReason, setVersionReason] = useState("");
+  const [historyQuote, setHistoryQuote] = useState<Quote | null>(null);
+  const [previewVersion, setPreviewVersion] = useState<QuoteVersion | null>(null);
 
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [catalogPickerMatches, setCatalogPickerMatches] = useState<CatalogPickerItem[]>([]);
+  const [catalogPickerLoading, setCatalogPickerLoading] = useState(false);
   /** Línea PC a la que se está agregando/cambiando producto (opcional). */
   const [pickingLineId, setPickingLineId] = useState<string | null>(null);
   /** Si hay key, se reemplaza ese ítem; si no, se agrega uno nuevo en la línea. */
@@ -437,25 +478,100 @@ export function QuotesView({
     setBusy(true);
     setOpenedAsNewVersion(false);
     try {
-      let quote = await api<Quote>(`/quotes/${id}`);
-      const current = getActiveVersion(quote);
-      // Si la versión activa ya no es borrador, abrir = crear nueva versión editable automáticamente.
-      if (current && current.state !== "BORRADOR") {
-        await api(`/quotes/${id}/version`, {
-          method: "POST",
-          body: {
-            reason: `Edición desde v${current.version} (${STATE_LABEL[current.state]})`,
-          },
-        });
-        quote = await api<Quote>(`/quotes/${id}`);
-        setOpenedAsNewVersion(true);
-        setNotice(
-          `Se abrió una nueva versión (v${getActiveVersion(quote)?.version}) en borrador. La anterior queda intacta.`,
-        );
-      }
+      const quote = await api<Quote>(`/quotes/${id}`);
       applyDetail(quote);
       await loadSideData(id);
       setDrawerOpen(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function editQuote(quote: Quote) {
+    await openQuote(quote.id);
+  }
+
+  async function confirmVersionEdit() {
+    if (!versionEditQuote) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/quotes/${versionEditQuote.id}/version`, {
+        method: "POST",
+        body: { reason: versionReason.trim() || null },
+      });
+      const id = versionEditQuote.id;
+      setVersionEditQuote(null);
+      setOpenedAsNewVersion(true);
+      await openQuote(id);
+      setOpenedAsNewVersion(true);
+      setNotice("Nueva versión en borrador creada. La versión anterior permanece intacta.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function printQuote(quote: Quote) {
+    const tab = window.open("about:blank", "_blank");
+    try {
+      await api(`/quotes/${quote.id}/pdf`, { method: "POST", body: { kind: "SIMPLE" } });
+      if (tab) tab.location.href = `/api/quotes/${quote.id}/pdf/SIMPLE`;
+      else window.open(`/api/quotes/${quote.id}/pdf/SIMPLE`, "_blank", "noopener");
+    } catch (err) {
+      tab?.close();
+      setError(errorMessage(err));
+    }
+  }
+
+  async function deleteQuote(quote: Quote) {
+    if (!window.confirm(`¿Eliminar ${quote.visibleNumber} y todas sus versiones?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/quotes/${quote.id}`, { method: "DELETE" });
+      setNotice(`${quote.visibleNumber} eliminado.`);
+      await loadList();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function showHistory(quote: Quote) {
+    setError(null);
+    try {
+      setHistoryQuote(await api<Quote>(`/quotes/${quote.id}`));
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function restoreVersion(version: QuoteVersion) {
+    if (!historyQuote) return;
+    const suggested = `Restaurada desde V${version.version}`;
+    const reason = window.prompt("Nombre de esta restauración (opcional)", suggested);
+    if (reason === null) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const restored = await api<Quote>(`/quotes/${historyQuote.id}/version`, {
+        method: "POST",
+        body: { sourceVersion: version.version, reason: reason.trim() || suggested },
+      });
+      setHistoryQuote(null);
+      setPreviewVersion(null);
+      applyDetail(restored);
+      await loadSideData(historyQuote.id);
+      await loadList();
+      setDrawerOpen(true);
+      setNotice(
+        `Se creó la versión ${restored.activeVersion} restaurando V${version.version}. Ya podés editarla.`,
+      );
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -504,54 +620,22 @@ export function QuotesView({
     }
   }
 
-  async function downloadPdfRow(row: QuotePdfRow) {
+  async function downloadVersionPdf(version: QuoteVersion) {
     if (!selectedId || !detail) return;
+    setPdfBusy("SIMPLE");
     setError(null);
     try {
+      await api(`/quotes/${selectedId}/versions/${version.version}/pdf`, { method: "POST" });
       await downloadAuthenticated(
-        `/quotes/${selectedId}/pdfs/${row.id}`,
-        `${detail.visibleNumber}-V${row.versionNumber ?? "?"}-${row.kind}.pdf`,
+        `/quotes/${selectedId}/versions/${version.version}/pdf`,
+        `${detail.visibleNumber}-V${version.version}-SIMPLE.pdf`,
       );
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
-
-  async function setStateQuick(state: QuoteState, confirmMsg: string) {
-    if (!selectedId) return;
-    if (!window.confirm(confirmMsg)) return;
-    setBusy(true);
-    setError(null);
-    try {
-      if (state === "ENVIADO") {
-        const draftNow = !detail || getActiveVersion(detail)?.state === "BORRADOR";
-        if (draftNow && items.length) {
-          await api(`/quotes/${selectedId}`, {
-            method: "PUT",
-            body: {
-              internalName: internalName.trim(),
-              customerId: customerId || null,
-              requestId: requestId || null,
-              isBuiltPc,
-              publicObservation: observation.trim() || null,
-              items: itemsToPayload(items),
-            },
-          });
-        }
-      }
-      await api(`/quotes/${selectedId}/state`, {
-        method: "POST",
-        body: { state, reason: stateReason.trim() || null },
-      });
-      setNotice(`Estado: ${STATE_LABEL[state]}.`);
-      setStateReason("");
-      setOpenedAsNewVersion(false);
+      setNotice(`PDF simple de la versión ${version.version} listo.`);
       await reloadDetail(selectedId);
-      await loadList();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
-      setBusy(false);
+      setPdfBusy(null);
     }
   }
 
@@ -638,7 +722,6 @@ export function QuotesView({
     setPickingLineId(null);
     setReplaceItemKey(null);
     setRetargetArs("");
-    setStateReason("");
     setPickerQuery("");
     setError(null);
     setNotice(null);
@@ -662,7 +745,6 @@ export function QuotesView({
     setPickingLineId(null);
     setReplaceItemKey(null);
     setRetargetArs("");
-    setStateReason("");
     setPickerQuery("");
     setError(null);
     setOpenedAsNewVersion(false);
@@ -740,6 +822,37 @@ export function QuotesView({
     setNotice(
       `“${product.name}” en ${lineById.get(lineId)?.name ?? "línea"}. Quedó recordado para próximos armados.`,
     );
+  }
+
+  function addCatalogItem(product: CatalogPickerItem) {
+    const lineId = pickingLineId ?? "";
+    const drafted = itemFromCatalog(product, lineId);
+    setItems((prev) => {
+      if (replaceItemKey) {
+        const next = prev.map((item) =>
+          item.key === replaceItemKey
+            ? { ...drafted, quantity: item.quantity || "1", key: item.key }
+            : item,
+        );
+        return isBuiltPc ? buildPcSlots(pcLines, next, productById) : next;
+      }
+      if (isBuiltPc && lineId) {
+        const emptyIdx = prev.findIndex((item) => item.lineId === lineId && isSlotEmpty(item));
+        const next =
+          emptyIdx >= 0
+            ? prev.map((item, index) =>
+                index === emptyIdx ? { ...drafted, key: item.key } : item,
+              )
+            : [...prev, drafted];
+        return buildPcSlots(pcLines, next, productById);
+      }
+      return [...prev, drafted];
+    });
+    setPickerQuery("");
+    setPickerOpen(false);
+    setPickingLineId(null);
+    setReplaceItemKey(null);
+    setEditingKey(null);
   }
 
   function openAddToLine(lineId: string) {
@@ -962,6 +1075,36 @@ export function QuotesView({
     return combos.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 5);
   }, [pickerQuery, combos, pickingLineId]);
 
+  useEffect(() => {
+    const query = pickerQuery.trim();
+    setCatalogPickerMatches([]);
+    if (!query) {
+      setCatalogPickerLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setCatalogPickerLoading(true);
+    const timer = window.setTimeout(() => {
+      void api<CatalogPickerResponse>("/catalog", {
+        query: { q: query, pageSize: 8 },
+        signal: controller.signal,
+      })
+        .then((payload) => setCatalogPickerMatches(payload.items.slice(0, 8)))
+        .catch(() => {
+          if (!controller.signal.aborted) setCatalogPickerMatches([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setCatalogPickerLoading(false);
+        });
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [pickerQuery]);
+
   const lineSuggestions = useMemo(() => {
     if (!pickingLineId) return [] as Product[];
     const present = new Set(filledItems(items).map((i) => i.productId).filter(Boolean));
@@ -986,6 +1129,7 @@ export function QuotesView({
   type PickerOption =
     | { kind: "combo"; combo: Combo }
     | { kind: "product"; product: Product }
+    | { kind: "catalog"; product: CatalogPickerItem }
     | { kind: "create" }
     | { kind: "free" };
 
@@ -998,15 +1142,24 @@ export function QuotesView({
         seen.add(product.id);
         opts.push({ kind: "product", product });
       }
+      for (const product of catalogPickerMatches) opts.push({ kind: "catalog", product });
       if (pickerQuery.trim()) opts.push({ kind: "create" });
       return opts;
     }
     if (!pickerQuery.trim()) return [];
     for (const combo of pickerComboMatches) opts.push({ kind: "combo", combo });
     for (const product of pickerMatches) opts.push({ kind: "product", product });
+    for (const product of catalogPickerMatches) opts.push({ kind: "catalog", product });
     opts.push({ kind: "create" }, { kind: "free" });
     return opts;
-  }, [pickingLineId, pickerQuery, pickerComboMatches, pickerMatches, lineSuggestions]);
+  }, [
+    pickingLineId,
+    pickerQuery,
+    pickerComboMatches,
+    pickerMatches,
+    catalogPickerMatches,
+    lineSuggestions,
+  ]);
 
   const selectPickerOption = useCallback(
     (index: number) => {
@@ -1019,6 +1172,8 @@ export function QuotesView({
         } else {
           addItem(itemFromProduct(opt.product));
         }
+      } else if (opt.kind === "catalog") {
+        addCatalogItem(opt.product);
       } else if (opt.kind === "create") openCreateProduct();
       else addItem({ ...blankItem(), name: pickerQuery.trim() }, true);
     },
@@ -1121,6 +1276,7 @@ export function QuotesView({
       return;
     }
     setBusy(true);
+    const pdfTab = window.open("about:blank", "_blank");
     setError(null);
     setNotice(null);
     try {
@@ -1144,8 +1300,19 @@ export function QuotesView({
             : "Presupuesto creado.",
       );
       await loadList();
-      if (created.id) await reloadDetail(created.id);
+      if (created.id) {
+        applyDetail(created);
+        setSelectedId(created.id);
+        await api(`/quotes/${created.id}/pdf`, {
+          method: "POST",
+          body: { kind: "SIMPLE" },
+        });
+        if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/SIMPLE`;
+        else window.open(`/api/quotes/${created.id}/pdf/SIMPLE`, "_blank", "noopener");
+        await reloadDetail(created.id);
+      }
     } catch (err) {
+      pdfTab?.close();
       setError(errorMessage(err));
     } finally {
       setBusy(false);
@@ -1164,9 +1331,15 @@ export function QuotesView({
     setError(null);
     setNotice(null);
     try {
+      const reason = window.prompt(
+        "Nombre de este cambio (opcional)",
+        "",
+      );
+      if (reason === null) return;
       await api(`/quotes/${selectedId}`, {
         method: "PUT",
         body: {
+          reason: reason.trim() || null,
           internalName: internalName.trim(),
           customerId: customerId || null,
           requestId: requestId || null,
@@ -1178,8 +1351,8 @@ export function QuotesView({
       });
       setNotice(
         requestId
-          ? "Borrador actualizado. Solicitud en Lista si seguía en preparación."
-          : "Borrador actualizado.",
+          ? "Nueva versión guardada. Solicitud en Lista si seguía en preparación."
+          : "Nueva versión guardada; la anterior quedó intacta.",
       );
       await reloadDetail(selectedId);
       await loadList();
@@ -1284,8 +1457,7 @@ export function QuotesView({
       try {
         const saleCents = parseArsToCents(item.saleArs);
         const rounded = roundCentsToPesosStep(saleCents, step);
-        if (rounded === saleCents) return item;
-        changed += 1;
+        if (rounded !== saleCents) changed += 1;
         const saleArs = centsToInput(rounded);
         return {
           ...item,
@@ -1373,7 +1545,9 @@ export function QuotesView({
                 <th>Nombre</th>
                 <th>Cliente</th>
                 <th>Estado</th>
+                <th>Creado por</th>
                 <th className="right">Total</th>
+                <th>Acciones rápidas</th>
               </tr>
             </thead>
             <tbody>
@@ -1383,23 +1557,62 @@ export function QuotesView({
                   quote.customer?.name ??
                   customers.find((c) => c.id === quote.customerId)?.name ??
                   "—";
+                const productsLine = getQuoteItems(quote)
+                  .filter((item) => (item.name ?? "").trim())
+                  .map((item) =>
+                    item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name,
+                  )
+                  .join("  ·  ");
                 return (
-                  <tr key={quote.id} className="clickable" onClick={() => void openQuote(quote.id)}>
-                    <td>
-                      <span className="cell-strong">{quote.visibleNumber}</span>
-                      <span className="cell-sub">v{version?.version ?? quote.activeVersion}</span>
-                    </td>
-                    <td>{quote.internalName}</td>
-                    <td>{cname}</td>
-                    <td>
-                      {version ? (
-                        <Pill tone={STATE_TONE[version.state]}>{STATE_LABEL[version.state]}</Pill>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="num">{formatArs(version?.totalSaleCents)}</td>
-                  </tr>
+                  <Fragment key={quote.id}>
+                    <tr className="clickable quote-row-main" onClick={() => void openQuote(quote.id)}>
+                      <td>
+                        <span className="cell-strong">{quote.visibleNumber}</span>
+                        <span className="cell-sub">v{version?.version ?? quote.activeVersion}</span>
+                      </td>
+                      <td>{quote.internalName}</td>
+                      <td>{cname}</td>
+                      <td>
+                        {version ? (
+                          <Pill tone={STATE_TONE[version.state]}>{STATE_LABEL[version.state]}</Pill>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>{version?.creator?.displayName || version?.creator?.username || "—"}</td>
+                      <td className="num">{formatArs(version?.totalSaleCents)}</td>
+                      <td>
+                        <div className="form-actions" onClick={(event) => event.stopPropagation()}>
+                          <button type="button" onClick={() => void printQuote(quote)}>
+                            Imprimir
+                          </button>
+                          <button type="button" onClick={() => void editQuote(quote)}>
+                            Editar
+                          </button>
+                          <button type="button" onClick={() => void showHistory(quote)}>
+                            Versiones
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            onClick={() => void deleteQuote(quote)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {productsLine ? (
+                      <tr
+                        className="clickable quote-row-products"
+                        onClick={() => void openQuote(quote.id)}
+                      >
+                        <td colSpan={7} className="quote-products-cell">
+                          {productsLine}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -1686,9 +1899,9 @@ export function QuotesView({
                             ? "Sugeridos / usados en esta línea"
                             : "Productos de esta línea"}
                         </p>
-                      ) : pickerComboMatches.length > 0 ? (
-                        <p className="picker-section-label">Productos</p>
-                      ) : null}
+                      ) : (
+                        <p className="picker-section-label">Productos de presupuestos</p>
+                      )}
                       {pickerOptions
                         .map((opt, idx) => ({ opt, idx }))
                         .filter(
@@ -1729,7 +1942,53 @@ export function QuotesView({
                         })}
                     </div>
                   ) : null}
-                  {!pickerOptions.some((o) => o.kind === "product" || o.kind === "combo") ? (
+                  {catalogPickerMatches.length > 0 ? (
+                    <div className="picker-section">
+                      <p className="picker-section-label">Catálogo AcuStock</p>
+                      {pickerOptions
+                        .map((opt, idx) => ({ opt, idx }))
+                        .filter(
+                          (
+                            row,
+                          ): row is {
+                            opt: { kind: "catalog"; product: CatalogPickerItem };
+                            idx: number;
+                          } => row.opt.kind === "catalog",
+                        )
+                        .map(({ opt, idx }) => {
+                          const p = opt.product;
+                          return (
+                            <button
+                              key={p.mpn}
+                              id={`picker-opt-${idx}`}
+                              type="button"
+                              role="option"
+                              aria-selected={pickerActive === idx}
+                              className={`picker-option${pickerActive === idx ? " is-active" : ""}`}
+                              onMouseEnter={() => setPickerActive(idx)}
+                              onClick={() => addCatalogItem(p)}
+                            >
+                              <span className="po-name">
+                                <span className="po-tag">AcuStock</span>
+                                {p.title}
+                              </span>
+                              <span className="po-price">
+                                {formatArs(p.priceCents)}
+                                {p.brand ? ` · ${p.brand}` : ""}
+                                {` · stock ${p.stockQuantity}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  ) : null}
+                  {catalogPickerLoading ? (
+                    <p className="picker-empty">Buscando en catálogo…</p>
+                  ) : null}
+                  {!catalogPickerLoading &&
+                  !pickerOptions.some(
+                    (o) => o.kind === "product" || o.kind === "combo" || o.kind === "catalog",
+                  ) ? (
                     <p className="picker-empty">
                       {pickingLineId && !pickerQuery.trim()
                         ? "Escribí para buscar un producto para esta línea."
@@ -2052,70 +2311,11 @@ export function QuotesView({
               </div>
 
               <div className="quote-ops-grid">
-                <section>
-                  <h4 className="ops-subtitle">Acciones de estado</h4>
-                  <Field label="Nota opcional" htmlFor="state-reason">
-                    <input
-                      id="state-reason"
-                      value={stateReason}
-                      onChange={(e) => setStateReason(e.target.value)}
-                      placeholder="Ej: cliente confirmó por WhatsApp"
-                    />
-                  </Field>
-                  <div className="form-actions">
-                    {isDraft ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          void setStateQuick(
-                            "ENVIADO",
-                            "¿Marcar esta versión como enviada? Quedará inmutable.",
-                          )
-                        }
-                      >
-                        Marcar enviado
-                      </button>
-                    ) : null}
-                    {activeVersion?.state === "ENVIADO" || isDraft ? (
-                      <>
-                        <button
-                          type="button"
-                          className="btn-dark"
-                          disabled={busy}
-                          onClick={() =>
-                            void setStateQuick("ACEPTADO", "¿Marcar como aceptado?")
-                          }
-                        >
-                          Aceptado
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger"
-                          disabled={busy}
-                          onClick={() =>
-                            void setStateQuick("RECHAZADO", "¿Marcar como rechazado?")
-                          }
-                        >
-                          Rechazado
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          disabled={busy}
-                          onClick={() =>
-                            void setStateQuick(
-                              "NO_CONCRETADO",
-                              "¿Marcar como no concretado?",
-                            )
-                          }
-                        >
-                          No concretado
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </section>
+                {detail ? <section>
+                  <h4 className="ops-subtitle">Estado comercial</h4>
+                  {activeVersion ? <Pill tone={STATE_TONE[activeVersion.state]}>{STATE_LABEL[activeVersion.state]}</Pill> : null}
+                  <p className="section-note">El estado se actualiza desde la conversación de WhatsApp.</p>
+                </section> : null}
 
                 <section>
                   <h4 className="ops-subtitle">Generar PDF (versión actual)</h4>
@@ -2179,30 +2379,28 @@ export function QuotesView({
 
               <div className="quote-history">
                 <div>
-                  <h4 className="ops-subtitle">PDFs generados</h4>
-                  {!pdfs.length ? (
-                    <p className="muted">Todavía no hay PDFs en este presupuesto.</p>
+                  <h4 className="ops-subtitle">Versiones y PDF</h4>
+                  <p className="muted">Elegí una versión para ver sus componentes o descargar su PDF simple.</p>
+                  {!detail.versions?.length ? (
+                    <p className="muted">Todavía no hay versiones.</p>
                   ) : (
                     <ul className="pdf-history">
-                      {pdfs.map((row) => (
-                        <li key={row.id}>
+                      {detail.versions.map((version) => (
+                        <li key={version.id}>
                           <div>
-                            <strong>
-                              v{row.versionNumber ?? "?"} · {row.kind}
-                            </strong>
+                            <strong>v{version.version} · {STATE_LABEL[version.state]}</strong>
                             <span className="cell-sub">
-                              {row.versionState ? STATE_LABEL[row.versionState] : ""}
-                              {row.isActiveVersion ? " · activa" : ""}
-                              {" · "}
-                              {new Date(row.createdAt).toLocaleString("es-AR")}
+                              {version.items.length} componentes · {formatArs(version.totalSaleCents)}
                             </span>
                           </div>
+                          <button type="button" className="btn-ghost btn-sm" onClick={() => setPreviewVersion(version)}>Ver componentes</button>
                           <button
                             type="button"
                             className="btn-ghost btn-sm"
-                            onClick={() => void downloadPdfRow(row)}
+                            disabled={!!pdfBusy}
+                            onClick={() => void downloadVersionPdf(version)}
                           >
-                            Descargar
+                            Descargar PDF
                           </button>
                         </li>
                       ))}
@@ -2216,10 +2414,15 @@ export function QuotesView({
                   ) : (
                     <ol className="timeline">
                       {[...timeline].reverse().map((event) => (
-                        <li key={event.id}>
-                          <strong>{event.type.replaceAll("_", " ")}</strong>
+                        <li key={event.id} onClick={() => {
+                          const version = detail.versions?.find(item => item.version === event.versionNumber);
+                          if (version && window.confirm("¿Restaurar el presupuesto a este punto?")) void restoreVersion(version);
+                        }}>
+                          <strong>{event.description || event.type.replaceAll("_", " ")}</strong>
+                          {event.descriptions?.slice(1).map((description) => <span className="cell-sub" key={description}>{description}</span>)}
                           <span className="cell-sub">
                             {new Date(event.createdAt).toLocaleString("es-AR")}
+                            {event.creator ? ` · ${event.creator.displayName || event.creator.username}` : ""}
                           </span>
                         </li>
                       ))}
@@ -2287,6 +2490,108 @@ export function QuotesView({
           </>
         ) : null}
       </Drawer>
+
+      <Modal
+        open={!!versionEditQuote}
+        title="Crear nueva versión"
+        onClose={() => setVersionEditQuote(null)}
+        footer={
+          <>
+            <button type="button" className="btn-ghost" onClick={() => setVersionEditQuote(null)}>
+              Cancelar
+            </button>
+            <button type="button" disabled={busy} onClick={() => void confirmVersionEdit()}>
+              {busy ? "Creando…" : "Crear versión y editar"}
+            </button>
+          </>
+        }
+      >
+        <p>
+          La versión actual queda congelada. Se creará una copia editable en borrador.
+        </p>
+        <Field label="Nombre de este cambio (opcional)" htmlFor="version-reason">
+          <input
+            id="version-reason"
+            value={versionReason}
+            onChange={(event) => setVersionReason(event.target.value)}
+            placeholder="Ej: Agregué SSD más grande"
+            autoFocus
+          />
+        </Field>
+      </Modal>
+
+      <Modal
+        open={!!historyQuote}
+        title={`Versiones de ${historyQuote?.visibleNumber ?? ""}`}
+        onClose={() => {
+          setHistoryQuote(null);
+          setPreviewVersion(null);
+        }}
+        wide
+      >
+        <div className="pdf-history">
+          {(historyQuote?.versions ?? []).map((version) => (
+            <div className="card card-pad" key={version.id}>
+              <div className="form-actions">
+                <Pill tone={STATE_TONE[version.state]}>
+                  v{version.version} · {STATE_LABEL[version.state]}
+                </Pill>
+                {version.version === historyQuote?.activeVersion ? <span className="badge">Última</span> : null}
+              </div>
+              <strong>{version.reason || "Sin nombre de cambio"}</strong>
+              <span className="cell-sub">
+                {version.createdAt ? new Date(version.createdAt).toLocaleString("es-AR") : "Sin fecha"}
+                {" · "}
+                {version.creator?.displayName || version.creator?.username || "Sin creador"}
+              </span>
+              <button type="button" className="btn-ghost" onClick={() => setPreviewVersion(version)}>
+                Ver contenido
+              </button>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!previewVersion}
+        title={`Preview versión ${previewVersion?.version ?? ""}`}
+        onClose={() => setPreviewVersion(null)}
+        wide
+        footer={
+          <>
+            <button type="button" className="btn-ghost" onClick={() => setPreviewVersion(null)}>
+              Cerrar
+            </button>
+            <button
+              type="button"
+              disabled={busy || !previewVersion}
+              onClick={() => previewVersion && void restoreVersion(previewVersion)}
+            >
+              {busy ? "Restaurando…" : "Restaurar versión"}
+            </button>
+          </>
+        }
+      >
+        <p>{previewVersion?.reason || "Sin nombre de cambio"}</p>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Ítem</th><th>Cantidad</th><th className="right">Unitario</th><th className="right">Subtotal</th></tr>
+            </thead>
+            <tbody>
+              {(previewVersion?.items ?? []).map((item) => (
+                <tr key={item.id ?? `${item.position}-${item.name}`}>
+                  <td>{item.name ?? item.frozenName}</td>
+                  <td>{item.quantity}</td>
+                  <td className="num">{formatArs(item.salePriceCents ?? item.frozenSalePriceCents)}</td>
+                  <td className="num">{formatArs(item.subtotalCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <strong>Total: {formatArs(previewVersion?.totalSaleCents)}</strong>
+      </Modal>
 
       <Modal
         open={newProdOpen}

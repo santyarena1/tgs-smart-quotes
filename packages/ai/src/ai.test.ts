@@ -1,21 +1,69 @@
 import { describe, expect, it, vi } from "vitest";
+import { zodResponseFormat } from "openai/helpers/zod";
 import {
   CompatibilityFeedbackService,
   IntentClassificationService,
   RequestAnalysisService,
   ResponseSuggestionService,
   SemanticSimilarityService,
+  ChatbotResponseService,
   canonicalize,
   createAiClient,
+  describeOpenAiError,
   fallbackIntentClassification,
   fallbackRequestAnalysis,
   inputHash,
+  requestAnalysisOutputSchema,
+  compatibilityFeedbackOutputSchema,
+  responseSuggestionOutputSchema,
+  intentClassificationOutputSchema,
+  semanticSimilarityOutputSchema,
+  chatbotResponseOutputSchema,
 } from "./index.js";
 
 describe("@tgs/ai hash", () => {
   it("canonicaliza claves y BigInt de forma estable", () => {
     expect(inputHash({ b: 1n, a: 2 })).toBe(inputHash({ a: 2, b: "1" }));
     expect(canonicalize({ z: 1, a: 2n })).toEqual({ a: "2", z: 1 });
+  });
+});
+
+describe("@tgs/ai errores OpenAI",()=>{
+  it("distingue credenciales, modelo, cuota y timeout",()=>{
+    expect(describeOpenAiError({status:401,message:"invalid_api_key"}).kind).toBe("AUTH");
+    expect(describeOpenAiError({status:404,message:"model not found"}).kind).toBe("MODEL");
+    expect(describeOpenAiError({status:429,message:"rate limit"}).kind).toBe("RATE_LIMIT");
+    expect(describeOpenAiError({name:"APIConnectionTimeoutError",message:"timeout"}).kind).toBe("TIMEOUT");
+  });
+
+  it("distingue errores locales del esquema estructurado",()=>{
+    const error = new Error(
+      "Zod field at `#/properties/reason` uses `.optional()` without `.nullable()` which is not supported by the API.",
+    );
+    const described = describeOpenAiError(error);
+    expect(described.kind).toBe("INTERNAL_SCHEMA");
+    expect(described.message).toMatch(/esquema de respuesta/i);
+  });
+});
+
+describe("@tgs/ai structured outputs",()=>{
+  it("convierte todos los schemas de salida con el helper oficial",()=>{
+    const schemas = [
+      ["request_analysis", requestAnalysisOutputSchema],
+      ["compatibility_feedback", compatibilityFeedbackOutputSchema],
+      ["response_suggestion", responseSuggestionOutputSchema],
+      ["intent_classification", intentClassificationOutputSchema],
+      ["semantic_similarity", semanticSimilarityOutputSchema],
+      ["chatbot_response", chatbotResponseOutputSchema],
+    ] as const;
+
+    for (const [name, schema] of schemas) {
+      expect(() => zodResponseFormat(schema, name)).not.toThrow();
+    }
+
+    const chatbotFormat = zodResponseFormat(chatbotResponseOutputSchema, "chatbot_response");
+    const serialized = JSON.stringify(chatbotFormat.json_schema.schema);
+    expect(serialized).toContain(`"maximum":${Number.MAX_SAFE_INTEGER}`);
   });
 });
 
@@ -118,5 +166,26 @@ describe("@tgs/ai servicios sin API key", () => {
     });
     expect(result.score).toBeGreaterThan(50);
     expect(result.rationale).toContain("determinística");
+  });
+
+  it("ChatbotResponseService usa un fallback seguro que no crea solicitudes", async () => {
+    const service = new ChatbotResponseService(deps);
+    const {result,metadata}=await service.respond({
+      chatKey:"tel:541155554444",
+      latestMessage:"Quiero una PC",
+      config:{
+        persona:"Vendedor argentino",
+        openingMessages:[],
+        closingMessages:[],
+        responses:[],
+        escalationInstructions:"Escalar ante falta de datos",
+        modelCanEscalate:true,
+        responseStyle:{length:"MEDIUM"},
+      },
+    });
+    expect(metadata.usedAi).toBe(false);
+    expect(result.shouldEscalate).toBe(true);
+    expect(result.shouldCreateRequest).toBe(false);
+    expect(result.requestDraft).toBeNull();
   });
 });

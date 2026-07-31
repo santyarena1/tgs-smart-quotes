@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import {db,Prisma,type QuoteState,type StatusEventType} from '@tgs/database';
 import {touchProductsLastUsed} from './products.js';
@@ -125,6 +126,17 @@ export function eventTypeForState(state:QuoteState|string):StatusEventType{
   }
 }
 
+function humanEventLabel(type:string){
+  const labels:Record<string,string>={
+    CREADO:'Presupuesto creado',VERSION_CREADA:'Nueva versión creada',PRECIOS_ACTUALIZADOS:'Precios actualizados',
+    COSTO_AJUSTADO:'Costo actualizado',COLECCION_MODIFICADA:'Colección modificada',PDF_GENERADO:'PDF generado',
+    ENVIO_DETECTADO:'Envío detectado',ENVIO_CONFIRMADO_MANUAL:'Presupuesto enviado',ACEPTACION:'Presupuesto aceptado',
+    RECHAZO:'Presupuesto rechazado',REEMPLAZO:'Presupuesto reemplazado',NO_CONCRETADO:'Presupuesto no concretado',
+    CAMBIO_ESTADO:'Estado actualizado',REACTIVADO:'Presupuesto reactivado',
+  };
+  return labels[type]??type.toLocaleLowerCase('es-AR').replaceAll('_',' ').replace(/^./,letter=>letter.toUpperCase());
+}
+
 export function resolveItemPricing(input:{
   costCents:string;
   markupBps:number;
@@ -167,9 +179,29 @@ export function buildItemRows(
       subtotalCents:priced.subtotalCents,
       position:item.position,
       observation:item.observation??null,
+      isPcMainLine:item.isPcMainLine??false,
       masterPriceAt:item.productId?masterPriceByProduct.get(item.productId)??null:null,
     };
   });
+}
+
+function copyItemSnapshot(item:any){
+  return {
+    productId:item.productId,
+    frozenName:item.frozenName,
+    lineId:item.lineId,
+    quantity:item.quantity,
+    frozenCostCents:item.frozenCostCents,
+    frozenMarkupBps:item.frozenMarkupBps,
+    frozenSalePriceCents:item.frozenSalePriceCents,
+    subtotalCents:item.subtotalCents,
+    masterPriceAt:item.masterPriceAt,
+    masterCostCents:item.masterCostCents,
+    masterSaleCents:item.masterSaleCents,
+    position:item.position,
+    observation:item.observation,
+    isPcMainLine:item.isPcMainLine,
+  };
 }
 
 function pricingTotals(rows:ReadonlyArray<{frozenCostCents:bigint;frozenSalePriceCents:bigint;quantity:number}>){
@@ -207,6 +239,7 @@ export const quoteInclude={
     include:{
       items:{orderBy:{position:'asc' as const}},
       pdfs:{orderBy:{createdAt:'desc' as const}},
+      creator:{select:{id:true,username:true,displayName:true}},
     },
     orderBy:{version:'desc' as const},
   },
@@ -230,6 +263,7 @@ export async function loadFamily(tx:any,id:string){
         include:{
           items:{orderBy:{position:'asc'}},
           pdfs:{orderBy:{createdAt:'desc'}},
+          creator:{select:{id:true,username:true,displayName:true}},
         },
         orderBy:{version:'desc'},
       },
@@ -306,6 +340,24 @@ export async function transitionVersionState(
 
 @Controller('quotes')
 export class QuotesController{
+  @Get('sent/latest')
+  async latestSent(@Query('phone') phone:string){
+    const normalized=normalizePhone(phone??'');
+    if(!normalized)return null;
+    const deliveries=await db.quoteDelivery.findMany({
+      where:{chatPhone:{not:null}},
+      include:{version:{include:{family:{include:{customer:true}}}}},
+      orderBy:{deliveredAt:'desc'},
+      take:100,
+    });
+    const delivery=deliveries.find((item:any)=>normalizePhone(item.chatPhone??'')===normalized);
+    if(!delivery)return null;
+    return jsonSafe({
+      delivery,
+      quote:activeBundle({...delivery.version.family,versions:[delivery.version]}),
+    });
+  }
+
   @Get()
   async list(){
     const rows=await db.quoteFamily.findMany({
@@ -320,6 +372,38 @@ export class QuotesController{
     const family=await db.quoteFamily.findUnique({where:{id},include:quoteInclude});
     if(!family)throw new NotFoundException('Presupuesto inexistente');
     return activeBundle(family);
+  }
+
+  @Get(':id/versions/:version')
+  async getVersion(
+    @Param('id',new ZodPipe(idSchema)) id:string,
+    @Param('version') versionParam:string,
+  ){
+    const version=Number(versionParam);
+    if(!Number.isInteger(version)||version<1)throw new BadRequestException('Versión inválida');
+    const row=await db.quoteVersion.findFirst({
+      where:{familyId:id,version},
+      include:{items:{orderBy:{position:'asc'}},pdfs:true,creator:{select:{id:true,username:true,displayName:true}}},
+    });
+    if(!row)throw new NotFoundException('Versión inexistente');
+    return jsonSafe(row);
+  }
+
+  @Delete(':id')
+  async removeQuote(
+    @Param('id',new ZodPipe(idSchema)) id:string,
+    @CurrentUser() actor:RequestUser,
+  ){
+    return db.$transaction(async tx=>{
+      const family=await tx.quoteFamily.findUnique({
+        where:{id},
+        include:{versions:{select:{id:true,version:true,state:true}}},
+      });
+      if(!family)throw new NotFoundException('Presupuesto inexistente');
+      await audit(tx,actor.id,'QuoteFamily',id,'DELETE',family,null);
+      await tx.quoteFamily.delete({where:{id}});
+      return {ok:true};
+    });
   }
 
   @Post()
@@ -397,7 +481,6 @@ export class QuotesController{
       return await db.$transaction(async tx=>{
         const family=await loadFamily(tx,id);
         const version=activeVersion(family);
-        assertDraftMutable(version.state);
         const familyData:{
           internalName?:string;
           requestId?:string|null;
@@ -414,36 +497,47 @@ export class QuotesController{
 
         let nextVersion=version;
         let items=version.items;
-        if(body.items){
-          const masters=await masterPrices(tx,body.items);
-          const itemRows=buildItemRows(body.items,masters);
+        const changesContent=body.items!==undefined||
+          body.publicObservation!==undefined||
+          body.pdfOverrides!==undefined||
+          body.resolvedPdfConfig!==undefined||
+          body.financingSnapshot!==undefined;
+        if(changesContent){
+          const itemRows=body.items
+            ?buildItemRows(body.items,await masterPrices(tx,body.items))
+            :version.items.map((item:any)=>copyItemSnapshot(item));
           const totalsRow=pricingTotals(itemRows);
-          await tx.quoteItem.deleteMany({where:{versionId:version.id}});
-          await tx.quoteItem.createMany({data:itemRows.map(item=>({...item,versionId:version.id}))});
-          await touchProductsLastUsed(tx,itemRows.map((item)=>item.productId));
-          items=await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}});
-          nextVersion=await tx.quoteVersion.update({where:{id:version.id},data:{
+          const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
+          nextVersion=await tx.quoteVersion.create({data:{
+            familyId:id,
+            version:nextNumber,
+            state:'BORRADOR',
+            creatorId:actor.id,
+            reason:body.reason,
             totalCostCents:totalsRow.costCents,
             totalSaleCents:totalsRow.saleCents,
             profitCents:totalsRow.profitCents,
             effectiveMarkupBps:totalsRow.effectiveMarkupBps,
             publicObservation:body.publicObservation===undefined?version.publicObservation:body.publicObservation,
-            pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):undefined,
-            resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):undefined,
-            financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):undefined,
+            pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):version.pdfOverrides,
+            resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):version.resolvedPdfConfig,
+            financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):version.financingSnapshot,
           }});
-        }else if(
-          body.publicObservation!==undefined||
-          body.pdfOverrides!==undefined||
-          body.resolvedPdfConfig!==undefined||
-          body.financingSnapshot!==undefined
-        ){
-          nextVersion=await tx.quoteVersion.update({where:{id:version.id},data:{
-            publicObservation:body.publicObservation===undefined?version.publicObservation:body.publicObservation,
-            pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):undefined,
-            resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):undefined,
-            financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):undefined,
-          }});
+          await tx.quoteItem.createMany({data:itemRows.map((item:any)=>({...item,versionId:nextVersion.id}))});
+          await touchProductsLastUsed(tx,itemRows.map((item:any)=>item.productId));
+          items=await tx.quoteItem.findMany({where:{versionId:nextVersion.id},orderBy:{position:'asc'}});
+          await tx.quoteFamily.update({where:{id},data:{activeVersion:nextNumber}});
+          await statusEvent(tx,{
+            type:'VERSION_CREADA',
+            familyId:id,
+            versionId:nextVersion.id,
+            requestId:nextFamily.requestId,
+            customerId:nextFamily.customerId,
+            userId:actor.id,
+            previous:{version:version.version,state:version.state},
+            next:{version:nextNumber,state:'BORRADOR'},
+            metadata:{reason:body.reason??null,source:'guardado'},
+          });
         }
 
         await audit(tx,actor.id,'QuoteFamily',id,'UPDATE',{family,version},{family:nextFamily,version:nextVersion,items});
@@ -462,7 +556,8 @@ export class QuotesController{
         if(linkedRequestId){
           await markRequestListaIfPreparing(tx,linkedRequestId,actor.id);
         }
-        return jsonSafe({family:nextFamily,version:nextVersion,items,collectionIds:body.collectionIds});
+        const loaded=await tx.quoteFamily.findUnique({where:{id},include:quoteInclude});
+        return activeBundle(loaded);
       });
     }catch(error){
       if(error instanceof BadRequestException||error instanceof NotFoundException)throw error;
@@ -512,37 +607,32 @@ export class QuotesController{
       return await db.$transaction(async tx=>{
         const family=await loadFamily(tx,id);
         const current=activeVersion(family);
+        const source=body.sourceVersion===undefined
+          ?current
+          :family.versions.find((item:any)=>item.version===body.sourceVersion);
+        if(!source)throw new NotFoundException(`La versión ${body.sourceVersion} no existe`);
         const sourceItems=body.items
           ?buildItemRows(body.items,await masterPrices(tx,body.items))
-          :current.items.map((item:any)=>({
-            productId:item.productId,
-            frozenName:item.frozenName,
-            lineId:item.lineId,
-            quantity:item.quantity,
-            frozenCostCents:item.frozenCostCents,
-            frozenMarkupBps:item.frozenMarkupBps,
-            frozenSalePriceCents:item.frozenSalePriceCents,
-            subtotalCents:item.subtotalCents,
-            position:item.position,
-            observation:item.observation,
-            masterPriceAt:item.masterPriceAt,
-          }));
+          :source.items.map((item:any)=>copyItemSnapshot(item));
         const totalsRow=pricingTotals(sourceItems);
-        const nextNumber=current.version+1;
+        const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
+        const reason=body.reason===undefined&&body.sourceVersion!==undefined
+          ?`Restaurada desde V${body.sourceVersion}`
+          :body.reason;
         const version=await tx.quoteVersion.create({data:{
           familyId:id,
           version:nextNumber,
           state:'BORRADOR',
           creatorId:actor.id,
-          reason:body.reason,
+          reason,
           totalCostCents:totalsRow.costCents,
           totalSaleCents:totalsRow.saleCents,
           profitCents:totalsRow.profitCents,
           effectiveMarkupBps:totalsRow.effectiveMarkupBps,
-          publicObservation:body.publicObservation===undefined?current.publicObservation:body.publicObservation,
-          pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):current.pdfOverrides,
-          resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):current.resolvedPdfConfig,
-          financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):current.financingSnapshot,
+          publicObservation:body.publicObservation===undefined?source.publicObservation:body.publicObservation,
+          pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):source.pdfOverrides,
+          resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):source.resolvedPdfConfig,
+          financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):source.financingSnapshot,
         }});
         await tx.quoteItem.createMany({data:sourceItems.map((item:any)=>({...item,versionId:version.id}))});
         await touchProductsLastUsed(tx,sourceItems.map((item:any)=>item.productId));
@@ -557,10 +647,11 @@ export class QuotesController{
           userId:actor.id,
           previous:{version:current.version,state:current.state},
           next:{version:nextNumber,state:'BORRADOR'},
-          metadata:{reason:body.reason},
+          metadata:{reason,sourceVersion:body.sourceVersion??current.version},
         });
-        await audit(tx,actor.id,'QuoteVersion',version.id,'CREATE',current,version,{reason:body.reason});
-        return jsonSafe({family:nextFamily,version,items});
+        await audit(tx,actor.id,'QuoteVersion',version.id,body.sourceVersion===undefined?'CREATE':'RESTORE',source,version,{reason,sourceVersion:body.sourceVersion});
+        const loaded=await tx.quoteFamily.findUnique({where:{id},include:quoteInclude});
+        return activeBundle(loaded);
       });
     }catch(error){
       if(error instanceof BadRequestException||error instanceof NotFoundException)throw error;
@@ -578,7 +669,6 @@ export class QuotesController{
       return await db.$transaction(async tx=>{
         const family=await loadFamily(tx,id);
         const version=activeVersion(family);
-        assertDraftMutable(version.state);
         if(!version.items.length)throw new BadRequestException('El presupuesto no tiene ítems para ajustar');
         const result=retargetPricing(
           version.items.map((item:any)=>({
@@ -591,30 +681,47 @@ export class QuotesController{
           })),
           BigInt(body.targetTotalCents),
         );
-        for(const item of result.items){
-          await tx.quoteItem.update({where:{id:item.id!},data:{
-            frozenMarkupBps:item.markupBps,
-            frozenSalePriceCents:item.salePriceCents,
-            subtotalCents:item.subtotalCents,
-          }});
-        }
-        const nextVersion=await tx.quoteVersion.update({where:{id:version.id},data:{
+        if(body.previewOnly)return jsonSafe({family,version,items:result.items,preview:result.preview});
+        const adjustedById=new Map(result.items.map(item=>[item.id,item]));
+        const itemRows=version.items.map((item:any)=>{
+          const adjusted=adjustedById.get(item.id);
+          return {
+            ...copyItemSnapshot(item),
+            frozenMarkupBps:adjusted?.markupBps??item.frozenMarkupBps,
+            frozenSalePriceCents:adjusted?.salePriceCents??item.frozenSalePriceCents,
+            subtotalCents:adjusted?.subtotalCents??item.subtotalCents,
+          };
+        });
+        const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
+        const nextVersion=await tx.quoteVersion.create({data:{
+          familyId:id,
+          version:nextNumber,
+          state:'BORRADOR',
+          creatorId:actor.id,
+          reason:'Ajuste de total objetivo',
           totalCostCents:result.preview.costCents,
           totalSaleCents:result.preview.saleCents,
           profitCents:result.preview.profitCents,
           effectiveMarkupBps:result.preview.effectiveMarkupBps,
+          publicObservation:version.publicObservation,
+          pdfOverrides:version.pdfOverrides,
+          resolvedPdfConfig:version.resolvedPdfConfig,
+          financingSnapshot:version.financingSnapshot,
         }});
-        const items=await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}});
+        await tx.quoteItem.createMany({data:itemRows.map((item:any)=>({...item,versionId:nextVersion.id}))});
+        await tx.quoteFamily.update({where:{id},data:{activeVersion:nextNumber}});
+        const items=await tx.quoteItem.findMany({where:{versionId:nextVersion.id},orderBy:{position:'asc'}});
         await statusEvent(tx,{
           type:'TOTAL_AJUSTADO',
           familyId:id,
-          versionId:version.id,
+          versionId:nextVersion.id,
           userId:actor.id,
           previous:{totalSaleCents:version.totalSaleCents},
           next:{totalSaleCents:nextVersion.totalSaleCents,targetTotalCents:body.targetTotalCents},
         });
-        await audit(tx,actor.id,'QuoteVersion',version.id,'RETARGET',version,nextVersion,{targetTotalCents:body.targetTotalCents});
-        return jsonSafe({family,version:nextVersion,items});
+        await audit(tx,actor.id,'QuoteVersion',nextVersion.id,'RETARGET',version,nextVersion,{targetTotalCents:body.targetTotalCents});
+        const loaded=await tx.quoteFamily.findUnique({where:{id},include:quoteInclude});
+        return activeBundle(loaded);
       });
     }catch(error){
       if(error instanceof BadRequestException||error instanceof NotFoundException)throw error;
@@ -643,8 +750,8 @@ export class QuotesController{
   async timeline(@Param('id',new ZodPipe(idSchema)) id:string){
     const family=await db.quoteFamily.findUnique({where:{id}});
     if(!family)throw new NotFoundException('Presupuesto inexistente');
-    const [events,attempts,deliveries,pdfs]=await Promise.all([
-      db.quoteStatusEvent.findMany({where:{familyId:id},orderBy:[{createdAt:'asc'},{id:'asc'}]}),
+    const [events,attempts,deliveries,pdfs,versions]=await Promise.all([
+      db.quoteStatusEvent.findMany({where:{familyId:id},include:{user:{select:{id:true,displayName:true,username:true}}},orderBy:[{createdAt:'asc'},{id:'asc'}]}),
       db.quoteSendAttempt.findMany({where:{version:{familyId:id}},orderBy:[{createdAt:'asc'},{id:'asc'}]}),
       db.quoteDelivery.findMany({where:{version:{familyId:id}},orderBy:[{deliveredAt:'asc'},{id:'asc'}]}),
       db.quotePdf.findMany({
@@ -652,8 +759,35 @@ export class QuotesController{
         include:{version:{select:{id:true,version:true,state:true}}},
         orderBy:[{createdAt:'desc'},{id:'asc'}],
       }),
+      db.quoteVersion.findMany({where:{familyId:id},include:{items:{orderBy:{position:'asc'}}},orderBy:{version:'asc'}}),
     ]);
-    return jsonSafe({family,events,attempts,deliveries,pdfs});
+    const money=(value:unknown)=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(Number(BigInt(String(value??0)))/100);
+    const descriptions=new Map<string,string[]>();
+    for(let index=1;index<versions.length;index+=1){
+      const previous=versions[index-1] as any;
+      const next=versions[index] as any;
+      const before=new Map(previous.items.map((item:any)=>[item.productId||item.frozenName,item]));
+      const after=new Map(next.items.map((item:any)=>[item.productId||item.frozenName,item]));
+      const changes:string[]=[];
+      for(const [key,item] of after){
+        const old=before.get(key) as any;
+        if(!old)changes.push(`Agregado: ${(item as any).frozenName} (x${(item as any).quantity})`);
+        else{
+          if(old.quantity!==(item as any).quantity)changes.push(`Cantidad de ${(item as any).frozenName}: ${old.quantity} → ${(item as any).quantity}`);
+          if(String(old.frozenSalePriceCents)!==String((item as any).frozenSalePriceCents))changes.push(`Precio de ${(item as any).frozenName}: ${money(old.frozenSalePriceCents)} → ${money((item as any).frozenSalePriceCents)}`);
+        }
+      }
+      for(const [key,item] of before)if(!after.has(key))changes.push(`Quitado: ${(item as any).frozenName}`);
+      descriptions.set(next.id,changes);
+    }
+    const enriched=events.map((event:any)=>({
+      ...event,
+      versionNumber:versions.find((version:any)=>version.id===event.versionId)?.version??null,
+      descriptions:descriptions.get(event.versionId)??[],
+      description:(descriptions.get(event.versionId)??[])[0]??humanEventLabel(event.type),
+      creator:event.user??null,
+    }));
+    return jsonSafe({family,events:enriched,attempts,deliveries,pdfs});
   }
 
   /**
@@ -673,10 +807,39 @@ export class QuotesController{
     try{
       return await db.$transaction(async tx=>{
         const family=await loadFamily(tx,id);
-        const version=activeVersion(family);
-        assertDraftMutable(version.state);
+        let version=activeVersion(family);
+        const requestedSourceItem=body.itemId
+          ?version.items.find((item:any)=>item.id===body.itemId)
+          :null;
+        if(body.mode==='one'&&!requestedSourceItem){
+          throw new BadRequestException('El ítem indicado no pertenece a esta versión');
+        }
+        const sourceRows=version.items.map((item:any)=>copyItemSnapshot(item));
+        const sourceTotals=pricingTotals(sourceRows);
+        const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
+        version=await tx.quoteVersion.create({data:{
+          familyId:id,
+          version:nextNumber,
+          state:'BORRADOR',
+          creatorId:actor.id,
+          reason:body.reason??'Actualización de precios',
+          totalCostCents:sourceTotals.costCents,
+          totalSaleCents:sourceTotals.saleCents,
+          profitCents:sourceTotals.profitCents,
+          effectiveMarkupBps:sourceTotals.effectiveMarkupBps,
+          publicObservation:activeVersion(family).publicObservation,
+          pdfOverrides:activeVersion(family).pdfOverrides,
+          resolvedPdfConfig:activeVersion(family).resolvedPdfConfig,
+          financingSnapshot:activeVersion(family).financingSnapshot,
+        }});
+        await tx.quoteItem.createMany({data:sourceRows.map((item:any)=>({...item,versionId:version.id}))});
+        version={...version,items:await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}})};
+        await tx.quoteFamily.update({where:{id},data:{activeVersion:nextNumber}});
+        const restoredTarget=requestedSourceItem
+          ?version.items.find((item:any)=>item.position===requestedSourceItem.position)
+          :null;
         const targets=body.mode==='one'
-          ?version.items.filter((item:any)=>item.id===body.itemId)
+          ?version.items.filter((item:any)=>item.id===restoredTarget?.id)
           :version.items;
         if(body.mode==='one'&&targets.length===0){
           throw new BadRequestException('El ítem indicado no pertenece a esta versión');
@@ -902,6 +1065,31 @@ export class QuotesController{
           deliveredAt:body.deliveredAt??now,
           userId:actor.id,
         }});
+        const normalizedChat=normalizePhone(attempt.chatPhone??'');
+        if(normalizedChat){
+          const earlier=await tx.quoteDelivery.findMany({
+            where:{id:{not:delivery.id},chatPhone:{not:null}},
+            include:{version:{include:{family:true}}},
+            orderBy:{deliveredAt:'desc'},
+            take:100,
+          });
+          const priorDelivery=earlier.find((item:any)=>
+            item.version.familyId!==family.id&&
+            normalizePhone(item.chatPhone??'')===normalizedChat&&
+            item.version.state==='ENVIADO',
+          );
+          if(priorDelivery){
+            const prior=priorDelivery.version;
+            const nextPrior=await tx.quoteVersion.update({where:{id:prior.id},data:{state:'REEMPLAZADO',lastActivityAt:now}});
+            await statusEvent(tx,{
+              type:'REEMPLAZO',familyId:prior.familyId,versionId:prior.id,
+              requestId:priorDelivery.version.family.requestId,customerId:priorDelivery.version.family.customerId,
+              userId:actor.id,previous:{state:prior.state},next:{state:'REEMPLAZADO'},
+              metadata:{replacedByFamilyId:family.id,replacedByVersionId:version.id,chatPhone:attempt.chatPhone},
+            });
+            await audit(tx,actor.id,'QuoteVersion',prior.id,'STATE',prior,nextPrior,{replacedByFamilyId:family.id});
+          }
+        }
         const transitioned=await transitionVersionState(tx,family,version,actor,'ENVIADO',{
           sentMessage:attempt.message,
           sentAt:body.deliveredAt??now,
@@ -1141,6 +1329,26 @@ function requestData(body:RequestCreateInput|RequestUpdateInput,actorId?:string)
   return data;
 }
 
+/** Fuente única para crear solicitudes, usada tanto por operadores como por automatizaciones autenticadas. */
+export async function createQuoteRequest(
+  tx:any,
+  body:RequestCreateInput,
+  actorId:string,
+  metadata?:Record<string,unknown>,
+){
+  const next=await tx.quoteRequest.create({data:requestData(body,actorId) as any});
+  await statusEvent(tx,{
+    type:'SOLICITUD_CREADA',
+    requestId:next.id,
+    customerId:next.customerId,
+    userId:actorId,
+    next,
+    metadata,
+  });
+  await audit(tx,actorId,'QuoteRequest',next.id,'CREATE',null,next,metadata);
+  return next;
+}
+
 @Controller('requests')
 export class RequestsController{
   @Get()
@@ -1157,16 +1365,7 @@ export class RequestsController{
     @CurrentUser() actor:RequestUser,
   ){
     return db.$transaction(async tx=>{
-      const next=await tx.quoteRequest.create({data:requestData(body,actor.id) as any});
-      await statusEvent(tx,{
-        type:'SOLICITUD_CREADA',
-        requestId:next.id,
-        customerId:next.customerId,
-        userId:actor.id,
-        next,
-      });
-      await audit(tx,actor.id,'QuoteRequest',next.id,'CREATE',null,next);
-      return jsonSafe(next);
+      return jsonSafe(await createQuoteRequest(tx,body,actor.id));
     });
   }
 

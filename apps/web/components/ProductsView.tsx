@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import { formatArs, formatBps, parseArsToCents } from "../lib/money";
+import { bpsToPct, formatArs, formatBps, parseArsToCents, pctToBps } from "../lib/money";
 import type { Product, ProductQuoteUsage } from "../lib/types";
 import {
   Alert,
@@ -23,7 +23,7 @@ type Draft = {
   id?: string;
   name: string;
   costArs: string;
-  markupBps: string;
+  markupPct: string;
   saleArs: string;
   usesGeneralMarkup: boolean;
   active: boolean;
@@ -33,7 +33,7 @@ type Draft = {
 const emptyDraft = (): Draft => ({
   name: "",
   costArs: "",
-  markupBps: "3000",
+  markupPct: "30",
   saleArs: "",
   usesGeneralMarkup: true,
   active: true,
@@ -64,6 +64,10 @@ function formatTs(iso: string | null | undefined): string {
   }
 }
 
+function normalizeSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 export function ProductsView() {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +78,7 @@ export function ProductsView() {
   const [importOpen, setImportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [dupes, setDupes] = useState<{ score: number; name: string; id: string }[]>([]);
   const [importText, setImportText] = useState("");
@@ -91,14 +96,21 @@ export function ProductsView() {
         costCents: string;
         salePriceCents: string;
         markupBps: number;
+        score: number;
+        updatedAt: string;
+        lastUsedAt: string | null;
+        _count: { items: number };
       }[];
     }[]
   >([]);
   const [dupeKeep, setDupeKeep] = useState<Record<number, string>>({});
+  const [dupeEnabled, setDupeEnabled] = useState<Record<number, boolean>>({});
   const [merging, setMerging] = useState(false);
   const [dupeThreshold, setDupeThreshold] = useState(70);
   const [usage, setUsage] = useState<ProductQuoteUsage[]>([]);
   const [usageLoading, setUsageLoading] = useState(false);
+  const [selectedMergeOpen, setSelectedMergeOpen] = useState(false);
+  const [selectedKeepId, setSelectedKeepId] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +128,11 @@ export function ProductsView() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedFilter(filter), 180);
+    return () => window.clearTimeout(handle);
+  }, [filter]);
 
   useEffect(() => {
     if (!editOpen || draft.id || draft.name.trim().length < 3) {
@@ -144,7 +161,7 @@ export function ProductsView() {
       id: product.id,
       name: product.name,
       costArs: centsToInput(product.costCents),
-      markupBps: String(product.markupBps),
+      markupPct: bpsToPct(product.markupBps),
       saleArs: centsToInput(product.salePriceCents),
       usesGeneralMarkup: product.usesGeneralMarkup,
       active: product.active,
@@ -180,7 +197,7 @@ export function ProductsView() {
         body.salePriceCents = parseArsToCents(draft.saleArs);
         body.markupBps = 0;
       } else {
-        body.markupBps = Number(draft.markupBps);
+        body.markupBps = pctToBps(draft.markupPct);
       }
       if (draft.id) {
         await api(`/products/${draft.id}`, { method: "PUT", body });
@@ -260,6 +277,10 @@ export function ProductsView() {
             costCents: string;
             salePriceCents: string;
             markupBps: number;
+            score: number;
+            updatedAt: string;
+            lastUsedAt: string | null;
+            _count: { items: number };
           }[];
         }[];
       }>("/products/duplicate-groups", {
@@ -268,10 +289,13 @@ export function ProductsView() {
       setDupeThreshold(res.threshold);
       setDupeGroups(res.groups);
       const defaults: Record<number, string> = {};
+      const enabled: Record<number, boolean> = {};
       res.groups.forEach((g, i) => {
         if (g.members[0]) defaults[i] = g.members[0].id;
+        enabled[i] = true;
       });
       setDupeKeep(defaults);
+      setDupeEnabled(enabled);
       if (!res.groups.length) {
         setNotice(`No se encontraron grupos duplicados (umbral ${res.threshold}%).`);
       }
@@ -283,35 +307,81 @@ export function ProductsView() {
     }
   }
 
-  async function mergeGroup(groupIndex: number) {
-    const group = dupeGroups[groupIndex];
-    const keepId = dupeKeep[groupIndex];
-    if (!group || !keepId) return;
-    const mergeIds = group.members.map((m) => m.id).filter((id) => id !== keepId);
-    if (!mergeIds.length) return;
-    if (
-      !window.confirm(
-        `¿Unificar ${mergeIds.length} producto(s) en “${group.members.find((m) => m.id === keepId)?.name}”? Los presupuestos y combos pasan al producto conservado.`,
-      )
-    ) {
-      return;
-    }
+  function autoPickKeepers() {
+    const keepers: Record<number, string> = {};
+    const enabled: Record<number, boolean> = {};
+    dupeGroups.forEach((group, index) => {
+      const best = [...group.members].sort((a, b) =>
+        b._count.items - a._count.items ||
+        new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime() ||
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime() ||
+        a.name.localeCompare(b.name, "es"),
+      )[0];
+      if (best) keepers[index] = best.id;
+      enabled[index] = Boolean(best);
+    });
+    setDupeKeep(keepers);
+    setDupeEnabled(enabled);
+  }
+
+  async function mergeAllGroups() {
+    const groups = dupeGroups.flatMap((group, index) => {
+      const keepId = dupeKeep[index];
+      if (!dupeEnabled[index] || !keepId) return [];
+      return [{ keepId, mergeIds: group.members.map((member) => member.id).filter((id) => id !== keepId) }];
+    });
+    if (!groups.length) return;
+    if (!window.confirm(`¿Unificar ${groups.length} grupos seleccionados? Cada grupo se procesa de forma independiente.`)) return;
     setMerging(true);
     setError(null);
     try {
-      const res = await api<{ merged: number }>("/products/merge", {
+      const result = await api<{ succeeded: number; failed: number }>("/products/merge-bulk", {
         method: "POST",
-        body: { keepId, mergeIds },
+        body: { groups },
       });
-      setNotice(`Unificados ${res.merged} productos.`);
+      setNotice(`Unificación masiva: ${result.succeeded} grupos listos${result.failed ? `, ${result.failed} con error` : ""}.`);
       setSelected(new Set());
       await load();
-      await findDuplicates();
+      await findDuplicates(dupeThreshold);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setMerging(false);
     }
+  }
+
+  function openSelectedMerge() {
+    const candidates = items.filter((item) => selected.has(item.id));
+    if (candidates.length < 2) return;
+    setSelectedKeepId(candidates[0]?.id ?? "");
+    setSelectedMergeOpen(true);
+  }
+
+  async function mergeSelected() {
+    const mergeIds = [...selected].filter((id) => id !== selectedKeepId);
+    if (!selectedKeepId || !mergeIds.length) return;
+    setMerging(true);
+    setError(null);
+    try {
+      await api("/products/merge", { method: "POST", body: { keepId: selectedKeepId, mergeIds } });
+      setNotice(`Se unificaron ${mergeIds.length} productos en el elegido.`);
+      setSelected(new Set());
+      setSelectedMergeOpen(false);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  function useExistingProduct(productId: string) {
+    const product = items.find((item) => item.id === productId);
+    setEditOpen(false);
+    setDupes([]);
+    setSelected(new Set([productId]));
+    setFilter(product?.name ?? "");
+    setNotice(`Se seleccionó “${product?.name ?? "el producto existente"}”; no se creó uno nuevo.`);
   }
 
   function toggleSelect(id: string) {
@@ -350,7 +420,7 @@ export function ProductsView() {
           return {
             name,
             costCents: parseArsToCents(cost),
-            markupBps: markup ? Number(markup) : 3000,
+            markupBps: markup ? pctToBps(markup) : 3000,
             usesGeneralMarkup: !markup,
             active: true,
           };
@@ -404,13 +474,15 @@ export function ProductsView() {
   }
 
   const filtered = useMemo(
-    () =>
-      items.filter(
-        (p) =>
-          (showInactive || p.active) &&
-          p.name.toLowerCase().includes(filter.trim().toLowerCase()),
-      ),
-    [items, filter, showInactive],
+    () => {
+      const tokens = normalizeSearch(debouncedFilter).split(/\s+/).filter(Boolean);
+      return items.filter((p) => {
+        if (!showInactive && !p.active) return false;
+        const name = normalizeSearch(p.name);
+        return tokens.every((token) => name.includes(token));
+      });
+    },
+    [items, debouncedFilter, showInactive],
   );
 
   const activeCount = items.filter((p) => p.active).length;
@@ -457,6 +529,11 @@ export function ProductsView() {
         {selected.size > 0 ? (
           <div className="toolbar-actions">
             <span className="muted">{selected.size} seleccionados</span>
+            {selected.size >= 2 ? (
+              <button type="button" className="btn-sm" onClick={openSelectedMerge}>
+                Unificar seleccionados
+              </button>
+            ) : null}
             <button type="button" className="btn-danger btn-sm" onClick={() => void bulkDelete()}>
               Eliminar seleccionados
             </button>
@@ -576,9 +653,23 @@ export function ProductsView() {
             />
           </Field>
           {dupes.length > 0 ? (
-            <Alert tone="info">
-              Posibles duplicados: {dupes.slice(0, 5).map((d) => `${d.name} (${d.score}%)`).join(" · ")}
-            </Alert>
+            <div className="duplicate-suggestion" role="alert">
+              <strong>Antes de crear: ya hay un producto muy parecido</strong>
+              <span>
+                {dupes[0]?.name} · {dupes[0] ? formatArs(items.find((p) => p.id === dupes[0]?.id)?.salePriceCents ?? "0") : ""} · {dupes[0]?.score}% de similitud
+              </span>
+              <div className="toolbar-actions">
+                <button type="button" className="btn-sm" onClick={() => useExistingProduct(dupes[0]!.id)}>
+                  Usar ese producto
+                </button>
+                <button type="submit" className="btn-ghost btn-sm">
+                  Crear igual
+                </button>
+              </div>
+              {dupes.length > 1 ? (
+                <small>También: {dupes.slice(1, 4).map((d) => `${d.name} (${d.score}%)`).join(" · ")}</small>
+              ) : null}
+            </div>
           ) : null}
           <div className="grid-2">
             <Field label="Costo (ARS)" htmlFor="prod-cost" hint="Ej: 150000,50">
@@ -594,19 +685,18 @@ export function ProductsView() {
                 value={draft.priceMode}
                 onChange={(e) => setDraft({ ...draft, priceMode: e.target.value as Draft["priceMode"] })}
               >
-                <option value="markup">Por markup (bps)</option>
+                <option value="markup">Por markup (%)</option>
                 <option value="sale">Por precio de venta</option>
               </select>
             </Field>
           </div>
           {draft.priceMode === "markup" ? (
-            <Field label="Markup (bps)" htmlFor="prod-markup" hint="3000 = 30%">
+            <Field label="Markup (%)" htmlFor="prod-markup">
               <input
                 id="prod-markup"
-                type="number"
-                min={0}
-                value={draft.markupBps}
-                onChange={(e) => setDraft({ ...draft, markupBps: e.target.value })}
+                value={draft.markupPct}
+                onChange={(e) => setDraft({ ...draft, markupPct: e.target.value })}
+                placeholder="30"
                 disabled={draft.usesGeneralMarkup}
                 required={!draft.usesGeneralMarkup}
               />
@@ -700,7 +790,7 @@ export function ProductsView() {
       >
         <form id="import-form" className="form-grid" onSubmit={runImport}>
           <p className="section-note">
-            Una fila por línea con el formato <code>nombre;costoARS;markupBps?</code>. Si omitís el
+            Una fila por línea con el formato <code>nombre;costoARS;markup%?</code>. Si omitís el
             markup, se usa el markup general.
           </p>
           <Field label="Filas">
@@ -708,7 +798,7 @@ export function ProductsView() {
               rows={7}
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder={"Ryzen 5 5600;180000,00;3000\nRTX 4060;450000,00"}
+              placeholder={"Ryzen 5 5600;180000,00;30\nRTX 4060;450000,00"}
             />
           </Field>
           <Field label="Si el producto ya existe">
@@ -721,6 +811,40 @@ export function ProductsView() {
             </select>
           </Field>
         </form>
+      </Modal>
+
+      <Modal
+        open={selectedMergeOpen}
+        title="Unificar productos seleccionados"
+        onClose={() => setSelectedMergeOpen(false)}
+        footer={
+          <>
+            <button type="button" className="btn-ghost" onClick={() => setSelectedMergeOpen(false)}>
+              Cancelar
+            </button>
+            <button type="button" disabled={merging || !selectedKeepId} onClick={() => void mergeSelected()}>
+              {merging ? "Unificando…" : "Unificar en el elegido"}
+            </button>
+          </>
+        }
+      >
+        <p className="section-note">
+          Elegí cuál queda activo. Los presupuestos y combos de los demás pasan a este producto.
+        </p>
+        <div className="merge-picker">
+          {items.filter((item) => selected.has(item.id)).map((item) => (
+            <label key={item.id} className="merge-picker-row">
+              <input
+                type="radio"
+                name="selected-merge-keep"
+                checked={selectedKeepId === item.id}
+                onChange={() => setSelectedKeepId(item.id)}
+              />
+              <strong>{item.name}</strong>
+              <span>{formatArs(item.salePriceCents)}</span>
+            </label>
+          ))}
+        </div>
       </Modal>
 
       <Modal
@@ -767,15 +891,31 @@ export function ProductsView() {
           </EmptyState>
         ) : (
           <div className="dupe-groups">
+            <div className="dupe-bulk-actions">
+              <button type="button" className="btn-ghost btn-sm" onClick={autoPickKeepers}>
+                Seleccionar automáticamente el mejor de cada grupo
+              </button>
+              <button type="button" className="btn-sm" disabled={merging} onClick={() => void mergeAllGroups()}>
+                {merging ? "Unificando…" : "Unificar todos los grupos seleccionados"}
+              </button>
+            </div>
+            <p className="section-note">
+              La selección automática prioriza el más usado en presupuestos, después el uso y la actualización más recientes.
+            </p>
             {dupeGroups.map((group, index) => (
               <div key={index} className="dupe-group">
                 <div className="dupe-group-head">
-                  <strong>
-                    Grupo {index + 1} · {group.members.length} productos
-                  </strong>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={dupeEnabled[index] ?? false}
+                      onChange={(event) => setDupeEnabled((prev) => ({ ...prev, [index]: event.target.checked }))}
+                    />{" "}
+                    <strong>Grupo {index + 1} · {group.members.length}</strong>
+                  </label>
                   <span className="muted">similitud hasta {group.maxScore}%</span>
                 </div>
-                <div className="dupe-members">
+                <div className="dupe-members" role="radiogroup" aria-label={`Producto a conservar del grupo ${index + 1}`}>
                   {group.members.map((m) => (
                     <label key={m.id} className="dupe-member">
                       <input
@@ -784,24 +924,13 @@ export function ProductsView() {
                         checked={dupeKeep[index] === m.id}
                         onChange={() => setDupeKeep((prev) => ({ ...prev, [index]: m.id }))}
                       />
-                      <span>
-                        <strong>{m.name}</strong>
-                        <span className="cell-sub">
-                          Costo {formatArs(m.costCents)} · Venta {formatArs(m.salePriceCents)} ·{" "}
-                          {formatBps(m.markupBps)}
-                        </span>
-                      </span>
+                      <strong>{m.name}</strong>
+                      <span>{m._count.items} usos</span>
+                      <span>{m.score}%</span>
+                      <span>{formatArs(m.salePriceCents)}</span>
                     </label>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  className="btn-sm"
-                  disabled={merging || !dupeKeep[index]}
-                  onClick={() => void mergeGroup(index)}
-                >
-                  {merging ? "Unificando…" : "Unificar en el seleccionado"}
-                </button>
               </div>
             ))}
           </div>

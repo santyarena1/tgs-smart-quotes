@@ -1,4 +1,5 @@
 import { db } from "@tgs/database";
+import { runAcustockSyncLoop } from "./catalog-sync.js";
 
 const MS_DAY = 86_400_000;
 
@@ -210,4 +211,4 @@ async function runLoop() {
   } while (true);
 }
 
-if (process.env.NODE_ENV !== "test") void runLoop();
+if (process.env.NODE_ENV !== "test") void Promise.all([runLoop(), runAcustockSyncLoop()]);

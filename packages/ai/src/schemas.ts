@@ -2,9 +2,9 @@ import { z } from "zod";
 
 export const requestAnalysisOutputSchema = z
   .object({
-    usage: z.string().optional(),
+    usage: z.string().nullable(),
     components: z.array(z.string()),
-    budgetCents: z.number().int().nonnegative().nullable().optional(),
+    budgetCents: z.number().int().nonnegative().nullable(),
     notes: z.string(),
     confidence: z.number().int().min(0).max(100),
   })
@@ -147,3 +147,63 @@ export const semanticSimilarityOutputSchema = z
 export type SemanticSimilarityOutput = z.infer<
   typeof semanticSimilarityOutputSchema
 >;
+
+export const chatbotResponseInputSchema = z.object({
+  chatKey: z.string().min(1),
+  latestMessage: z.string().min(1),
+  conversationSummary: z.string().optional(),
+  activeRequest: z.object({
+    id: z.string(),
+    title: z.string(),
+    state: z.string(),
+  }).strict().optional(),
+  recentMessages: z.array(z.object({
+    direction: z.enum(["INBOUND", "OUTBOUND"]),
+    text: z.string().min(1),
+  }).strict()).optional(),
+  config: z.object({
+    persona: z.string().min(1),
+    openingMessages: z.array(z.string()),
+    closingMessages: z.array(z.string()),
+    responses: z.array(z.object({
+      id: z.string(),
+      enabled: z.boolean(),
+      activators: z.array(z.string()),
+      similarityThreshold: z.number().int().min(0).max(100),
+      answer: z.string(),
+      context: z.string(),
+      attachments: z.object({
+        imageUrl: z.string().nullable(),
+        url: z.string().nullable(),
+        quote: z.object({
+          familyId: z.string(),
+          version: z.number().int().nullable(),
+          useLatest: z.boolean(),
+        }).strict().nullable(),
+      }).strict(),
+    }).strict()),
+    escalationInstructions: z.string(),
+    modelCanEscalate: z.boolean(),
+    businessContext: z.string().optional(),
+    responseStyle: z.record(z.string(), z.unknown()),
+  }).strict(),
+}).strict();
+export type ChatbotResponseInput = z.infer<typeof chatbotResponseInputSchema>;
+
+export const chatbotResponseOutputSchema = z.object({
+  reply: z.string(),
+  shouldEscalate: z.boolean(),
+  escalationReason: z.string().nullable(),
+  updatedSummary: z.string().nullable(),
+  matchedKnowledgeIds: z.array(z.string()),
+  decisionReason: z.string(),
+  shouldCreateRequest: z.boolean(),
+  requestDraft: z.object({
+    title: z.string().min(1).max(300),
+    summary: z.string().min(1).max(10000),
+    expectedUse: z.string().max(1000).nullable(),
+    requiredComponents: z.array(z.string().min(1).max(500)).max(100),
+    maximumBudgetCents: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullable(),
+  }).strict().nullable(),
+}).strict();
+export type ChatbotResponseOutput = z.infer<typeof chatbotResponseOutputSchema>;

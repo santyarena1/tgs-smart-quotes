@@ -11,6 +11,7 @@ import { AiTask, type AiRunOptions, type AiServiceDeps, type AiServiceResult } f
 const SYSTEM = `Sos un asistente de The Gamer Shop (Argentina). Analizá solicitudes de presupuesto de PC.
 Extraé uso, componentes pedidos, presupuesto en centavos ARS si aparece, y notas breves.
 Nunca inventes precios ni generes presupuestos. Respondé solo JSON estructurado.
+Si el uso o el presupuesto no fueron mencionados, devolvé null en esos campos; nunca los omitas.
 confidence: 0-100 según claridad del texto.`;
 
 export class RequestAnalysisService {

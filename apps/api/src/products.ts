@@ -2,16 +2,20 @@ import {BadRequestException,Body,Controller,Delete,Get,NotFoundException,Param,P
 import {db} from '@tgs/database';
 import {
   customerCreateSchema,
+  customerQuickCreateSchema,
   idSchema,
   pcLineCreateSchema,
   productBulkDeleteSchema,
+  productBulkMergeSchema,
   productCreateSchema,
   productDuplicateQuerySchema,
   productImportSchema,
   productMergeSchema,
   type CustomerCreateInput,
+  type CustomerQuickCreateInput,
   type PcLineCreateInput,
   type ProductBulkDeleteInput,
+  type ProductBulkMergeInput,
   type ProductCreateInput,
   type ProductImportInput,
   type ProductMergeInput,
@@ -257,6 +261,7 @@ export class ProductsController{
 
   @Get('duplicate-groups')
   async duplicateGroups(@Query('threshold') thresholdRaw?: string){
+    const startedAt=performance.now();
     const [settings,products]=await Promise.all([
       db.aiSettings.findUnique({where:{id:'singleton'}}),
       db.product.findMany({
@@ -268,6 +273,9 @@ export class ProductsController{
           salePriceCents:true,
           markupBps:true,
           usesGeneralMarkup:true,
+          updatedAt:true,
+          lastUsedAt:true,
+          _count:{select:{items:true}},
         },
         orderBy:[{normalizedName:'asc'},{id:'asc'}],
       }),
@@ -278,7 +286,14 @@ export class ProductsController{
       :(settings?.productSimilarityThreshold??70);
 
     const n=products.length;
-    if(n<2)return {threshold,groups:[],comparedPairs:0,productCount:n};
+    if(n<2)return {
+      threshold,
+      groups:[],
+      comparedPairs:0,
+      possiblePairs:0,
+      productCount:n,
+      durationMs:Math.round((performance.now()-startedAt)*10)/10,
+    };
 
     const STOP=new Set([
       'de','la','el','los','las','del','y','o','para','con','sin','the','and','for','pc','kit',
@@ -307,7 +322,8 @@ export class ProductsController{
       }
     }
 
-    const candidatePairs=new Set<string>();
+    // Clave numérica: evita crear y luego parsear miles de strings "i:j".
+    const candidatePairs=new Set<number>();
     for(const indices of tokenIndex.values()){
       // Tokens demasiado comunes generan demasiados pares inútiles.
       if(indices.length<2||indices.length>60)continue;
@@ -315,7 +331,7 @@ export class ProductsController{
         for(let b=a+1;b<indices.length;b++){
           const i=Math.min(indices[a]!,indices[b]!);
           const j=Math.max(indices[a]!,indices[b]!);
-          candidatePairs.add(`${i}:${j}`);
+          candidatePairs.add(i*n+j);
         }
       }
     }
@@ -333,7 +349,7 @@ export class ProductsController{
       if(indices.length<2)continue;
       for(let a=0;a<indices.length;a++){
         for(let b=a+1;b<indices.length;b++){
-          candidatePairs.add(`${indices[a]}:${indices[b]}`);
+          candidatePairs.add(indices[a]!*n+indices[b]!);
         }
       }
     }
@@ -354,9 +370,8 @@ export class ProductsController{
 
     const pairScores=new Map<string,number>();
     for(const key of candidatePairs){
-      const [iRaw,jRaw]=key.split(':');
-      const i=Number(iRaw);
-      const j=Number(jRaw);
+      const i=Math.floor(key/n);
+      const j=key%n;
       const a=indexed[i]!;
       const b=indexed[j]!;
       const score=a.norm===b.norm?100:productSimilarity(a.product.name,b.product.name);
@@ -389,7 +404,12 @@ export class ProductsController{
         }
         if(!scores.length)return null;
         return {
-          members:jsonSafe(members),
+          members:jsonSafe(members.map((member)=>({
+            ...member,
+            score:Math.max(...members
+              .filter((other)=>other.id!==member.id)
+              .map((other)=>pairScores.get(`${member.id}:${other.id}`)??0)),
+          }))),
           maxScore:Math.max(...scores),
         };
       })
@@ -400,8 +420,53 @@ export class ProductsController{
       threshold,
       productCount:n,
       comparedPairs:candidatePairs.size,
+      possiblePairs:n*(n-1)/2,
+      durationMs:Math.round((performance.now()-startedAt)*10)/10,
       groups,
     };
+  }
+
+  private async mergeProducts(tx:any,body:ProductMergeInput,actorId:string){
+    const mergeIds=[...new Set(body.mergeIds.filter((id)=>id!==body.keepId))];
+    if(!mergeIds.length)throw new BadRequestException('Indicá al menos un producto a unificar');
+    const keep=await tx.product.findUnique({where:{id:body.keepId}});
+    if(!keep)throw new NotFoundException('Producto a conservar inexistente');
+    const merging=await tx.product.findMany({where:{id:{in:mergeIds}}});
+    if(merging.length!==mergeIds.length){
+      throw new BadRequestException('Uno o más productos a unificar no existen');
+    }
+
+    await tx.quoteItem.updateMany({
+      where:{productId:{in:mergeIds}},
+      data:{productId:body.keepId},
+    });
+
+    const comboItems=await tx.comboItem.findMany({where:{productId:{in:mergeIds}}});
+    for(const item of comboItems){
+      const existing=await tx.comboItem.findUnique({
+        where:{comboId_productId:{comboId:item.comboId,productId:body.keepId}},
+      });
+      if(existing){
+        await tx.comboItem.update({
+          where:{id:existing.id},
+          data:{quantity:existing.quantity+item.quantity},
+        });
+        await tx.comboItem.delete({where:{id:item.id}});
+      }else{
+        await tx.comboItem.update({where:{id:item.id},data:{productId:body.keepId}});
+      }
+    }
+
+    await tx.product.updateMany({
+      where:{id:{in:mergeIds}},
+      data:{active:false,updatedById:actorId},
+    });
+    await audit(tx,actorId,'Product',body.keepId,'MERGE',{
+      keepId:body.keepId,
+      mergeIds,
+      mergedNames:merging.map((p:any)=>p.name),
+    },{keep});
+    return jsonSafe({ok:true,keepId:body.keepId,merged:mergeIds.length,deactivated:mergeIds});
   }
 
   @Post('merge')
@@ -409,59 +474,37 @@ export class ProductsController{
     @Body(new ZodPipe(productMergeSchema)) body:ProductMergeInput,
     @CurrentUser() actor:RequestUser,
   ){
-    const mergeIds=[...new Set(body.mergeIds.filter((id)=>id!==body.keepId))];
-    if(!mergeIds.length)throw new BadRequestException('Indicá al menos un producto a unificar');
+    return db.$transaction(tx=>this.mergeProducts(tx,body,actor.id),{timeout:60_000});
+  }
 
-    return db.$transaction(async tx=>{
-      const keep=await tx.product.findUnique({where:{id:body.keepId}});
-      if(!keep)throw new NotFoundException('Producto a conservar inexistente');
-      const merging=await tx.product.findMany({where:{id:{in:mergeIds}}});
-      if(merging.length!==mergeIds.length){
-        throw new BadRequestException('Uno o más productos a unificar no existen');
-      }
-
-      await tx.quoteItem.updateMany({
-        where:{productId:{in:mergeIds}},
-        data:{productId:body.keepId},
-      });
-
-      const comboItems=await tx.comboItem.findMany({where:{productId:{in:mergeIds}}});
-      for(const item of comboItems){
-        const existing=await tx.comboItem.findUnique({
-          where:{comboId_productId:{comboId:item.comboId,productId:body.keepId}},
+  @Post('merge-bulk')
+  async mergeBulk(
+    @Body(new ZodPipe(productBulkMergeSchema)) body:ProductBulkMergeInput,
+    @CurrentUser() actor:RequestUser,
+  ){
+    const results=[];
+    for(let index=0;index<body.groups.length;index++){
+      const group=body.groups[index]!;
+      try{
+        const result=await db.$transaction(
+          tx=>this.mergeProducts(tx,group,actor.id),
+          {timeout:60_000},
+        );
+        results.push({index,ok:true,...result});
+      }catch(error){
+        results.push({
+          index,
+          ok:false,
+          error:error instanceof Error?error.message:'No se pudo unificar el grupo',
         });
-        if(existing){
-          await tx.comboItem.update({
-            where:{id:existing.id},
-            data:{quantity:existing.quantity+item.quantity},
-          });
-          await tx.comboItem.delete({where:{id:item.id}});
-        }else{
-          await tx.comboItem.update({
-            where:{id:item.id},
-            data:{productId:body.keepId},
-          });
-        }
       }
-
-      await tx.product.updateMany({
-        where:{id:{in:mergeIds}},
-        data:{active:false,updatedById:actor.id},
-      });
-
-      await audit(tx,actor.id,'Product',body.keepId,'MERGE',{
-        keepId:body.keepId,
-        mergeIds,
-        mergedNames:merging.map((p:any)=>p.name),
-      },{keep});
-
-      return jsonSafe({
-        ok:true,
-        keepId:body.keepId,
-        merged:mergeIds.length,
-        deactivated:mergeIds,
-      });
-    },{timeout:60_000});
+    }
+    return {
+      ok:results.every((result)=>result.ok),
+      succeeded:results.filter((result)=>result.ok).length,
+      failed:results.filter((result)=>!result.ok).length,
+      results,
+    };
   }
 
   @Post('import')
@@ -551,7 +594,14 @@ function customerData(body:CustomerCreateInput){
     phone,
     normalizedPhone:normalizePhone(phone),
     dni:body.dni?.trim()||null,
+    notes:body.notes?.trim()||null,
   };
+}
+
+async function createCustomerRecord(tx:any,body:CustomerCreateInput,userId:string){
+  const next=await tx.customer.create({data:customerData(body)});
+  await audit(tx,userId,'Customer',next.id,'CREATE',null,next);
+  return next;
 }
 
 @Controller('customers')
@@ -566,10 +616,26 @@ export class CustomerController{
     @Body(new ZodPipe(customerCreateSchema)) body:CustomerCreateInput,
     @CurrentUser() actor:RequestUser,
   ){
+    return db.$transaction(tx=>createCustomerRecord(tx,body,actor.id));
+  }
+
+  @Post('quick')
+  async quick(
+    @Body(new ZodPipe(customerQuickCreateSchema)) body:CustomerQuickCreateInput,
+    @CurrentUser() actor:RequestUser,
+  ){
+    const normalized=normalizePhone(body.phone);
+    if(!normalized)throw new BadRequestException('El teléfono detectado no es válido');
     return db.$transaction(async tx=>{
-      const next=await tx.customer.create({data:customerData(body)});
-      await audit(tx,actor.id,'Customer',next.id,'CREATE',null,next);
-      return next;
+      const existing=await tx.customer.findFirst({where:{normalizedPhone:normalized}});
+      if(existing)return {...existing,created:false};
+      const customer=await createCustomerRecord(tx,{
+        name:`WhatsApp ${body.phone}`,
+        phone:body.phone,
+        dni:null,
+        notes:'Alta rápida desde el panel de WhatsApp.',
+      },actor.id);
+      return {...customer,created:true};
     });
   }
 

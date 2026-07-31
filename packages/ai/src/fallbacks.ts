@@ -74,7 +74,7 @@ export function fallbackRequestAnalysis(
   const components = COMPONENT_PATTERNS.filter(({ re }) => re.test(text)).map(
     ({ label }) => label,
   );
-  const usage = USAGE_PATTERNS.find(({ re }) => re.test(text))?.label;
+  const usage = USAGE_PATTERNS.find(({ re }) => re.test(text))?.label ?? null;
   const budgetCents = extractBudgetCents(text);
   const notes: string[] = [];
   if (!usage) {

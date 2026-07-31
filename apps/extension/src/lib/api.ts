@@ -16,6 +16,13 @@ import type {
   Product,
   QuoteItemInput,
   ReplyIntent,
+  ChatbotSettings,
+  ChatbotConversation,
+  ChatbotLog,
+  ChatbotRespondResult,
+  ChatbotMode,
+  ChatbotChatContext,
+  LatestSentQuote,
 } from "./types";
 
 export class ApiError extends Error {
@@ -197,10 +204,13 @@ export const changeQuoteState = (id: string, state: QuoteState, reason?: string 
 export const reactivateQuote = (id: string, reason: string) =>
   api(`/quotes/${id}/reactivate`, { body: { reason } });
 
-export const createQuoteVersion = (id: string, reason: string) =>
-  api(`/quotes/${id}/version`, { body: { reason } });
+export const createQuoteVersion = (id: string, reason?: string | null, sourceVersion?: number) =>
+  api<Quote>(`/quotes/${id}/version`, { body: { reason, sourceVersion } });
 
 export const getTimeline = (id: string) => api<QuoteTimeline>(`/quotes/${id}/timeline`);
+export const getLatestSentQuote = (phone: string) => api<LatestSentQuote|null>("/quotes/sent/latest", {query:{phone}});
+export const generateVersionPdf = (id:string,version:number) => api(`/quotes/${id}/versions/${version}/pdf`,{body:{}});
+export const versionPdfDownloadPath = (id:string,version:number) => `/quotes/${id}/versions/${version}/pdf`;
 
 /** IA siempre opcional: si el endpoint falla o está deshabilitado, el llamador cae a texto vacío editable. */
 export const suggestResponse = (id: string) =>
@@ -213,15 +223,27 @@ export const markNotification = (id: string, body: { read?: boolean; acted?: boo
   api(`/notifications/${id}/mark`, { body });
 
 export const listCustomers=()=>api<Customer[]>("/customers");
-export const createCustomer=(body:{name:string;phone?:string|null;dni?:string|null})=>api<Customer>("/customers",{body});
+export const createCustomer=(body:{name:string;phone?:string|null;dni?:string|null;notes?:string|null})=>api<Customer>("/customers",{body});
+export const createCustomerQuick=(phone:string)=>api<Customer&{created:boolean}>("/customers/quick",{body:{phone}});
 export const updateCustomer=(id:string,body:{name:string;phone?:string|null;dni?:string|null})=>api<Customer>(`/customers/${id}`,{method:"PUT",body});
 export const listProducts=(q="")=>api<Product[]>("/products",{query:{q}});
 export const listPcLines=()=>api<PcLine[]>("/pc-lines");
 export const updateQuote=(id:string,body:{customerId?:string|null;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}`,{method:"PUT",body});
 export const updateRequest=(id:string,body:Record<string,unknown>)=>api<QuoteRequest>(`/requests/${id}`,{method:"PUT",body});
-export const createQuoteVersionWithChanges=(id:string,body:{reason:string;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}/version`,{body});
+export const createQuoteVersionWithChanges=(id:string,body:{reason?:string|null;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}/version`,{body});
 export const retargetQuote=(id:string,targetTotalCents:string,previewOnly=false)=>api<Quote>(`/quotes/${id}/retarget`,{body:{targetTotalCents,previewOnly}});
 export const createQuoteReply=(id:string,body:{chatPhone?:string|null;text:string;intent:ReplyIntent;confidence?:number|null;source:string;applyState?:QuoteState|null})=>api(`/quotes/${id}/replies`,{body});
 export async function fetchBlob(path:string):Promise<Blob>{const response=await sendToBackground<{ok:boolean;status:number;bytes?:number[];contentType?:string;error?:string}>({type:"FETCH_BLOB",path});if(!response?.ok||!response.bytes)throw new ApiError(response?.error??"No se pudo descargar el PDF.",response?.status??0);return new Blob([new Uint8Array(response.bytes)],{type:response.contentType??"application/pdf"})}
 export async function openAuthenticated(path:string):Promise<void>{const response=await sendToBackground<{ok:boolean;error?:string}>({type:"OPEN_URL",path});if(!response?.ok)throw new ApiError(response?.error??"No se pudo abrir el PDF.",0)}
 export const classifyIntent=(id:string,replyText:string)=>api<{result:{intent:ReplyIntent;confidence:number};metadata:{usedAi:boolean};requiresReview:boolean}>(`/quotes/${id}/ai/intent`,{body:{replyText}});
+
+export const getChatbotSettings=()=>api<ChatbotSettings>("/chatbot/settings");
+export const setChatbotEnabled=(enabled:boolean)=>api<ChatbotSettings>("/chatbot/settings/enabled",{method:"PUT",body:{enabled}});
+export const listChatbotConversations=()=>api<ChatbotConversation[]>("/chatbot/conversations");
+export const getChatbotContext=(chatKey:string,phone?:string|null)=>api<ChatbotChatContext>(`/chatbot/context/${encodeURIComponent(chatKey)}`,{query:{phone}});
+export const getChatbotConversation=(chatKey:string)=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`);
+export const updateChatbotConversation=(chatKey:string,body:{displayName?:string|null;modeOverride?:ChatbotMode|null;clearEscalation?:boolean})=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`,{method:"PUT",body});
+export const respondChatbot=(body:{chatKey:string;displayName?:string;detectedPhone?:string|null;message:string;messageType?:"TEXT"|"AUDIO";messageFingerprint:string;manualSuggestion?:boolean;simulation?:boolean;recentMessages?:Array<{direction:"INBOUND"|"OUTBOUND";text:string}>})=>api<ChatbotRespondResult>("/chatbot/respond",{body});
+export const listChatbotLogs=(chatKey?:string,limit=40)=>api<ChatbotLog[]>("/chatbot/logs",{query:{chatKey,limit}});
+export const actOnChatbotLog=(id:string,body:{action:"SENT"|"SEND_FAILED"|"HUMAN_SENT"|"DISMISSED"|"ATTACHMENT_SENT"|"ATTACHMENT_FAILED";text?:string;error?:string;attachment?:string})=>api<ChatbotLog>(`/chatbot/logs/${id}/action`,{body});
+export const createRequestFromChatbotSuggestion=(id:string)=>api<{id:string;title:string;state:string;created:boolean}>(`/chatbot/logs/${id}/create-request`,{body:{}});

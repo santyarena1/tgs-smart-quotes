@@ -1,4 +1,4 @@
-export { createAiClient, client, DEFAULT_AI_MODEL } from "./client.js";
+export { createAiClient, client, DEFAULT_AI_MODEL, describeOpenAiError } from "./client.js";
 export { canonicalize, inputHash } from "./hash.js";
 export { runAiTask } from "./runner.js";
 export {
@@ -21,6 +21,8 @@ export {
   semanticSimilarityOutputSchema,
   suggestionToneSchema,
   replyIntentSchema,
+  chatbotResponseInputSchema,
+  chatbotResponseOutputSchema,
 } from "./schemas.js";
 export type {
   CompatibilityFeedbackInput,
@@ -33,6 +35,8 @@ export type {
   ResponseSuggestionOutput,
   SemanticSimilarityInput,
   SemanticSimilarityOutput,
+  ChatbotResponseInput,
+  ChatbotResponseOutput,
 } from "./schemas.js";
 export {
   AiTask,
@@ -47,18 +51,20 @@ export {
   type ReplyIntent,
   type SuggestionTone,
 } from "./types.js";
-export type { AiClientConfig } from "./client.js";
+export type { AiClientConfig, OpenAiErrorInfo } from "./client.js";
 export { RequestAnalysisService } from "./services/request-analysis.js";
 export { CompatibilityFeedbackService } from "./services/compatibility-feedback.js";
 export { ResponseSuggestionService } from "./services/response-suggestion.js";
 export { IntentClassificationService } from "./services/intent-classification.js";
 export { SemanticSimilarityService } from "./services/semantic-similarity.js";
+export { ChatbotResponseService } from "./services/chatbot-response.js";
 
 import { CompatibilityFeedbackService } from "./services/compatibility-feedback.js";
 import { IntentClassificationService } from "./services/intent-classification.js";
 import { RequestAnalysisService } from "./services/request-analysis.js";
 import { ResponseSuggestionService } from "./services/response-suggestion.js";
 import { SemanticSimilarityService } from "./services/semantic-similarity.js";
+import { ChatbotResponseService } from "./services/chatbot-response.js";
 import type { AiServiceDeps } from "./types.js";
 
 /** Agrupa servicios con dependencias compartidas (cliente + modelo + cache por defecto). */
@@ -69,5 +75,6 @@ export function createAiServices(deps: AiServiceDeps) {
     responseSuggestion: new ResponseSuggestionService(deps),
     intentClassification: new IntentClassificationService(deps),
     semanticSimilarity: new SemanticSimilarityService(deps),
+    chatbotResponse: new ChatbotResponseService(deps),
   };
 }

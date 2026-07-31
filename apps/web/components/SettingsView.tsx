@@ -8,7 +8,7 @@ import {
   pingChromeExtension,
   type ExtensionPingResult,
 } from "../lib/api";
-import { formatArs, parseArsToCents } from "../lib/money";
+import { bpsToPct, formatArs, parseArsToCents, pctToBps } from "../lib/money";
 import type { AiSettings, CompanySettings, FinancingPlan, PdfSettings } from "../lib/types";
 import {
   Alert,
@@ -22,13 +22,15 @@ import {
   Tabs,
   errorMessage,
 } from "./shared";
+import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
 
-type Tab = "empresa" | "pdf" | "ia" | "financiacion" | "extension";
+type Tab = "empresa" | "pdf" | "ia" | "chatbot" | "financiacion" | "extension";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
   { id: "pdf", label: "PDF" },
   { id: "ia", label: "IA" },
+  { id: "chatbot", label: "Chatbot" },
   { id: "financiacion", label: "Financiación" },
   { id: "extension", label: "Extensión Chrome" },
 ];
@@ -51,6 +53,12 @@ type ExtensionInstructions = {
   neverAutoSend: boolean;
   apiBase: string;
 };
+
+type AiModelOption = {id:string;created:number;ownedBy:string};
+// Orientación visual solamente: OpenAI `models.list()` no incluye precios.
+function efficiencyHint(id:string):string|null {
+  return /(nano|mini|small|flash)/i.test(id)?"económico/eficiente":null;
+}
 
 const PDF_FLAGS: { key: keyof PdfSettings; label: string }[] = [
   { key: "showListPrice", label: "Mostrar precio de lista" },
@@ -75,7 +83,7 @@ type FinDraft = {
   label: string;
   bank: string;
   installments: string;
-  coefficientBps: string;
+  coefficientPct: string;
   interestFree: boolean;
   appliesOn: FinancingPlan["appliesOn"];
   note: string;
@@ -88,7 +96,7 @@ const emptyFin = (): FinDraft => ({
   label: "",
   bank: "",
   installments: "1",
-  coefficientBps: "10000",
+  coefficientPct: "100",
   interestFree: false,
   appliesOn: "LISTA",
   note: "",
@@ -107,10 +115,14 @@ export function SettingsView() {
   const [company, setCompany] = useState<CompanySettings | null>(null);
   const [pdf, setPdf] = useState<PdfSettings | null>(null);
   const [ai, setAi] = useState<AiSettings | null>(null);
+  const [generalMarkupPct, setGeneralMarkupPct] = useState("30");
   const [aiKey, setAiKey] = useState("");
   const [clearKey, setClearKey] = useState(false);
   const [budgetDisplay, setBudgetDisplay] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [aiModels,setAiModels]=useState<AiModelOption[]>([]);
+  const [modelsBusy,setModelsBusy]=useState(false);
+  const [modelsNotice,setModelsNotice]=useState<string|null>(null);
   const [plans, setPlans] = useState<FinancingPlan[]>([]);
   const [finDraft, setFinDraft] = useState<FinDraft>(emptyFin());
   const [finModalOpen, setFinModalOpen] = useState(false);
@@ -140,6 +152,7 @@ export function SettingsView() {
           ? null
           : String(a.monthlyBudgetUsdCents);
       setAi({ ...a, monthlyBudgetUsdCents: budget });
+      setGeneralMarkupPct(bpsToPct(a.generalMarkupBps));
       setBudgetDisplay(budget ? centsToInput(budget) : "");
       setPlans(f);
       setExtInfo(info);
@@ -239,7 +252,7 @@ export function SettingsView() {
         responsesEnabled: ai.responsesEnabled,
         ambiguousSimilarityAi: ai.ambiguousSimilarityAi,
         monthlyBudgetUsdCents,
-        generalMarkupBps: ai.generalMarkupBps,
+        generalMarkupBps: pctToBps(generalMarkupPct),
         productSimilarityThreshold: ai.productSimilarityThreshold,
         frequentSupportThreshold: ai.frequentSupportThreshold,
         clearApiKey: clearKey,
@@ -248,6 +261,7 @@ export function SettingsView() {
       const next = await api<AiSettings>("/settings/ai", { method: "PUT", body });
       const nextBudget = next.monthlyBudgetUsdCents == null ? null : String(next.monthlyBudgetUsdCents);
       setAi({ ...next, monthlyBudgetUsdCents: nextBudget });
+      setGeneralMarkupPct(bpsToPct(next.generalMarkupBps));
       setBudgetDisplay(nextBudget ? centsToInput(nextBudget) : "");
       setAiKey("");
       setClearKey(false);
@@ -281,6 +295,21 @@ export function SettingsView() {
     }
   }
 
+  async function loadAiModels(){
+    setModelsBusy(true);
+    setModelsNotice(null);
+    setError(null);
+    try{
+      const result=await api<{models:AiModelOption[];pricingIncluded:false}>("/settings/ai/models");
+      setAiModels(result.models);
+      setModelsNotice(`Se cargaron ${result.models.length} modelos disponibles para la API key guardada.`);
+    }catch(err){
+      setError(errorMessage(err));
+    }finally{
+      setModelsBusy(false);
+    }
+  }
+
   function openFinNew() {
     setFinDraft({ ...emptyFin(), sortOrder: String(plans.length) });
     setFinModalOpen(true);
@@ -292,7 +321,7 @@ export function SettingsView() {
       label: p.label,
       bank: p.bank,
       installments: String(p.installments),
-      coefficientBps: String(p.coefficientBps),
+      coefficientPct: bpsToPct(p.coefficientBps),
       interestFree: p.interestFree,
       appliesOn: p.appliesOn,
       note: p.note ?? "",
@@ -313,7 +342,7 @@ export function SettingsView() {
         label: finDraft.label.trim(),
         bank: finDraft.bank.trim(),
         installments: Number(finDraft.installments),
-        coefficientBps: Number(finDraft.coefficientBps),
+        coefficientBps: pctToBps(finDraft.coefficientPct),
         interestFree: finDraft.interestFree,
         appliesOn: finDraft.appliesOn,
         note: finDraft.note.trim() || null,
@@ -396,6 +425,9 @@ export function SettingsView() {
       setExtBusy(false);
     }
   }
+
+  const selectedAiModelUnavailable =
+    aiModels.length > 0 && Boolean(ai) && !aiModels.some((model) => model.id === ai?.model);
 
   return (
     <div>
@@ -598,14 +630,29 @@ export function SettingsView() {
               onChange={(enabled) => setAi({ ...ai, enabled })}
             />
             <Field label="Modelo" htmlFor="ai-model">
-              <input
+              <select
                 id="ai-model"
                 value={ai.model}
                 onChange={(e) => setAi({ ...ai, model: e.target.value })}
                 required
-              />
+              >
+                {!aiModels.some((model) => model.id === ai.model) ? (
+                  <option value={ai.model}>
+                    {selectedAiModelUnavailable
+                      ? `⚠ ${ai.model} (no encontrado en la cuenta actual)`
+                      : `${ai.model} (actual)`}
+                  </option>
+                ) : null}
+                {aiModels.map(model=><option key={model.id} value={model.id}>{model.id}{efficiencyHint(model.id)?` · ${efficiencyHint(model.id)}`:""}</option>)}
+              </select>
             </Field>
           </div>
+          {selectedAiModelUnavailable ? (
+            <Alert tone="error">
+              El modelo guardado no aparece entre los modelos disponibles para la API key actual.
+              Elegí uno de la lista y guardá la configuración.
+            </Alert>
+          ) : null}
           <Field
             label="API key (dejar vacío para conservar)"
             htmlFor="ai-key"
@@ -621,13 +668,12 @@ export function SettingsView() {
           </Field>
           <Checkbox label="Borrar API key guardada" checked={clearKey} onChange={setClearKey} />
           <div className="grid-3">
-            <Field label="Markup general (bps)" htmlFor="ai-markup">
+            <Field label="Markup general (%)" htmlFor="ai-markup">
               <input
                 id="ai-markup"
-                type="number"
-                min={0}
-                value={ai.generalMarkupBps}
-                onChange={(e) => setAi({ ...ai, generalMarkupBps: Number(e.target.value) })}
+                value={generalMarkupPct}
+                onChange={(e) => setGeneralMarkupPct(e.target.value)}
+                placeholder="30"
               />
             </Field>
             <Field
@@ -680,7 +726,11 @@ export function SettingsView() {
             <button type="button" className="btn-ghost" onClick={() => void testAi()}>
               Probar conexión
             </button>
+            <button type="button" className="btn-ghost" disabled={modelsBusy} onClick={()=>void loadAiModels()}>
+              {modelsBusy?"Consultando OpenAI…":"Cargar modelos disponibles"}
+            </button>
           </div>
+          {modelsNotice?<Alert tone="info">{modelsNotice} OpenAI no informa precios en este endpoint; “económico/eficiente” es sólo una orientación por familia del modelo.</Alert>:null}
           {testResult ? (
             <Alert tone={testResult.startsWith("Conexión OK") ? "ok" : "error"}>{testResult}</Alert>
           ) : null}
@@ -709,7 +759,7 @@ export function SettingsView() {
                     <th>Etiqueta</th>
                     <th>Banco</th>
                     <th>Cuotas</th>
-                    <th>Coef. (bps)</th>
+                    <th>Coef. sobre precio (%)</th>
                     <th>Aplica</th>
                     <th>Estado</th>
                     <th />
@@ -724,7 +774,7 @@ export function SettingsView() {
                       </td>
                       <td>{p.bank}</td>
                       <td className="num">{p.installments}</td>
-                      <td className="num">{p.coefficientBps}</td>
+                      <td className="num">{bpsToPct(p.coefficientBps)} %</td>
                       <td>
                         <Pill tone="neutral">{p.appliesOn}</Pill>
                       </td>
@@ -779,8 +829,8 @@ export function SettingsView() {
                 <Field label="Cuotas" htmlFor="fin-inst">
                   <input id="fin-inst" type="number" min={1} value={finDraft.installments} onChange={(e) => setFinDraft({ ...finDraft, installments: e.target.value })} required />
                 </Field>
-                <Field label="Coeficiente (bps)" htmlFor="fin-coef">
-                  <input id="fin-coef" type="number" min={1} value={finDraft.coefficientBps} onChange={(e) => setFinDraft({ ...finDraft, coefficientBps: e.target.value })} required />
+                <Field label="Coeficiente sobre precio (%)" htmlFor="fin-coef">
+                  <input id="fin-coef" value={finDraft.coefficientPct} onChange={(e) => setFinDraft({ ...finDraft, coefficientPct: e.target.value })} placeholder="115" required />
                 </Field>
                 <Field label="Orden" htmlFor="fin-order">
                   <input id="fin-order" type="number" value={finDraft.sortOrder} onChange={(e) => setFinDraft({ ...finDraft, sortOrder: e.target.value })} />
@@ -807,6 +857,8 @@ export function SettingsView() {
           </Modal>
         </div>
       ) : null}
+
+      {!loading && tab === "chatbot" ? <ChatbotSettingsSection /> : null}
 
       {!loading && tab === "extension" ? (
         <div className="form-grid" style={{ maxWidth: 900 }}>

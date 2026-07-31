@@ -67,6 +67,43 @@ export type PdfResolvedConfig = {
   estimatedDelay: string;
 };
 
+export const PDF_LAYOUT_BLOCK_KEYS = [
+  'logo',
+  'companyName',
+  'companyTaxData',
+  'quoteTitle',
+  'quoteMeta',
+  'quoteData',
+  'companyFiscalData',
+  'servicesBlock',
+  'itemsTable',
+  'itemsTable.colCode',
+  'itemsTable.colName',
+  'itemsTable.colQty',
+  'itemsTable.colAmount',
+  'totalsBlock',
+  'financingBlock',
+  'observation',
+  'rmaBlock',
+  'footerText',
+] as const;
+
+export type PdfLayoutBlockKey = (typeof PDF_LAYOUT_BLOCK_KEYS)[number];
+export type PdfLayoutStyle = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fontSize?: number;
+  color?: string;
+  fontFamily?: string;
+  fontWeight?: number;
+};
+export type PdfLayoutConfig = {
+  version: 1;
+  blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
+};
+
 export type PdfRenderInput = {
   kind: PdfKind;
   number: string;
@@ -79,6 +116,7 @@ export type PdfRenderInput = {
   config: PdfResolvedConfig;
   items: PdfItem[];
   financing: PdfFinancingPlan[];
+  layout?: PdfLayoutConfig;
 };
 
 export const historicalPdfIsImmutable = true;
@@ -128,6 +166,7 @@ export function pdfInputHash(input: PdfRenderInput): string {
       subtotalCents: i.subtotalCents.toString(),
     })),
     financing: input.financing,
+    ...(hasLayoutOverrides(input.layout) ? { layout: input.layout } : {}),
   };
   return sha256Hex(JSON.stringify(canonical));
 }
@@ -148,6 +187,117 @@ function applyCoefficient(baseCents: bigint, coefficientBps: number): bigint {
 function installmentAmount(baseCents: bigint, plan: PdfFinancingPlan): bigint {
   const total = applyCoefficient(baseCents, plan.coefficientBps);
   return (total + BigInt(plan.installments) / 2n) / BigInt(plan.installments);
+}
+
+function hasLayoutOverrides(layout?: PdfLayoutConfig): boolean {
+  return Boolean(layout && Object.keys(layout.blocks).length > 0);
+}
+
+function cssValue(value: string): string {
+  return value.replace(/["'\\;{}]/g, '');
+}
+
+function blockCss(key: PdfLayoutBlockKey, style: PdfLayoutStyle): string {
+  const declarations: string[] = [];
+  if (style.x !== undefined || style.y !== undefined) {
+    declarations.push(
+      `transform:translate(${style.x ?? 0}px,${style.y ?? 0}px)!important`,
+      'position:relative!important',
+      'z-index:2!important',
+    );
+  }
+  if (key === 'logo') {
+    // El logo nunca acepta dos ejes independientes: si existe ancho, éste gobierna y la
+    // altura sale de la proporción intrínseca; para layouts antiguos con sólo alto, viceversa.
+    if (style.width !== undefined) {
+      declarations.push(
+        `width:${style.width}px!important`,
+        `max-width:${style.width}px!important`,
+        'height:auto!important',
+        'max-height:none!important',
+      );
+    } else if (style.height !== undefined) {
+      declarations.push(
+        `height:${style.height}px!important`,
+        `max-height:${style.height}px!important`,
+        'width:auto!important',
+        'max-width:none!important',
+      );
+    }
+  } else if (style.width !== undefined) {
+    declarations.push(`width:${style.width}px!important`, `max-width:${style.width}px!important`);
+  }
+  if (key !== 'logo' && style.height !== undefined) {
+    declarations.push(
+      `height:${style.height}px!important`,
+      `max-height:${style.height}px!important`,
+      'overflow:hidden!important',
+    );
+  }
+  if (style.fontSize !== undefined) declarations.push(`font-size:${style.fontSize}px!important`);
+  if (style.color !== undefined) declarations.push(`color:${cssValue(style.color)}!important`);
+  if (style.fontFamily !== undefined) declarations.push(`font-family:"${cssValue(style.fontFamily)}",sans-serif!important`);
+  if (style.fontWeight !== undefined) declarations.push(`font-weight:${style.fontWeight}!important`);
+  return declarations.length ? `[data-pdf-block="${key}"]{${declarations.join(';')}}` : '';
+}
+
+function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
+  const styles = Object.entries(layout.blocks)
+    .map(([key, style]) => blockCss(key as PdfLayoutBlockKey, style))
+    .join('');
+  const columnSelectors: Record<string, string> = {
+    'itemsTable.colCode': 'code',
+    'itemsTable.colName': 'name',
+    'itemsTable.colQty': 'qty',
+    'itemsTable.colAmount': 'amt',
+  };
+  const columnCss = Object.entries(columnSelectors)
+    .map(([key, className]) => {
+      const width = layout.blocks[key as PdfLayoutBlockKey]?.width;
+      return width === undefined
+        ? ''
+        : `table.items .${className}{width:${width}px!important;max-width:${width}px!important}`;
+    })
+    .join('');
+
+  let next = html.replace('</style>', `${styles}${columnCss}</style>`);
+  const replacements: Array<[string, string]> = [
+    ['<img class="logo"', '<img data-pdf-block="logo" class="logo"'],
+    ['<div class="logo-text">', '<div data-pdf-block="companyName" class="logo-text">'],
+    ['<div class="tax">', '<div data-pdf-block="companyTaxData" class="tax">'],
+    ['<h1>PRESUPUESTO</h1>', '<h1 data-pdf-block="quoteTitle">PRESUPUESTO</h1>'],
+    ['<div class="meta">', '<div data-pdf-block="quoteMeta" class="meta">'],
+    ['<div class="card">\n      <h2>DATOS DEL PRESUPUESTO</h2>', '<div data-pdf-block="quoteData" class="card">\n      <h2>DATOS DEL PRESUPUESTO</h2>'],
+    ['<div class="card">\n      <h2>DATOS FISCALES</h2>', '<div data-pdf-block="companyFiscalData" class="card">\n      <h2>DATOS FISCALES</h2>'],
+    ['<div class="card"><h2>DATOS FISCALES</h2>', '<div data-pdf-block="companyFiscalData" class="card"><h2>DATOS FISCALES</h2>'],
+    ['<section class="services">', '<section data-pdf-block="servicesBlock" class="services">'],
+    ['<table class="items">', '<table data-pdf-block="itemsTable" class="items">'],
+    ['<th>Cód.</th>', '<th data-pdf-block="itemsTable.colCode" class="code">Cód.</th>'],
+    ['<th>Artículo</th>', '<th data-pdf-block="itemsTable.colName" class="name">Artículo</th>'],
+    ['<th>Cant.</th>', '<th data-pdf-block="itemsTable.colQty" class="qty">Cant.</th>'],
+    ['<th>Importe</th>', '<th data-pdf-block="itemsTable.colAmount" class="amt">Importe</th>'],
+    ['<section class="totals">', '<section data-pdf-block="totalsBlock" class="totals">'],
+    ['<section class="obs">', '<section data-pdf-block="observation" class="obs">'],
+    ['<section class="rma">', '<section data-pdf-block="rmaBlock" class="rma">'],
+    ['<footer class="footer">', '<footer data-pdf-block="footerText" class="footer">'],
+  ];
+  for (const [from, to] of replacements) next = next.replaceAll(from, to);
+  if (next.includes('<table class="fin">') || next.includes('<p class="note">')) {
+    const financingStart = next.indexOf('<p class="note">') >= 0
+      ? next.indexOf('<p class="note">')
+      : next.indexOf('<table class="fin">');
+    const observationStart = next.indexOf('\n\n  <section data-pdf-block="observation"', financingStart);
+    const rmaStart = next.indexOf('\n\n  <section data-pdf-block="rmaBlock"', financingStart);
+    const footerStart = next.indexOf('\n\n  <footer data-pdf-block="footerText"', financingStart);
+    const candidates = [observationStart, rmaStart, footerStart].filter((index) => index > financingStart);
+    const financingEnd = Math.min(...candidates);
+    if (financingStart >= 0 && Number.isFinite(financingEnd)) {
+      next =
+        `${next.slice(0, financingStart)}<section data-pdf-block="financingBlock">` +
+        `${next.slice(financingStart, financingEnd)}</section>${next.slice(financingEnd)}`;
+    }
+  }
+  return next;
 }
 
 export function resolvePdfFlags(
@@ -248,7 +398,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     ? `<img class="logo" src="${escapeHtml(input.company.logoUrl)}" alt="" />`
     : `<div class="logo-text">${escapeHtml(input.company.name)}</div>`;
 
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="es-AR">
 <head>
 <meta charset="utf-8" />
@@ -441,6 +591,36 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
   <footer class="footer">${escapeHtml(input.company.footerText)} · ${escapeHtml(input.company.address)} · ${escapeHtml(input.company.phones)}</footer>
 </body>
 </html>`;
+  return hasLayoutOverrides(input.layout) ? decorateLayoutHtml(html, input.layout!) : html;
+}
+
+/** Renderer compartido por el preview live y la generación final. `editor` agrega hit-targets aun sin overrides. */
+export function renderPdfHtml(input: PdfRenderInput, editor = false): string {
+  const html = renderQuoteHtml(input);
+  if (!editor) return html;
+  const decorated = hasLayoutOverrides(input.layout)
+    ? html
+    : decorateLayoutHtml(html, {version: 1, blocks: {}});
+  // `@page` sólo afecta print. El preview screen debe reproducir el mismo content box:
+  // A4 completo con exactamente los 14 mm / 12 mm usados por Chromium al imprimir.
+  return decorated
+    .replace('<html lang="es-AR">', '<html lang="es-AR" data-pdf-editor-preview>')
+    .replace(
+      '</style>',
+      `@media screen {
+  html[data-pdf-editor-preview] {
+    width: 210mm;
+    min-height: 297mm;
+    overflow: hidden;
+    background: #fff;
+  }
+  html[data-pdf-editor-preview] body {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm 12mm;
+  }
+}</style>`,
+    );
 }
 
 let sharedBrowser: Browser | null = null;

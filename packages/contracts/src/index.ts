@@ -4,6 +4,8 @@ export const userSchema = z.object({
   id: z.string().uuid(),
   username: z.string(),
   displayName: z.string().nullable(),
+  role: z.enum(['ADMIN', 'VENDEDOR']),
+  branchId: z.string().uuid().nullable(),
 });
 export const loginInputSchema = z
   .object({ username: z.string().trim().min(1).max(100), password: z.string().min(1).max(1024) })
@@ -25,6 +27,36 @@ const nonEmptyUpdate = <T extends z.ZodRawShape>(shape: T) =>
     .partial()
     .strict()
     .refine((v) => Object.keys(v).length > 0, 'Se requiere al menos un campo');
+
+export const userRoleSchema = z.enum(['ADMIN', 'VENDEDOR']);
+const optionalTextOverride = z
+  .string()
+  .trim()
+  .max(300)
+  .nullable()
+  .optional()
+  .transform((value) => value === '' ? null : value);
+export const branchCreateSchema = z.object({
+  name: z.string().trim().min(1).max(150),
+  address: optionalTextOverride,
+  phones: optionalTextOverride,
+}).strict();
+export const branchUpdateSchema = nonEmptyUpdate(branchCreateSchema.shape);
+export const userCreateSchema = z.object({
+  username: z.string().trim().min(3).max(100).regex(/^[a-zA-Z0-9._-]+$/, 'El usuario contiene caracteres inválidos'),
+  displayName: z.string().trim().min(1).max(150).nullable().optional(),
+  password: z.string().min(8).max(1024),
+  role: userRoleSchema.default('VENDEDOR'),
+  branchId: nullableIdSchema,
+}).strict();
+export const userUpdateSchema = z.object({
+  username: z.string().trim().min(3).max(100).regex(/^[a-zA-Z0-9._-]+$/, 'El usuario contiene caracteres inválidos').optional(),
+  displayName: z.string().trim().min(1).max(150).nullable().optional(),
+  password: z.string().min(8).max(1024).optional(),
+  role: userRoleSchema.optional(),
+  branchId: nullableIdSchema,
+  active: z.boolean().optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, 'Se requiere al menos un campo');
 
 export const companySettingsInputSchema = z
   .object({
@@ -81,6 +113,80 @@ export const pdfSettingsSchema = pdfSettingsInputSchema.extend({
   id: z.literal('singleton'),
   updatedAt: z.coerce.date(),
 });
+
+export const pdfLayoutBlockKeySchema = z.enum([
+  'logo',
+  'companyName',
+  'companyTaxData',
+  'quoteTitle',
+  'quoteMeta',
+  'quoteData',
+  'companyFiscalData',
+  'servicesBlock',
+  'itemsTable',
+  'itemsTable.colCode',
+  'itemsTable.colName',
+  'itemsTable.colQty',
+  'itemsTable.colAmount',
+  'totalsBlock',
+  'financingBlock',
+  'observation',
+  'rmaBlock',
+  'footerText',
+]);
+export const pdfLayoutStyleSchema = z
+  .object({
+    x: z.number().min(-200).max(200).optional(),
+    y: z.number().min(-300).max(300).optional(),
+    width: z.number().min(24).max(720).optional(),
+    height: z.number().min(12).max(1000).optional(),
+    fontSize: z.number().min(6).max(48).optional(),
+    color: color.optional(),
+    fontFamily: z
+      .enum(['Segoe UI', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Verdana'])
+      .optional(),
+    fontWeight: z.number().int().min(300).max(900).multipleOf(100).optional(),
+  })
+  .strict();
+export const pdfLayoutConfigSchema = z
+  .object({
+    version: z.literal(1).default(1),
+    blocks: z.record(pdfLayoutBlockKeySchema, pdfLayoutStyleSchema).default({}),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const columnKeys = [
+      'itemsTable.colCode',
+      'itemsTable.colName',
+      'itemsTable.colQty',
+      'itemsTable.colAmount',
+    ] as const;
+    const widths = columnKeys.map((key) => value.blocks[key]?.width);
+    if (widths.some((width) => width !== undefined)) {
+      const resolved = [
+        widths[0] ?? 48,
+        widths[1] ?? 487,
+        widths[2] ?? 48,
+        widths[3] ?? 110,
+      ];
+      const sum = resolved.reduce((total, width) => total + width, 0);
+      if (sum < 620 || sum > 720) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['blocks'],
+          message: 'El ancho total de las columnas debe quedar entre 620 y 720 px',
+        });
+      }
+    }
+  });
+export const pdfLayoutSettingsSchema = z.object({
+  id: z.literal('singleton'),
+  layout: pdfLayoutConfigSchema,
+  updatedAt: z.coerce.date(),
+});
+export const pdfLayoutPreviewInputSchema = z
+  .object({ layout: pdfLayoutConfigSchema })
+  .strict();
 
 export const aiSettingsInputSchema = z
   .object({
@@ -170,6 +276,11 @@ export const collectionInputSchema = z.object({ name: text });
 
 export type CompanySettingsInput = z.infer<typeof companySettingsInputSchema>;
 export type PdfSettingsInput = z.infer<typeof pdfSettingsInputSchema>;
+export type PdfLayoutBlockKey = z.infer<typeof pdfLayoutBlockKeySchema>;
+export type PdfLayoutStyle = z.infer<typeof pdfLayoutStyleSchema>;
+export type PdfLayoutConfig = z.infer<typeof pdfLayoutConfigSchema>;
+export type PdfLayoutSettings = z.infer<typeof pdfLayoutSettingsSchema>;
+export type PdfLayoutPreviewInput = z.infer<typeof pdfLayoutPreviewInputSchema>;
 export type AiSettingsInput = z.infer<typeof aiSettingsInputSchema>;
 export type OperationsSettingsInput = z.infer<typeof operationsSettingsInputSchema>;
 export type FinancingInput = z.infer<typeof financingInputSchema>;
@@ -208,13 +319,22 @@ export const productMergeSchema = z
   .refine((v) => !v.mergeIds.includes(v.keepId), {
     message: 'No se puede unificar un producto consigo mismo',
   });
+export const productBulkMergeSchema = z
+  .object({
+    groups: z.array(productMergeSchema).min(1).max(200),
+  })
+  .strict();
 
 export const customerCreateSchema = z
   .object({
     name: text,
     phone: z.string().trim().max(100).nullable().optional(),
     dni: z.string().trim().max(50).nullable().optional(),
+    notes: z.string().trim().max(5000).nullable().optional(),
   })
+  .strict();
+export const customerQuickCreateSchema = z
+  .object({ phone: z.string().trim().min(1).max(100) })
   .strict();
 export const customerUpdateSchema = nonEmptyUpdate(customerCreateSchema.shape);
 
@@ -263,6 +383,127 @@ export const replyIntentSchema = z.enum([
 ]);
 export const suggestionToneSchema = z.enum(['AMIGABLE', 'INTERMEDIO', 'TECNICO']);
 
+// Chatbot: configuración editorial extensible y contratos compartidos web/extensión/API.
+export const chatbotModeSchema = z.enum(['OFF', 'SUGGEST', 'AUTO']);
+export const chatbotModeOverrideSchema = chatbotModeSchema.nullable();
+const chatbotStringListSchema = z.array(z.string().trim().min(1).max(2000)).max(100);
+export const chatbotResponseEntrySchema = z.object({
+  id: z.string().trim().min(1).max(100),
+  enabled: z.boolean(),
+  activators: z.array(z.string().trim().min(1).max(500)).max(100),
+  similarityThreshold: z.number().int().min(0).max(100),
+  answer: z.string().trim().min(1).max(10000),
+  context: z.string().trim().max(10000).default(''),
+  attachments: z.object({
+    imageUrl: z.string().trim().url().max(2000).nullable(),
+    url: z.string().trim().url().max(2000).nullable(),
+    quote: z.object({
+      familyId: z.string().trim().min(1).max(100),
+      version: z.number().int().min(1).nullable(),
+      useLatest: z.boolean(),
+    }).strict().nullable(),
+  }).strict().default({imageUrl: null, url: null, quote: null}),
+}).strict();
+const chatbotScheduleDaySchema = z
+  .array(
+    z.object({
+      from: z.string().regex(/^\d{2}:\d{2}$/),
+      to: z.string().regex(/^\d{2}:\d{2}$/),
+    }).strict(),
+  )
+  .max(4);
+export const chatbotSettingsInputSchema = z
+  .object({
+    enabled: z.boolean(),
+    defaultMode: chatbotModeSchema,
+    model: z.string().trim().min(1).max(200).nullable(),
+    persona: z.string().trim().min(1).max(10000),
+    openingMessages: chatbotStringListSchema,
+    closingMessages: chatbotStringListSchema,
+    responses: z.array(chatbotResponseEntrySchema).max(500),
+    escalationKeywords: z.array(z.string().trim().min(1).max(200)).max(200),
+    escalationInstructions: z.string().trim().min(1).max(10000),
+    modelCanEscalate: z.boolean(),
+    businessHours: z.object({
+      enabled: z.boolean(),
+      timezone: z.string().trim().min(1).max(100),
+      schedule: z.object({
+        monday: chatbotScheduleDaySchema,
+        tuesday: chatbotScheduleDaySchema,
+        wednesday: chatbotScheduleDaySchema,
+        thursday: chatbotScheduleDaySchema,
+        friday: chatbotScheduleDaySchema,
+        saturday: chatbotScheduleDaySchema,
+        sunday: chatbotScheduleDaySchema,
+      }).strict(),
+    }).strict(),
+    outsideHoursBehavior: z.object({
+      mode: z.enum(['OFF', 'STALL', 'NORMAL']),
+      message: z.string().trim().max(2000),
+    }).strict(),
+    responseStyle: z.object({
+      length: z.enum(['SHORT', 'MEDIUM', 'DETAILED']),
+      maxCharacters: z.number().int().min(80).max(4000),
+      emoji: z.enum(['NONE', 'SPARING', 'NATURAL']),
+      paragraphs: z.enum(['COMPACT', 'SHORT', 'FREE']),
+      avoidRepetition: z.boolean(),
+    }).strict(),
+    ignoredAutoMessages: z.array(z.string().trim().min(1).max(2000)).max(100),
+    autoDelayMaxSeconds: z.number().int().min(0).max(120),
+    reuseSimilarityThreshold: z.number().int().min(0).max(100),
+    scanIntervalSeconds: z.number().int().min(3).max(120),
+    maxRecentSnippets: z.number().int().min(0).max(50),
+    summaryRefreshEvery: z.number().int().min(2).max(100),
+    sendConfirmationTimeoutMs: z.number().int().min(3000).max(60000),
+  })
+  .strict();
+export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({
+  id: z.literal('singleton'),
+  updatedAt: z.coerce.date(),
+});
+export const chatbotConversationUpdateSchema = z
+  .object({
+    displayName: z.string().trim().max(200).nullable().optional(),
+    modeOverride: chatbotModeOverrideSchema.optional(),
+    clearEscalation: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'Se requiere al menos un campo');
+export const chatbotRespondSchema = z
+  .object({
+    chatKey: z.string().trim().min(1).max(200),
+    displayName: z.string().trim().max(200).optional(),
+    detectedPhone: z.string().trim().max(100).nullable().optional(),
+    message: z.string().trim().min(1).max(20000),
+    messageType: z.enum(['TEXT', 'AUDIO']).optional().default('TEXT'),
+    messageFingerprint: z.string().trim().min(8).max(200),
+    manualSuggestion: z.boolean().optional().default(false),
+    simulation: z.boolean().optional().default(false),
+    recentMessages: z.array(z.object({
+      direction: z.enum(['INBOUND', 'OUTBOUND']),
+      text: z.string().trim().min(1).max(10000),
+    }).strict()).max(50).optional(),
+  })
+  .strict();
+export const chatbotLogActionSchema = z.object({
+  action: z.enum(['SENT', 'SEND_FAILED', 'HUMAN_SENT', 'DISMISSED', 'ATTACHMENT_SENT', 'ATTACHMENT_FAILED']),
+  text: z.string().trim().min(1).max(20000).optional(),
+  error: z.string().trim().max(2000).optional(),
+  attachment: z.string().trim().max(2000).optional(),
+}).strict();
+export const chatbotLogsQuerySchema = z.object({
+  chatKey: z.string().trim().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+}).strict();
+
+export type ChatbotMode = z.infer<typeof chatbotModeSchema>;
+export type ChatbotSettingsInput = z.infer<typeof chatbotSettingsInputSchema>;
+export type ChatbotSettings = z.infer<typeof chatbotSettingsSchema>;
+export type ChatbotResponseEntry = z.infer<typeof chatbotResponseEntrySchema>;
+export type ChatbotConversationUpdate = z.infer<typeof chatbotConversationUpdateSchema>;
+export type ChatbotRespondInput = z.infer<typeof chatbotRespondSchema>;
+export type ChatbotLogActionInput = z.infer<typeof chatbotLogActionSchema>;
+
 export const quoteItemCreateSchema = z
   .object({
     productId: nullableIdSchema,
@@ -293,6 +534,7 @@ const quoteBaseShape = {
 export const quoteCreateSchema = z.object(quoteBaseShape).strict();
 export const quoteUpdateSchema = z
   .object({
+    reason: z.string().trim().max(1000).nullable().optional(),
     internalName: text.optional(),
     requestId: nullableIdSchema,
     customerId: nullableIdSchema,
@@ -314,14 +556,25 @@ export const quoteCollectionsSchema = z
   .strict();
 export const quoteVersionCreateSchema = z
   .object({
-    reason: z.string().trim().min(1).max(1000),
+    reason: z.string().trim().max(1000).nullable().optional(),
+    sourceVersion: z.number().int().positive().optional(),
     publicObservation: z.string().trim().max(4000).nullable().optional(),
     pdfOverrides: z.record(fieldOverrideSchema).optional(),
     resolvedPdfConfig: z.record(z.unknown()).optional(),
     financingSnapshot: z.record(z.unknown()).nullable().optional(),
     items: z.array(quoteItemCreateSchema).min(1).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      v.sourceVersion === undefined ||
+      (v.items === undefined &&
+        v.publicObservation === undefined &&
+        v.pdfOverrides === undefined &&
+        v.resolvedPdfConfig === undefined &&
+        v.financingSnapshot === undefined),
+    'Al restaurar una versión no se pueden mezclar cambios de contenido',
+  );
 export const quoteRetargetSchema = z
   .object({
     targetTotalCents: moneyCentsSchema,
@@ -471,6 +724,28 @@ export const quoteSearchSchema = z
   })
   .strict();
 
+export const catalogQuerySchema = z
+  .object({
+    q: z.string().trim().max(300).optional(),
+    productType: z.string().trim().max(300).optional(),
+    brand: z.string().trim().max(300).optional(),
+    availability: z.string().trim().max(100).optional(),
+    inStock: z.coerce.boolean().optional(),
+    minPrice: z.coerce.number().nonnegative().optional(),
+    maxPrice: z.coerce.number().nonnegative().optional(),
+    sort: z
+      .enum(['price_asc', 'price_desc', 'name_asc', 'name_desc', 'stock_desc'])
+      .optional()
+      .default('name_asc'),
+    page: z.coerce.number().int().positive().optional().default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).optional().default(40),
+  })
+  .strict()
+  .refine(
+    (value) => value.minPrice === undefined || value.maxPrice === undefined || value.minPrice <= value.maxPrice,
+    'El precio mínimo no puede superar al máximo',
+  );
+
 export const similarityLimitQuerySchema = z
   .object({
     limit: z.coerce.number().int().positive().max(50).optional().default(10),
@@ -519,7 +794,9 @@ export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductImportInput = z.infer<typeof productImportSchema>;
 export type ProductBulkDeleteInput = z.infer<typeof productBulkDeleteSchema>;
 export type ProductMergeInput = z.infer<typeof productMergeSchema>;
+export type ProductBulkMergeInput = z.infer<typeof productBulkMergeSchema>;
 export type CustomerCreateInput = z.infer<typeof customerCreateSchema>;
+export type CustomerQuickCreateInput = z.infer<typeof customerQuickCreateSchema>;
 export type CustomerUpdateInput = z.infer<typeof customerUpdateSchema>;
 export type PcLineCreateInput = z.infer<typeof pcLineCreateSchema>;
 export type PcLineUpdateInput = z.infer<typeof pcLineUpdateSchema>;
@@ -545,8 +822,13 @@ export type SendAttemptCreateInput = z.infer<typeof sendAttemptCreateSchema>;
 export type SendAttemptResolveInput = z.infer<typeof sendAttemptResolveSchema>;
 export type QuoteReplyCreateInput = z.infer<typeof quoteReplyCreateSchema>;
 export type QuoteSearchInput = z.infer<typeof quoteSearchSchema>;
+export type CatalogQuery = z.infer<typeof catalogQuerySchema>;
 export type NotificationMarkInput = z.infer<typeof notificationMarkSchema>;
 export type AiAnalyzeRequestInput = z.infer<typeof aiAnalyzeRequestSchema>;
 export type AiSuggestResponseInput = z.infer<typeof aiSuggestResponseSchema>;
 export type AiCompatibilityInput = z.infer<typeof aiCompatibilitySchema>;
 export type AiIntentInput = z.infer<typeof aiIntentSchema>;
+export type UserCreateInput = z.infer<typeof userCreateSchema>;
+export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
+export type BranchCreateInput = z.infer<typeof branchCreateSchema>;
+export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;

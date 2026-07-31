@@ -1,0 +1,3 @@
+ALTER TABLE "ChatbotSettings"
+ADD COLUMN "autoDelayMaxSeconds" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "reuseSimilarityThreshold" INTEGER NOT NULL DEFAULT 90;

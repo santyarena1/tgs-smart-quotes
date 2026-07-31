@@ -42,10 +42,16 @@ const pdfStorage = createPdfStorageFromEnv(process.env);
  * contenido, y el número de presupuesto siempre queda fechado según cuándo se creó esa versión.
  */
 async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind): Promise<PdfRenderInput> {
-  const [company, pdfSettings, financingPlans] = await Promise.all([
+  const [company, pdfSettings, financingPlans, creatorBranch] = await Promise.all([
     tx.companySettings.findUniqueOrThrow({where: {id: 'singleton'}}),
     tx.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}}),
     tx.financingPlan.findMany({where: {active: true}, orderBy: [{sortOrder: 'asc'}]}),
+    version.creatorId
+      ? tx.user.findUnique({
+          where: {id: version.creatorId},
+          select: {branch: {select: {address: true, phones: true}}},
+        }).then((user: any) => user?.branch ?? null)
+      : null,
   ]);
 
   const defaults: PdfResolvedConfig = {
@@ -156,8 +162,8 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
       cuit: company.cuit,
       grossIncome: company.grossIncome,
       activityStart: company.activityStart,
-      address: company.address,
-      phones: company.phones,
+      address: creatorBranch?.address ?? company.address,
+      phones: creatorBranch?.phones ?? company.phones,
       footerText: company.footerText,
       rmaUrl: company.rmaUrl,
       primaryColor: company.primaryColor,
@@ -167,6 +173,13 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     config,
     items,
     financing,
+    layout:
+      pdfSettings.layoutJson &&
+      typeof pdfSettings.layoutJson === 'object' &&
+      !Array.isArray(pdfSettings.layoutJson) &&
+      Object.keys((pdfSettings.layoutJson as Record<string, unknown>).blocks as object ?? {}).length
+        ? (pdfSettings.layoutJson as PdfRenderInput['layout'])
+        : undefined,
   };
 }
 
@@ -176,6 +189,68 @@ function storageKeyFor(family: any, version: any, kind: PdfKind) {
 
 @Controller('quotes')
 export class PdfController {
+  private async generateVersionPdf(id: string, versionNumber: number, actor: RequestUser) {
+    return db.$transaction(async (tx) => {
+      const family = await loadFamily(tx, id);
+      const version = family.versions.find((item: any) => item.version === versionNumber);
+      if (!version) throw new NotFoundException('Versión inexistente');
+      const kind: PdfKind = 'SIMPLE';
+      const existing = await tx.quotePdf.findUnique({
+        where: {versionId_kind: {versionId: version.id, kind}},
+      });
+      if (existing) return jsonSafe({...existing, reused: true, immutable: version.state !== 'BORRADOR'});
+      const renderInput = await buildRenderInput(tx, family, version, kind);
+      const stored = await generateAndStorePdf({
+        input: renderInput,
+        storage: pdfStorage,
+        storageKey: storageKeyFor(family, version, kind),
+      });
+      const pdf = await tx.quotePdf.create({data: {
+        versionId: version.id, kind, storageKey: stored.storageKey, sha256: stored.sha256,
+        sizeBytes: stored.sizeBytes, inputHash: stored.inputHash, driver: stored.driver,
+        configJson: renderInput.config as any,
+      }});
+      await statusEvent(tx, {
+        type: 'PDF_GENERADO', familyId: id, versionId: version.id, requestId: family.requestId,
+        customerId: family.customerId, userId: actor.id, next: {kind, version: versionNumber},
+        metadata: {historical: version.version !== family.activeVersion},
+      });
+      await audit(tx, actor.id, 'QuotePdf', pdf.id, 'CREATE', null, pdf);
+      return jsonSafe({...pdf, reused: false, immutable: version.state !== 'BORRADOR'});
+    });
+  }
+
+  @Post(':id/versions/:version/pdf')
+  async generateHistorical(
+    @Param('id', new ZodPipe(idSchema)) id: string,
+    @Param('version') versionParam: string,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const version = Number(versionParam);
+    if (!Number.isInteger(version) || version < 1) throw new BadRequestException('Versión inválida');
+    return this.generateVersionPdf(id, version, actor);
+  }
+
+  @Get(':id/versions/:version/pdf')
+  async downloadHistorical(
+    @Param('id', new ZodPipe(idSchema)) id: string,
+    @Param('version') versionParam: string,
+    @Res() res: any,
+  ) {
+    const versionNumber = Number(versionParam);
+    const pdf = await db.quotePdf.findFirst({
+      where: {kind: 'SIMPLE', version: {familyId: id, version: versionNumber}},
+      include: {version: {include: {family: true}}},
+    });
+    if (!pdf) throw new NotFoundException('El PDF todavía no fue generado');
+    const buffer = await pdfStorage.get(pdf.storageKey).catch(() => null);
+    if (!buffer) throw new NotFoundException('No se pudo leer el PDF almacenado');
+    res.header('Content-Type', 'application/pdf');
+    res.header('Content-Disposition', `inline; filename="${pdfFileName(pdf.version.family.visibleNumber, versionNumber, 'SIMPLE')}"`);
+    res.header('Content-Length', String(buffer.byteLength));
+    res.send(buffer);
+  }
+
   /**
    * Genera (o reutiliza) el PDF de una versión. Reglas (ver `docs/specs/BLOCK-3.md`):
    * - Si ya existe un PDF para (versión, kind) y la versión NO es BORRADOR, el PDF es histórico e

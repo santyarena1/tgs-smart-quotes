@@ -4,6 +4,7 @@ import {
   formatDateAr,
   pdfFileName,
   pdfInputHash,
+  renderPdfHtml,
   renderQuoteHtml,
   resolvePdfFlags,
   type PdfRenderInput,
@@ -121,6 +122,40 @@ describe('@tgs/pdf', () => {
     const b = pdfInputHash(sample());
     expect(a).toBe(b);
     expect(a).toHaveLength(64);
+  });
+
+  it('un layout vacío conserva exactamente el HTML y el hash históricos', () => {
+    const legacy = sample();
+    const emptyLayout = {...sample(), layout: {version: 1 as const, blocks: {}}};
+    expect(renderQuoteHtml(emptyLayout)).toBe(renderQuoteHtml(legacy));
+    expect(pdfInputHash(emptyLayout)).toBe(pdfInputHash(legacy));
+  });
+
+  it('el preview del editor reproduce el content box A4 y expone hit-targets', () => {
+    const html = renderPdfHtml(sample(), true);
+    expect(html).toContain('data-pdf-editor-preview');
+    expect(html).toContain('width: 210mm');
+    expect(html).toContain('min-height: 297mm');
+    expect(html).toContain('padding: 14mm 12mm');
+    expect(html).toContain('data-pdf-block="itemsTable"');
+    expect(html).toContain('data-pdf-block="itemsTable.colAmount"');
+    expect(html).toContain('data-pdf-block="totalsBlock"');
+    expect(html).toContain('data-pdf-block="financingBlock"');
+    expect(html).toContain('data-pdf-block="footerText"');
+  });
+
+  it('el logo conserva su proporción aun con un layout antiguo deformado', () => {
+    const html = renderQuoteHtml({
+      ...sample(),
+      company: {...sample().company, logoUrl: 'https://example.com/logo.png'},
+      layout: {
+        version: 1,
+        blocks: {logo: {width: 240, height: 20}},
+      },
+    });
+    expect(html).toContain('width:240px!important');
+    expect(html).toContain('height:auto!important');
+    expect(html).not.toContain('height:20px!important');
   });
 
   it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {

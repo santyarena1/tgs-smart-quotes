@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  BadGatewayException,
   Body,
   Controller,
   Delete,
@@ -9,6 +10,7 @@ import {
   Post,
   Put,
   Req,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import OpenAI from 'openai';
 import {db} from '@tgs/database';
@@ -20,16 +22,28 @@ import {
   financingUpdateSchema,
   idSchema,
   operationsSettingsInputSchema,
+  pdfLayoutConfigSchema,
+  pdfLayoutPreviewInputSchema,
   pdfSettingsInputSchema,
   type AiSettingsInput,
   type CompanySettingsInput,
   type FinancingInput,
   type OperationsSettingsInput,
+  type PdfLayoutConfig,
+  type PdfLayoutPreviewInput,
   type PdfSettingsInput,
 } from '@tgs/contracts';
+import {renderPdfHtml, type PdfRenderInput, type PdfResolvedConfig} from '@tgs/pdf';
 import {decryptSecret, encryptSecret, maskSecret} from '@tgs/config';
 import {CurrentUser, jsonSafe, Public, type RequestUser, ZodPipe} from './infrastructure.js';
 import {removeManagedLogoFile, saveBrandingLogo} from './branding-storage.js';
+import {describeOpenAiError} from '@tgs/ai';
+
+const NON_CHAT_MODEL_FAMILIES =
+  /(embedding|whisper|tts|dall-e|image|moderation|audio|realtime|transcribe|search|computer-use)/i;
+function isChatCompletionModel(id:string){
+  return /^(gpt-|chatgpt-|o\d|o-)/i.test(id)&&!NON_CHAT_MODEL_FAMILIES.test(id);
+}
 
 const audit = (
   tx: any,
@@ -131,6 +145,94 @@ export class SettingsController {
     return db.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}});
   }
 
+  private normalizePdfLayout(value: unknown): PdfLayoutConfig {
+    const candidate =
+      value && typeof value === 'object' && 'version' in value
+        ? value
+        : {version: 1, blocks: value ?? {}};
+    return pdfLayoutConfigSchema.parse(candidate);
+  }
+
+  @Get('pdf-layout')
+  async pdfLayout() {
+    const row = await db.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+    return {id: row.id, layout: this.normalizePdfLayout(row.layoutJson), updatedAt: row.updatedAt};
+  }
+
+  @Put('pdf-layout')
+  async putPdfLayout(
+    @Body(new ZodPipe(pdfLayoutConfigSchema)) body: PdfLayoutConfig,
+    @CurrentUser() u: RequestUser,
+  ) {
+    return db.$transaction(async (tx) => {
+      const old = await tx.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+      const next = await tx.pdfSettings.update({
+        where: {id: 'singleton'},
+        data: {layoutJson: body},
+      });
+      await audit(tx, u.id, 'PdfLayoutSettings', 'singleton', 'UPDATE', old.layoutJson, body);
+      return {id: next.id, layout: body, updatedAt: next.updatedAt};
+    });
+  }
+
+  @Post('pdf-layout/preview')
+  async previewPdfLayout(
+    @Body(new ZodPipe(pdfLayoutPreviewInputSchema)) body: PdfLayoutPreviewInput,
+  ) {
+    const [company, pdfSettings, financing] = await Promise.all([
+      db.companySettings.findUniqueOrThrow({where: {id: 'singleton'}}),
+      db.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}}),
+      db.financingPlan.findMany({where: {active: true}, orderBy: {sortOrder: 'asc'}, take: 3}),
+    ]);
+    const config: PdfResolvedConfig = {
+      showListPrice: pdfSettings.showListPrice,
+      showCashTransfer: pdfSettings.showCashTransfer,
+      showFinancing: pdfSettings.showFinancing,
+      showBbva: pdfSettings.showBbva,
+      showOtherBanks: pdfSettings.showOtherBanks,
+      showFinancingNote: pdfSettings.showFinancingNote,
+      showTaxData: pdfSettings.showTaxData,
+      showServicesBlock: pdfSettings.showServicesBlock,
+      showWindows: pdfSettings.showWindows,
+      showDrivers: pdfSettings.showDrivers,
+      showDelay: pdfSettings.showDelay,
+      showRma: pdfSettings.showRma,
+      showExtraObservation: true,
+      showIndividualPrices: pdfSettings.showIndividualPrices,
+      showComponentDetail: pdfSettings.showComponentDetail,
+      builtPcTitle: pdfSettings.builtPcTitle,
+      builtPcDescription: pdfSettings.builtPcDescription,
+      assemblyText: pdfSettings.assemblyText,
+      installText: pdfSettings.installText,
+      windowsText: pdfSettings.windowsText,
+      driversText: pdfSettings.driversText,
+      estimatedDelay: pdfSettings.estimatedDelay,
+    };
+    const input: PdfRenderInput = {
+      kind: 'DETALLADO',
+      number: 'TGS-000123',
+      date: new Date('2026-07-28T12:00:00-03:00'),
+      isBuiltPc: true,
+      observation: 'Entrega coordinada con el cliente. Presupuesto de muestra.',
+      listTotalCents: 184990000n,
+      cashTotalCents: 169990000n,
+      company,
+      config,
+      layout: body.layout,
+      items: [
+        {code: '001', name: pdfSettings.builtPcTitle, quantity: 1, unitCents: 169990000n, subtotalCents: 169990000n, isMainLine: true},
+        {code: '002', name: 'Procesador AMD Ryzen 7 7800X3D', quantity: 1, unitCents: 64990000n, subtotalCents: 64990000n, isComponent: true},
+        {code: '003', name: 'Memoria RAM DDR5 32 GB 6000 MHz', quantity: 2, unitCents: 18990000n, subtotalCents: 37980000n, isComponent: true},
+        {code: '004', name: 'Disco SSD NVMe 1 TB PCIe 4.0', quantity: 1, unitCents: 25990000n, subtotalCents: 25990000n, isComponent: true},
+      ],
+      financing: financing.map((plan) => ({
+        ...plan,
+        appliesOn: plan.appliesOn,
+      })),
+    };
+    return {html: renderPdfHtml(input, true)};
+  }
+
   @Put('pdf')
   async putPdf(
     @Body(new ZodPipe(pdfSettingsInputSchema)) body: PdfSettingsInput,
@@ -207,10 +309,42 @@ export class SettingsController {
     if (!key) return {ok: false, model, error: 'No hay una API key configurada'};
     try {
       const client = new OpenAI({apiKey: key, timeout: 10000, maxRetries: 0});
-      await client.responses.create({model, input: 'Respondé únicamente OK', max_output_tokens: 8});
+      await client.chat.completions.create({
+        model,
+        messages:[{role:'user',content:'Respondé únicamente OK'}],
+        max_completion_tokens:8,
+      });
       return {ok: true, model};
-    } catch {
-      return {ok: false, model, error: 'No se pudo conectar con el modelo configurado'};
+    } catch(error) {
+      const detail=describeOpenAiError(error);
+      return {ok: false, model, error: detail.message, errorKind: detail.kind, status: detail.status};
+    }
+  }
+
+  @Get('ai/models')
+  async aiModels(){
+    const settings=await db.aiSettings.findUniqueOrThrow({where:{id:'singleton'}});
+    const key=settings.apiKeyEncrypted
+      ?decryptSecret(settings.apiKeyEncrypted)
+      :process.env.OPENAI_API_KEY;
+    if(!key?.trim()){
+      throw new ServiceUnavailableException('Configurá y guardá una API key de OpenAI primero.');
+    }
+    try{
+      const client=new OpenAI({apiKey:key.trim(),timeout:15000,maxRetries:1});
+      const page=await client.models.list();
+      const models=page.data
+        .filter(model=>isChatCompletionModel(model.id))
+        .map(model=>({id:model.id,created:model.created,ownedBy:model.owned_by}))
+        .sort((a,b)=>a.id.localeCompare(b.id));
+      if(!models.length){
+        throw new BadGatewayException('OpenAI no devolvió modelos de conversación disponibles para esta cuenta.');
+      }
+      return {models,pricingIncluded:false,loadedAt:new Date().toISOString()};
+    }catch(error){
+      if(error instanceof BadGatewayException)throw error;
+      const detail=describeOpenAiError(error);
+      throw new BadGatewayException(detail.message);
     }
   }
 

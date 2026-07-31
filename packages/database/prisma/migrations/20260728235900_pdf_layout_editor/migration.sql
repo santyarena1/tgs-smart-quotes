@@ -1,0 +1,2 @@
+ALTER TABLE "PdfSettings"
+ADD COLUMN "layoutJson" JSONB NOT NULL DEFAULT '{}';

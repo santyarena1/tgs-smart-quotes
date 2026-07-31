@@ -8,6 +8,7 @@ import { CollectionsView } from "./CollectionsView";
 import { CombosView } from "./CombosView";
 import { CustomersView } from "./CustomersView";
 import { DashboardView } from "./DashboardView";
+import { AcustockCatalogView } from "./AcustockCatalogView";
 import { LoginView } from "./LoginView";
 import { NotificationsView } from "./NotificationsView";
 import { PcLinesView } from "./PcLinesView";
@@ -15,6 +16,8 @@ import { ProductsView } from "./ProductsView";
 import { QuotesView } from "./QuotesView";
 import { RequestsView } from "./RequestsView";
 import { SettingsView } from "./SettingsView";
+import { PdfLayoutEditorView } from "./PdfLayoutEditorView";
+import { UsersView } from "./UsersView";
 import { Alert, Loading, initials } from "./shared";
 
 const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: string }[] }[] = [
@@ -32,6 +35,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
     items: [
       { id: "clientes", label: "Clientes", icon: "☺" },
       { id: "productos", label: "Productos", icon: "❏" },
+      { id: "catalogo-acustock", label: "Catálogo AcuStock", icon: "▦" },
       { id: "combos", label: "Combos", icon: "⊞" },
       { id: "lineas", label: "Líneas PC", icon: "▥" },
     ],
@@ -40,6 +44,8 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
     label: "Sistema",
     items: [
       { id: "notificaciones", label: "Notificaciones", icon: "◉" },
+      { id: "editor-pdf", label: "Editor de PDF", icon: "▧" },
+      { id: "usuarios", label: "Usuarios", icon: "♟" },
       { id: "configuracion", label: "Configuración", icon: "⚙" },
     ],
   },
@@ -171,7 +177,7 @@ export function App() {
             <div className="nav-group" key={group.label}>
               <p className="nav-group-label">{group.label}</p>
               <div className="nav-group-links">
-                {group.items.map((item) => (
+                {group.items.filter((item) => item.id !== "usuarios" || user.role === "ADMIN").map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -253,11 +259,14 @@ export function App() {
           />
         ) : null}
         {nav === "productos" ? <ProductsView /> : null}
+        {nav === "catalogo-acustock" ? <AcustockCatalogView /> : null}
         {nav === "combos" ? <CombosView /> : null}
         {nav === "clientes" ? <CustomersView /> : null}
         {nav === "lineas" ? <PcLinesView /> : null}
         {nav === "colecciones" ? <CollectionsView /> : null}
         {nav === "notificaciones" ? <NotificationsView /> : null}
+        {nav === "editor-pdf" ? <PdfLayoutEditorView /> : null}
+        {nav === "usuarios" && user.role === "ADMIN" ? <UsersView /> : null}
         {nav === "configuracion" ? <SettingsView /> : null}
       </main>
     </div>
