@@ -2,6 +2,10 @@ FROM node:22-bookworm-slim AS build
 RUN corepack enable
 WORKDIR /app
 ENV CI=true
+# Next.js hornea el destino del proxy /api en build. Railway pasa las variables de servicio como
+# build args cuando se declaran con ARG; así la web queda apuntando a la API por red interna.
+ARG API_PROXY_TARGET
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 COPY . .
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter @tgs/web build
