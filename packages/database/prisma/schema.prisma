@@ -647,6 +647,8 @@ model PdfSettings {
   windowsText          String
   driversText          String
   estimatedDelay       String
+  /// Plantilla del texto de aceptación. `{rmaUrl}` se reemplaza al renderizar.
+  rmaText              String   @default("Importante: al aceptar este presupuesto, ya sea mediante compromiso verbal o monetario —seña, abono total, abono parcial o cualquier confirmación de compra/servicio—, el cliente declara conocer y aceptar las Políticas de Servicio Técnico y RMA: {rmaUrl}")
   lineOrder            Json
   /// Overrides visuales del template PDF. Un objeto vacío conserva el diseño histórico.
   layoutJson           Json     @default("{}")

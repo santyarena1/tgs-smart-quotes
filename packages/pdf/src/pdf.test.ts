@@ -33,6 +33,7 @@ const baseConfig = {
   windowsText: 'Windows 11/10 Pro sin licencia',
   driversText: 'Drivers de video dedicados para la GPU',
   estimatedDelay: '3 a 5 días hábiles una vez dada el alta',
+  rmaText: 'Importante: al aceptar este presupuesto, ya sea mediante compromiso verbal o monetario —seña, abono total, abono parcial o cualquier confirmación de compra/servicio—, el cliente declara conocer y aceptar las Políticas de Servicio Técnico y RMA: {rmaUrl}',
 };
 
 const sample = (): PdfRenderInput => ({
@@ -167,6 +168,24 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('width:240px!important');
     expect(html).toContain('height:auto!important');
     expect(html).not.toContain('height:20px!important');
+  });
+
+  it('renderiza la plantilla RMA por defecto sin cambiar el texto histórico', () => {
+    const html = renderQuoteHtml(sample());
+    expect(html).toContain(
+      'Importante: al aceptar este presupuesto, ya sea mediante compromiso verbal o monetario —seña, abono total, abono parcial o cualquier confirmación de compra/servicio—, el cliente declara conocer y aceptar las Políticas de Servicio Técnico y RMA: https://thegamershop.com.ar/rma-servicio-tecnico-garantias/',
+    );
+    expect(html).not.toContain('{rmaUrl}');
+  });
+
+  it('mantiene el enlace RMA aunque la plantilla personalizada omita el marcador', () => {
+    const html = renderQuoteHtml({
+      ...sample(),
+      config: {...baseConfig, rmaText: 'Texto personalizado de garantía.'},
+    });
+    expect(html).toContain(
+      'Texto personalizado de garantía. https://thegamershop.com.ar/rma-servicio-tecnico-garantias/',
+    );
   });
 
   it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {

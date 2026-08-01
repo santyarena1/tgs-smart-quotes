@@ -595,6 +595,7 @@ export function SettingsView() {
                 ["windowsText", "Texto Windows"],
                 ["driversText", "Texto drivers"],
                 ["estimatedDelay", "Plazo estimado"],
+                ["rmaText", "Texto de aceptación de garantía"],
               ] as const
             ).map(([key, label]) => (
               <Field key={key} label={label} htmlFor={`pdf-${key}`}>

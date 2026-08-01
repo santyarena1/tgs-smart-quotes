@@ -61,6 +61,7 @@ export type PdfResolvedConfig = {
   windowsText: string;
   driversText: string;
   estimatedDelay: string;
+  rmaText: string;
 };
 
 export const PDF_LAYOUT_BLOCK_KEYS = [
@@ -183,6 +184,14 @@ function applyInterest(baseCents: bigint, interestBps: number): bigint {
 function installmentAmount(baseCents: bigint, plan: PdfFinancingPlan): bigint {
   const total = applyInterest(baseCents, plan.interestBps);
   return (total + BigInt(plan.installments) / 2n) / BigInt(plan.installments);
+}
+
+function renderRmaText(template: string, rmaUrl: string): string {
+  const marker = '{rmaUrl}';
+  if (!template.includes(marker)) {
+    return `${escapeHtml(template)} ${escapeHtml(rmaUrl)}`;
+  }
+  return template.split(marker).map(escapeHtml).join(escapeHtml(rmaUrl));
 }
 
 function hasLayoutOverrides(layout?: PdfLayoutConfig): boolean {
@@ -578,7 +587,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
 
   ${
     input.config.showRma
-      ? `<section class="rma">Importante: al aceptar este presupuesto, ya sea mediante compromiso verbal o monetario —seña, abono total, abono parcial o cualquier confirmación de compra/servicio—, el cliente declara conocer y aceptar las Políticas de Servicio Técnico y RMA: ${escapeHtml(input.company.rmaUrl)}</section>`
+      ? `<section class="rma">${renderRmaText(input.config.rmaText, input.company.rmaUrl)}</section>`
       : ''
   }
 

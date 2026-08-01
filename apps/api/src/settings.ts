@@ -184,6 +184,8 @@ export class SettingsController {
       db.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}}),
       db.financingPlan.findMany({where: {active: true}, orderBy: {sortOrder: 'asc'}, take: 3}),
     ]);
+    const previewCompany = {...company, ...(body.companyText ?? {})};
+    const previewPdf = {...pdfSettings, ...(body.pdfText ?? {})};
     const config: PdfResolvedConfig = {
       showListPrice: pdfSettings.showListPrice,
       showCashTransfer: pdfSettings.showCashTransfer,
@@ -200,13 +202,14 @@ export class SettingsController {
       showExtraObservation: true,
       showIndividualPrices: pdfSettings.showIndividualPrices,
       showComponentDetail: pdfSettings.showComponentDetail,
-      builtPcTitle: pdfSettings.builtPcTitle,
-      builtPcDescription: pdfSettings.builtPcDescription,
-      assemblyText: pdfSettings.assemblyText,
-      installText: pdfSettings.installText,
-      windowsText: pdfSettings.windowsText,
-      driversText: pdfSettings.driversText,
-      estimatedDelay: pdfSettings.estimatedDelay,
+      builtPcTitle: previewPdf.builtPcTitle,
+      builtPcDescription: previewPdf.builtPcDescription,
+      assemblyText: previewPdf.assemblyText,
+      installText: previewPdf.installText,
+      windowsText: previewPdf.windowsText,
+      driversText: previewPdf.driversText,
+      estimatedDelay: previewPdf.estimatedDelay,
+      rmaText: previewPdf.rmaText,
     };
     const input: PdfRenderInput = {
       kind: 'DETALLADO',
@@ -217,11 +220,11 @@ export class SettingsController {
       cashTotalCents: 169990000n,
       listTotalCents:
         (169990000n * BigInt(10000 + company.listInterestBps) + 5000n) / 10000n,
-      company,
+      company: previewCompany,
       config,
       layout: body.layout,
       items: [
-        {code: '001', name: pdfSettings.builtPcTitle, quantity: 1, unitCents: 169990000n, subtotalCents: 169990000n, isMainLine: true},
+        {code: '001', name: [previewPdf.builtPcTitle, previewPdf.builtPcDescription].filter(Boolean).join(' — '), quantity: 1, unitCents: 169990000n, subtotalCents: 169990000n, isMainLine: true},
         {code: '002', name: 'Procesador AMD Ryzen 7 7800X3D', quantity: 1, unitCents: 64990000n, subtotalCents: 64990000n, isComponent: true},
         {code: '003', name: 'Memoria RAM DDR5 32 GB 6000 MHz', quantity: 2, unitCents: 18990000n, subtotalCents: 37980000n, isComponent: true},
         {code: '004', name: 'Disco SSD NVMe 1 TB PCIe 4.0', quantity: 1, unitCents: 25990000n, subtotalCents: 25990000n, isComponent: true},

@@ -118,6 +118,7 @@ export type PdfSettings = {
   windowsText: string;
   driversText: string;
   estimatedDelay: string;
+  rmaText: string;
   lineOrder: string[];
   updatedAt?: string;
 };

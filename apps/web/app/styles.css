@@ -2688,6 +2688,11 @@ tr.editing {
 .pdf-field-link.active { border-color: #1677ff; background: #eef6ff; }
 .pdf-field-list { display: grid; gap: 6px; max-height: 300px; overflow: auto; padding-right: 3px; }
 .pdf-field-link:disabled { cursor: not-allowed; }
+.pdf-fixed-content-editor { display: grid; gap: 10px; padding: 12px; border: 1px solid #b9dfc9; border-radius: 8px; background: #f2fbf6; }
+.pdf-content-kind { width: fit-content; padding: 3px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.pdf-content-kind.fixed { color: #0f6b3d; background: #dff4e8; }
+.pdf-content-kind.variable { color: #5d6470; background: #eceef2; }
+.pdf-properties .pdf-content-note { color: var(--muted); font-size: 12px; }
 @media (max-width: 1050px) {
   .pdf-editor-grid { grid-template-columns: 1fr; }
   .pdf-properties { position: static; }

@@ -106,7 +106,8 @@ export const pdfSettingsInputSchema = z
     installText: text,
     windowsText: text,
     driversText: text,
-    estimatedDelay: text,
+    estimatedDelay: z.string().trim().max(1000),
+    rmaText: z.string().trim().min(1).max(5000),
     lineOrder: z.array(z.string()),
   })
   .strict();
@@ -185,8 +186,37 @@ export const pdfLayoutSettingsSchema = z.object({
   layout: pdfLayoutConfigSchema,
   updatedAt: z.coerce.date(),
 });
+export const pdfLayoutCompanyTextSchema = z
+  .object({
+    name: z.string().max(1000),
+    taxCondition: z.string().max(1000),
+    cuit: z.string().max(1000),
+    grossIncome: z.string().max(1000),
+    activityStart: z.string().max(1000),
+    address: z.string().max(2000),
+    phones: z.string().max(1000),
+    footerText: z.string().max(5000),
+    rmaUrl: z.string().max(2000),
+  })
+  .strict();
+export const pdfLayoutPdfTextSchema = z
+  .object({
+    builtPcTitle: z.string().max(2000),
+    builtPcDescription: z.string().max(2000),
+    assemblyText: z.string().max(2000),
+    installText: z.string().max(2000),
+    windowsText: z.string().max(2000),
+    driversText: z.string().max(2000),
+    estimatedDelay: z.string().max(1000),
+    rmaText: z.string().max(5000),
+  })
+  .strict();
 export const pdfLayoutPreviewInputSchema = z
-  .object({ layout: pdfLayoutConfigSchema })
+  .object({
+    layout: pdfLayoutConfigSchema,
+    companyText: pdfLayoutCompanyTextSchema.optional(),
+    pdfText: pdfLayoutPdfTextSchema.optional(),
+  })
   .strict();
 
 export const aiSettingsInputSchema = z

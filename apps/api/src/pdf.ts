@@ -77,6 +77,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     windowsText: pdfSettings.windowsText,
     driversText: pdfSettings.driversText,
     estimatedDelay: pdfSettings.estimatedDelay,
+    rmaText: pdfSettings.rmaText,
   };
   const config = resolvePdfFlags(defaults, version.pdfOverrides as Record<string, 'HEREDAR' | 'MOSTRAR' | 'OCULTAR'> | null);
 

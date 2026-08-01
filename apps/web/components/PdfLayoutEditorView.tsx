@@ -3,25 +3,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type {
+  CompanySettings,
   PdfLayoutBlockKey,
   PdfLayoutConfig,
   PdfLayoutSettings,
   PdfLayoutStyle,
+  PdfSettings,
 } from "../lib/types";
 import { Alert, Loading, PageHeader, errorMessage } from "./shared";
 
 const BLOCKS: Array<{
   key: PdfLayoutBlockKey; label: string; text?: boolean; resize?: boolean; column?: boolean;
+  fixedContent?: "companyName" | "taxCondition" | "fiscal" | "builtPc" | "services" | "rma" | "footer";
 }> = [
   { key: "logo", label: "Logo", resize: true },
-  { key: "companyName", label: "Nombre de la empresa", text: true, resize: true },
-  { key: "companyTaxData", label: "Condición fiscal", text: true, resize: true },
+  { key: "companyName", label: "Nombre de la empresa", text: true, resize: true, fixedContent: "companyName" },
+  { key: "companyTaxData", label: "Condición fiscal", text: true, resize: true, fixedContent: "taxCondition" },
   { key: "quoteTitle", label: "Título PRESUPUESTO", text: true, resize: true },
   { key: "quoteMeta", label: "Número y fecha del encabezado", text: true, resize: true },
   { key: "quoteData", label: "Datos del presupuesto", text: true, resize: true },
-  { key: "companyFiscalData", label: "Datos fiscales", text: true, resize: true },
-  { key: "servicesBlock", label: "Servicios incluidos", text: true, resize: true },
-  { key: "itemsTable", label: "Tabla de artículos", text: true, resize: true },
+  { key: "companyFiscalData", label: "Datos fiscales", text: true, resize: true, fixedContent: "fiscal" },
+  { key: "servicesBlock", label: "Servicios incluidos", text: true, resize: true, fixedContent: "services" },
+  { key: "itemsTable", label: "Tabla de artículos", text: true, resize: true, fixedContent: "builtPc" },
   { key: "itemsTable.colCode", label: "Columna Código", column: true },
   { key: "itemsTable.colName", label: "Columna Artículo", column: true },
   { key: "itemsTable.colQty", label: "Columna Cantidad", column: true },
@@ -29,8 +32,8 @@ const BLOCKS: Array<{
   { key: "totalsBlock", label: "Totales", text: true, resize: true },
   { key: "financingBlock", label: "Financiación", text: true, resize: true },
   { key: "observation", label: "Observación", text: true, resize: true },
-  { key: "rmaBlock", label: "Políticas de RMA", text: true, resize: true },
-  { key: "footerText", label: "Pie de página", text: true, resize: true },
+  { key: "rmaBlock", label: "Políticas de RMA", text: true, resize: true, fixedContent: "rma" },
+  { key: "footerText", label: "Pie de página", text: true, resize: true, fixedContent: "footer" },
 ];
 const FONTS = ["Segoe UI", "Arial", "Helvetica", "Georgia", "Times New Roman", "Verdana"];
 const EMPTY: PdfLayoutConfig = { version: 1, blocks: {} };
@@ -43,6 +46,10 @@ type Box = { left: number; top: number; width: number; height: number };
 export function PdfLayoutEditorView() {
   const [draft, setDraft] = useState<PdfLayoutConfig>(EMPTY);
   const [saved, setSaved] = useState<PdfLayoutConfig>(EMPTY);
+  const [company, setCompany] = useState<CompanySettings | null>(null);
+  const [savedCompany, setSavedCompany] = useState<CompanySettings | null>(null);
+  const [pdf, setPdf] = useState<PdfSettings | null>(null);
+  const [savedPdf, setSavedPdf] = useState<PdfSettings | null>(null);
   const [html, setHtml] = useState("");
   const [selected, setSelected] = useState<PdfLayoutBlockKey>("logo");
   const [boxes, setBoxes] = useState<Partial<Record<PdfLayoutBlockKey, Box>>>({});
@@ -60,9 +67,17 @@ export function PdfLayoutEditorView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const row = await api<PdfLayoutSettings>("/settings/pdf-layout");
+      const [row, companyRow, pdfRow] = await Promise.all([
+        api<PdfLayoutSettings>("/settings/pdf-layout"),
+        api<CompanySettings>("/settings/company"),
+        api<PdfSettings>("/settings/pdf"),
+      ]);
       setDraft(row.layout);
       setSaved(row.layout);
+      setCompany(companyRow);
+      setSavedCompany(companyRow);
+      setPdf(pdfRow);
+      setSavedPdf(pdfRow);
       setError(null);
     } catch (err) {
       setError(errorMessage(err));
@@ -83,14 +98,37 @@ export function PdfLayoutEditorView() {
   }, [loading]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !company || !pdf) return;
     const timer = window.setTimeout(async () => {
       const requestId = ++previewRequestRef.current;
       setPreviewing(true);
       try {
         const result = await api<{ html: string }>("/settings/pdf-layout/preview", {
           method: "POST",
-          body: { layout: draft },
+          body: {
+            layout: draft,
+            companyText: {
+              name: company.name,
+              taxCondition: company.taxCondition,
+              cuit: company.cuit,
+              grossIncome: company.grossIncome,
+              activityStart: company.activityStart,
+              address: company.address,
+              phones: company.phones,
+              footerText: company.footerText,
+              rmaUrl: company.rmaUrl,
+            },
+            pdfText: {
+              builtPcTitle: pdf.builtPcTitle,
+              builtPcDescription: pdf.builtPcDescription,
+              assemblyText: pdf.assemblyText,
+              installText: pdf.installText,
+              windowsText: pdf.windowsText,
+              driversText: pdf.driversText,
+              estimatedDelay: pdf.estimatedDelay,
+              rmaText: pdf.rmaText,
+            },
+          },
         });
         if (requestId !== previewRequestRef.current) return;
         setHtml(result.html);
@@ -103,7 +141,7 @@ export function PdfLayoutEditorView() {
       }
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [draft, loading]);
+  }, [company, draft, loading, pdf]);
 
   const syncBoxes = useCallback(() => {
     const doc = frameRef.current?.contentDocument;
@@ -138,7 +176,7 @@ export function PdfLayoutEditorView() {
     setBoxes(next);
     setSelected((current) => {
       const meta = BLOCKS.find((block) => block.key === current);
-      if (meta?.column || next[current]) return current;
+      if (meta?.column || meta?.fixedContent || next[current]) return current;
       return BLOCKS.find((block) => next[block.key])?.key ?? current;
     });
   }, []);
@@ -151,7 +189,12 @@ export function PdfLayoutEditorView() {
 
   const selectedMeta = BLOCKS.find((block) => block.key === selected)!;
   const style = draft.blocks[selected] ?? {};
-  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
+  const dirty = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(saved)
+      || JSON.stringify(company) !== JSON.stringify(savedCompany)
+      || JSON.stringify(pdf) !== JSON.stringify(savedPdf),
+    [company, draft, pdf, saved, savedCompany, savedPdf],
+  );
 
   function patchStyle(patch: Partial<PdfLayoutStyle>) {
     setDraft((current) => ({
@@ -248,13 +291,25 @@ export function PdfLayoutEditorView() {
   }
 
   async function save() {
+    if (!company || !pdf) return;
     setSaving(true);
     setError(null);
     try {
-      const row = await api<PdfLayoutSettings>("/settings/pdf-layout", { method: "PUT", body: draft });
+      const {id: _companyId, updatedAt: _companyUpdatedAt, ...companyBody} = company;
+      const {id: _pdfId, updatedAt: _pdfUpdatedAt, ...pdfBody} = pdf;
+      delete (pdfBody as Record<string, unknown>).layoutJson;
+      const [row, savedCompanyRow, savedPdfRow] = await Promise.all([
+        api<PdfLayoutSettings>("/settings/pdf-layout", {method: "PUT", body: draft}),
+        api<CompanySettings>("/settings/company", {method: "PUT", body: companyBody}),
+        api<PdfSettings>("/settings/pdf", {method: "PUT", body: pdfBody}),
+      ]);
       setDraft(row.layout);
       setSaved(row.layout);
-      setNotice("Diseño del PDF guardado.");
+      setCompany(savedCompanyRow);
+      setSavedCompany(savedCompanyRow);
+      setPdf(savedPdfRow);
+      setSavedPdf(savedPdfRow);
+      setNotice("Diseño y textos del PDF guardados.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -268,6 +323,7 @@ export function PdfLayoutEditorView() {
   }
 
   if (loading) return <Loading label="Cargando editor de PDF…" />;
+  if (!company || !pdf) return <Alert>{error ?? "No se pudieron cargar los textos del PDF."}</Alert>;
 
   return (
     <div className="pdf-editor-view">
@@ -340,7 +396,66 @@ export function PdfLayoutEditorView() {
         </section>
         <aside className="pdf-properties">
           <h2>{selectedMeta.label}</h2>
-          <p>Los campos vacíos conservan el valor original del diseño.</p>
+          {selectedMeta.fixedContent ? (
+            <div className="pdf-fixed-content-editor">
+              <div className="pdf-content-kind fixed">Texto fijo editable</div>
+              {selectedMeta.fixedContent === "companyName" ? (
+                <label>Nombre de la empresa
+                  <input value={company.name} onChange={(event) => setCompany({...company, name: event.target.value})} />
+                </label>
+              ) : null}
+              {selectedMeta.fixedContent === "taxCondition" ? (
+                <label>Condición fiscal
+                  <input value={company.taxCondition} onChange={(event) => setCompany({...company, taxCondition: event.target.value})} />
+                </label>
+              ) : null}
+              {selectedMeta.fixedContent === "fiscal" ? (
+                <>
+                  <label>CUIT <input value={company.cuit} onChange={(event) => setCompany({...company, cuit: event.target.value})} /></label>
+                  <label>Ingresos Brutos <input value={company.grossIncome} onChange={(event) => setCompany({...company, grossIncome: event.target.value})} /></label>
+                  <label>Inicio de actividad <input value={company.activityStart} onChange={(event) => setCompany({...company, activityStart: event.target.value})} /></label>
+                  <label>Domicilio <textarea rows={2} value={company.address} onChange={(event) => setCompany({...company, address: event.target.value})} /></label>
+                </>
+              ) : null}
+              {selectedMeta.fixedContent === "builtPc" ? (
+                <>
+                  <p className="pdf-content-note">La tabla contiene datos variables. Sólo estos textos de la línea principal de PC armada son fijos.</p>
+                  <label>Título de PC armada <textarea rows={2} value={pdf.builtPcTitle} onChange={(event) => setPdf({...pdf, builtPcTitle: event.target.value})} /></label>
+                  <label>Descripción de PC armada <textarea rows={2} value={pdf.builtPcDescription} onChange={(event) => setPdf({...pdf, builtPcDescription: event.target.value})} /></label>
+                </>
+              ) : null}
+              {selectedMeta.fixedContent === "services" ? (
+                <>
+                  <label>Texto de armado <textarea rows={2} value={pdf.assemblyText} onChange={(event) => setPdf({...pdf, assemblyText: event.target.value})} /></label>
+                  <label>Texto de instalación <textarea rows={2} value={pdf.installText} onChange={(event) => setPdf({...pdf, installText: event.target.value})} /></label>
+                  <label>Texto de Windows <textarea rows={2} value={pdf.windowsText} onChange={(event) => setPdf({...pdf, windowsText: event.target.value})} /></label>
+                  <label>Texto de drivers <textarea rows={2} value={pdf.driversText} onChange={(event) => setPdf({...pdf, driversText: event.target.value})} /></label>
+                  <label>Plazo estimado <textarea rows={2} value={pdf.estimatedDelay} onChange={(event) => setPdf({...pdf, estimatedDelay: event.target.value})} /></label>
+                </>
+              ) : null}
+              {selectedMeta.fixedContent === "rma" ? (
+                <>
+                  <label>Texto de aceptación de garantía
+                    <textarea rows={7} value={pdf.rmaText} onChange={(event) => setPdf({...pdf, rmaText: event.target.value})} />
+                  </label>
+                  <label>URL de políticas RMA
+                    <input type="url" value={company.rmaUrl} onChange={(event) => setCompany({...company, rmaUrl: event.target.value})} />
+                  </label>
+                  <small>Usá <code>{"{rmaUrl}"}</code> para elegir dónde aparece el enlace. Si no lo incluís, se agrega al final.</small>
+                </>
+              ) : null}
+              {selectedMeta.fixedContent === "footer" ? (
+                <>
+                  <label>Texto del pie <textarea rows={3} value={company.footerText} onChange={(event) => setCompany({...company, footerText: event.target.value})} /></label>
+                  <label>Domicilio <textarea rows={2} value={company.address} onChange={(event) => setCompany({...company, address: event.target.value})} /></label>
+                  <label>Teléfonos <input value={company.phones} onChange={(event) => setCompany({...company, phones: event.target.value})} /></label>
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <div className="pdf-content-kind variable">Contenido variable o texto de plantilla</div>
+          )}
+          <p>Los controles vacíos de diseño conservan el estilo original.</p>
           {!selectedMeta.column ? (
             <div className="pdf-property-pair">
               <label>Posición X <input type="number" min={-200} max={200} value={style.x ?? ""} onChange={(e) => patchStyle({ x: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
@@ -396,12 +511,14 @@ export function PdfLayoutEditorView() {
               key={block.key}
               type="button"
               className={selected === block.key ? "pdf-field-link active" : "pdf-field-link"}
-              disabled={!block.column && !boxes[block.key]}
+              disabled={!block.column && !block.fixedContent && !boxes[block.key]}
               onClick={() => setSelected(block.key)}
             >
               {block.label}
               <span>
-                {block.column
+                {block.fixedContent
+                  ? "Texto fijo"
+                  : block.column
                   ? `${draft.blocks[block.key]?.width ?? "Original"}`
                   : boxes[block.key]
                     ? "Visible"
