@@ -286,6 +286,10 @@ export function PdfLayoutEditorView() {
       />
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="ok">{notice}</Alert> : null}
+      <div className="pdf-mobile-notice" role="status">
+        <strong>El editor visual de PDF se usa mejor desde una computadora</strong>
+        <p>La hoja A4 necesita una pantalla grande para arrastrar y redimensionar los campos con precisión. Abrí esta sección desde una computadora para editar el diseño.</p>
+      </div>
       <div className="pdf-editor-grid">
         <section className="pdf-preview-panel">
           <div className="pdf-preview-toolbar">

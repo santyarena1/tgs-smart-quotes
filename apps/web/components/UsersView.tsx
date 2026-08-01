@@ -152,8 +152,8 @@ export function UsersView() {
         <h2 className="panel-title">Equipo</h2>
         <div className="toolbar-actions"><button type="button" onClick={() => editUser("new")}>Nuevo usuario</button></div>
       </div>
-      <div className="table-wrap">
-        <table>
+      <div className="table-wrap users-table-wrap">
+        <table className="users-table">
           <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Sucursal</th><th>Activo</th><th>Último acceso</th><th /></tr></thead>
           <tbody>{users.map((user) => (
             <tr key={user.id} className={user.active ? "" : "dim"}>
@@ -176,8 +176,8 @@ export function UsersView() {
         <div><h2 className="panel-title">Sucursales</h2><span className="field-hint">Se usa en el encabezado del PDF; vacío = usa el dato global de Empresa.</span></div>
         <div className="toolbar-actions"><button type="button" onClick={() => editBranch()}>Nueva sucursal</button></div>
       </div>
-      <div className="table-wrap">
-        <table>
+      <div className="table-wrap branches-table-wrap">
+        <table className="branches-table">
           <thead><tr><th>Nombre</th><th>Dirección del PDF</th><th>Teléfonos del PDF</th><th>Usuarios</th><th /></tr></thead>
           <tbody>{branches.map((branch) => (
             <tr key={branch.id}>

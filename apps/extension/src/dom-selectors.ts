@@ -397,7 +397,7 @@ function renderNativeChatStatuses(){
       const status=map.get(key)??map.get(`name:${normalizeIdentityPart(name)}`);
       const existingBadge=row.querySelector<HTMLElement>(".tgs-native-status");
       const fallbackNeedsReply=!row.querySelector(strategy.outgoing)&&Boolean(row.querySelector(strategy.preview)?.textContent?.trim());
-      const effective=status??(fallbackNeedsReply?{chatKey:key,status:"NEEDS_REPLY" as const,label:"Responder"}:null);
+      const effective=status??(fallbackNeedsReply?{chatKey:key,status:"NEEDS_REPLY" as const,label:"Pendiente respuesta"}:null);
       const host=title?.parentElement??title;
       if(effective&&host){
         const meta=STATUS_META[effective.status];
@@ -416,20 +416,26 @@ function renderNativeChatStatuses(){
       (row as HTMLElement).style.display=visible?"":"none";
     }
     let filter=document.getElementById("tgs-native-chat-filter");
+    const options:Array<[string,string]>=[
+      ["ALL","Todos"],["NEEDS_REPLY","Pendiente respuesta"],["SUGGESTION","Sugerido"],
+      ["ESCALATED","Necesita supervisión"],["UNRESOLVED","No resuelto"],["PENDING_REQUEST","Presupuesto"],["RESPONDED","Respondido"],
+    ];
     if(!filter){
       filter=document.createElement("div");
       filter.id="tgs-native-chat-filter";
       const label=document.createElement("span");label.textContent="TGS";
       const select=document.createElement("select");
-      const options:Array<[string,string]>=[
-        ["ALL","Todos"],["NEEDS_REPLY","Necesitan respuesta"],["SUGGESTION","Esperan aprobación"],
-        ["ESCALATED","Escalados"],["UNRESOLVED","No resueltos"],["PENDING_REQUEST","Presupuesto pendiente"],["RESPONDED","Respondidos"],
-      ];
       for(const [value,text] of options){const option=document.createElement("option");option.value=value;option.textContent=text;select.appendChild(option)}
       select.value=nativeFilter;
       select.addEventListener("change",()=>{nativeFilter=select.value as NativeChatStatusKey|"ALL";renderNativeChatStatuses()});
       filter.append(label,select);
       container.parentElement?.insertBefore(filter,container);
+    }else{
+      const select=filter.querySelector("select");
+      for(const [value,label] of options){
+        const option=select?.querySelector<HTMLOptionElement>(`option[value="${value}"]`);
+        if(option)option.textContent=label;
+      }
     }
     if(!nativeObserver||nativeObservedContainer!==container){
       nativeObserver?.disconnect();

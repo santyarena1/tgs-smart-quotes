@@ -226,6 +226,9 @@ export function SettingsView() {
     setNotice(null);
     try {
       const { id: _id, updatedAt: _u, ...body } = pdf;
+      // layoutJson se gestiona desde el Editor de PDF (endpoint aparte); la API lo devuelve pero
+      // no debe reenviarse acá (el schema estricto lo rechaza).
+      delete (body as Record<string, unknown>).layoutJson;
       setPdf(await api<PdfSettings>("/settings/pdf", { method: "PUT", body }));
       setNotice("Configuración PDF guardada.");
     } catch (err) {

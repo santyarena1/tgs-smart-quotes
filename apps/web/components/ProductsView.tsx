@@ -551,7 +551,8 @@ export function ProductsView() {
           {filter ? "No hay coincidencias." : "Cargá productos o usá la importación masiva."}
         </EmptyState>
       ) : (
-        <div className="table-wrap">
+        <>
+        <div className="table-wrap desktop-list">
           <table>
             <thead>
               <tr>
@@ -623,6 +624,18 @@ export function ProductsView() {
             </tbody>
           </table>
         </div>
+        <div className="mobile-card-list" aria-label="Productos">
+          {filtered.map((p) => <article key={p.id} className={`mobile-list-card${p.active ? "" : " dim"}`} onClick={() => openEdit(p)}>
+            <div className="mobile-card-head">
+              <label className="mobile-card-select" onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} aria-label={`Seleccionar ${p.name}`} /><span>Seleccionar</span></label>
+              {p.active ? <Pill tone="ok">Activo</Pill> : <Pill tone="neutral">Inactivo</Pill>}
+            </div>
+            <div className="mobile-card-title">{p.name}</div>
+            <div className="mobile-product-prices"><div><span>Costo</span><strong>{formatArs(p.costCents)}</strong></div><div><span>Markup</span><strong>{formatBps(p.markupBps)}</strong>{p.usesGeneralMarkup ? <small>general</small> : null}</div><div><span>Venta</span><strong>{formatArs(p.salePriceCents)}</strong></div></div>
+            <div className="mobile-card-actions" onClick={(event) => event.stopPropagation()}><button type="button" onClick={() => openEdit(p)}>Editar</button>{p.active ? <button type="button" className="btn-danger" onClick={() => void deactivate(p.id)}>Eliminar</button> : null}</div>
+          </article>)}
+        </div>
+        </>
       )}
 
       {/* Editor */}

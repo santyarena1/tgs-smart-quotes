@@ -214,8 +214,8 @@ export function AcustockCatalogView() {
         </EmptyState>
       ) : (
         <>
-          <div className="table-wrap">
-            <table style={{ minWidth: 1500 }}>
+          <div className="table-wrap catalog-table-wrap">
+            <table className="catalog-table" style={{ minWidth: 1500 }}>
               <thead>
                 <tr>
                   <th>Imagen</th><th>MPN</th><th>Producto</th><th>Categoría</th><th>Marca</th>

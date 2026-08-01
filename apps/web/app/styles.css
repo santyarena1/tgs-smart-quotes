@@ -51,6 +51,8 @@ body {
   margin: 0;
   min-height: 100%;
   background: var(--canvas);
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 button,
@@ -846,12 +848,58 @@ tbody tr.selected {
 
 /* ————— Table ————— */
 .table-wrap {
-  overflow: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--paper);
   box-shadow: var(--sh-1);
 }
+
+.mobile-card-list,
+.quote-items-mobile,
+.pdf-mobile-notice {
+  display: none;
+}
+
+.mobile-list-card {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--paper);
+  box-shadow: var(--sh-1);
+}
+
+.mobile-card-head,
+.mobile-card-total,
+.mobile-items-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mobile-card-title { margin-top: 0.65rem; font-family: var(--brand); font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+.mobile-card-detail { margin: 0.45rem 0 0; color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+.mobile-card-total { margin-top: 0.7rem; padding-top: 0.65rem; border-top: 1px solid var(--line); }
+.mobile-card-total span, .mobile-product-prices span, .mobile-item-values span { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+.mobile-card-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.75rem; }
+.mobile-card-select { display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; }
+.mobile-card-select input { width: 1.2rem; height: 1.2rem; }
+.mobile-product-prices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+.mobile-product-prices > div, .mobile-item-values > div { display: grid; min-width: 0; }
+.mobile-product-prices strong { overflow-wrap: anywhere; }
+.mobile-product-prices small { color: var(--muted); }
+.mobile-items-total { padding: 1rem; border-radius: var(--r); background: var(--ink); color: #fff; }
+.mobile-items-total strong { font-size: 1.12rem; }
+.pdf-mobile-notice { padding: 1.1rem; border: 1px solid var(--info); border-radius: var(--r); background: var(--info-bg); }
+.pdf-mobile-notice p { margin: 0.4rem 0 0; color: var(--ink-2); }
 
 table {
   width: 100%;
@@ -1227,6 +1275,16 @@ td.num {
 
 .modal-body {
   padding: 1.2rem 1.3rem;
+  min-width: 0;
+}
+
+.modal-body > *,
+.drawer-body > *,
+.form-grid > *,
+details,
+details > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .modal-foot {
@@ -1864,6 +1922,8 @@ tr.editing {
   grid-auto-columns: minmax(240px, 1fr);
   gap: 0.85rem;
   overflow-x: auto;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
   padding-bottom: 0.75rem;
   align-items: start;
 }
@@ -2290,6 +2350,69 @@ tr.editing {
 }
 
 @media (max-width: 720px) {
+  .main {
+    width: 100%;
+    padding: 0.9rem 0.75rem 2rem;
+  }
+
+  .page-head {
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .page-actions,
+  .page-actions > *,
+  .page-actions .row-actions {
+    width: 100%;
+  }
+
+  .page-actions button,
+  .page-actions .row-actions button {
+    flex: 1 1 145px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .toolbar > .search,
+  .toolbar > input,
+  .toolbar > select,
+  .toolbar > button {
+    flex: 1 1 100%;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-actions button { flex: 1 1 auto; }
+
+  button,
+  .btn-sm,
+  .btn-icon,
+  input,
+  select,
+  textarea,
+  .check {
+    min-height: 42px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .card-pad { padding: 0.85rem; }
+  .stat-strip { grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+  .stat { padding: 0.7rem 0.75rem; }
+  .stat .stat-value { font-size: 1.2rem; }
+
   .grid-2,
   .grid-3,
   .two-col {
@@ -2301,12 +2424,91 @@ tr.editing {
   .totals-bar {
     grid-template-columns: 1fr 1fr;
   }
+
+  .desktop-list,
+  .quote-items-desktop,
+  .pdf-editor-grid {
+    display: none;
+  }
+
+  .mobile-card-list,
+  .quote-items-mobile {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .pdf-mobile-notice { display: block; }
+
+  .drawer {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .drawer-head { padding: 0.75rem; }
+  .drawer-body { padding: 0.75rem; gap: 0.75rem; }
+  .drawer-foot { position: static; padding: 0.75rem; }
+  .drawer-foot .spacer { display: none; }
+  .drawer-foot button { flex: 1 1 140px; }
+
+  .quote-round-bar,
+  .quote-round-actions,
+  .quote-ops-head,
+  .pdf-history li,
+  .similar-list li,
+  .habitual-list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .quote-round-actions select,
+  .quote-round-actions button { width: 100%; }
+
+  .modal { max-height: calc(100dvh - 1rem); border-radius: var(--r); }
+  .overlay { padding: 0.5rem; }
+  .modal-head, .modal-body, .modal-foot { padding: 0.8rem; }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot button { flex: 1 1 120px; }
+  .dupe-member { grid-template-columns: 22px minmax(0, 1fr); gap: 0.45rem; }
+  .dupe-member > :nth-child(n + 3) { grid-column: 2; }
+  .merge-picker-row { grid-template-columns: 22px minmax(0, 1fr); }
+  .merge-picker-row > :last-child { grid-column: 2; }
+
+  .tabs {
+    display: flex;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    border-radius: var(--r);
+  }
+  .tab { flex: 0 0 auto; min-height: 40px; }
+
+  .row-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .users-table th:nth-child(2), .users-table td:nth-child(2),
+  .users-table th:nth-child(4), .users-table td:nth-child(4),
+  .users-table th:nth-child(6), .users-table td:nth-child(6),
+  .branches-table th:nth-child(2), .branches-table td:nth-child(2),
+  .branches-table th:nth-child(3), .branches-table td:nth-child(3) { display: none; }
+  .users-table, .branches-table { min-width: 620px; }
+
+  .catalog-table th:nth-child(4), .catalog-table td:nth-child(4),
+  .catalog-table th:nth-child(5), .catalog-table td:nth-child(5),
+  .catalog-table th:nth-child(9), .catalog-table td:nth-child(9),
+  .catalog-table th:nth-child(10), .catalog-table td:nth-child(10) { display: none; }
+  .catalog-table { min-width: 760px !important; }
+  .catalog-table td:nth-child(3) { min-width: 240px; }
+
+  .kanban { grid-auto-columns: minmax(270px, 82vw); }
 }
 
 @media (max-width: 480px) {
   .item-fields {
     grid-template-columns: 1fr;
   }
+  .stat-strip { grid-template-columns: 1fr; }
+  .totals-bar { grid-template-columns: 1fr; }
+  .mobile-product-prices { grid-template-columns: 1fr 1fr; }
+  .mobile-card-actions button { flex: 1 1 calc(50% - 0.45rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -465,13 +465,13 @@ export class ChatbotController {
     return jsonSafe(rows.map((row) => {
       const latestOutbound=row.messages.find(message=>message.direction==='OUTBOUND');
       const nativeStatus=row.escalatedAt
-        ? {status:'ESCALATED',label:'Escalado'}
+        ? {status:'ESCALATED',label:'Necesita supervisión'}
         : latestOutbound?.status==='SEND_FAILED'
           ? {status:'UNRESOLVED',label:'No resuelto'}
           : row.activeRequest&&row.activeRequest.state!=='CERRADA'
             ? {status:'PENDING_REQUEST',label:'Presupuesto'}
             : suggestionChats.has(row.chatKey)
-              ? {status:'SUGGESTION',label:'Aprobar'}
+              ? {status:'SUGGESTION',label:'Sugerido'}
               : latestOutbound?.status==='SENT'
                 ? {status:'RESPONDED',label:'Respondido'}
                 : null;

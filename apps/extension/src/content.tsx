@@ -1488,24 +1488,24 @@ function useChatbotRuntime(
         if(list.confidence===0){setWarning(list.warning);return}
         if(list.warning)setWarning(list.warning);else setWarning(null);
 
-        const native:NativeChatStatus[]=[];
-        for(const chat of list.chats){
-          if(chat.needsReply){
-            native.push({chatKey:chat.chatKey,displayName:chat.name,status:"NEEDS_REPLY",label:"Responder"});
+        const buildNativeStatuses=(chats:typeof list.chats,rows:ChatbotConversation[])=>{
+          const statuses:NativeChatStatus[]=[];
+          for(const chat of chats){
+            if(chat.needsReply){
+              statuses.push({chatKey:chat.chatKey,displayName:chat.name,status:"NEEDS_REPLY",label:"Pendiente respuesta"});
+            }
           }
-        }
-        for(const item of conversations){
-          if(item.nativeStatus)native.push({
-            chatKey:item.chatKey,
-            displayName:item.displayName,
-            status:item.nativeStatus.status,
-            label:item.nativeStatus.label,
-          });
-        }
-        if(processingRef.current){
-          const processing=list.chats.find(chat=>chat.chatKey===processingRef.current);
-          native.push({chatKey:processingRef.current,displayName:processing?.name,status:"PROCESSING",label:"Procesando"});
-        }
+          for(const item of rows){
+            if(item.nativeStatus)statuses.push({
+              chatKey:item.chatKey,
+              displayName:item.displayName,
+              status:item.nativeStatus.status,
+              label:item.nativeStatus.label,
+            });
+          }
+          return statuses;
+        };
+        const native=buildNativeStatuses(list.chats,conversations);
         applyNativeChatStatuses(native);
 
         for(const chat of list.chats.filter(item=>item.hasUnread||item.needsReply)){
@@ -1547,6 +1547,12 @@ function useChatbotRuntime(
             applyNativeChatStatuses(native);
           }
         }
+        const refreshedConversations=await listChatbotConversations();
+        const refreshedList=detectChatList(nextSettings.ignoredAutoMessages);
+        applyNativeChatStatuses(buildNativeStatuses(
+          refreshedList.confidence>0?refreshedList.chats:list.chats,
+          refreshedConversations,
+        ));
         if(failures.length)setWarning(`Algunos chats no pudieron procesarse: ${failures.join(" · ")}`);
       }catch(error){setWarning(errorMessage(error))}
       finally{
@@ -1736,6 +1742,24 @@ function ChatbotTab({runtime,notifications,currentKey,phone,name}:{runtime:Chatb
             ?"Esperando un mensaje del cliente"
             :"Disponible cuando el chat está en Solo sugerir";
   return <div className="tgs-stack">
+    <div className="tgs-list-item selected">
+      <div className="tgs-row between">
+        <div>
+          <div className="tgs-row">
+            <span className={`tgs-auto-dot${runtime.settings?.enabled?" active":""}`} aria-hidden="true"/>
+            <b>{runtime.settings?.enabled?"Automático activo":"Automático detenido"}</b>
+          </div>
+          <div className="tgs-muted">{runtime.settings?.enabled?"El bot está revisando los chats según su configuración.":"No se procesan ni se envían respuestas automáticas."}</div>
+        </div>
+        <button
+          className={`tgs-btn ${runtime.settings?.enabled?"danger":""}`}
+          disabled={runtime.busy||!runtime.settings}
+          onClick={()=>void runtime.toggle(!runtime.settings?.enabled)}
+        >
+          {runtime.settings?.enabled?"Detener automático":"Iniciar automático"}
+        </button>
+      </div>
+    </div>
     {runtime.simulationMode?<Alert tone="warn"><b>MODO PRUEBA:</b> el bot recorre los chats y prepara borradores, pero no envía mensajes ni adjuntos.{!runtime.settings?.enabled?" Para iniciar el recorrido, activá “Respuestas del bot”; la barrera de prueba seguirá bloqueando todos los envíos.":""}</Alert>:null}
     <div className="tgs-list-item selected tgs-stack">
       <div className="tgs-row between">
@@ -2049,7 +2073,7 @@ export function Panel() {
     <div ref={panelRef} className={`tgs-panel${open ? "" : " collapsed"}`} style={position?{left:position.left,top:position.top,right:"auto"}:undefined}>
       <div className="tgs-header" onClick={() => open || setOpen(true)} onPointerDown={event=>{if(!open||event.button!==0)return;const rect=panelRef.current?.getBoundingClientRect();if(rect)dragRef.current={dx:event.clientX-rect.left,dy:event.clientY-rect.top}}}>
         <span className="tgs-title" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}>
-          TGS{chatbotRuntime.simulationMode?" · PRUEBA":""} {unreadCount > 0 && !open ? <span className="tgs-badge-dot">{unreadCount}</span> : null}
+          TGS{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.settings?.enabled?" · AUTO":""} {unreadCount > 0 && !open ? <span className="tgs-badge-dot">{unreadCount}</span> : null}
         </span>
         {open ? (
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6, alignItems: "center" }}>

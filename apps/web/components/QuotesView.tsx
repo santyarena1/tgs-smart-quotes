@@ -1537,7 +1537,8 @@ export function QuotesView({
           {filter ? "No hay coincidencias." : "Creá tu primer presupuesto para empezar."}
         </EmptyState>
       ) : (
-        <div className="table-wrap">
+        <>
+        <div className="table-wrap desktop-list">
           <table>
             <thead>
               <tr>
@@ -1618,6 +1619,29 @@ export function QuotesView({
             </tbody>
           </table>
         </div>
+        <div className="mobile-card-list" aria-label="Presupuestos">
+          {filtered.map((quote) => {
+            const version = getActiveVersion(quote);
+            const cname = quote.customer?.name ?? customers.find((c) => c.id === quote.customerId)?.name ?? "—";
+            const productsLine = getQuoteItems(quote).filter((item) => (item.name ?? "").trim()).map((item) => item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name).join(" · ");
+            return <article className="mobile-list-card" key={quote.id} onClick={() => void openQuote(quote.id)}>
+              <div className="mobile-card-head">
+                <div><strong>{quote.visibleNumber}</strong><span className="cell-sub">v{version?.version ?? quote.activeVersion} · {cname}</span></div>
+                {version ? <Pill tone={STATE_TONE[version.state]}>{STATE_LABEL[version.state]}</Pill> : null}
+              </div>
+              <div className="mobile-card-title">{quote.internalName}</div>
+              {productsLine ? <p className="mobile-card-detail">{productsLine}</p> : null}
+              <div className="mobile-card-total"><span>Total</span><strong>{formatArs(version?.totalSaleCents)}</strong></div>
+              <div className="mobile-card-actions" onClick={(event) => event.stopPropagation()}>
+                <button type="button" onClick={() => void printQuote(quote)}>Imprimir</button>
+                <button type="button" onClick={() => void editQuote(quote)}>Editar</button>
+                <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>Versiones</button>
+                <button type="button" className="btn-danger" onClick={() => void deleteQuote(quote)}>Eliminar</button>
+              </div>
+            </article>;
+          })}
+        </div>
+        </>
       )}
 
       <Drawer
@@ -2052,7 +2076,8 @@ export function QuotesView({
                 : "Buscá un producto o combo arriba para agregarlo. Si no existe, podés crearlo en el momento."}
             </EmptyState>
           ) : (
-            <div className="table-wrap mt">
+            <>
+            <div className="table-wrap mt quote-items-desktop">
               <table className="items-table">
                 <thead>
                   <tr>
@@ -2252,6 +2277,41 @@ export function QuotesView({
                 </tfoot>
               </table>
             </div>
+            <div className="quote-items-mobile mt">
+              {items.map((item, index) => {
+                const editing = editingKey === item.key;
+                const empty = isSlotEmpty(item);
+                const lineName = item.lineId ? lineById.get(item.lineId)?.name : null;
+                const picking = replaceItemKey === item.key || (Boolean(pickingLineId) && item.lineId === pickingLineId && empty);
+                return <article className={`item-card${empty ? " pc-slot-empty" : ""}`} key={item.key}>
+                  <div className="item-card-top">
+                    <span className="item-index">{index + 1}</span>
+                    <div>{isBuiltPc ? <span className="cell-sub">{lineName ?? "Extra"}</span> : null}<strong>{empty ? "Componente sin elegir" : item.name || "(sin nombre)"}</strong></div>
+                  </div>
+                  {empty && isDraft ? <button type="button" className="btn-ghost" onClick={() => item.lineId ? openReplaceOnLine(item.key, item.lineId) : undefined}>{picking ? "Elegí un producto arriba…" : "Elegir producto…"}</button> : null}
+                  {!empty && editing ? <>
+                    <Field label="Nombre"><input value={item.name} onChange={(e) => setName(item.key, e.target.value)} /></Field>
+                    <div className="item-fields">
+                      <Field label="Cantidad"><input type="number" min={1} value={item.quantity} onChange={(e) => setQuantity(item.key, e.target.value)} /></Field>
+                      <Field label="Costo"><input value={item.costArs} onChange={(e) => setCost(item.key, e.target.value)} /></Field>
+                      <Field label="Markup %"><input value={item.markupPct} onChange={(e) => setMarkupPct(item.key, e.target.value)} /></Field>
+                      <Field label="Precio de venta"><input value={item.saleArs} onChange={(e) => setSale(item.key, e.target.value)} /></Field>
+                    </div>
+                  </> : !empty ? <div className="item-fields mobile-item-values">
+                    <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong>{displayArs(item.saleArs)}</strong></div>
+                  </div> : null}
+                  {!empty ? <div className="item-foot"><span>Subtotal</span><strong className="item-subtotal">{formatArs(lineTotalCents(item.saleArs, item.quantity))}</strong></div> : null}
+                  {isDraft ? <div className="mobile-card-actions">
+                    {!isBuiltPc ? <><button type="button" className="move-btn" disabled={index === 0} onClick={() => move(item.key, -1)}>↑ Subir</button><button type="button" className="move-btn" disabled={index === items.length - 1} onClick={() => move(item.key, 1)}>↓ Bajar</button></> : null}
+                    {!empty ? <button type="button" className="btn-ghost" onClick={() => setEditingKey(editing ? null : item.key)}>{editing ? "Listo" : "Editar"}</button> : null}
+                    {isBuiltPc && item.lineId ? <button type="button" className="btn-ghost" onClick={() => openReplaceOnLine(item.key, item.lineId)}>{empty ? "Elegir" : "Cambiar"}</button> : null}
+                    {!empty ? <button type="button" className="btn-danger" onClick={() => removeItem(item.key)}>{isBuiltPc && item.lineId ? "Vaciar" : "Eliminar"}</button> : null}
+                  </div> : null}
+                </article>;
+              })}
+              <div className="mobile-items-total"><span>Total del presupuesto</span><strong>{formatArs(draftTotal)}</strong></div>
+            </div>
+            </>
           )}
 
           {filledItems(items).length > 0 && isDraft ? (
