@@ -83,6 +83,7 @@ export type CompanySettings = {
   rmaUrl: string;
   primaryColor: string;
   accentColor: string;
+  listInterestBps: number;
   updatedAt?: string;
 };
 
@@ -213,14 +214,10 @@ export type ChatbotSettings = {
 
 export type FinancingPlan = {
   id: string;
-  label: string;
-  bank: string;
   installments: number;
-  coefficientBps: number;
-  interestFree: boolean;
-  appliesOn: "LISTA" | "EFECTIVO" | "BASE";
-  note: string | null;
-  commercialText: string | null;
+  interestBps: number;
+  bank: string | null;
+  description: string | null;
   active: boolean;
   sortOrder: number;
 };

@@ -280,8 +280,8 @@ model ComboItem {
   quantity  Int     @default(1)
   position  Int     @default(0)
 
-  @@index([comboId, position])
   @@unique([comboId, productId])
+  @@index([comboId, position])
 }
 
 model ProductPriceHistory {
@@ -331,26 +331,26 @@ model Customer {
 }
 
 model QuoteRequest {
-  id                 String        @id @default(uuid())
-  title              String
-  originalText       String        @default("")
-  internalNotes      String        @default("")
-  customerId         String?
-  customer           Customer?     @relation(fields: [customerId], references: [id])
-  detectedPhone      String?
-  maximumBudgetCents BigInt?
-  expectedUse        String?
-  requiredComponents String[]
-  creatorId          String
-  creator            User          @relation("RequestCreator", fields: [creatorId], references: [id])
-  assigneeId         String?
-  assignee           User?         @relation("RequestAssignee", fields: [assigneeId], references: [id])
-  state              RequestState  @default(PENDIENTE)
-  readyAt            DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  families           QuoteFamily[]
-  analyses           AiRequest[]
+  id                   String                @id @default(uuid())
+  title                String
+  originalText         String                @default("")
+  internalNotes        String                @default("")
+  customerId           String?
+  customer             Customer?             @relation(fields: [customerId], references: [id])
+  detectedPhone        String?
+  maximumBudgetCents   BigInt?
+  expectedUse          String?
+  requiredComponents   String[]
+  creatorId            String
+  creator              User                  @relation("RequestCreator", fields: [creatorId], references: [id])
+  assigneeId           String?
+  assignee             User?                 @relation("RequestAssignee", fields: [assigneeId], references: [id])
+  state                RequestState          @default(PENDIENTE)
+  readyAt              DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  families             QuoteFamily[]
+  analyses             AiRequest[]
   chatbotConversations ChatbotConversation[]
 
   @@index([state, createdAt])
@@ -594,36 +594,33 @@ model CollectionQuote {
 }
 
 model FinancingPlan {
-  id             String   @id @default(uuid())
-  label          String
-  bank           String
-  installments   Int
-  coefficientBps Int
-  interestFree   Boolean  @default(false)
-  appliesOn      String
-  note           String?
-  commercialText String?
-  active         Boolean  @default(true)
-  sortOrder      Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid())
+  installments Int
+  interestBps  Int      @default(0)
+  bank         String?
+  description  String?
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model CompanySettings {
-  id            String   @id @default("singleton")
-  logoUrl       String?
-  name          String
-  taxCondition  String
-  cuit          String
-  grossIncome   String
-  activityStart String
-  address       String
-  phones        String
-  footerText    String
-  rmaUrl        String
-  primaryColor  String
-  accentColor   String
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default("singleton")
+  logoUrl         String?
+  name            String
+  taxCondition    String
+  cuit            String
+  grossIncome     String
+  activityStart   String
+  address         String
+  phones          String
+  footerText      String
+  rmaUrl          String
+  primaryColor    String
+  accentColor     String
+  listInterestBps Int      @default(0)
+  updatedAt       DateTime @updatedAt
 }
 
 model PdfSettings {
@@ -681,56 +678,56 @@ model AiSettings {
 
 /// Configuración operativa y editorial del chatbot. El JSON validado permite ampliar reglas sin redeploy.
 model ChatbotSettings {
-  id                         String      @id @default("singleton")
+  id                        String      @id @default("singleton")
   /// Kill-switch autoritativo: si está apagado la API nunca entrega una respuesta auto-enviable.
-  enabled                    Boolean     @default(false)
-  defaultMode                ChatbotMode @default(SUGGEST)
+  enabled                   Boolean     @default(false)
+  defaultMode               ChatbotMode @default(SUGGEST)
   /// Override opcional; null hereda `AiSettings.model`.
-  model                      String?
-  persona                    String
-  openingMessages            Json
-  closingMessages            Json
+  model                     String?
+  persona                   String
+  openingMessages           Json
+  closingMessages           Json
   /// Lista unificada `responses[]`; conserva el nombre físico para evitar migrar JSON.
-  knowledgeEntries           Json
-  escalationKeywords         Json
-  escalationInstructions     String
-  modelCanEscalate           Boolean     @default(true)
-  businessHours              Json
-  outsideHoursBehavior       Json
-  responseStyle              Json
+  knowledgeEntries          Json
+  escalationKeywords        Json
+  escalationInstructions    String
+  modelCanEscalate          Boolean     @default(true)
+  businessHours             Json
+  outsideHoursBehavior      Json
+  responseStyle             Json
   /// Campo legacy leído durante una versión para fusionar reglas antiguas en `responses[]`.
-  customRules                Json
-  ignoredAutoMessages        Json        @default("[\"¡Hola! ¿Cómo podemos ayudarte\"]")
+  customRules               Json
+  ignoredAutoMessages       Json        @default("[\"¡Hola! ¿Cómo podemos ayudarte\"]")
   /// Demora aleatoria máxima previa a cada autoenvío; 0 desactiva la espera.
-  autoDelayMaxSeconds        Int         @default(0)
+  autoDelayMaxSeconds       Int         @default(0)
   /// Umbral determinístico para reutilizar respuestas históricas y ahorrar tokens.
-  reuseSimilarityThreshold   Int         @default(90)
-  scanIntervalSeconds        Int         @default(8)
-  maxRecentSnippets          Int         @default(20)
-  summaryRefreshEvery        Int         @default(8)
-  sendConfirmationTimeoutMs  Int         @default(15000)
-  updatedAt                  DateTime    @default(now()) @updatedAt
+  reuseSimilarityThreshold  Int         @default(90)
+  scanIntervalSeconds       Int         @default(8)
+  maxRecentSnippets         Int         @default(20)
+  summaryRefreshEvery       Int         @default(8)
+  sendConfirmationTimeoutMs Int         @default(15000)
+  updatedAt                 DateTime    @default(now()) @updatedAt
 }
 
 /// Memoria compacta, modo y barreras de seguridad por conversación de WhatsApp.
 model ChatbotConversation {
-  chatKey                    String      @id
-  displayName                String?
-  modeOverride               ChatbotMode?
-  summary                    String?
-  summaryMessageCount        Int         @default(0)
-  escalatedAt                DateTime?
-  escalationReason           String?
-  activeRequestId            String?
-  activeRequest              QuoteRequest? @relation(fields: [activeRequestId], references: [id], onDelete: SetNull)
-  lastInboundFingerprint     String?
-  lastInboundText            String?
-  lastInboundAt              DateTime?
-  lastOutboundText           String?
-  lastOutboundAt             DateTime?
-  createdAt                  DateTime    @default(now())
-  updatedAt                  DateTime    @updatedAt
-  messages                   ChatbotMessageLog[]
+  chatKey                String              @id
+  displayName            String?
+  modeOverride           ChatbotMode?
+  summary                String?
+  summaryMessageCount    Int                 @default(0)
+  escalatedAt            DateTime?
+  escalationReason       String?
+  activeRequestId        String?
+  activeRequest          QuoteRequest?       @relation(fields: [activeRequestId], references: [id], onDelete: SetNull)
+  lastInboundFingerprint String?
+  lastInboundText        String?
+  lastInboundAt          DateTime?
+  lastOutboundText       String?
+  lastOutboundAt         DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  messages               ChatbotMessageLog[]
 
   @@index([escalatedAt])
   @@index([updatedAt])
@@ -739,35 +736,35 @@ model ChatbotConversation {
 
 /// Registro inmutable de entradas, decisiones, sugerencias e intentos de envío del chatbot.
 model ChatbotMessageLog {
-  id                         String                  @id @default(uuid())
-  conversationKey            String
-  conversation               ChatbotConversation     @relation(fields: [conversationKey], references: [chatKey], onDelete: Cascade)
-  direction                  ChatbotMessageDirection
-  actor                      ChatbotMessageActor
-  mode                       ChatbotMode?
-  status                     ChatbotMessageStatus
-  text                       String
-  inboundFingerprint         String?
-  pairedMessageId            String?
-  notificationId             String?
-  model                      String?
-  promptTokens               Int?
-  completionTokens           Int?
-  totalTokens                Int?
-  inputHash                  String?
-  shouldEscalate             Boolean                 @default(false)
-  escalationReason           String?
-  decisionMetadata           Json?
-  error                      String?
-  sentAt                     DateTime?
-  createdAt                  DateTime                 @default(now())
-  updatedAt                  DateTime                 @updatedAt
+  id                 String                  @id @default(uuid())
+  conversationKey    String
+  conversation       ChatbotConversation     @relation(fields: [conversationKey], references: [chatKey], onDelete: Cascade)
+  direction          ChatbotMessageDirection
+  actor              ChatbotMessageActor
+  mode               ChatbotMode?
+  status             ChatbotMessageStatus
+  text               String
+  inboundFingerprint String?
+  pairedMessageId    String?
+  notificationId     String?
+  model              String?
+  promptTokens       Int?
+  completionTokens   Int?
+  totalTokens        Int?
+  inputHash          String?
+  shouldEscalate     Boolean                 @default(false)
+  escalationReason   String?
+  decisionMetadata   Json?
+  error              String?
+  sentAt             DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
+  @@unique([conversationKey, inboundFingerprint, direction])
   @@index([conversationKey, createdAt])
   @@index([status, createdAt])
   @@index([notificationId])
   @@index([inboundFingerprint])
-  @@unique([conversationKey, inboundFingerprint, direction])
 }
 
 /// Parámetros operativos del circuito comercial. Sin vencimiento de presupuestos: solo inactividad.

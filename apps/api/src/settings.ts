@@ -214,8 +214,9 @@ export class SettingsController {
       date: new Date('2026-07-28T12:00:00-03:00'),
       isBuiltPc: true,
       observation: 'Entrega coordinada con el cliente. Presupuesto de muestra.',
-      listTotalCents: 184990000n,
       cashTotalCents: 169990000n,
+      listTotalCents:
+        (169990000n * BigInt(10000 + company.listInterestBps) + 5000n) / 10000n,
       company,
       config,
       layout: body.layout,
@@ -225,10 +226,7 @@ export class SettingsController {
         {code: '003', name: 'Memoria RAM DDR5 32 GB 6000 MHz', quantity: 2, unitCents: 18990000n, subtotalCents: 37980000n, isComponent: true},
         {code: '004', name: 'Disco SSD NVMe 1 TB PCIe 4.0', quantity: 1, unitCents: 25990000n, subtotalCents: 25990000n, isComponent: true},
       ],
-      financing: financing.map((plan) => ({
-        ...plan,
-        appliesOn: plan.appliesOn,
-      })),
+      financing,
     };
     return {html: renderPdfHtml(input, true)};
   }

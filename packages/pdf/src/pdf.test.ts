@@ -75,13 +75,10 @@ const sample = (): PdfRenderInput => ({
   ],
   financing: [
     {
-      label: 'BBVA 3',
       bank: 'BBVA - Banco Francés',
       installments: 3,
-      coefficientBps: 10000,
-      interestFree: true,
-      appliesOn: 'LISTA',
-      commercialText: 'BBVA: 3 cuotas sin interés todos los viernes y sábados.',
+      interestBps: 0,
+      description: 'Todos los viernes y sábados.',
       sortOrder: 1,
     },
   ],
@@ -104,6 +101,20 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('PRESUPUESTO');
     expect(html).toContain('Efectivo / Transferencia');
     expect(html).toContain('DATOS DEL PRESUPUESTO');
+  });
+
+  it('calcula cuotas sobre lista con interés y redondeo half-up', () => {
+    const html = renderQuoteHtml({
+      ...sample(),
+      cashTotalCents: 10000000n,
+      listTotalCents: 11500000n,
+      financing: [{installments: 6, interestBps: 2500, bank: null, description: null}],
+    });
+    expect(html).toContain('Precio de lista (1 pago tarjeta)');
+    expect(html).toContain('$ 115.000,00');
+    expect(html).toContain('$ 100.000,00');
+    expect(html).toContain('6 cuotas');
+    expect(html).toContain('de $ 23.958,33');
   });
 
   it('resuelve overrides triestado', () => {

@@ -75,6 +75,7 @@ export const companySettingsInputSchema = z
     rmaUrl: z.string().url(),
     primaryColor: color,
     accentColor: color,
+    listInterestBps: z.number().int().min(0),
   })
   .strict();
 export const companySettingsSchema = companySettingsInputSchema.extend({
@@ -251,14 +252,10 @@ export const operationsSettingsSchema = z
 
 export const financingInputSchema = z
   .object({
-    label: text,
-    bank: text,
     installments: z.number().int().positive(),
-    coefficientBps: z.number().int().positive(),
-    interestFree: z.boolean(),
-    appliesOn: z.enum(['LISTA', 'EFECTIVO', 'BASE']),
-    note: z.string().nullable(),
-    commercialText: z.string().nullable(),
+    interestBps: z.number().int().min(0),
+    bank: z.string().trim().max(100).nullable(),
+    description: z.string().trim().max(200).nullable(),
     active: z.boolean(),
     sortOrder: z.number().int(),
   })
@@ -266,6 +263,11 @@ export const financingInputSchema = z
 export const financingUpdateSchema = financingInputSchema
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Se requiere al menos un campo');
+export const financingPlanSchema = financingInputSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
 
 export const productInputSchema = z.object({ name: text });
 export const customerInputSchema = z.object({ name: text });

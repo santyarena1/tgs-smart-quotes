@@ -80,27 +80,19 @@ const PDF_FLAGS: { key: keyof PdfSettings; label: string }[] = [
 
 type FinDraft = {
   id?: string;
-  label: string;
   bank: string;
   installments: string;
-  coefficientPct: string;
-  interestFree: boolean;
-  appliesOn: FinancingPlan["appliesOn"];
-  note: string;
-  commercialText: string;
+  interestPct: string;
+  description: string;
   active: boolean;
   sortOrder: string;
 };
 
 const emptyFin = (): FinDraft => ({
-  label: "",
   bank: "",
-  installments: "1",
-  coefficientPct: "100",
-  interestFree: false,
-  appliesOn: "LISTA",
-  note: "",
-  commercialText: "",
+  installments: "3",
+  interestPct: "0",
+  description: "",
   active: true,
   sortOrder: "0",
 });
@@ -321,14 +313,10 @@ export function SettingsView() {
   function openFinEdit(p: FinancingPlan) {
     setFinDraft({
       id: p.id,
-      label: p.label,
-      bank: p.bank,
+      bank: p.bank ?? "",
       installments: String(p.installments),
-      coefficientPct: bpsToPct(p.coefficientBps),
-      interestFree: p.interestFree,
-      appliesOn: p.appliesOn,
-      note: p.note ?? "",
-      commercialText: p.commercialText ?? "",
+      interestPct: bpsToPct(p.interestBps),
+      description: p.description ?? "",
       active: p.active,
       sortOrder: String(p.sortOrder),
     });
@@ -342,14 +330,10 @@ export function SettingsView() {
     setNotice(null);
     try {
       const body = {
-        label: finDraft.label.trim(),
-        bank: finDraft.bank.trim(),
         installments: Number(finDraft.installments),
-        coefficientBps: pctToBps(finDraft.coefficientPct),
-        interestFree: finDraft.interestFree,
-        appliesOn: finDraft.appliesOn,
-        note: finDraft.note.trim() || null,
-        commercialText: finDraft.commercialText.trim() || null,
+        interestBps: pctToBps(finDraft.interestPct),
+        bank: finDraft.bank.trim() || null,
+        description: finDraft.description.trim() || null,
         active: finDraft.active,
         sortOrder: Number(finDraft.sortOrder),
       };
@@ -362,6 +346,23 @@ export function SettingsView() {
       }
       setFinModalOpen(false);
       setPlans(await api<FinancingPlan[]>("/financing"));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveListInterest(e: FormEvent) {
+    e.preventDefault();
+    if (!company) return;
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const { id: _id, updatedAt: _u, ...body } = company;
+      setCompany(await api<CompanySettings>("/settings/company", { method: "PUT", body }));
+      setNotice("Interés de lista guardado.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -742,9 +743,31 @@ export function SettingsView() {
 
       {!loading && tab === "financiacion" ? (
         <div>
+          {company ? (
+            <form className="card card-pad form-grid" onSubmit={saveListInterest} style={{ marginBottom: 20 }}>
+              <Field
+                label="Interés de lista — 1 pago con tarjeta (%)"
+                htmlFor="list-interest"
+                hint="Se aplica una sola vez sobre el precio de efectivo/transferencia."
+              >
+                <input
+                  id="list-interest"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={bpsToPct(company.listInterestBps)}
+                  onChange={(e) => setCompany({ ...company, listInterestBps: pctToBps(e.target.value) })}
+                  required
+                />
+              </Field>
+              <div className="form-actions">
+                <button type="submit" disabled={saving}>{saving ? "Guardando…" : "Guardar interés de lista"}</button>
+              </div>
+            </form>
+          ) : null}
           <div className="toolbar">
             <p className="section-note" style={{ margin: 0, flex: 1 }}>
-              Planes de cuotas y coeficientes que se ofrecen en los presupuestos.
+              Cada plan se calcula sobre el precio de lista. Interés 0% significa sin interés.
             </p>
             <button type="button" onClick={openFinNew}>
               + Nuevo plan
@@ -759,11 +782,10 @@ export function SettingsView() {
               <table>
                 <thead>
                   <tr>
-                    <th>Etiqueta</th>
                     <th>Banco</th>
                     <th>Cuotas</th>
-                    <th>Coef. sobre precio (%)</th>
-                    <th>Aplica</th>
+                    <th>Interés</th>
+                    <th>Descripción</th>
                     <th>Estado</th>
                     <th />
                   </tr>
@@ -771,16 +793,10 @@ export function SettingsView() {
                 <tbody>
                   {plans.map((p) => (
                     <tr key={p.id} className={`clickable${p.active ? "" : " dim"}`} onClick={() => openFinEdit(p)}>
-                      <td>
-                        <span className="cell-strong">{p.label}</span>
-                        {p.interestFree ? <span className="cell-sub">Sin interés</span> : null}
-                      </td>
-                      <td>{p.bank}</td>
+                      <td>{p.bank || "Plan común"}</td>
                       <td className="num">{p.installments}</td>
-                      <td className="num">{bpsToPct(p.coefficientBps)} %</td>
-                      <td>
-                        <Pill tone="neutral">{p.appliesOn}</Pill>
-                      </td>
+                      <td className="num">{p.interestBps === 0 ? "Sin interés" : `${bpsToPct(p.interestBps)} %`}</td>
+                      <td>{p.description || "—"}</td>
                       <td>{p.active ? <Pill tone="ok">Activo</Pill> : <Pill tone="neutral">Inactivo</Pill>}</td>
                       <td>
                         <div className="row-actions">
@@ -820,40 +836,25 @@ export function SettingsView() {
             }
           >
             <form id="fin-form" className="form-grid" onSubmit={saveFin}>
-              <div className="grid-2">
-                <Field label="Etiqueta" htmlFor="fin-label">
-                  <input id="fin-label" value={finDraft.label} onChange={(e) => setFinDraft({ ...finDraft, label: e.target.value })} required autoFocus />
-                </Field>
-                <Field label="Banco" htmlFor="fin-bank">
-                  <input id="fin-bank" value={finDraft.bank} onChange={(e) => setFinDraft({ ...finDraft, bank: e.target.value })} required />
-                </Field>
-              </div>
+              <Field label="Banco (opcional)" htmlFor="fin-bank" hint="Dejalo vacío para un plan común.">
+                <input id="fin-bank" value={finDraft.bank} onChange={(e) => setFinDraft({ ...finDraft, bank: e.target.value })} autoFocus />
+              </Field>
               <div className="grid-3">
-                <Field label="Cuotas" htmlFor="fin-inst">
+                <Field label="Cantidad de cuotas" htmlFor="fin-inst">
                   <input id="fin-inst" type="number" min={1} value={finDraft.installments} onChange={(e) => setFinDraft({ ...finDraft, installments: e.target.value })} required />
                 </Field>
-                <Field label="Coeficiente sobre precio (%)" htmlFor="fin-coef">
-                  <input id="fin-coef" value={finDraft.coefficientPct} onChange={(e) => setFinDraft({ ...finDraft, coefficientPct: e.target.value })} placeholder="115" required />
+                <Field label="Interés (%)" htmlFor="fin-interest">
+                  <input id="fin-interest" type="number" min={0} step="0.01" value={finDraft.interestPct} onChange={(e) => setFinDraft({ ...finDraft, interestPct: e.target.value })} placeholder="25" required />
                 </Field>
                 <Field label="Orden" htmlFor="fin-order">
                   <input id="fin-order" type="number" value={finDraft.sortOrder} onChange={(e) => setFinDraft({ ...finDraft, sortOrder: e.target.value })} />
                 </Field>
               </div>
-              <Field label="Aplica sobre">
-                <select value={finDraft.appliesOn} onChange={(e) => setFinDraft({ ...finDraft, appliesOn: e.target.value as FinancingPlan["appliesOn"] })}>
-                  <option value="LISTA">Lista</option>
-                  <option value="EFECTIVO">Efectivo</option>
-                  <option value="BASE">Base</option>
-                </select>
-              </Field>
-              <Field label="Nota" htmlFor="fin-note">
-                <input id="fin-note" value={finDraft.note} onChange={(e) => setFinDraft({ ...finDraft, note: e.target.value })} />
-              </Field>
-              <Field label="Texto comercial" htmlFor="fin-comm">
-                <input id="fin-comm" value={finDraft.commercialText} onChange={(e) => setFinDraft({ ...finDraft, commercialText: e.target.value })} />
+              <Field label="Descripción corta (opcional)" htmlFor="fin-description">
+                <input id="fin-description" value={finDraft.description} onChange={(e) => setFinDraft({ ...finDraft, description: e.target.value })} placeholder="Solo viernes y sábados" />
               </Field>
               <div className="grid-2">
-                <Checkbox label="Sin interés" checked={finDraft.interestFree} onChange={(interestFree) => setFinDraft({ ...finDraft, interestFree })} />
+                <Checkbox label="Sin interés" checked={Number(finDraft.interestPct) === 0} onChange={(checked) => checked && setFinDraft({ ...finDraft, interestPct: "0" })} />
                 <Checkbox label="Activo" checked={finDraft.active} onChange={(active) => setFinDraft({ ...finDraft, active })} />
               </div>
             </form>

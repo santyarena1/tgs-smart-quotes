@@ -126,27 +126,16 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
   }
 
   const financing: PdfFinancingPlan[] = financingPlans.map((plan: any) => ({
-    label: plan.label,
     bank: plan.bank,
     installments: plan.installments,
-    coefficientBps: plan.coefficientBps,
-    interestFree: plan.interestFree,
-    appliesOn: plan.appliesOn,
-    note: plan.note,
-    commercialText: plan.commercialText,
+    interestBps: plan.interestBps,
+    description: plan.description,
     sortOrder: plan.sortOrder,
   }));
 
-  // cashTotalCents/listTotalCents: no hay una fuente de "precio de lista" separada del total de
-  // venta en el modelo actual (QuoteVersion solo guarda `totalSaleCents`, que es el precio de
-  // contado/transferencia). Si la versión tiene un `financingSnapshot` con `listTotalCents`
-  // explícito lo usamos; si no, ambos totales son iguales al total de venta (documentado: sin
-  // una regla de coeficiente de lista definida, list=sale y cash=sale).
-  const snapshot = (version.financingSnapshot ?? null) as {listTotalCents?: string | number} | null;
   const cashTotalCents = version.totalSaleCents as bigint;
-  const listTotalCents = snapshot?.listTotalCents !== undefined
-    ? BigInt(snapshot.listTotalCents)
-    : cashTotalCents;
+  const listTotalCents =
+    (cashTotalCents * BigInt(10000 + company.listInterestBps) + 5000n) / 10000n;
 
   return {
     kind,

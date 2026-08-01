@@ -21,14 +21,10 @@ export type PdfCompany = {
 };
 
 export type PdfFinancingPlan = {
-  label: string;
-  bank: string;
   installments: number;
-  coefficientBps: number;
-  interestFree: boolean;
-  appliesOn: 'LISTA' | 'EFECTIVO' | 'BASE' | string;
-  note?: string | null;
-  commercialText?: string | null;
+  interestBps: number;
+  bank?: string | null;
+  description?: string | null;
   sortOrder?: number;
 };
 
@@ -180,12 +176,12 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
-function applyCoefficient(baseCents: bigint, coefficientBps: number): bigint {
-  return (baseCents * BigInt(coefficientBps) + 5000n) / 10000n;
+function applyInterest(baseCents: bigint, interestBps: number): bigint {
+  return (baseCents * BigInt(10000 + interestBps) + 5000n) / 10000n;
 }
 
 function installmentAmount(baseCents: bigint, plan: PdfFinancingPlan): bigint {
-  const total = applyCoefficient(baseCents, plan.coefficientBps);
+  const total = applyInterest(baseCents, plan.interestBps);
   return (total + BigInt(plan.installments) / 2n) / BigInt(plan.installments);
 }
 
@@ -347,16 +343,16 @@ function buildFinancing(input: PdfRenderInput): string {
   const plans = [...input.financing].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
   );
-  const bbva = plans.filter((p) => /bbva/i.test(p.bank) || /bbva/i.test(p.label));
+  const bbva = plans.filter((p) => /bbva/i.test(p.bank ?? ''));
   const others = plans.filter((p) => !bbva.includes(p));
-  const baseFor = (plan: PdfFinancingPlan) => {
-    if (plan.appliesOn === 'EFECTIVO') return input.cashTotalCents;
-    return input.listTotalCents;
-  };
   const row = (plan: PdfFinancingPlan) => {
-    const cuota = installmentAmount(baseFor(plan), plan);
-    const interest = plan.interestFree ? ' sin interés' : '';
-    return `<tr><td>${escapeHtml(plan.bank || plan.label)}</td><td>${plan.installments} cuotas${interest}</td><td class="amt">${formatArsFromCents(cuota)}</td></tr>`;
+    const cuota = installmentAmount(input.listTotalCents, plan);
+    const bank = plan.bank ? `${escapeHtml(plan.bank)} · ` : '';
+    const interest = plan.interestBps === 0 ? ' sin interés' : '';
+    const description = plan.description
+      ? `<div class="note">${escapeHtml(plan.description)}</div>`
+      : '';
+    return `<tr><td colspan="2">${bank}${plan.installments} cuotas${interest}${description}</td><td class="amt">de ${formatArsFromCents(cuota)}</td></tr>`;
   };
   const parts: string[] = [];
   if (input.config.showFinancingNote) {
@@ -366,8 +362,6 @@ function buildFinancing(input: PdfRenderInput): string {
   }
   if (input.config.showBbva && bbva.length) {
     parts.push(`<table class="fin">${bbva.map(row).join('')}</table>`);
-    const commercial = bbva.map((p) => p.commercialText).find(Boolean);
-    if (commercial) parts.push(`<p class="note">${escapeHtml(commercial)}</p>`);
   }
   if (input.config.showOtherBanks && others.length) {
     parts.push(`<table class="fin">${others.map(row).join('')}</table>`);
@@ -564,7 +558,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
   <section class="totals">
     ${
       input.config.showListPrice
-        ? `<div class="row"><span>Precio de lista</span><strong>${formatArsFromCents(input.listTotalCents)}</strong></div>`
+        ? `<div class="row"><span>Precio de lista (1 pago tarjeta)</span><strong>${formatArsFromCents(input.listTotalCents)}</strong></div>`
         : ''
     }
     ${
