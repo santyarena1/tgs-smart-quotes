@@ -1,1 +1,1 @@
-{"extends":"../../tsconfig.json","compilerOptions":{"outDir":"dist","experimentalDecorators":true,"emitDecoratorMetadata":true},"include":["src"]}
+{"extends":"../../tsconfig.json","compilerOptions":{"outDir":"dist","experimentalDecorators":true,"emitDecoratorMetadata":true},"include":["src"],"exclude":["src/**/*.test.ts"]}

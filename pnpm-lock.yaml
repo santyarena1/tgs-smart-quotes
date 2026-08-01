@@ -156,6 +156,9 @@ importers:
       '@tgs/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       tsx:
         specifier: ^4.20.3
         version: 4.23.1

@@ -5,6 +5,7 @@ ENV CI=true
 COPY . .
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter @tgs/database generate \
+  && pnpm --filter @tgs/database build \
   && pnpm --filter @tgs/contracts build \
   && pnpm --filter @tgs/config build \
   && pnpm --filter @tgs/pricing build \
