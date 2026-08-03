@@ -2479,7 +2479,7 @@ export function QuotesView({
                           if (version && window.confirm("¿Restaurar el presupuesto a este punto?")) void restoreVersion(version);
                         }}>
                           <strong>{event.description || event.type.replaceAll("_", " ")}</strong>
-                          {event.descriptions?.slice(1).map((description) => <span className="cell-sub" key={description}>{description}</span>)}
+                          {event.descriptions?.map((description) => <span className="cell-sub" key={description}>{description}</span>)}
                           <span className="cell-sub">
                             {new Date(event.createdAt).toLocaleString("es-AR")}
                             {event.creator ? ` · ${event.creator.displayName || event.creator.username}` : ""}

@@ -780,13 +780,34 @@ export class QuotesController{
       for(const [key,item] of before)if(!after.has(key))changes.push(`Quitado: ${(item as any).frozenName}`);
       descriptions.set(next.id,changes);
     }
-    const enriched=events.map((event:any)=>({
-      ...event,
-      versionNumber:versions.find((version:any)=>version.id===event.versionId)?.version??null,
-      descriptions:descriptions.get(event.versionId)??[],
-      description:(descriptions.get(event.versionId)??[])[0]??humanEventLabel(event.type),
-      creator:event.user??null,
-    }));
+    // El diff de ítems es a nivel VERSIÓN: se adjunta a un solo evento por versión (no a cada uno,
+    // que hacía que el mismo cambio se repitiera). Cada evento muestra su propia acción; los cambios
+    // de la versión van como sub-líneas una sola vez. Además se colapsan duplicados exactos.
+    const seenVersionDiff=new Set<string>();
+    const enriched:any[]=[];
+    for(const event of events as any[]){
+      const prev=enriched[enriched.length-1];
+      if(prev&&prev.type===event.type&&prev.versionId===event.versionId
+         &&(prev.userId??null)===(event.userId??null)
+         &&Math.abs(new Date(prev.createdAt).getTime()-new Date(event.createdAt).getTime())<1000){
+        continue;
+      }
+      const diff=descriptions.get(event.versionId)??[];
+      const carry=diff.length>0&&Boolean(event.versionId)&&!seenVersionDiff.has(event.versionId);
+      if(carry)seenVersionDiff.add(event.versionId);
+      let label=humanEventLabel(event.type);
+      if(event.type==='PDF_GENERADO'){
+        const kind=(event.next as any)?.kind;
+        if(kind)label=`PDF generado (${kind==='SIMPLE'?'Simple':'Detallado'})`;
+      }
+      enriched.push({
+        ...event,
+        versionNumber:versions.find((version:any)=>version.id===event.versionId)?.version??null,
+        descriptions:carry?diff:[],
+        description:label,
+        creator:event.user??null,
+      });
+    }
     return jsonSafe({family,events:enriched,attempts,deliveries,pdfs});
   }
 
