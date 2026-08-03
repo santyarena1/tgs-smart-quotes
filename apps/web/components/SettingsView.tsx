@@ -569,6 +569,51 @@ export function SettingsView() {
 
       {!loading && tab === "pdf" && pdf ? (
         <form className="form-grid card card-pad" onSubmit={savePdf}>
+          <h3 className="panel-title">Plantilla y vigencia</h3>
+          <div className="grid-2">
+            <Field label="Plantilla" htmlFor="pdf-template">
+              <select
+                id="pdf-template"
+                value={pdf.template}
+                onChange={(e) =>
+                  setPdf({ ...pdf, template: e.target.value as PdfSettings["template"] })
+                }
+              >
+                <option value="CLASICO">Clásico (actual)</option>
+                <option value="MODERNO">Moderno (nuevo)</option>
+              </select>
+            </Field>
+            <Field
+              label="Días de validez"
+              htmlFor="pdf-validity-days"
+              hint='Vacío = no mostrar "Válido hasta"'
+            >
+              <input
+                id="pdf-validity-days"
+                type="number"
+                min={0}
+                max={365}
+                value={pdf.validityDays ?? ""}
+                onChange={(e) =>
+                  setPdf({
+                    ...pdf,
+                    validityDays: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+              />
+            </Field>
+          </div>
+          <Field label="Nota de financiación BBVA" htmlFor="pdf-financing-bbva-note">
+            <textarea
+              id="pdf-financing-bbva-note"
+              rows={3}
+              maxLength={2000}
+              value={pdf.financingBbvaNote ?? ""}
+              onChange={(e) =>
+                setPdf({ ...pdf, financingBbvaNote: e.target.value === "" ? null : e.target.value })
+              }
+            />
+          </Field>
           <h3 className="panel-title">Bloques visibles en el PDF</h3>
           <p className="section-note">
             Estas opciones se guardan en el backend. La generación de PDF todavía no está conectada

@@ -85,6 +85,9 @@ export const companySettingsSchema = companySettingsInputSchema.extend({
 
 export const pdfSettingsInputSchema = z
   .object({
+    template: z.enum(['CLASICO', 'MODERNO']),
+    financingBbvaNote: z.string().trim().max(2000).nullable(),
+    validityDays: z.number().int().min(0).max(365).nullable(),
     showListPrice: z.boolean(),
     showCashTransfer: z.boolean(),
     showFinancing: z.boolean(),

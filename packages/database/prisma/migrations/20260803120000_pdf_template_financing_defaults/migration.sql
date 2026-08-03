@@ -1,0 +1,4 @@
+ALTER TABLE "PdfSettings"
+ADD COLUMN "template" TEXT NOT NULL DEFAULT 'MODERNO',
+ADD COLUMN "financingBbvaNote" TEXT,
+ADD COLUMN "validityDays" INTEGER;

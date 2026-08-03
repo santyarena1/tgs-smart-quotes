@@ -96,6 +96,9 @@ export type Branding = {
 
 export type PdfSettings = {
   id: "singleton";
+  template: "CLASICO" | "MODERNO";
+  financingBbvaNote: string | null;
+  validityDays: number | null;
   showListPrice: boolean;
   showCashTransfer: boolean;
   showFinancing: boolean;

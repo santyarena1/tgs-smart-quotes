@@ -28,6 +28,7 @@ import {
   type PdfKind,
   type PdfRenderInput,
   type PdfResolvedConfig,
+  type PdfTemplate,
 } from '@tgs/pdf';
 import {activeVersion,audit,loadFamily,statusEvent} from './quotes.js';
 import {CurrentUser,jsonSafe,type RequestUser,ZodPipe} from './infrastructure.js';
@@ -142,6 +143,11 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     kind,
     number: family.visibleNumber,
     date: version.createdAt,
+    template: (pdfSettings.template ?? 'CLASICO') as PdfTemplate,
+    validUntil: pdfSettings.validityDays != null
+      ? new Date(version.createdAt.getTime() + pdfSettings.validityDays * 86400000)
+      : null,
+    financingBbvaNote: pdfSettings.financingBbvaNote ?? null,
     isBuiltPc: family.isBuiltPc,
     observation: version.publicObservation,
     listTotalCents,

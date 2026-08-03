@@ -625,6 +625,9 @@ model CompanySettings {
 
 model PdfSettings {
   id                   String   @id @default("singleton")
+  template             String   @default("MODERNO")
+  financingBbvaNote    String?
+  validityDays         Int?
   showListPrice        Boolean  @default(true)
   showCashTransfer     Boolean  @default(true)
   showFinancing        Boolean  @default(true)
