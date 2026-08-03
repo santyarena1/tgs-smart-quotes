@@ -38,6 +38,9 @@ import {
   listChatbotLogs,
   actOnChatbotLog,
   createRequestFromChatbotSuggestion,
+  getRecontactCandidates,
+  generateRecontact,
+  markRecontactSent,
   getChatbotContext,
   createCustomer,
   createCustomerQuick,
@@ -977,6 +980,7 @@ function useChatbotRuntime(
   const processingRef=useRef<string|null>(null);
   const suggestedFingerprintsRef=useRef(new Set<string>());
   const simulatedChatsRef=useRef(new Map<string,string>());
+  const processedRecontactsRef=useRef(new Set<string>());
   const humanSendObservationRef=useRef<{stop():void}|null>(null);
   const currentSuggestionRef=useRef<CurrentChatSuggestion|null>(null);
   const settingsRef=useRef<ChatbotSettings|null>(null);
@@ -1549,6 +1553,77 @@ function useChatbotRuntime(
           }finally{
             processingRef.current=null;
             applyNativeChatStatuses(native);
+          }
+        }
+
+        // Pase escalonado e independiente de la cola: como máximo un recontacto por tick.
+        if(nextSettings.recontactEnabled&&!stopped){
+          try{
+            const candidates=await getRecontactCandidates();
+            const candidate=candidates.find(item=>!processedRecontactsRef.current.has(item.chatKey));
+            if(candidate){
+              // Un fallo tampoco debe provocar reintentos automáticos repetidos durante esta sesión.
+              processedRecontactsRef.current.add(candidate.chatKey);
+              const conversation=overrides.get(candidate.chatKey);
+              const mode=conversation?.modeOverride??nextSettings.defaultMode;
+              const simulationActive=simulationModeRef.current;
+              if(simulationActive||mode!=="OFF"){
+                const switched=switchToChat(candidate.chatKey);
+                if(!switched.ok)throw new Error(switched.error);
+                const confirmed=await waitForActiveChat(candidate.chatKey,6000,candidate.displayName??undefined);
+                if(!confirmed.ok)throw new Error(confirmed.error);
+                const generated=await generateRecontact({
+                  chatKey:candidate.chatKey,
+                  displayName:candidate.displayName??undefined,
+                  recentMessages:findRecentMessageSnippets(
+                    nextSettings.maxRecentSnippets,
+                    undefined,
+                    nextSettings.ignoredAutoMessages,
+                  ),
+                });
+                if(generated.reply&&generated.logId){
+                  if(simulationActive||mode==="SUGGEST"){
+                    const inserted=insertMessageIntoComposer(generated.reply);
+                    if(!inserted.ok)throw new Error(inserted.error);
+                    botDebug(simulationActive?"recontact simulation draft inserted":"recontact suggestion inserted",{
+                      chatKey:candidate.chatKey,
+                      logId:generated.logId,
+                    });
+                  }else if(mode==="AUTO"){
+                    // Revalidación autoritativa inmediatamente anterior al autoenvío.
+                    const [authoritative,authoritativeConversation]=await Promise.all([
+                      getChatbotSettings(),
+                      getChatbotConversation(candidate.chatKey),
+                    ]);
+                    setSettings(authoritative);
+                    const authoritativeMode=authoritativeConversation.modeOverride??authoritative.defaultMode;
+                    const activeChat=detectChat();
+                    const activeId=activeChat.phone||activeChat.name;
+                    if(
+                      simulationModeRef.current
+                      ||!authoritative.enabled
+                      ||!authoritative.recontactEnabled
+                      ||authoritativeMode!=="AUTO"
+                      ||authoritativeConversation.escalatedAt
+                      ||!sameChatIdentity(candidate.chatKey,activeChat.phone,activeChat.name)
+                    ){
+                      const reason="El recontacto dejó de estar autorizado antes del envío.";
+                      await actOnChatbotLog(generated.logId,{action:"SEND_FAILED",text:generated.reply,error:reason});
+                      botDebug("recontact auto send skipped",{chatKey:candidate.chatKey,reason,logId:generated.logId});
+                    }else{
+                      const sent=await sendMessageAutomatically(activeId,generated.reply,authoritative.sendConfirmationTimeoutMs);
+                      await actOnChatbotLog(generated.logId,sent.ok
+                        ?{action:"SENT",text:generated.reply}
+                        :{action:"SEND_FAILED",text:generated.reply,error:sent.error??"Envío no confirmado"});
+                      if(sent.ok)await markRecontactSent(candidate.chatKey);
+                      else failures.push(`${candidate.displayName??candidate.chatKey}: ${sent.error??"WhatsApp no confirmó el recontacto."}`);
+                    }
+                  }
+                }
+              }
+            }
+          }catch(error){
+            failures.push(`Recontacto: ${errorMessage(error)}`);
           }
         }
         const refreshedConversations=await listChatbotConversations();

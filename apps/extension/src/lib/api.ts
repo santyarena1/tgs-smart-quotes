@@ -23,6 +23,10 @@ import type {
   ChatbotMode,
   ChatbotChatContext,
   LatestSentQuote,
+  ChatbotRecontactCandidate,
+  ChatbotRecontactInput,
+  ChatbotRecontactResult,
+  ChatbotRecontactMarkResult,
 } from "./types";
 
 export class ApiError extends Error {
@@ -247,3 +251,6 @@ export const respondChatbot=(body:{chatKey:string;displayName?:string;detectedPh
 export const listChatbotLogs=(chatKey?:string,limit=40)=>api<ChatbotLog[]>("/chatbot/logs",{query:{chatKey,limit}});
 export const actOnChatbotLog=(id:string,body:{action:"SENT"|"SEND_FAILED"|"HUMAN_SENT"|"DISMISSED"|"ATTACHMENT_SENT"|"ATTACHMENT_FAILED";text?:string;error?:string;attachment?:string})=>api<ChatbotLog>(`/chatbot/logs/${id}/action`,{body});
 export const createRequestFromChatbotSuggestion=(id:string)=>api<{id:string;title:string;state:string;created:boolean}>(`/chatbot/logs/${id}/create-request`,{body:{}});
+export const getRecontactCandidates=()=>api<ChatbotRecontactCandidate[]>("/chatbot/recontacts/candidates");
+export const generateRecontact=(body:ChatbotRecontactInput)=>api<ChatbotRecontactResult>("/chatbot/recontact",{body});
+export const markRecontactSent=(chatKey:string)=>api<ChatbotRecontactMarkResult>(`/chatbot/recontact/${encodeURIComponent(chatKey)}/mark-sent`,{body:{}});

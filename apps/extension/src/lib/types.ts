@@ -22,7 +22,12 @@ export type NotificationRow={id:string;title:string;body:string;type:string;chat
 export type AiSuggestion={result:{text:string};metadata:{usedAi:boolean;cacheHit:boolean}};
 export type QuoteItemInput={productId:string|null;name:string;lineId:string|null;quantity:number;costCents:string;markupBps:number;salePriceCents:string;position:number;observation:string|null;isPcMainLine:boolean};
 export type ChatbotMode="OFF"|"SUGGEST"|"AUTO";
-export type ChatbotSettings={id:"singleton";enabled:boolean;defaultMode:ChatbotMode;ignoredAutoMessages:string[];autoDelayMaxSeconds:number;reuseSimilarityThreshold:number;scanIntervalSeconds:number;maxRecentSnippets:number;sendConfirmationTimeoutMs:number};
+export type ChatbotSettings={id:"singleton";enabled:boolean;defaultMode:ChatbotMode;ignoredAutoMessages:string[];autoDelayMaxSeconds:number;reuseSimilarityThreshold:number;recontactEnabled:boolean;recontactDays:number;recontactPrompt:string;recontactMaxAttempts:number;scanIntervalSeconds:number;maxRecentSnippets:number;sendConfirmationTimeoutMs:number};
+export type ChatbotMessageSnippet={direction:"INBOUND"|"OUTBOUND";text:string};
+export type ChatbotRecontactCandidate={chatKey:string;displayName:string|null;lastOutboundAt:string;recontactCount:number;daysSince:number};
+export type ChatbotRecontactInput={chatKey:string;displayName?:string;recentMessages?:ChatbotMessageSnippet[]};
+export type ChatbotRecontactResult={reply?:string;logId?:string;action:"SUGGESTED"|"DISABLED"|"RECONTACT_DISABLED"};
+export type ChatbotRecontactMarkResult={action:"MARKED_SENT";recontactCount:number;lastRecontactAt:string};
 export type ChatbotResolvedAttachment={
   ruleId:string;
   image?:{url:string;filename:string};
