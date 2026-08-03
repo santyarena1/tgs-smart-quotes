@@ -11,6 +11,7 @@ import { DashboardView } from "./DashboardView";
 import { AcustockCatalogView } from "./AcustockCatalogView";
 import { LoginView } from "./LoginView";
 import { NotificationsView } from "./NotificationsView";
+import { RecontactsView } from "./RecontactsView";
 import { PcLinesView } from "./PcLinesView";
 import { ProductsView } from "./ProductsView";
 import { QuotesView } from "./QuotesView";
@@ -44,6 +45,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
     label: "Sistema",
     items: [
       { id: "notificaciones", label: "Notificaciones", icon: "◉" },
+      { id: "recontactos", label: "Recontactos", icon: "↻" },
       { id: "editor-pdf", label: "Editor de PDF", icon: "▧" },
       { id: "usuarios", label: "Usuarios", icon: "♟" },
       { id: "configuracion", label: "Configuración", icon: "⚙" },
@@ -265,6 +267,7 @@ export function App() {
         {nav === "lineas" ? <PcLinesView /> : null}
         {nav === "colecciones" ? <CollectionsView /> : null}
         {nav === "notificaciones" ? <NotificationsView /> : null}
+        {nav === "recontactos" ? <RecontactsView /> : null}
         {nav === "editor-pdf" ? <PdfLayoutEditorView /> : null}
         {nav === "usuarios" && user.role === "ADMIN" ? <UsersView /> : null}
         {nav === "configuracion" ? <SettingsView /> : null}

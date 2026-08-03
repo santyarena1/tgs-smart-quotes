@@ -220,6 +220,23 @@ export type ChatbotSettings = {
   updatedAt?: string;
 };
 
+export type RecontactCandidate = {
+  chatKey: string;
+  displayName: string | null;
+  lastOutboundAt: string;
+  recontactCount: number;
+  daysSince: number;
+};
+
+export type RecontactHistoryItem = {
+  chatKey: string;
+  displayName: string | null;
+  recontactCount: number;
+  lastRecontactAt: string;
+  lastRecontactText: string | null;
+  repliedAfter: boolean;
+};
+
 export type FinancingPlan = {
   id: string;
   installments: number;
@@ -351,6 +368,7 @@ export type NavId =
   | "solicitudes"
   | "colecciones"
   | "notificaciones"
+  | "recontactos"
   | "editor-pdf"
   | "usuarios"
   | "configuracion";

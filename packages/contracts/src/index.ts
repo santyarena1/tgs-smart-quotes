@@ -506,6 +506,7 @@ export const chatbotConversationUpdateSchema = z
     displayName: z.string().trim().max(200).nullable().optional(),
     modeOverride: chatbotModeOverrideSchema.optional(),
     clearEscalation: z.boolean().optional(),
+    recontactOptOut: z.boolean().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Se requiere al menos un campo');

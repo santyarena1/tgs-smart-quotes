@@ -545,10 +545,12 @@ export class ChatbotController {
         chatKey,
         displayName: body.displayName,
         modeOverride: body.modeOverride,
+        recontactOptOut: body.recontactOptOut,
       },
       update: {
         displayName: body.displayName,
         modeOverride: body.modeOverride,
+        recontactOptOut: body.recontactOptOut,
         ...(body.clearEscalation ? {escalatedAt: null, escalationReason: null} : {}),
       },
     });
@@ -617,6 +619,46 @@ export class ChatbotController {
         }];
       })
       .sort((left,right)=>left.lastOutboundAt.getTime()-right.lastOutboundAt.getTime()));
+  }
+
+  @Get('recontacts/history')
+  async recontactHistory() {
+    const rows=await db.$queryRaw<Array<{
+      chatKey:string;
+      displayName:string|null;
+      recontactCount:number;
+      lastRecontactAt:Date;
+      lastRecontactText:string|null;
+      repliedAfter:boolean;
+    }>>(Prisma.sql`
+      SELECT
+        conversation."chatKey",
+        conversation."displayName",
+        conversation."recontactCount",
+        conversation."lastRecontactAt",
+        latest_recontact.text AS "lastRecontactText",
+        EXISTS (
+          SELECT 1
+          FROM "ChatbotMessageLog" inbound
+          WHERE inbound."conversationKey" = conversation."chatKey"
+            AND inbound.direction = 'INBOUND'
+            AND inbound."createdAt" > conversation."lastRecontactAt"
+        ) AS "repliedAfter"
+      FROM "ChatbotConversation" conversation
+      LEFT JOIN LATERAL (
+        SELECT outbound.text
+        FROM "ChatbotMessageLog" outbound
+        WHERE outbound."conversationKey" = conversation."chatKey"
+          AND outbound.direction = 'OUTBOUND'
+          AND outbound."decisionMetadata" ->> 'recontact' = 'true'
+        ORDER BY outbound."createdAt" DESC
+        LIMIT 1
+      ) latest_recontact ON TRUE
+      WHERE conversation."recontactCount" > 0
+        AND conversation."lastRecontactAt" IS NOT NULL
+      ORDER BY conversation."lastRecontactAt" DESC
+    `);
+    return jsonSafe(rows);
   }
 
   @Post('recontact')

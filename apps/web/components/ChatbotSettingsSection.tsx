@@ -322,20 +322,6 @@ export function ChatbotSettingsSection() {
       <ListEditor label="Palabras o frases que pausan el bot" values={settings.escalationKeywords} hint="Una coincidencia pausa el chat y avisa internamente." onChange={escalationKeywords=>setSettings({...settings,escalationKeywords})}/>
       <Field label="Criterios para pedir intervención humana"><textarea rows={5} required value={settings.escalationInstructions} onChange={event=>setSettings({...settings,escalationInstructions:event.target.value})}/></Field>
       <Checkbox label="Permitir que el modelo pida intervención cuando no puede resolver con seguridad" checked={settings.modelCanEscalate} onChange={modelCanEscalate=>setSettings({...settings,modelCanEscalate})}/>
-      <hr/>
-      <div><h4 className="panel-title">Recontactos</h4><p className="section-note">Retoma conversaciones en las que el último mensaje fue del negocio y el cliente todavía no respondió.</p></div>
-      <Checkbox label="Activar recontactos" checked={settings.recontactEnabled} onChange={recontactEnabled=>setSettings({...settings,recontactEnabled})}/>
-      <div className="grid-2">
-        <Field label="Días sin respuesta para recontactar">
-          <input type="number" min={1} max={365} value={settings.recontactDays} onChange={event=>setSettings({...settings,recontactDays:Number(event.target.value)})}/>
-        </Field>
-        <Field label="Máximo de recontactos por conversación">
-          <input type="number" min={0} max={10} value={settings.recontactMaxAttempts} onChange={event=>setSettings({...settings,recontactMaxAttempts:Number(event.target.value)})}/>
-        </Field>
-      </div>
-      <Field label="Prompt de recontacto (contexto para la IA)">
-        <textarea rows={4} value={settings.recontactPrompt} placeholder="Retomá la conversación de forma cordial, recordá que dejamos un presupuesto y preguntá si sigue interesado." onChange={event=>setSettings({...settings,recontactPrompt:event.target.value})}/>
-      </Field>
     </section>:null}
 
     {activeTab==="advanced"?<section className="card card-pad form-grid">

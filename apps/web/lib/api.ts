@@ -1,3 +1,5 @@
+import type { RecontactCandidate, RecontactHistoryItem } from "./types";
+
 /**
  * Por defecto usamos same-origin `/api` (proxy de Next → backend).
  * En el browser ignoramos URLs absolutas a :3001 (suelen quedar cacheadas y rompen el fetch).
@@ -99,6 +101,21 @@ export async function api<T = unknown>(
 
 export function apiBaseUrl() {
   return API_URL;
+}
+
+export function getRecontactCandidates(): Promise<RecontactCandidate[]> {
+  return api<RecontactCandidate[]>("/chatbot/recontacts/candidates");
+}
+
+export function getRecontactHistory(): Promise<RecontactHistoryItem[]> {
+  return api<RecontactHistoryItem[]>("/chatbot/recontacts/history");
+}
+
+export function setRecontactOptOut(chatKey: string, recontactOptOut: boolean): Promise<void> {
+  return api<void>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`, {
+    method: "PUT",
+    body: { recontactOptOut },
+  });
 }
 
 /** ID fijo de la extensión TGS (manifest key). */
