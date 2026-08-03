@@ -626,11 +626,9 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(item.name);
       const qty = String(item.quantity);
-      const amount = showRowPrice(item)
-        ? formatArsFromCents(item.subtotalCents)
-        : input.kind === 'SIMPLE'
-          ? formatArsFromCents(0n)
-          : formatArsFromCents(0n);
+      // Solo se muestra importe en las filas que corresponde (línea principal en SIMPLE,
+      // todas en DETALLADO). El resto queda vacío (no "$ 0,00").
+      const amount = showRowPrice(item) ? formatArsFromCents(item.subtotalCents) : '';
       const subtitle =
         item.isMainLine && input.config.builtPcDescription
           ? `<div class="sub">${escapeHtml(input.config.builtPcDescription)}</div>`
@@ -737,11 +735,15 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
   table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
-  table.items .code { width: 46px; color: #555; }
+  table.items .code { width: 46px; }
+  table.items td.code { color: #555; }
   table.items .qty { width: 46px; text-align: center; }
-  table.items .amt { width: 120px; text-align: right; white-space: nowrap; font-weight: 600; }
-  .totals { margin-top: 12px; }
-  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid #eee; }
+  table.items td.qty { font-weight: 700; }
+  table.items .amt { width: 120px; text-align: right; white-space: nowrap; }
+  table.items td.amt { font-weight: 800; }
+  .price-block { border: 1px solid #d9d9d9; border-radius: 6px; padding: 4px 14px 10px; margin-top: 12px; }
+  .totals { margin-top: 0; }
+  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 2px; border-bottom: 1px solid #eee; }
   .totals .row .lbl { color: #333; }
   .totals .list .val { color: ${accent}; font-weight: 800; font-size: 13px; }
   .totals .cash { border-bottom: none; padding-top: 10px; }
@@ -810,12 +812,13 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     <tbody>${buildItemsRowsModerno(input)}</tbody>
   </table>
 
-  <section class="totals" data-pdf-block="totalsBlock">
-    ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
-    ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
-  </section>
-
-  ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
+  <div class="price-block">
+    <section class="totals" data-pdf-block="totalsBlock">
+      ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
+      ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
+    </section>
+    ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
+  </div>
 
   ${
     input.config.showExtraObservation && input.observation
