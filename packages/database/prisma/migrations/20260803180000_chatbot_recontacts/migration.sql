@@ -1,0 +1,10 @@
+ALTER TABLE "ChatbotSettings"
+ADD COLUMN "recontactEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "recontactDays" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN "recontactPrompt" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "recontactMaxAttempts" INTEGER NOT NULL DEFAULT 1;
+
+ALTER TABLE "ChatbotConversation"
+ADD COLUMN "recontactCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "lastRecontactAt" TIMESTAMP(3),
+ADD COLUMN "recontactOptOut" BOOLEAN NOT NULL DEFAULT false;

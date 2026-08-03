@@ -487,6 +487,10 @@ export const chatbotSettingsInputSchema = z
     ignoredAutoMessages: z.array(z.string().trim().min(1).max(2000)).max(100),
     autoDelayMaxSeconds: z.number().int().min(0).max(120),
     reuseSimilarityThreshold: z.number().int().min(0).max(100),
+    recontactEnabled: z.boolean(),
+    recontactDays: z.number().int().min(1).max(365),
+    recontactPrompt: z.string().trim().max(5000),
+    recontactMaxAttempts: z.number().int().min(0).max(10),
     scanIntervalSeconds: z.number().int().min(3).max(120),
     maxRecentSnippets: z.number().int().min(0).max(50),
     summaryRefreshEvery: z.number().int().min(2).max(100),
@@ -521,6 +525,16 @@ export const chatbotRespondSchema = z
     }).strict()).max(50).optional(),
   })
   .strict();
+export const chatbotRecontactSchema = z
+  .object({
+    chatKey: z.string().trim().min(1).max(200),
+    displayName: z.string().trim().max(200).optional(),
+    recentMessages: z.array(z.object({
+      direction: z.enum(['INBOUND', 'OUTBOUND']),
+      text: z.string().trim().min(1).max(10000),
+    }).strict()).max(50).optional(),
+  })
+  .strict();
 export const chatbotLogActionSchema = z.object({
   action: z.enum(['SENT', 'SEND_FAILED', 'HUMAN_SENT', 'DISMISSED', 'ATTACHMENT_SENT', 'ATTACHMENT_FAILED']),
   text: z.string().trim().min(1).max(20000).optional(),
@@ -538,6 +552,7 @@ export type ChatbotSettings = z.infer<typeof chatbotSettingsSchema>;
 export type ChatbotResponseEntry = z.infer<typeof chatbotResponseEntrySchema>;
 export type ChatbotConversationUpdate = z.infer<typeof chatbotConversationUpdateSchema>;
 export type ChatbotRespondInput = z.infer<typeof chatbotRespondSchema>;
+export type ChatbotRecontactInput = z.infer<typeof chatbotRecontactSchema>;
 export type ChatbotLogActionInput = z.infer<typeof chatbotLogActionSchema>;
 
 export const quoteItemCreateSchema = z

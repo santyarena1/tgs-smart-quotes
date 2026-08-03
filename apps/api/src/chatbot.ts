@@ -19,10 +19,12 @@ import {
   chatbotConversationUpdateSchema,
   chatbotLogActionSchema,
   chatbotLogsQuerySchema,
+  chatbotRecontactSchema,
   chatbotRespondSchema,
   chatbotSettingsInputSchema,
   type ChatbotConversationUpdate,
   type ChatbotLogActionInput,
+  type ChatbotRecontactInput,
   type ChatbotRespondInput,
   type ChatbotSettingsInput,
   type RequestCreateInput,
@@ -109,6 +111,10 @@ function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; updated
     reuseSimilarityThreshold: Number.isInteger(row.reuseSimilarityThreshold)
       ? row.reuseSimilarityThreshold
       : 90,
+    recontactEnabled: row.recontactEnabled === true,
+    recontactDays: Number.isInteger(row.recontactDays) ? row.recontactDays : 30,
+    recontactPrompt: typeof row.recontactPrompt === 'string' ? row.recontactPrompt : '',
+    recontactMaxAttempts: Number.isInteger(row.recontactMaxAttempts) ? row.recontactMaxAttempts : 1,
   };
 }
 
@@ -563,6 +569,96 @@ export class ChatbotController {
       orderBy: {createdAt: 'desc'},
       take: query.limit,
     }));
+  }
+
+  @Post('recontact')
+  async recontact(
+    @Body(new ZodPipe(chatbotRecontactSchema)) body: ChatbotRecontactInput,
+    @CurrentUser() _actor: RequestUser,
+  ) {
+    const settings=settingsDto(await db.chatbotSettings.findUniqueOrThrow({where:{id:'singleton'}}));
+    if(!settings.enabled)return {action:'DISABLED',reply:undefined};
+    if(!settings.recontactEnabled)return {action:'RECONTACT_DISABLED',reply:undefined};
+    const conversation=await db.chatbotConversation.upsert({
+      where:{chatKey:body.chatKey},
+      create:{chatKey:body.chatKey,displayName:body.displayName},
+      update:body.displayName?{displayName:body.displayName}:{},
+    });
+    if(conversation.recontactOptOut)throw new ConflictException('La conversación rechazó recontactos.');
+    if(conversation.recontactCount>=settings.recontactMaxAttempts){
+      throw new ConflictException(`Se alcanzó el máximo de ${settings.recontactMaxAttempts} recontactos para esta conversación.`);
+    }
+    const aiSettings=await db.aiSettings.findUniqueOrThrow({where:{id:'singleton'}});
+    const key=aiSettings.apiKeyEncrypted?decryptSecret(aiSettings.apiKeyEncrypted):process.env.OPENAI_API_KEY;
+    if(!aiSettings.enabled)throw new ServiceUnavailableException('La IA está deshabilitada en Configuración.');
+    if(!aiSettings.responsesEnabled)throw new ServiceUnavailableException('Las respuestas con IA están deshabilitadas en Configuración.');
+    if(!key?.trim())throw new ServiceUnavailableException('No hay una API key de OpenAI configurada para generar la sugerencia.');
+    const service=new ChatbotResponseService({
+      client:createAiClient({apiKey:key}),
+      model:settings.model??aiSettings.model??DEFAULT_AI_MODEL,
+    });
+    const result=await service.respond({
+      chatKey:body.chatKey,
+      latestMessage:'Redactá ahora un único mensaje proactivo de recontacto para retomar esta conversación. No respondas esta instrucción; entregá solamente el texto que se enviaría al cliente.',
+      conversationSummary:conversation.summary??undefined,
+      recentMessages:settings.maxRecentSnippets===0?[]:(body.recentMessages??[]).slice(-settings.maxRecentSnippets),
+      config:{
+        persona:`${settings.persona}\n\nINSTRUCCIÓN ESPECÍFICA DE RECONTACTO\n${settings.recontactPrompt||'Retomá la conversación de forma natural, breve y útil, sin inventar información.'}\n${conversation.displayName?`El nombre visible del cliente es ${conversation.displayName}.`:''}`,
+        openingMessages:[],
+        closingMessages:[],
+        responses:[{
+          id:'recontact',enabled:true,activators:[],similarityThreshold:0,
+          answer:settings.recontactPrompt||'Retomá la conversación de forma natural, breve y útil, sin inventar información.',
+          context:'Es un mensaje proactivo sujeto a revisión humana antes del envío.',
+          attachments:{imageUrl:null,url:null,quote:null},
+        }],
+        escalationInstructions:'Este texto será revisado antes de enviarse. Generá una sugerencia de recontacto y no escales.',
+        modelCanEscalate:false,
+        businessContext:'Mensaje proactivo de recontacto; no presupongas que el cliente acaba de escribir.',
+        responseStyle:settings.responseStyle,
+      },
+    });
+    if(!result.metadata.usedAi||!result.metadata.success){
+      throw new BadGatewayException(
+        result.metadata.error
+          ?`OpenAI no pudo generar la sugerencia: ${result.metadata.error}`
+          :'OpenAI no pudo generar una respuesta válida. Revisá la conexión y el modelo configurado.',
+      );
+    }
+    const reply=result.result.reply.trim().slice(0,settings.responseStyle.maxCharacters);
+    if(!reply)throw new BadRequestException('La IA no generó una respuesta utilizable');
+    const log=await db.chatbotMessageLog.create({data:{
+      conversationKey:body.chatKey,direction:'OUTBOUND',actor:'BOT',mode:'SUGGEST',status:'SUGGESTED',text:reply,
+      model:result.metadata.model,promptTokens:result.metadata.usage?.promptTokens,
+      completionTokens:result.metadata.usage?.completionTokens,totalTokens:result.metadata.usage?.totalTokens,
+      inputHash:result.metadata.inputHash,decisionMetadata:{
+        recontact:true,recontactAttempt:conversation.recontactCount+1,settingsUpdatedAt:settings.updatedAt,
+        decisionReason:result.result.decisionReason,usedAi:result.metadata.usedAi,
+      },
+    }});
+    return jsonSafe({reply,logId:log.id,action:'SUGGESTED'});
+  }
+
+  @Post('recontact/:chatKey/mark-sent')
+  async markRecontactSent(
+    @Param('chatKey',new ZodPipe(z.string().trim().min(1).max(CHAT_KEY_MAX))) chatKey:string,
+    @CurrentUser() _actor:RequestUser,
+  ) {
+    const settings=await db.chatbotSettings.findUniqueOrThrow({where:{id:'singleton'},select:{recontactMaxAttempts:true}});
+    const existing=await db.chatbotConversation.findUnique({where:{chatKey},select:{recontactCount:true,recontactOptOut:true}});
+    if(!existing)throw new NotFoundException('Conversación de chatbot inexistente');
+    if(existing.recontactOptOut)throw new ConflictException('La conversación rechazó recontactos.');
+    if(existing.recontactCount>=settings.recontactMaxAttempts){
+      throw new ConflictException(`Se alcanzó el máximo de ${settings.recontactMaxAttempts} recontactos para esta conversación.`);
+    }
+    const now=new Date();
+    const changed=await db.chatbotConversation.updateMany({
+      where:{chatKey,recontactOptOut:false,recontactCount:{lt:settings.recontactMaxAttempts}},
+      data:{recontactCount:{increment:1},lastRecontactAt:now},
+    });
+    if(changed.count===0)throw new ConflictException('El recontacto no pudo marcarse porque cambió el estado de la conversación.');
+    const conversation=await db.chatbotConversation.findUniqueOrThrow({where:{chatKey}});
+    return jsonSafe({action:'MARKED_SENT',recontactCount:conversation.recontactCount,lastRecontactAt:conversation.lastRecontactAt});
   }
 
   @Post('respond')

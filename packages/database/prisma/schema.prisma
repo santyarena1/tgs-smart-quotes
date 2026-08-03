@@ -707,6 +707,10 @@ model ChatbotSettings {
   autoDelayMaxSeconds       Int         @default(0)
   /// Umbral determinístico para reutilizar respuestas históricas y ahorrar tokens.
   reuseSimilarityThreshold  Int         @default(90)
+  recontactEnabled          Boolean     @default(false)
+  recontactDays             Int         @default(30)
+  recontactPrompt           String      @default("")
+  recontactMaxAttempts      Int         @default(1)
   scanIntervalSeconds       Int         @default(8)
   maxRecentSnippets         Int         @default(20)
   summaryRefreshEvery       Int         @default(8)
@@ -730,6 +734,9 @@ model ChatbotConversation {
   lastInboundAt          DateTime?
   lastOutboundText       String?
   lastOutboundAt         DateTime?
+  recontactCount         Int                 @default(0)
+  lastRecontactAt        DateTime?
+  recontactOptOut        Boolean             @default(false)
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   messages               ChatbotMessageLog[]
