@@ -95,6 +95,8 @@ export type PdfLayoutStyle = {
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
+  /** Oculta el bloque (display:none) y deja que el resto del documento reacomode hacia arriba. */
+  hidden?: boolean;
 };
 export type PdfLayoutConfig = {
   version: 1;
@@ -211,6 +213,8 @@ function cssValue(value: string): string {
 }
 
 function blockCss(key: PdfLayoutBlockKey, style: PdfLayoutStyle): string {
+  // Ocultar reacomoda el flujo (a diferencia del translate, que solo mueve visualmente).
+  if (style.hidden) return `[data-pdf-block="${key}"]{display:none!important}`;
   const declarations: string[] = [];
   if (style.x !== undefined || style.y !== undefined) {
     declarations.push(

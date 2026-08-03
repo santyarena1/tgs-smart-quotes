@@ -151,6 +151,7 @@ export const pdfLayoutStyleSchema = z
       .enum(['Segoe UI', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Verdana'])
       .optional(),
     fontWeight: z.number().int().min(300).max(900).multipleOf(100).optional(),
+    hidden: z.boolean().optional(),
   })
   .strict();
 export const pdfLayoutConfigSchema = z

@@ -36,7 +36,11 @@ const BLOCKS: Array<{
   { key: "footerText", label: "Pie de página", text: true, resize: true, fixedContent: "footer" },
 ];
 const FONTS = ["Segoe UI", "Arial", "Helvetica", "Georgia", "Times New Roman", "Verdana"];
-const EMPTY: PdfLayoutConfig = { version: 1, blocks: {} };
+type EditorPdfLayoutStyle = PdfLayoutStyle & {hidden?: boolean};
+type EditorPdfLayoutConfig = Omit<PdfLayoutConfig, "blocks"> & {
+  blocks: Partial<Record<PdfLayoutBlockKey, EditorPdfLayoutStyle>>;
+};
+const EMPTY: EditorPdfLayoutConfig = { version: 1, blocks: {} };
 const CSS_PX_PER_MM = 96 / 25.4;
 const PAGE_WIDTH = 210 * CSS_PX_PER_MM;
 const PAGE_HEIGHT = 297 * CSS_PX_PER_MM;
@@ -52,8 +56,8 @@ type Box = { left: number; top: number; width: number; height: number };
 type AlignmentGuides = { x?: number; y?: number };
 
 export function PdfLayoutEditorView() {
-  const [draft, setDraft] = useState<PdfLayoutConfig>(EMPTY);
-  const [saved, setSaved] = useState<PdfLayoutConfig>(EMPTY);
+  const [draft, setDraft] = useState<EditorPdfLayoutConfig>(EMPTY);
+  const [saved, setSaved] = useState<EditorPdfLayoutConfig>(EMPTY);
   const [company, setCompany] = useState<CompanySettings | null>(null);
   const [savedCompany, setSavedCompany] = useState<CompanySettings | null>(null);
   const [pdf, setPdf] = useState<PdfSettings | null>(null);
@@ -156,10 +160,15 @@ export function PdfLayoutEditorView() {
     const doc = frameRef.current?.contentDocument;
     if (!doc) return;
     const next: Partial<Record<PdfLayoutBlockKey, Box>> = {};
+    const hidden = new Set<PdfLayoutBlockKey>();
     for (const block of BLOCKS) {
       const element = doc.querySelector<HTMLElement>(`[data-pdf-block="${block.key}"]`);
       if (!element) continue;
       const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        hidden.add(block.key);
+        continue;
+      }
       next[block.key] = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
       if (block.key === "logo" && element instanceof doc.defaultView!.HTMLImageElement) {
         const ratio =
@@ -185,7 +194,7 @@ export function PdfLayoutEditorView() {
     setBoxes(next);
     setSelected((current) => {
       const meta = BLOCKS.find((block) => block.key === current);
-      if (meta?.column || meta?.fixedContent || next[current]) return current;
+      if (meta?.column || meta?.fixedContent || hidden.has(current) || next[current]) return current;
       return BLOCKS.find((block) => next[block.key])?.key ?? current;
     });
   }, []);
@@ -205,7 +214,7 @@ export function PdfLayoutEditorView() {
     [company, draft, pdf, saved, savedCompany, savedPdf],
   );
 
-  function patchStyle(patch: Partial<PdfLayoutStyle>) {
+  function patchStyle(patch: Partial<EditorPdfLayoutStyle>) {
     setDraft((current) => ({
       ...current,
       blocks: {
@@ -584,29 +593,42 @@ export function PdfLayoutEditorView() {
               return { ...current, blocks };
             });
           }}>Restaurar este campo</button>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => patchStyle({hidden: !style.hidden})}
+          >
+            {style.hidden ? "Mostrar campo" : "Ocultar campo"}
+          </button>
           <hr />
           <h3>Todos los campos</h3>
           <div className="pdf-field-list">
-          {BLOCKS.map((block) => (
-            <button
-              key={block.key}
-              type="button"
-              className={selected === block.key ? "pdf-field-link active" : "pdf-field-link"}
-              disabled={!block.column && !block.fixedContent && !boxes[block.key]}
-              onClick={() => setSelected(block.key)}
-            >
-              {block.label}
-              <span>
-                {block.fixedContent
-                  ? "Texto fijo"
-                  : block.column
-                  ? `${draft.blocks[block.key]?.width ?? "Original"}`
-                  : boxes[block.key]
-                    ? "Visible"
-                    : "No aparece"}
-              </span>
-            </button>
-          ))}
+          {BLOCKS.map((block) => {
+            const isHidden = draft.blocks[block.key]?.hidden === true;
+            return (
+              <button
+                key={block.key}
+                type="button"
+                className={selected === block.key ? "pdf-field-link active" : "pdf-field-link"}
+                disabled={!isHidden && !block.column && !block.fixedContent && !boxes[block.key]}
+                onClick={() => setSelected(block.key)}
+                style={isHidden ? {opacity: 0.55} : undefined}
+              >
+                {block.label}{isHidden ? " (oculto)" : ""}
+                <span>
+                  {isHidden
+                    ? "Oculto"
+                    : block.fixedContent
+                    ? "Texto fijo"
+                    : block.column
+                    ? `${draft.blocks[block.key]?.width ?? "Original"}`
+                    : boxes[block.key]
+                      ? "Visible"
+                      : "No aparece"}
+                </span>
+              </button>
+            );
+          })}
           </div>
           <small>El servidor valida que el ancho total quede entre 620 y 720 px.</small>
         </aside>
