@@ -2671,6 +2671,11 @@ tr.editing {
 .pdf-page-scaled { position: absolute; top: 0; transform-origin: top left; background: white; box-shadow: 0 3px 16px #0003; }
 .pdf-page-scaled iframe { border: 0; display: block; pointer-events: none; background: #fff; }
 .pdf-block-overlay { position: absolute; inset: 0; }
+.pdf-print-area { position: absolute; border: 1px dashed #64748b80; pointer-events: none; }
+.pdf-print-area span { position: absolute; top: 3px; left: 5px; color: #47556999; font: 10px/1.2 Arial, sans-serif; }
+.pdf-alignment-guide { position: absolute; z-index: 2; pointer-events: none; background: #e5006d; }
+.pdf-alignment-guide.vertical { top: 0; bottom: 0; width: 1px; }
+.pdf-alignment-guide.horizontal { left: 0; right: 0; height: 1px; }
 .pdf-block-box { position: absolute; padding: 0; border: 1px dashed transparent; background: transparent; cursor: move; color: transparent; touch-action: none; user-select: none; }
 .pdf-block-box:hover, .pdf-block-box.selected { border-color: #1677ff; background: #1677ff0d; color: #0756b3; }
 .pdf-block-box span { position: absolute; left: 0; top: -19px; padding: 2px 5px; white-space: nowrap; font: 11px/14px Arial, sans-serif; background: #ddebff; border-radius: 3px; opacity: 0; }

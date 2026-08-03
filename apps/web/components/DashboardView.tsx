@@ -83,10 +83,34 @@ export function DashboardView() {
       {!loading && data ? (
         <>
           <StatStrip>
-            <Stat label="Familias" value={data.families} accent="var(--ink)" />
-            <Stat label="Enviados" value={counts.ENVIADO ?? 0} accent="var(--info)" />
-            <Stat label="Aceptados" value={counts.ACEPTADO ?? 0} accent="var(--ok)" />
-            <Stat label="Sin resolver" value={data.unresolved} accent="var(--red)" />
+            <Stat
+              label="Presupuestos"
+              value={data.families}
+              hint="Cada uno agrupa sus versiones"
+              accent="var(--ink)"
+            />
+            <Stat
+              label="Enviados"
+              value={counts.ENVIADO ?? 0}
+              hint="Esperando respuesta del cliente"
+              accent="var(--info)"
+            />
+            <Stat
+              label="Aceptados"
+              value={counts.ACEPTADO ?? 0}
+              hint={
+                data.families
+                  ? `${Math.round(((counts.ACEPTADO ?? 0) / data.families) * 100)}% del total`
+                  : "Cerrados con venta"
+              }
+              accent="var(--ok)"
+            />
+            <Stat
+              label="Sin resolver"
+              value={data.unresolved}
+              hint="Requieren seguimiento"
+              accent="var(--red)"
+            />
           </StatStrip>
 
           <div className="two-col" style={{ marginTop: "1rem" }}>

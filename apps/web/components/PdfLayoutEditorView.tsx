@@ -40,8 +40,16 @@ const EMPTY: PdfLayoutConfig = { version: 1, blocks: {} };
 const CSS_PX_PER_MM = 96 / 25.4;
 const PAGE_WIDTH = 210 * CSS_PX_PER_MM;
 const PAGE_HEIGHT = 297 * CSS_PX_PER_MM;
+const PRINT_AREA = {
+  left: 12 * CSS_PX_PER_MM,
+  top: 14 * CSS_PX_PER_MM,
+  width: PAGE_WIDTH - 2 * 12 * CSS_PX_PER_MM,
+  height: PAGE_HEIGHT - 2 * 14 * CSS_PX_PER_MM,
+};
+const SNAP_THRESHOLD = 5;
 
 type Box = { left: number; top: number; width: number; height: number };
+type AlignmentGuides = { x?: number; y?: number };
 
 export function PdfLayoutEditorView() {
   const [draft, setDraft] = useState<PdfLayoutConfig>(EMPTY);
@@ -53,6 +61,7 @@ export function PdfLayoutEditorView() {
   const [html, setHtml] = useState("");
   const [selected, setSelected] = useState<PdfLayoutBlockKey>("logo");
   const [boxes, setBoxes] = useState<Partial<Record<PdfLayoutBlockKey, Box>>>({});
+  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuides>({});
   const [logoAspectRatio, setLogoAspectRatio] = useState<number | null>(null);
   const [scale, setScale] = useState(0.8);
   const [loading, setLoading] = useState(true);
@@ -231,13 +240,14 @@ export function PdfLayoutEditorView() {
     const initial = draft.blocks[key] ?? {};
     const box = boxes[key];
     if (!box) return;
+    setAlignmentGuides({});
     const onMove = (move: PointerEvent) => {
       const dx = (move.clientX - startX) / scale;
       const dy = (move.clientY - startY) / scale;
       const initialX = initial.x ?? 0;
       const initialY = initial.y ?? 0;
-      const nextX = Math.max(-200, Math.min(200, Math.round(initialX + dx)));
-      const nextY = Math.max(-300, Math.min(300, Math.round(initialY + dy)));
+      let nextX = Math.max(-200, Math.min(200, Math.round(initialX + dx)));
+      let nextY = Math.max(-300, Math.min(300, Math.round(initialY + dy)));
       const initialWidth = initial.width ?? box.width;
       const initialHeight = initial.height ?? box.height;
       const logoRatio = key === "logo" ? (logoAspectRatio ?? box.width / box.height) : null;
@@ -250,6 +260,61 @@ export function PdfLayoutEditorView() {
       const nextHeight = logoRatio
         ? nextWidth / logoRatio
         : Math.min(1000, Math.max(12, Math.round(initialHeight + dy)));
+      let guides: AlignmentGuides = {};
+      if (mode === "move") {
+        const movingLeft = box.left + nextX - initialX;
+        const movingTop = box.top + nextY - initialY;
+        const movingX = [movingLeft, movingLeft + box.width / 2, movingLeft + box.width];
+        const movingY = [movingTop, movingTop + box.height / 2, movingTop + box.height];
+        const targetX = [
+          PRINT_AREA.left,
+          PRINT_AREA.left + PRINT_AREA.width / 2,
+          PRINT_AREA.left + PRINT_AREA.width,
+        ];
+        const targetY = [
+          PRINT_AREA.top,
+          PRINT_AREA.top + PRINT_AREA.height / 2,
+          PRINT_AREA.top + PRINT_AREA.height,
+        ];
+        for (const [otherKey, otherBox] of Object.entries(boxes)) {
+          if (otherKey === key || !otherBox) continue;
+          targetX.push(otherBox.left, otherBox.left + otherBox.width / 2, otherBox.left + otherBox.width);
+          targetY.push(otherBox.top, otherBox.top + otherBox.height / 2, otherBox.top + otherBox.height);
+        }
+        let snapX: { delta: number; guide: number } | undefined;
+        let snapY: { delta: number; guide: number } | undefined;
+        for (const movingEdge of movingX) {
+          for (const targetEdge of targetX) {
+            const delta = targetEdge - movingEdge;
+            if (Math.abs(delta) <= SNAP_THRESHOLD && (!snapX || Math.abs(delta) < Math.abs(snapX.delta))) {
+              snapX = {delta, guide: targetEdge};
+            }
+          }
+        }
+        for (const movingEdge of movingY) {
+          for (const targetEdge of targetY) {
+            const delta = targetEdge - movingEdge;
+            if (Math.abs(delta) <= SNAP_THRESHOLD && (!snapY || Math.abs(delta) < Math.abs(snapY.delta))) {
+              snapY = {delta, guide: targetEdge};
+            }
+          }
+        }
+        if (snapX) {
+          const snappedX = Math.max(-200, Math.min(200, nextX + snapX.delta));
+          if (snappedX === nextX + snapX.delta) {
+            nextX = snappedX;
+            guides.x = snapX.guide;
+          }
+        }
+        if (snapY) {
+          const snappedY = Math.max(-300, Math.min(300, nextY + snapY.delta));
+          if (snappedY === nextY + snapY.delta) {
+            nextY = snappedY;
+            guides.y = snapY.guide;
+          }
+        }
+      }
+      setAlignmentGuides(guides);
       setBoxes((current) => ({
         ...current,
         [key]: mode === "move"
@@ -283,11 +348,14 @@ export function PdfLayoutEditorView() {
       }));
     };
     const onUp = () => {
+      setAlignmentGuides({});
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   async function save() {
@@ -370,6 +438,13 @@ export function PdfLayoutEditorView() {
                 onLoad={handleFrameLoad}
               />
               <div className="pdf-block-overlay">
+                <div
+                  className="pdf-print-area"
+                  style={PRINT_AREA}
+                  aria-hidden="true"
+                >
+                  <span>Área imprimible</span>
+                </div>
                 {BLOCKS.filter((block) => !block.column).map((block) => {
                   const box = boxes[block.key];
                   if (!box) return null;
@@ -390,6 +465,12 @@ export function PdfLayoutEditorView() {
                     </button>
                   );
                 })}
+                {alignmentGuides.x !== undefined ? (
+                  <div className="pdf-alignment-guide vertical" style={{left: alignmentGuides.x}} />
+                ) : null}
+                {alignmentGuides.y !== undefined ? (
+                  <div className="pdf-alignment-guide horizontal" style={{top: alignmentGuides.y}} />
+                ) : null}
               </div>
             </div>
           </div>
