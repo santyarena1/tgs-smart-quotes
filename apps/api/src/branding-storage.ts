@@ -26,15 +26,21 @@ const EXT_TO_MIME:Record<string,string>={
 
 const LOGO_FILE_RE=/^logo-[a-f0-9]{8,64}\.(png|jpg|webp|gif)$/;
 
-export function publicApiBase():string{
-  const fromEnv=process.env.API_PUBLIC_URL?.trim();
-  if(fromEnv)return fromEnv.replace(/\/$/,'');
-  const port=process.env.PORT??'3001';
-  return `http://localhost:${port}/api`;
+export function logoPublicUrl(filename:string):string{
+  return `/api/uploads/branding/${filename}`;
 }
 
-export function logoPublicUrl(filename:string):string{
-  return `${publicApiBase()}/uploads/branding/${filename}`;
+/**
+ * Devuelve una ruta relativa (`/api/uploads/branding/<archivo>`) sin depender del
+ * host. Migra en lectura cualquier URL absoluta antigua (p.ej. localhost) al mismo
+ * archivo servido por el proxy `/api`. Deja intactos data URLs u otros valores.
+ */
+export function normalizeLogoUrl(url:string|null|undefined):string|null{
+  if(!url)return null;
+  if(url.startsWith('data:'))return url;
+  const name=filenameFromLogoUrl(url);
+  if(name&&LOGO_FILE_RE.test(name))return `/api/uploads/branding/${name}`;
+  return url;
 }
 
 export function filenameFromLogoUrl(url:string|null|undefined):string|null{

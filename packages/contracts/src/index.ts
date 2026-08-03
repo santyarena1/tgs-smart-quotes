@@ -61,7 +61,7 @@ export const userUpdateSchema = z.object({
 export const companySettingsInputSchema = z
   .object({
     logoUrl: z
-      .union([z.string().url(), z.literal('')])
+      .union([z.string().url(), z.string().regex(/^\/[\w./-]+$/), z.literal('')])
       .nullable()
       .transform((v) => (v === '' ? null : v)),
     name: text,
@@ -427,7 +427,7 @@ export const chatbotResponseEntrySchema = z.object({
   answer: z.string().trim().min(1).max(10000),
   context: z.string().trim().max(10000).default(''),
   attachments: z.object({
-    imageUrl: z.string().trim().url().max(2000).nullable(),
+    imageUrl: z.union([z.string().trim().url().max(2000), z.string().trim().regex(/^\/[\w./-]+$/).max(2000)]).nullable(),
     url: z.string().trim().url().max(2000).nullable(),
     quote: z.object({
       familyId: z.string().trim().min(1).max(100),

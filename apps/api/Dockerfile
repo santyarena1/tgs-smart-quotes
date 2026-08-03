@@ -47,8 +47,12 @@ RUN corepack enable
 WORKDIR /app
 COPY --from=build /app /app
 ENV NODE_ENV=production
+# PDFs y uploads (logo de empresa, imágenes de reglas del chatbot) viven bajo /data.
+# En Railway hay que montar un Volume en /data para que sobrevivan a los redeploys;
+# sin volumen el filesystem es efímero y los archivos subidos se pierden al reiniciar.
 ENV PDF_LOCAL_DIR=/data/pdfs
-RUN mkdir -p /data/pdfs \
+ENV UPLOADS_DIR=/data/uploads
+RUN mkdir -p /data/pdfs /data/uploads \
   && cd /app/packages/pdf \
   && npx playwright install chromium
 EXPOSE 3001

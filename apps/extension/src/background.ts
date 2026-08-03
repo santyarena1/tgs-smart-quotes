@@ -3,7 +3,9 @@
  * no puede hacer fetch cross-origin confiable por CSP) y el único que puede disparar descargas.
  * Nunca automatiza el envío de WhatsApp: solo proxya la API y descarga PDFs.
  */
-const API_BASE = "http://localhost:3001/api";
+// Base de la API. En build se inyecta VITE_API_BASE (p. ej. la URL pública de la API en
+// Railway, con /api final). Sin la variable cae a localhost para desarrollo.
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, "") ?? "http://localhost:3001/api";
 const EXTENSION_VERSION = "1.0.0";
 
 function buildUrl(path: string): string {

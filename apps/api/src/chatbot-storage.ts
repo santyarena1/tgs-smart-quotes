@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import {writeFile} from 'node:fs/promises';
-import {UPLOADS_ROOT, publicApiBase} from './branding-storage.js';
+import {UPLOADS_ROOT} from './branding-storage.js';
 
 export const CHATBOT_RULE_IMAGES_DIR=path.join(UPLOADS_ROOT,'chatbot-rules');
 const MIME_EXT:Record<string,string>={
@@ -26,7 +26,7 @@ export async function saveChatbotRuleImage(buffer:Buffer,mime:string) {
   const hash=createHash('sha256').update(buffer).digest('hex').slice(0,16);
   const filename=`rule-${hash}.${ext}`;
   await writeFile(path.join(CHATBOT_RULE_IMAGES_DIR,filename),buffer);
-  return {filename,mime:EXT_MIME[ext]!,url:`${publicApiBase()}/uploads/chatbot-rules/${filename}`};
+  return {filename,mime:EXT_MIME[ext]!,url:`/api/uploads/chatbot-rules/${filename}`};
 }
 
 export function chatbotRuleImagePath(filename:string) {

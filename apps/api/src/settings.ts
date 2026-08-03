@@ -36,7 +36,7 @@ import {
 import {renderPdfHtml, type PdfRenderInput, type PdfResolvedConfig} from '@tgs/pdf';
 import {decryptSecret, encryptSecret, maskSecret} from '@tgs/config';
 import {CurrentUser, jsonSafe, Public, type RequestUser, ZodPipe} from './infrastructure.js';
-import {removeManagedLogoFile, saveBrandingLogo} from './branding-storage.js';
+import {filenameFromLogoUrl, normalizeLogoUrl, removeManagedLogoFile, saveBrandingLogo} from './branding-storage.js';
 import {describeOpenAiError} from '@tgs/ai';
 
 const NON_CHAT_MODEL_FAMILIES =
@@ -74,15 +74,16 @@ export class SettingsController {
     const row = await db.companySettings.findUniqueOrThrow({where: {id: 'singleton'}});
     return {
       name: row.name,
-      logoUrl: row.logoUrl,
+      logoUrl: normalizeLogoUrl(row.logoUrl),
       primaryColor: row.primaryColor,
       accentColor: row.accentColor,
     };
   }
 
   @Get('company')
-  company() {
-    return db.companySettings.findUniqueOrThrow({where: {id: 'singleton'}});
+  async company() {
+    const row = await db.companySettings.findUniqueOrThrow({where: {id: 'singleton'}});
+    return {...row, logoUrl: normalizeLogoUrl(row.logoUrl)};
   }
 
   @Put('company')
@@ -114,7 +115,7 @@ export class SettingsController {
 
     return db.$transaction(async (tx) => {
       const old = await tx.companySettings.findUniqueOrThrow({where: {id: 'singleton'}});
-      if (old.logoUrl && old.logoUrl !== saved.url) {
+      if (old.logoUrl && filenameFromLogoUrl(old.logoUrl) !== saved.filename) {
         await removeManagedLogoFile(old.logoUrl);
       }
       const next = await tx.companySettings.update({

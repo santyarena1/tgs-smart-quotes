@@ -208,7 +208,7 @@ async function resolveRuleAttachments(responses:ChatbotSettingsInput['responses'
     if(response.attachments.imageUrl){
       const pathname=new URL(response.attachments.imageUrl,'http://localhost').pathname;
       attachment.image={
-        url:response.attachments.imageUrl,
+        url:pathname,
         filename:pathname.split('/').pop()||`respuesta-${response.id}.jpg`,
       };
     }
