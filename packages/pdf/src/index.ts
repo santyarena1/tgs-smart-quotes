@@ -254,7 +254,9 @@ function blockCss(key: PdfLayoutBlockKey, style: PdfLayoutStyle): string {
   return declarations.length ? `[data-pdf-block="${key}"]{${declarations.join(';')}}` : '';
 }
 
-function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
+/** CSS de overrides de layout por bloque (posición/tamaño/fuente/color) + anchos de columna.
+ *  Es agnóstico a la plantilla: selecciona por `[data-pdf-block]` y por clase de columna. */
+function layoutBlocksCss(layout: PdfLayoutConfig): string {
   const styles = Object.entries(layout.blocks)
     .map(([key, style]) => blockCss(key as PdfLayoutBlockKey, style))
     .join('');
@@ -272,8 +274,11 @@ function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
         : `table.items .${className}{width:${width}px!important;max-width:${width}px!important}`;
     })
     .join('');
+  return `${styles}${columnCss}`;
+}
 
-  let next = html.replace('</style>', `${styles}${columnCss}</style>`);
+function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
+  let next = html.replace('</style>', `${layoutBlocksCss(layout)}</style>`);
   const replacements: Array<[string, string]> = [
     ['<img class="logo"', '<img data-pdf-block="logo" class="logo"'],
     ['<div class="logo-text">', '<div data-pdf-block="companyName" class="logo-text">'],
@@ -683,8 +688,10 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   }
 
   const logo = input.company.logoUrl
-    ? `<img class="logo" src="${escapeHtml(input.company.logoUrl)}" alt="" />`
+    ? `<img data-pdf-block="logo" class="logo" src="${escapeHtml(input.company.logoUrl)}" alt="" />`
     : '';
+
+  const financingHtml = buildFinancingModerno(input);
 
   const validUntilRow = input.validUntil
     ? `<dt>Válido hasta</dt><dd>${formatDateAr(input.validUntil)}</dd>`
@@ -754,19 +761,19 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     <div class="brand">
       ${logo}
       <div class="names">
-        <div class="cname">${escapeHtml(input.company.name)}</div>
-        <div class="csub">${escapeHtml(input.company.taxCondition)}</div>
+        <div class="cname" data-pdf-block="companyName">${escapeHtml(input.company.name)}</div>
+        <div class="csub" data-pdf-block="companyTaxData">${escapeHtml(input.company.taxCondition)}</div>
       </div>
     </div>
     <div class="title-block">
-      <h1>PRESUPUESTO</h1>
-      <div class="meta">Nº ${escapeHtml(input.number)} · ${date}</div>
+      <h1 data-pdf-block="quoteTitle">PRESUPUESTO</h1>
+      <div class="meta" data-pdf-block="quoteMeta">Nº ${escapeHtml(input.number)} · ${date}</div>
     </div>
   </header>
   <div class="rule"></div>
 
   <section class="cards">
-    <div class="card">
+    <div class="card" data-pdf-block="quoteData">
       <h2>Datos del presupuesto</h2>
       <dl>
         <dt>Número</dt><dd>${escapeHtml(input.number)}</dd>
@@ -777,7 +784,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     </div>
     ${
       input.config.showTaxData
-        ? `<div class="card">
+        ? `<div class="card" data-pdf-block="companyFiscalData">
       <h2>Datos fiscales</h2>
       <dl>
         <dt>Inicio Act.</dt><dd>${escapeHtml(input.company.activityStart)}</dd>
@@ -786,47 +793,52 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
         <dt>Domicilio</dt><dd>${escapeHtml(input.company.address)}</dd>
       </dl>
     </div>`
-        : `<div class="card"><h2>Datos fiscales</h2><p>Ocultos por configuración</p></div>`
+        : `<div class="card" data-pdf-block="companyFiscalData"><h2>Datos fiscales</h2><p>Ocultos por configuración</p></div>`
     }
   </section>
 
-  ${includeParts.length ? `<div class="box box-red">${includeParts.map((p) => `<p>${p}</p>`).join('')}</div>` : ''}
+  ${includeParts.length ? `<div class="box box-red" data-pdf-block="servicesBlock">${includeParts.map((p) => `<p>${p}</p>`).join('')}</div>` : ''}
 
-  <table class="items">
+  <table class="items" data-pdf-block="itemsTable">
     <thead>
-      <tr><th class="code">Cód.</th><th class="name">Artículo</th><th class="qty">Cant.</th><th class="amt">Importe</th></tr>
+      <tr><th class="code" data-pdf-block="itemsTable.colCode">Cód.</th><th class="name" data-pdf-block="itemsTable.colName">Artículo</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>
     </thead>
     <tbody>${buildItemsRowsModerno(input)}</tbody>
   </table>
 
-  <section class="totals">
+  <section class="totals" data-pdf-block="totalsBlock">
     ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
     ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
   </section>
 
-  ${buildFinancingModerno(input)}
+  ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
 
   ${
     input.config.showExtraObservation && input.observation
-      ? `<div class="box box-red"><b>Observación:</b> ${escapeHtml(input.observation)}</div>`
+      ? `<div class="box box-red" data-pdf-block="observation"><b>Observación:</b> ${escapeHtml(input.observation)}</div>`
       : ''
   }
 
-  ${input.config.showRma ? `<div class="box box-red">${renderRmaText(input.config.rmaText, input.company.rmaUrl)}</div>` : ''}
+  ${input.config.showRma ? `<div class="box box-red" data-pdf-block="rmaBlock">${renderRmaText(input.config.rmaText, input.company.rmaUrl)}</div>` : ''}
 
-  <footer class="footer">${escapeHtml(input.company.footerText)}</footer>
+  <footer class="footer" data-pdf-block="footerText">${escapeHtml(input.company.footerText)}</footer>
 </body>
 </html>`;
-  return html;
+  return hasLayoutOverrides(input.layout)
+    ? html.replace('</style>', `${layoutBlocksCss(input.layout!)}</style>`)
+    : html;
 }
 
 /** Renderer compartido por el preview live y la generación final. `editor` agrega hit-targets aun sin overrides. */
 export function renderPdfHtml(input: PdfRenderInput, editor = false): string {
   const html = renderQuoteHtml(input);
   if (!editor) return html;
-  const decorated = hasLayoutOverrides(input.layout)
-    ? html
-    : decorateLayoutHtml(html, {version: 1, blocks: {}});
+  // La plantilla MODERNO ya emite sus propios data-pdf-block inline (no usa el decorador de la
+  // CLÁSICA, que hace reemplazos de strings sobre su HTML específico).
+  const decorated =
+    input.template === 'MODERNO' || hasLayoutOverrides(input.layout)
+      ? html
+      : decorateLayoutHtml(html, {version: 1, blocks: {}});
   // `@page` sólo afecta print. El preview screen debe reproducir el mismo content box:
   // A4 completo con exactamente los 14 mm / 12 mm usados por Chromium al imprimir.
   return decorated

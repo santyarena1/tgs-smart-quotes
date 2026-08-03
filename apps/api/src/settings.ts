@@ -33,7 +33,7 @@ import {
   type PdfLayoutPreviewInput,
   type PdfSettingsInput,
 } from '@tgs/contracts';
-import {renderPdfHtml, type PdfRenderInput, type PdfResolvedConfig} from '@tgs/pdf';
+import {renderPdfHtml, type PdfRenderInput, type PdfResolvedConfig, type PdfTemplate} from '@tgs/pdf';
 import {decryptSecret, encryptSecret, maskSecret} from '@tgs/config';
 import {CurrentUser, jsonSafe, Public, type RequestUser, ZodPipe} from './infrastructure.js';
 import {filenameFromLogoUrl, normalizeLogoUrl, removeManagedLogoFile, saveBrandingLogo} from './branding-storage.js';
@@ -214,6 +214,8 @@ export class SettingsController {
     };
     const input: PdfRenderInput = {
       kind: 'DETALLADO',
+      template: (previewPdf.template ?? 'CLASICO') as PdfTemplate,
+      financingBbvaNote: previewPdf.financingBbvaNote ?? null,
       number: 'TGS-000123',
       date: new Date('2026-07-28T12:00:00-03:00'),
       isBuiltPc: true,
