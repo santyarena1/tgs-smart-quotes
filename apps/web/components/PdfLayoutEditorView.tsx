@@ -76,6 +76,8 @@ export function PdfLayoutEditorView() {
   const hostRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const previewRequestRef = useRef(0);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,6 +111,60 @@ export function PdfLayoutEditorView() {
     observer.observe(host);
     return () => observer.disconnect();
   }, [loading]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) return;
+
+      const direction = {
+        ArrowLeft: {x: -1, y: 0},
+        ArrowRight: {x: 1, y: 0},
+        ArrowUp: {x: 0, y: -1},
+        ArrowDown: {x: 0, y: 1},
+      }[event.key];
+      if (!direction) return;
+
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const current = draftRef.current;
+      const style = current.blocks[selected] ?? {};
+      const currentX = style.x ?? 0;
+      const currentY = style.y ?? 0;
+      const nextX = Math.max(-200, Math.min(200, currentX + direction.x * step));
+      const nextY = Math.max(-300, Math.min(300, currentY + direction.y * step));
+      const deltaX = nextX - currentX;
+      const deltaY = nextY - currentY;
+      const nextDraft = {
+        ...current,
+        blocks: {
+          ...current.blocks,
+          [selected]: {...style, x: nextX, y: nextY},
+        },
+      };
+      draftRef.current = nextDraft;
+      setDraft(nextDraft);
+      setBoxes((currentBoxes) => {
+        const box = currentBoxes[selected];
+        if (!box) return currentBoxes;
+        return {
+          ...currentBoxes,
+          [selected]: {
+            ...box,
+            left: box.left + deltaX,
+            top: box.top + deltaY,
+          },
+        };
+      });
+      setNotice(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected]);
 
   useEffect(() => {
     if (loading || !company || !pdf) return;
