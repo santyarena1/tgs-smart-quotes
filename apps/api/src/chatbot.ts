@@ -571,6 +571,54 @@ export class ChatbotController {
     }));
   }
 
+  @Get('recontacts/candidates')
+  async recontactCandidates() {
+    const settings=await db.chatbotSettings.findUniqueOrThrow({
+      where:{id:'singleton'},
+      select:{recontactEnabled:true,recontactDays:true,recontactMaxAttempts:true},
+    });
+    if(!settings.recontactEnabled)return [];
+
+    const now=new Date();
+    const cutoff=new Date(now.getTime()-settings.recontactDays*86_400_000);
+    const conversations=await db.chatbotConversation.findMany({
+      where:{
+        escalatedAt:null,
+        recontactOptOut:false,
+        recontactCount:{lt:settings.recontactMaxAttempts},
+        OR:[
+          {activeRequestId:null},
+          {activeRequest:{is:{state:{not:'CERRADA'}}}},
+        ],
+        messages:{some:{direction:'OUTBOUND',createdAt:{lte:cutoff}}},
+      },
+      select:{
+        chatKey:true,
+        displayName:true,
+        recontactCount:true,
+        messages:{
+          orderBy:{createdAt:'desc'},
+          take:1,
+          select:{direction:true,createdAt:true},
+        },
+      },
+    });
+
+    return jsonSafe(conversations
+      .flatMap(conversation=>{
+        const lastMessage=conversation.messages[0];
+        if(!lastMessage||lastMessage.direction!=='OUTBOUND'||lastMessage.createdAt>cutoff)return [];
+        return [{
+          chatKey:conversation.chatKey,
+          displayName:conversation.displayName,
+          lastOutboundAt:lastMessage.createdAt,
+          recontactCount:conversation.recontactCount,
+          daysSince:Math.floor((now.getTime()-lastMessage.createdAt.getTime())/86_400_000),
+        }];
+      })
+      .sort((left,right)=>left.lastOutboundAt.getTime()-right.lastOutboundAt.getTime()));
+  }
+
   @Post('recontact')
   async recontact(
     @Body(new ZodPipe(chatbotRecontactSchema)) body: ChatbotRecontactInput,

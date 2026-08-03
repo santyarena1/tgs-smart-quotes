@@ -209,6 +209,10 @@ export type ChatbotSettings = {
   ignoredAutoMessages: string[];
   autoDelayMaxSeconds: number;
   reuseSimilarityThreshold: number;
+  recontactEnabled: boolean;
+  recontactDays: number;
+  recontactPrompt: string;
+  recontactMaxAttempts: number;
   scanIntervalSeconds: number;
   maxRecentSnippets: number;
   summaryRefreshEvery: number;
