@@ -1528,6 +1528,10 @@ function useChatbotRuntime(
         const failures:string[]=[];
         for(const pending of batch){
           if(stopped)break;
+          // Revalidar por iteración: si el usuario apagó el automático/simulación a mitad del
+          // lote, no seguir recorriendo chats ya encolados (salvo los que sean AUTO explícito).
+          const pendingMode=overrides.get(pending.chatKey)?.modeOverride??nextSettings.defaultMode;
+          if(!simulationModeRef.current&&pendingMode!=="AUTO"){queueRef.current.delete(pending.chatKey);continue;}
           processingRef.current=pending.chatKey;
           applyNativeChatStatuses([
             ...native.filter(item=>item.chatKey!==pending.chatKey),
