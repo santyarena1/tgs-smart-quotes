@@ -101,6 +101,8 @@ export type PdfLayoutConfig = {
   blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
 };
 
+export type PdfTemplate = 'CLASICO' | 'MODERNO';
+
 export type PdfRenderInput = {
   kind: PdfKind;
   number: string;
@@ -114,6 +116,12 @@ export type PdfRenderInput = {
   items: PdfItem[];
   financing: PdfFinancingPlan[];
   layout?: PdfLayoutConfig;
+  /** Estilo visual de la plantilla. Default 'CLASICO' (la histórica). 'MODERNO' es el rediseño. */
+  template?: PdfTemplate;
+  /** Fecha de validez ("Válido hasta") que muestra la plantilla MODERNO. Opcional. */
+  validUntil?: Date | null;
+  /** Nota aclaratoria de BBVA (caja azul) en la plantilla MODERNO. Opcional/editable. */
+  financingBbvaNote?: string | null;
 };
 
 export const historicalPdfIsImmutable = true;
@@ -379,6 +387,7 @@ function buildFinancing(input: PdfRenderInput): string {
 }
 
 export function renderQuoteHtml(input: PdfRenderInput): string {
+  if (input.template === 'MODERNO') return renderQuoteModernoHtml(input);
   const date = formatDateAr(input.date);
   const primary = escapeHtml(input.company.primaryColor || '#1a1a1a');
   const accent = escapeHtml(input.company.accentColor || '#c8102e');
@@ -595,6 +604,220 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
 </body>
 </html>`;
   return hasLayoutOverrides(input.layout) ? decorateLayoutHtml(html, input.layout!) : html;
+}
+
+function buildItemsRowsModerno(input: PdfRenderInput): string {
+  const showRowPrice = (item: PdfItem): boolean => {
+    if (input.kind === 'DETALLADO') return true;
+    if (input.isBuiltPc) return Boolean(item.isMainLine);
+    return false;
+  };
+  return input.items
+    .map((item, index) => {
+      const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
+      const name = escapeHtml(item.name);
+      const qty = String(item.quantity);
+      const amount = showRowPrice(item)
+        ? formatArsFromCents(item.subtotalCents)
+        : input.kind === 'SIMPLE'
+          ? formatArsFromCents(0n)
+          : formatArsFromCents(0n);
+      const subtitle =
+        item.isMainLine && input.config.builtPcDescription
+          ? `<div class="sub">${escapeHtml(input.config.builtPcDescription)}</div>`
+          : '';
+      const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      return `<tr class="${cls}"><td class="code">${code}</td><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
+    })
+    .join('');
+}
+
+function buildFinancingModerno(input: PdfRenderInput): string {
+  if (!input.config.showFinancing || input.financing.length === 0) return '';
+  const plans = [...input.financing].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const bbva = plans.filter((p) => /bbva/i.test(p.bank ?? ''));
+  const others = plans.filter((p) => !bbva.includes(p));
+  const rowHtml = (plan: PdfFinancingPlan, isBbva: boolean): string => {
+    const cuota = installmentAmount(input.listTotalCents, plan);
+    const bank = escapeHtml(plan.bank ?? (isBbva ? 'BBVA' : 'Otros bancos'));
+    const sinInteres = plan.interestBps === 0 ? ' sin interés' : '';
+    const desc = plan.description
+      ? escapeHtml(plan.description)
+      : `${plan.installments} cuotas${sinInteres}`;
+    return `<tr class="${isBbva ? 'bbva' : ''}"><td class="bank">${bank}</td><td class="desc">${desc}</td><td class="amt">${formatArsFromCents(cuota)}</td></tr>`;
+  };
+  const body: string[] = [];
+  if (input.config.showBbva) body.push(...bbva.map((p) => rowHtml(p, true)));
+  if (input.config.showOtherBanks) body.push(...others.map((p) => rowHtml(p, false)));
+  if (!body.length) return '';
+  const note = input.config.showFinancingNote
+    ? `<div class="box box-red"><b>Cuotas:</b> los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</div>`
+    : '';
+  const bbvaNote =
+    input.config.showBbva && input.financingBbvaNote
+      ? `<div class="box box-blue">${renderRmaText(input.financingBbvaNote, '')}</div>`
+      : '';
+  return `${note}<table class="fin"><tbody>${body.join('')}</tbody></table>${bbvaNote}`;
+}
+
+/** Rediseño "MODERNO": réplica del modelo de presupuesto TGS (header con regla, cards con labels en color,
+ *  caja Incluye, totales lista/efectivo, tabla de financiación por banco y cajas de notas). */
+export function renderQuoteModernoHtml(input: PdfRenderInput): string {
+  const date = formatDateAr(input.date);
+  const primary = escapeHtml(input.company.primaryColor || '#111111');
+  const accent = escapeHtml(input.company.accentColor || '#E31B23');
+  const green = '#1a7d3c';
+  const blue = '#1d4ed8';
+
+  const includeParts: string[] = [];
+  if (input.config.showServicesBlock) {
+    const bits = [input.config.assemblyText, input.config.installText].filter(Boolean);
+    if (bits.length) includeParts.push(`<b>Incluye:</b> ${escapeHtml(bits.join(', '))}.`);
+  }
+  const extraBits: string[] = [];
+  if (input.config.showWindows && input.config.windowsText) extraBits.push(escapeHtml(input.config.windowsText));
+  if (input.config.showDrivers && input.config.driversText) extraBits.push(escapeHtml(input.config.driversText));
+  if (extraBits.length) includeParts.push(extraBits.join(' · '));
+  if (input.config.showDelay && input.config.estimatedDelay) {
+    includeParts.push(`<b>Demora estimada:</b> ${escapeHtml(input.config.estimatedDelay)}.`);
+  }
+
+  const logo = input.company.logoUrl
+    ? `<img class="logo" src="${escapeHtml(input.company.logoUrl)}" alt="" />`
+    : '';
+
+  const validUntilRow = input.validUntil
+    ? `<dt>Válido hasta</dt><dd>${formatDateAr(input.validUntil)}</dd>`
+    : '';
+
+  const html = `<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1a1a1a; font-size: 10.5px; line-height: 1.4; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo { height: 40px; width: auto; max-width: 120px; object-fit: contain; }
+  .brand .names .cname { font-size: 20px; font-weight: 800; color: ${primary}; line-height: 1.05; }
+  .brand .names .csub { font-size: 10px; color: #777; margin-top: 1px; }
+  .title-block { text-align: right; }
+  .title-block h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.02em; color: ${primary}; }
+  .title-block .meta { margin-top: 3px; color: #666; font-size: 10px; }
+  .rule { height: 2px; background: ${primary}; margin: 8px 0 14px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .card { border: 1px solid #e2e2e2; border-radius: 5px; padding: 10px 12px; }
+  .card h2 { margin: 0 0 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; color: ${accent}; text-transform: uppercase; }
+  .card dl { margin: 0; display: grid; grid-template-columns: 92px 1fr; gap: 4px 8px; }
+  .card dt { color: #777; }
+  .card dd { margin: 0; font-weight: 700; color: #1a1a1a; }
+  .box { border: 1px solid #e6e6e6; border-left: 4px solid ${accent}; border-radius: 4px; padding: 9px 12px; margin: 10px 0; background: #fcfcfc; }
+  .box p { margin: 0 0 3px; }
+  .box p:last-child { margin: 0; }
+  .box-red { border-left-color: ${accent}; }
+  .box-blue { border-left-color: ${blue}; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 2px; }
+  table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 8px 10px; font-weight: 700; font-size: 10px; }
+  table.items thead th.qty { text-align: center; }
+  table.items thead th.amt { text-align: right; }
+  table.items td { border-bottom: 1px solid #ececec; padding: 7px 10px; vertical-align: top; }
+  table.items .pname { font-weight: 700; }
+  table.items tr.component .pname { font-weight: 700; }
+  table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
+  table.items .code { width: 46px; color: #555; }
+  table.items .qty { width: 46px; text-align: center; }
+  table.items .amt { width: 120px; text-align: right; white-space: nowrap; font-weight: 600; }
+  .totals { margin-top: 12px; }
+  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid #eee; }
+  .totals .row .lbl { color: #333; }
+  .totals .list .val { color: ${accent}; font-weight: 800; font-size: 13px; }
+  .totals .cash { border-bottom: none; padding-top: 10px; }
+  .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 12px; }
+  .totals .cash .val { color: ${green}; font-weight: 800; font-size: 17px; }
+  table.fin { width: 100%; border-collapse: collapse; margin: 10px 0; border-top: 2px solid ${primary}; border-bottom: 2px solid ${primary}; }
+  table.fin td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  table.fin tr:last-child td { border-bottom: none; }
+  table.fin tr.bbva td { background: #f5f8ff; }
+  table.fin .bank { font-weight: 800; width: 200px; }
+  table.fin tr.bbva .bank { color: ${blue}; }
+  table.fin .desc { color: #555; }
+  table.fin tr.bbva .desc { color: ${blue}; }
+  table.fin .amt { text-align: right; white-space: nowrap; font-weight: 800; width: 150px; }
+  .footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e2e2e2; color: #888; font-size: 9px; text-align: center; }
+  .box a, .box b.url { color: ${accent}; font-weight: 700; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      ${logo}
+      <div class="names">
+        <div class="cname">${escapeHtml(input.company.name)}</div>
+        <div class="csub">${escapeHtml(input.company.taxCondition)}</div>
+      </div>
+    </div>
+    <div class="title-block">
+      <h1>PRESUPUESTO</h1>
+      <div class="meta">Nº ${escapeHtml(input.number)} · ${date}</div>
+    </div>
+  </header>
+  <div class="rule"></div>
+
+  <section class="cards">
+    <div class="card">
+      <h2>Datos del presupuesto</h2>
+      <dl>
+        <dt>Número</dt><dd>${escapeHtml(input.number)}</dd>
+        <dt>Fecha</dt><dd>${date}</dd>
+        <dt>Moneda</dt><dd>Pesos Argentinos</dd>
+        ${validUntilRow}
+      </dl>
+    </div>
+    ${
+      input.config.showTaxData
+        ? `<div class="card">
+      <h2>Datos fiscales</h2>
+      <dl>
+        <dt>Inicio Act.</dt><dd>${escapeHtml(input.company.activityStart)}</dd>
+        <dt>Ing. Brutos</dt><dd>${escapeHtml(input.company.grossIncome)}</dd>
+        <dt>CUIT</dt><dd>${escapeHtml(input.company.cuit)}</dd>
+        <dt>Domicilio</dt><dd>${escapeHtml(input.company.address)}</dd>
+      </dl>
+    </div>`
+        : `<div class="card"><h2>Datos fiscales</h2><p>Ocultos por configuración</p></div>`
+    }
+  </section>
+
+  ${includeParts.length ? `<div class="box box-red">${includeParts.map((p) => `<p>${p}</p>`).join('')}</div>` : ''}
+
+  <table class="items">
+    <thead>
+      <tr><th class="code">Cód.</th><th class="name">Artículo</th><th class="qty">Cant.</th><th class="amt">Importe</th></tr>
+    </thead>
+    <tbody>${buildItemsRowsModerno(input)}</tbody>
+  </table>
+
+  <section class="totals">
+    ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
+    ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
+  </section>
+
+  ${buildFinancingModerno(input)}
+
+  ${
+    input.config.showExtraObservation && input.observation
+      ? `<div class="box box-red"><b>Observación:</b> ${escapeHtml(input.observation)}</div>`
+      : ''
+  }
+
+  ${input.config.showRma ? `<div class="box box-red">${renderRmaText(input.config.rmaText, input.company.rmaUrl)}</div>` : ''}
+
+  <footer class="footer">${escapeHtml(input.company.footerText)}</footer>
+</body>
+</html>`;
+  return html;
 }
 
 /** Renderer compartido por el preview live y la generación final. `editor` agrega hit-targets aun sin overrides. */
