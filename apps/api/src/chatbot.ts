@@ -399,10 +399,12 @@ export class ChatbotController {
   ) {
     return db.$transaction(async (tx) => {
       const old = await tx.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+      // `responses` no es columna (se mapea a knowledgeEntries); nunca debe entrar al spread de Prisma.
+      const {responses: _responses, ...columns} = body;
       const next = await tx.chatbotSettings.update({
         where: {id: 'singleton'},
         data: {
-          ...body,
+          ...columns,
           openingMessages: body.openingMessages,
           closingMessages: body.closingMessages,
           knowledgeEntries: body.responses,
