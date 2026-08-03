@@ -4,11 +4,10 @@ TGS Presupuestos Pro — Extensión Chrome (WhatsApp Web)
 REQUISITOS
 ----------
 1. Google Chrome (o Chromium / Edge basado en Chromium).
-2. Sistema TGS en marcha:
-   - Web:  http://localhost:3000
-   - API:  http://localhost:3001/api
+2. Sistema TGS en producción (Railway):
+   - Web:  https://web-production-9cbbd.up.railway.app
 3. Sesión iniciada en la web TGS en ESTE mismo navegador
-   (la extensión reutiliza la cookie de sesión de localhost).
+   (la extensión reutiliza la cookie de sesión del web TGS).
 
 INSTALACIÓN (modo desarrollador)
 --------------------------------
@@ -32,8 +31,8 @@ USO EN WHATSAPP WEB
 2. A la derecha debería aparecer el panel flotante "TGS".
 3. Arriba del panel verás el estado de conexión:
    - Conectado = API + sesión OK
-   - Sin sesión = abrí http://localhost:3000 e iniciá sesión
-   - API offline = levantá el backend en el puerto 3001
+   - Sin sesión = abrí https://web-production-9cbbd.up.railway.app e iniciá sesión
+   - API offline = revisá que el sistema TGS en Railway esté online
 4. Abrí un chat. El panel detecta teléfono/nombre (con barra de confianza).
 5. Buscá o seleccioná un presupuesto, generá PDF SIMPLE/DETALLADO,
    prepará el mensaje y usá "Insertar en el chat".

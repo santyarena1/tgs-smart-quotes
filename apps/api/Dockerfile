@@ -12,7 +12,9 @@ RUN pnpm install --frozen-lockfile \
   && pnpm --filter @tgs/validation build \
   && pnpm --filter @tgs/pdf build \
   && pnpm --filter @tgs/ai build \
-  && pnpm --filter @tgs/api build
+  && pnpm --filter @tgs/api build \
+  && pnpm --filter @tgs/extension build \
+  && pnpm --filter @tgs/extension zip
 
 FROM node:22-bookworm-slim
 # Dependencias de sistema para Chromium (Playwright) usadas por @tgs/pdf

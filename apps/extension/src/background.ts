@@ -6,6 +6,8 @@
 // Base de la API. En build se inyecta VITE_API_BASE (p. ej. la URL pública de la API en
 // Railway, con /api final). Sin la variable cae a localhost para desarrollo.
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, "") ?? "http://localhost:3001/api";
+// Origen del web (para mensajes al usuario, p. ej. "iniciá sesión en …").
+const WEB_ORIGIN = (import.meta.env.VITE_WEB_APP_URL as string | undefined)?.replace(/\/$/, "") ?? "http://localhost:3000";
 const EXTENSION_VERSION = "1.0.0";
 
 function buildUrl(path: string): string {
@@ -50,7 +52,7 @@ async function probeConnection(): Promise<{
         ...base,
         healthOk: true,
         sessionOk: false,
-        error: "API reachable pero sin sesión. Iniciá sesión en http://localhost:3000",
+        error: `API reachable pero sin sesión. Iniciá sesión en ${WEB_ORIGIN}`,
       };
     }
     if (!meRes.ok) {

@@ -1934,7 +1934,7 @@ export function Panel() {
       setConnection({
         ok: false,
         extensionVersion: "?",
-        apiBase: "http://localhost:3001/api",
+        apiBase: (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:3001/api",
         healthOk: false,
         sessionOk: false,
         error: errorMessage(err),
