@@ -7,7 +7,7 @@
  * detección: si nada matchea, `detectChat()` devuelve confianza 0 y un `warning` explícito.
  */
 
-export const SELECTOR_VERSION = "2026-08-chatbot-v7-cellframe-name-fix";
+export const SELECTOR_VERSION = "2026-08-chatbot-v8-header-name-fix";
 
 export interface SelectorSet {
   id: string;
@@ -23,8 +23,11 @@ export const SELECTOR_SETS: SelectorSet[] = [
     id: "conversation-testid",
     label: "cabecera de conversación data-testid",
     header: "[data-testid='conversation-header']",
-    headerTitle:
-      "[data-testid='conversation-info-header-chat-title'], span[title]",
+    // OJO: NO usar span[title] acá: el único span[title] del header es el estado ("en línea"),
+    // y querySelector con coma devuelve el primero en el DOM → tomaba "en línea" como nombre y
+    // rompía waitForActiveChat ("WhatsApp no confirmó el cambio"). El nombre real está en el
+    // textContent del cell-title del header.
+    headerTitle: "[data-testid='conversation-info-header-chat-title']",
     composer:
       "[data-testid='conversation-compose-box-input'], footer [contenteditable='true']",
   },
@@ -32,7 +35,7 @@ export const SELECTOR_SETS: SelectorSet[] = [
     id: "fallback-main",
     label: "cabecera dentro de #main",
     header: "#main header",
-    headerTitle: "h1, h2, span[title]",
+    headerTitle: "[data-testid='conversation-info-header-chat-title'], h1, h2",
     composer: "#main div[contenteditable='true'][role='textbox']",
   },
 ];
