@@ -1521,14 +1521,15 @@ function useChatbotRuntime(
         const native=buildNativeStatuses(list.chats,conversations);
         applyNativeChatStatuses(native);
 
-        for(const chat of list.chats.filter(item=>item.hasUnread||item.needsReply)){
+        for(const chat of list.chats.filter(item=>item.lastDirection==="INCOMING")){
           const known=overrides.get(chat.chatKey);
           const effective=known?.modeOverride??nextSettings.defaultMode;
           const simulationActive=simulationModeRef.current;
           const alreadySimulated=simulationActive
             &&simulatedChatsRef.current.get(chat.chatKey)===chat.preview
             &&!chat.hasUnread;
-          if(!alreadySimulated&&(simulationActive||effective==="AUTO")&&!known?.escalatedAt&&!queueRef.current.has(chat.chatKey)){
+          const conversationClosed=Boolean(known?.escalatedAt)||known?.modeOverride==="OFF";
+          if(!alreadySimulated&&!conversationClosed&&(simulationActive||effective==="AUTO")&&!queueRef.current.has(chat.chatKey)){
             queueRef.current.set(chat.chatKey,{chatKey:chat.chatKey,name:chat.name,preview:chat.preview,attempts:0});
           }
         }
@@ -1541,9 +1542,15 @@ function useChatbotRuntime(
         const failures:string[]=[];
         for(const pending of batch){
           if(stopped)break;
+          const pendingChat=list.chats.find(chat=>chat.chatKey===pending.chatKey);
+          const pendingConversation=overrides.get(pending.chatKey);
+          if(pendingChat?.lastDirection!=="INCOMING"||pendingConversation?.escalatedAt||pendingConversation?.modeOverride==="OFF"){
+            queueRef.current.delete(pending.chatKey);
+            continue;
+          }
           // Revalidar por iteración: si el usuario apagó el automático/simulación a mitad del
           // lote, no seguir recorriendo chats ya encolados (salvo los que sean AUTO explícito).
-          const pendingMode=overrides.get(pending.chatKey)?.modeOverride??nextSettings.defaultMode;
+          const pendingMode=pendingConversation?.modeOverride??nextSettings.defaultMode;
           if(!simulationModeRef.current&&pendingMode!=="AUTO"){queueRef.current.delete(pending.chatKey);continue;}
           processingRef.current=pending.chatKey;
           applyNativeChatStatuses([

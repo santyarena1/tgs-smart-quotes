@@ -78,6 +78,8 @@ type CatalogPickerResponse = {
   total: number;
 };
 
+type QuoteSort = "created-desc" | "created-asc" | "price-asc" | "price-desc";
+
 const blankItem = (): ItemDraft => ({
   key: crypto.randomUUID(),
   productId: "",
@@ -298,6 +300,7 @@ export function QuotesView({
   const [roundStepPesos, setRoundStepPesos] = useState<"" | "100" | "500" | "1000" | "5000">("");
   const [filter, setFilter] = useState("");
   const [stateFilter, setStateFilter] = useState<QuoteState | "">("");
+  const [sort, setSort] = useState<QuoteSort>("created-desc");
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [, setPdfs] = useState<QuotePdfRow[]>([]);
   const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | null>(null);
@@ -1432,7 +1435,39 @@ export function QuotesView({
 
   const activeVersion = detail ? getActiveVersion(detail) : null;
   const isDraft = !detail || activeVersion?.state === "BORRADOR";
-  const filtered = list;
+  const filtered = useMemo(() => {
+    const compareBigInt = (left: string | undefined, right: string | undefined) => {
+      let leftValue = 0n;
+      let rightValue = 0n;
+      try {
+        leftValue = BigInt(left ?? 0);
+      } catch {
+        /* use zero */
+      }
+      try {
+        rightValue = BigInt(right ?? 0);
+      } catch {
+        /* use zero */
+      }
+      return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
+    };
+
+    return [...list].sort((left, right) => {
+      const leftVersion = getActiveVersion(left);
+      const rightVersion = getActiveVersion(right);
+      if (sort === "price-asc") {
+        return compareBigInt(leftVersion?.totalSaleCents, rightVersion?.totalSaleCents);
+      }
+      if (sort === "price-desc") {
+        return compareBigInt(rightVersion?.totalSaleCents, leftVersion?.totalSaleCents);
+      }
+      const leftCreatedAt = leftVersion?.createdAt ? new Date(leftVersion.createdAt).getTime() : 0;
+      const rightCreatedAt = rightVersion?.createdAt ? new Date(rightVersion.createdAt).getTime() : 0;
+      return sort === "created-asc"
+        ? leftCreatedAt - rightCreatedAt
+        : rightCreatedAt - leftCreatedAt;
+    });
+  }, [list, sort]);
 
   const stats = useMemo(() => {
     let sent = 0;
@@ -1547,6 +1582,16 @@ export function QuotesView({
               {STATE_LABEL[s]}
             </option>
           ))}
+        </select>
+        <select
+          aria-label="Ordenar presupuestos"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as QuoteSort)}
+        >
+          <option value="created-desc">Más nuevos</option>
+          <option value="created-asc">Más viejos</option>
+          <option value="price-asc">Precio: menor a mayor</option>
+          <option value="price-desc">Precio: mayor a menor</option>
         </select>
       </div>
 
