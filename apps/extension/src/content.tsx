@@ -1150,8 +1150,11 @@ function useChatbotRuntime(
       await new Promise(resolve=>window.setTimeout(resolve,delayMs));
     }
     if(result.action==="SIMULATED"){
+      // Solo se marca "Borrador listo" si de verdad quedó un borrador en el composer.
+      let simulationDraftInserted=false;
       if(result.reply){
         const inserted=await insertMessageIntoEmptyComposer(result.reply);
+        simulationDraftInserted=inserted.ok;
         botDebug(inserted.ok?"simulation draft inserted":"simulation draft skipped",{
           chatKey,
           reason:inserted.ok?undefined:inserted.error,
@@ -1171,7 +1174,7 @@ function useChatbotRuntime(
       if(sameChatIdentity(chatKey,activeAfterSimulation.phone,activeAfterSimulation.name)){
         setLogs(await listChatbotLogs(chatKey,30));
       }
-      return result;
+      return {...result,simulationDraftInserted};
     }
 
     // Barrera cliente inmediatamente anterior al click, también después de la demora.
@@ -1589,8 +1592,13 @@ function useChatbotRuntime(
           ]);
           try{
             const simulationActive=simulationModeRef.current;
-            await processChat(pending.chatKey,pending.name,pending.chatKey!==currentActiveKey,nextSettings,false,undefined,false,true,simulationActive);
-            if(simulationActive)simulatedChatsRef.current.set(pending.chatKey,pending.preview);
+            const outcome=await processChat(pending.chatKey,pending.name,pending.chatKey!==currentActiveKey,nextSettings,false,undefined,false,true,simulationActive);
+            // Marcar "Borrador listo" solo si processChat confirmó que insertó el borrador;
+            // si se salteó (último mensaje nuestro) o escaló, limpiar cualquier marca previa.
+            if(simulationActive){
+              if((outcome as {simulationDraftInserted?:boolean}|undefined)?.simulationDraftInserted)simulatedChatsRef.current.set(pending.chatKey,pending.preview);
+              else simulatedChatsRef.current.delete(pending.chatKey);
+            }
             currentActiveKey=pending.chatKey;
             queueRef.current.delete(pending.chatKey);
           }catch(error){
