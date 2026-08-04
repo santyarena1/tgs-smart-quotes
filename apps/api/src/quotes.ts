@@ -683,43 +683,32 @@ export class QuotesController{
         );
         if(body.previewOnly)return jsonSafe({family,version,items:result.items,preview:result.preview});
         const adjustedById=new Map(result.items.map(item=>[item.id,item]));
-        const itemRows=version.items.map((item:any)=>{
+        // Ajustar el total es una actualización EN EL LUGAR: no crea versión nueva (sin importar el estado).
+        for(const item of version.items as any[]){
           const adjusted=adjustedById.get(item.id);
-          return {
-            ...copyItemSnapshot(item),
-            frozenMarkupBps:adjusted?.markupBps??item.frozenMarkupBps,
-            frozenSalePriceCents:adjusted?.salePriceCents??item.frozenSalePriceCents,
-            subtotalCents:adjusted?.subtotalCents??item.subtotalCents,
-          };
-        });
-        const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
-        const nextVersion=await tx.quoteVersion.create({data:{
-          familyId:id,
-          version:nextNumber,
-          state:'BORRADOR',
-          creatorId:actor.id,
-          reason:'Ajuste de total objetivo',
+          if(!adjusted)continue;
+          await tx.quoteItem.update({where:{id:item.id},data:{
+            frozenMarkupBps:adjusted.markupBps,
+            frozenSalePriceCents:adjusted.salePriceCents,
+            subtotalCents:adjusted.subtotalCents,
+          }});
+        }
+        const nextVersion=await tx.quoteVersion.update({where:{id:version.id},data:{
           totalCostCents:result.preview.costCents,
           totalSaleCents:result.preview.saleCents,
           profitCents:result.preview.profitCents,
           effectiveMarkupBps:result.preview.effectiveMarkupBps,
-          publicObservation:version.publicObservation,
-          pdfOverrides:version.pdfOverrides,
-          resolvedPdfConfig:version.resolvedPdfConfig,
-          financingSnapshot:version.financingSnapshot,
+          lastActivityAt:new Date(),
         }});
-        await tx.quoteItem.createMany({data:itemRows.map((item:any)=>({...item,versionId:nextVersion.id}))});
-        await tx.quoteFamily.update({where:{id},data:{activeVersion:nextNumber}});
-        const items=await tx.quoteItem.findMany({where:{versionId:nextVersion.id},orderBy:{position:'asc'}});
         await statusEvent(tx,{
           type:'TOTAL_AJUSTADO',
           familyId:id,
-          versionId:nextVersion.id,
+          versionId:version.id,
           userId:actor.id,
           previous:{totalSaleCents:version.totalSaleCents},
           next:{totalSaleCents:nextVersion.totalSaleCents,targetTotalCents:body.targetTotalCents},
         });
-        await audit(tx,actor.id,'QuoteVersion',nextVersion.id,'RETARGET',version,nextVersion,{targetTotalCents:body.targetTotalCents});
+        await audit(tx,actor.id,'QuoteVersion',version.id,'RETARGET',version,nextVersion,{targetTotalCents:body.targetTotalCents});
         const loaded=await tx.quoteFamily.findUnique({where:{id},include:quoteInclude});
         return activeBundle(loaded);
       });
@@ -835,32 +824,10 @@ export class QuotesController{
         if(body.mode==='one'&&!requestedSourceItem){
           throw new BadRequestException('El ítem indicado no pertenece a esta versión');
         }
-        const sourceRows=version.items.map((item:any)=>copyItemSnapshot(item));
-        const sourceTotals=pricingTotals(sourceRows);
-        const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
-        version=await tx.quoteVersion.create({data:{
-          familyId:id,
-          version:nextNumber,
-          state:'BORRADOR',
-          creatorId:actor.id,
-          reason:body.reason??'Actualización de precios',
-          totalCostCents:sourceTotals.costCents,
-          totalSaleCents:sourceTotals.saleCents,
-          profitCents:sourceTotals.profitCents,
-          effectiveMarkupBps:sourceTotals.effectiveMarkupBps,
-          publicObservation:activeVersion(family).publicObservation,
-          pdfOverrides:activeVersion(family).pdfOverrides,
-          resolvedPdfConfig:activeVersion(family).resolvedPdfConfig,
-          financingSnapshot:activeVersion(family).financingSnapshot,
-        }});
-        await tx.quoteItem.createMany({data:sourceRows.map((item:any)=>({...item,versionId:version.id}))});
-        version={...version,items:await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}})};
-        await tx.quoteFamily.update({where:{id},data:{activeVersion:nextNumber}});
-        const restoredTarget=requestedSourceItem
-          ?version.items.find((item:any)=>item.position===requestedSourceItem.position)
-          :null;
+        // Sincronizar precios con el catálogo es una actualización EN EL LUGAR: no crea versión nueva
+        // (sin importar el estado). Solo la edición manual de componentes/precios crea versión.
         const targets=body.mode==='one'
-          ?version.items.filter((item:any)=>item.id===restoredTarget?.id)
+          ?version.items.filter((item:any)=>item.id===requestedSourceItem?.id)
           :version.items;
         if(body.mode==='one'&&targets.length===0){
           throw new BadRequestException('El ítem indicado no pertenece a esta versión');
