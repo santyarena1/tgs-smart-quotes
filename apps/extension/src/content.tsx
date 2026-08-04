@@ -1139,6 +1139,9 @@ function useChatbotRuntime(
         onPhase?.(inserted.ok
           ?"Simulación lista: borrador insertado, no enviado."
           :`Simulación lista y no enviada. ${inserted.error}`);
+        // Darle tiempo a WhatsApp para registrar el borrador antes de que el recorrido
+        // cambie al siguiente chat (si no, el draft se pierde al switchear).
+        if(inserted.ok)await new Promise(resolve=>window.setTimeout(resolve,700));
       }else{
         onPhase?.(`Simulación: escalaría el chat${result.wouldEscalate?.reason?` (${result.wouldEscalate.reason})`:""}.`);
       }
@@ -1506,6 +1509,12 @@ function useChatbotRuntime(
               status:item.nativeStatus.status,
               label:item.nativeStatus.label,
             });
+          }
+          // Rastro visible: los chats que ya recibieron un borrador en el recorrido de prueba
+          // quedan marcados con ✎ "Borrador listo" hasta que llegue un mensaje nuevo.
+          for(const [simKey] of simulatedChatsRef.current){
+            const simChat=chats.find(c=>c.chatKey===simKey);
+            statuses.push({chatKey:simKey,displayName:simChat?.name??null,status:"SUGGESTION",label:"Borrador listo"});
           }
           return statuses;
         };
