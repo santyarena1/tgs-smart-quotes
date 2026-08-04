@@ -471,6 +471,62 @@ export class QuotesController{
     }
   }
 
+  @Post(':id/duplicate')
+  async duplicate(
+    @Param('id',new ZodPipe(idSchema)) id:string,
+    @CurrentUser() actor:RequestUser,
+  ){
+    try{
+      return await db.$transaction(async tx=>{
+        const sourceFamily=await loadFamily(tx,id);
+        const sourceVersion=activeVersion(sourceFamily);
+        const visibleNumber=await nextVisibleNumber(tx);
+        const itemRows=sourceVersion.items.map((item:any)=>copyItemSnapshot(item));
+        const totalsRow=pricingTotals(itemRows);
+        const family=await tx.quoteFamily.create({data:{
+          visibleNumber,
+          internalName:`${sourceFamily.internalName} (copia)`,
+          requestId:null,
+          customerId:sourceFamily.customerId,
+          isBuiltPc:sourceFamily.isBuiltPc,
+          activeVersion:1,
+        }});
+        const version=await tx.quoteVersion.create({data:{
+          familyId:family.id,
+          version:1,
+          state:'BORRADOR',
+          creatorId:actor.id,
+          totalCostCents:totalsRow.costCents,
+          totalSaleCents:totalsRow.saleCents,
+          profitCents:totalsRow.profitCents,
+          effectiveMarkupBps:totalsRow.effectiveMarkupBps,
+          publicObservation:sourceVersion.publicObservation,
+          pdfOverrides:sourceVersion.pdfOverrides,
+          resolvedPdfConfig:sourceVersion.resolvedPdfConfig,
+          financingSnapshot:sourceVersion.financingSnapshot,
+        }});
+        await tx.quoteItem.createMany({data:itemRows.map((item:any)=>({...item,versionId:version.id}))});
+        await touchProductsLastUsed(tx,itemRows.map((item:any)=>item.productId));
+        const items=await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}});
+        await statusEvent(tx,{
+          type:'PRESUPUESTO_CREADO',
+          familyId:family.id,
+          versionId:version.id,
+          customerId:family.customerId,
+          userId:actor.id,
+          next:{family,version},
+          metadata:{duplicatedFrom:id},
+        });
+        await audit(tx,actor.id,'QuoteFamily',family.id,'CREATE',null,{family,version,items},{duplicatedFrom:id});
+        const loaded=await tx.quoteFamily.findUnique({where:{id:family.id},include:quoteInclude});
+        return activeBundle(loaded);
+      });
+    }catch(error){
+      if(error instanceof NotFoundException)throw error;
+      pricingError(error);
+    }
+  }
+
   @Put(':id')
   async update(
     @Param('id',new ZodPipe(idSchema)) id:string,

@@ -1363,6 +1363,26 @@ export function QuotesView({
     }
   }
 
+  async function duplicateQuote() {
+    if (!selectedId) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const duplicated = await api<Quote>(`/quotes/${selectedId}/duplicate`, {
+        method: "POST",
+      });
+      applyDetail(duplicated);
+      await Promise.all([loadSideData(duplicated.id), loadList()]);
+      setDrawerOpen(true);
+      setNotice("Presupuesto duplicado");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleCollection(id: string, checked: boolean) {
     const next = checked
       ? [...new Set([...collectionIds, id])]
@@ -2364,9 +2384,14 @@ export function QuotesView({
                   </p>
                 </div>
                 {activeVersion ? (
-                  <Pill tone={STATE_TONE[activeVersion.state]}>
-                    v{activeVersion.version} · {STATE_LABEL[activeVersion.state]}
-                  </Pill>
+                  <div className="form-actions">
+                    <button type="button" disabled={busy} onClick={() => void duplicateQuote()}>
+                      {busy ? "Procesando…" : "Duplicar"}
+                    </button>
+                    <Pill tone={STATE_TONE[activeVersion.state]}>
+                      v{activeVersion.version} · {STATE_LABEL[activeVersion.state]}
+                    </Pill>
+                  </div>
                 ) : null}
               </div>
 
