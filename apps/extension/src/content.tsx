@@ -1521,7 +1521,13 @@ function useChatbotRuntime(
         const native=buildNativeStatuses(list.chats,conversations);
         applyNativeChatStatuses(native);
 
-        for(const chat of list.chats.filter(item=>item.lastDirection==="INCOMING")){
+        // Procesar si el último mensaje es del cliente (INCOMING). Si WhatsApp no expone la
+        // dirección (UNKNOWN — su DOM la oculta en la lista), caer al heurístico no-leído/pendiente
+        // para no dejar de procesar. Nunca procesar si el último mensaje es NUESTRO (OUTGOING).
+        const isScanCandidate=(item:typeof list.chats[number])=>
+          item.lastDirection==="INCOMING"
+          ||(item.lastDirection!=="OUTGOING"&&(item.hasUnread||item.needsReply));
+        for(const chat of list.chats.filter(isScanCandidate)){
           const known=overrides.get(chat.chatKey);
           const effective=known?.modeOverride??nextSettings.defaultMode;
           const simulationActive=simulationModeRef.current;
@@ -1544,7 +1550,7 @@ function useChatbotRuntime(
           if(stopped)break;
           const pendingChat=list.chats.find(chat=>chat.chatKey===pending.chatKey);
           const pendingConversation=overrides.get(pending.chatKey);
-          if(pendingChat?.lastDirection!=="INCOMING"||pendingConversation?.escalatedAt||pendingConversation?.modeOverride==="OFF"){
+          if(pendingChat?.lastDirection==="OUTGOING"||pendingConversation?.escalatedAt||pendingConversation?.modeOverride==="OFF"){
             queueRef.current.delete(pending.chatKey);
             continue;
           }
