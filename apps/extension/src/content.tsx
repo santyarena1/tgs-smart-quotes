@@ -932,6 +932,7 @@ type ChatbotRuntime = {
   currentSuggestion:CurrentChatSuggestion|null;
   autoSuggestions:boolean;
   simulationMode:boolean;
+  autoRunning:boolean;
   suggestionBusy:boolean;
   busy: boolean;
   refresh:()=>Promise<void>;
@@ -941,6 +942,7 @@ type ChatbotRuntime = {
   clearEscalation:()=>Promise<void>;
   setAutoSuggestions:(enabled:boolean)=>void;
   setSimulationMode:(enabled:boolean)=>void;
+  setAutoRunning:(enabled:boolean)=>void;
   insertCurrentSuggestion:(text?:string)=>Promise<void>;
   dismissCurrentSuggestion:(text?:string)=>Promise<void>;
   attachSuggestionFile:(attachment:ChatbotResolvedAttachment,kind:"image"|"quote")=>Promise<void>;
@@ -951,11 +953,15 @@ type ChatbotRuntime = {
 
 const AUTO_SUGGEST_SESSION_KEY="tgs:auto-suggestions";
 const AUTO_SIMULATION_SESSION_KEY="tgs:auto-simulation";
+const AUTO_RUNNING_SESSION_KEY="tgs:auto-running";
 function initialAutoSuggestions():boolean {
   try{return sessionStorage.getItem(AUTO_SUGGEST_SESSION_KEY)!=="off"}catch{return true}
 }
 function initialSimulationMode():boolean {
   try{return sessionStorage.getItem(AUTO_SIMULATION_SESSION_KEY)==="on"}catch{return false}
+}
+function initialAutoRunning():boolean {
+  try{return sessionStorage.getItem(AUTO_RUNNING_SESSION_KEY)==="on"}catch{return false}
 }
 
 function useChatbotRuntime(
@@ -974,6 +980,7 @@ function useChatbotRuntime(
   const [currentSuggestion,setCurrentSuggestion]=useState<ChatbotRuntime["currentSuggestion"]>(null);
   const [autoSuggestions,setAutoSuggestionsState]=useState(initialAutoSuggestions);
   const [simulationMode,setSimulationModeState]=useState(initialSimulationMode);
+  const [autoRunning,setAutoRunningState]=useState(initialAutoRunning);
   const [suggestionBusy,setSuggestionBusy]=useState(false);
   const [busy,setBusy]=useState(false);
   const runningRef=useRef(false);
@@ -986,6 +993,7 @@ function useChatbotRuntime(
   const currentSuggestionRef=useRef<CurrentChatSuggestion|null>(null);
   const settingsRef=useRef<ChatbotSettings|null>(null);
   const simulationModeRef=useRef(simulationMode);
+  const autoRunningRef=useRef(autoRunning);
   const simulationRunIdRef=useRef(`run-${Date.now().toString(36)}`);
   const displayNameRef=useRef(name);
   const autoSuggestRunRef=useRef(0);
@@ -1011,11 +1019,18 @@ function useChatbotRuntime(
     setAutomaticSimulationGuard(enabled);
     try{sessionStorage.setItem(AUTO_SIMULATION_SESSION_KEY,enabled?"on":"off")}catch{/* estado de sesión en memoria */}
   };
+  const setAutoRunning=(enabled:boolean)=>{
+    autoRunningRef.current=enabled;
+    setAutoRunningState(enabled);
+    if(!enabled){queueRef.current.clear();processingRef.current=null}
+    try{sessionStorage.setItem(AUTO_RUNNING_SESSION_KEY,enabled?"on":"off")}catch{/* estado de sesión en memoria */}
+  };
   useEffect(()=>{
     simulationModeRef.current=simulationMode;
     setAutomaticSimulationGuard(simulationMode);
     return()=>setAutomaticSimulationGuard(false);
   },[simulationMode]);
+  useEffect(()=>{autoRunningRef.current=autoRunning},[autoRunning]);
 
   const refresh=useCallback(async()=>{
     setConversation(null);
@@ -1495,6 +1510,7 @@ function useChatbotRuntime(
         nextDelay=Math.max(3000,nextSettings.scanIntervalSeconds*1000);
         setSettings(nextSettings);
         if(!nextSettings.enabled){queueRef.current.clear();processingRef.current=null;setWarning(null);applyNativeChatStatuses([]);return}
+        if(!autoRunningRef.current){queueRef.current.clear();processingRef.current=null;return}
 
         const conversations=await listChatbotConversations();
         const overrides=new Map(conversations.map(item=>[item.chatKey,item]));
@@ -1542,7 +1558,7 @@ function useChatbotRuntime(
             &&simulatedChatsRef.current.get(chat.chatKey)===chat.preview
             &&!chat.hasUnread;
           const conversationClosed=Boolean(known?.escalatedAt)||known?.modeOverride==="OFF";
-          if(!alreadySimulated&&!conversationClosed&&(simulationActive||effective==="AUTO")&&!queueRef.current.has(chat.chatKey)){
+          if(autoRunningRef.current&&!alreadySimulated&&!conversationClosed&&(simulationActive||effective==="AUTO")&&!queueRef.current.has(chat.chatKey)){
             queueRef.current.set(chat.chatKey,{chatKey:chat.chatKey,name:chat.name,preview:chat.preview,attempts:0});
           }
         }
@@ -1555,6 +1571,7 @@ function useChatbotRuntime(
         const failures:string[]=[];
         for(const pending of batch){
           if(stopped)break;
+          if(!autoRunningRef.current){queueRef.current.clear();processingRef.current=null;break}
           const pendingChat=list.chats.find(chat=>chat.chatKey===pending.chatKey);
           const pendingConversation=overrides.get(pending.chatKey);
           if(pendingChat?.lastDirection==="OUTGOING"||pendingConversation?.escalatedAt||pendingConversation?.modeOverride==="OFF"){
@@ -1586,7 +1603,7 @@ function useChatbotRuntime(
         }
 
         // Pase escalonado e independiente de la cola: como máximo un recontacto por tick.
-        if(nextSettings.recontactEnabled&&!stopped){
+        if(autoRunningRef.current&&nextSettings.recontactEnabled&&!stopped){
           try{
             const candidates=await getRecontactCandidates();
             const candidate=candidates.find(item=>!processedRecontactsRef.current.has(item.chatKey));
@@ -1629,7 +1646,8 @@ function useChatbotRuntime(
                     const activeChat=detectChat();
                     const activeId=activeChat.phone||activeChat.name;
                     if(
-                      simulationModeRef.current
+                      !autoRunningRef.current
+                      ||simulationModeRef.current
                       ||!authoritative.enabled
                       ||!authoritative.recontactEnabled
                       ||authoritativeMode!=="AUTO"
@@ -1756,6 +1774,7 @@ function useChatbotRuntime(
     currentSuggestion,
     autoSuggestions,
     simulationMode,
+    autoRunning,
     suggestionBusy,
     busy,
     refresh,
@@ -1765,6 +1784,7 @@ function useChatbotRuntime(
     clearEscalation,
     setAutoSuggestions,
     setSimulationMode,
+    setAutoRunning,
     insertCurrentSuggestion,
     dismissCurrentSuggestion,
     attachSuggestionFile,
@@ -1859,17 +1879,17 @@ function ChatbotTab({runtime,notifications,currentKey,phone,name}:{runtime:Chatb
       <div className="tgs-row between">
         <div>
           <div className="tgs-row">
-            <span className={`tgs-auto-dot${runtime.settings?.enabled?" active":""}`} aria-hidden="true"/>
-            <b>{runtime.settings?.enabled?"Automático activo":"Automático detenido"}</b>
+            <span className={`tgs-auto-dot${runtime.autoRunning?" active":""}`} aria-hidden="true"/>
+            <b>{runtime.autoRunning?"Automático activo":"Automático detenido"}</b>
           </div>
-          <div className="tgs-muted">{runtime.settings?.enabled?"El bot está revisando los chats según su configuración.":"No se procesan ni se envían respuestas automáticas."}</div>
+          <div className="tgs-muted">{runtime.autoRunning?"El bot está revisando los chats según su configuración.":"No se procesan ni se envían respuestas automáticas."}</div>
         </div>
         <button
-          className={`tgs-btn ${runtime.settings?.enabled?"danger":""}`}
+          className={`tgs-btn ${runtime.autoRunning?"danger":""}`}
           disabled={runtime.busy||!runtime.settings}
-          onClick={()=>void runtime.toggle(!runtime.settings?.enabled)}
+          onClick={()=>runtime.setAutoRunning(!runtime.autoRunning)}
         >
-          {runtime.settings?.enabled?"Detener automático":"Iniciar automático"}
+          {runtime.autoRunning?"Detener automático":"Iniciar automático"}
         </button>
       </div>
     </div>
@@ -2179,7 +2199,7 @@ export function Panel() {
     <div ref={panelRef} className={`tgs-panel${open ? "" : " collapsed"}`} style={position?{left:position.left,top:position.top,right:"auto"}:undefined}>
       <div className="tgs-header" onClick={() => open || setOpen(true)} onPointerDown={event=>{if(!open||event.button!==0)return;const rect=panelRef.current?.getBoundingClientRect();if(rect)dragRef.current={dx:event.clientX-rect.left,dy:event.clientY-rect.top}}}>
         <span className="tgs-title" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}>
-          TGS{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.settings?.enabled?" · AUTO":""} {unreadCount > 0 && !open ? <span className="tgs-badge-dot">{unreadCount}</span> : null}
+          TGS{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.autoRunning?" · AUTO":""} {unreadCount > 0 && !open ? <span className="tgs-badge-dot">{unreadCount}</span> : null}
         </span>
         {open ? (
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6, alignItems: "center" }}>
