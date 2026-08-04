@@ -78,6 +78,60 @@ type CatalogPickerResponse = {
   total: number;
 };
 
+type QuoteLocalDraft = {
+  items: ItemDraft[];
+  internalName: string;
+  customerId: string;
+  requestId: string;
+  isBuiltPc: boolean;
+  observation: string;
+};
+
+const quoteDraftKey = (id: string | null) => `tgs-quote-draft-${id ?? "new"}`;
+
+function readQuoteDraft(key: string): QuoteLocalDraft | null {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? "null");
+    if (!parsed || typeof parsed !== "object") return null;
+    const draft = parsed as Partial<QuoteLocalDraft>;
+    if (
+      typeof draft.internalName !== "string" ||
+      typeof draft.customerId !== "string" ||
+      typeof draft.requestId !== "string" ||
+      typeof draft.isBuiltPc !== "boolean" ||
+      typeof draft.observation !== "string" ||
+      !Array.isArray(draft.items)
+    ) return null;
+    const validItems = draft.items.every((item: unknown) => {
+      if (!item || typeof item !== "object") return false;
+      const row = item as Partial<ItemDraft>;
+      return (
+        typeof row.key === "string" &&
+        typeof row.productId === "string" &&
+        typeof row.name === "string" &&
+        typeof row.lineId === "string" &&
+        typeof row.quantity === "string" &&
+        typeof row.costArs === "string" &&
+        typeof row.markupPct === "string" &&
+        typeof row.saleArs === "string" &&
+        typeof row.observation === "string" &&
+        (row.priceMode === "markup" || row.priceMode === "sale")
+      );
+    });
+    return validItems ? (draft as QuoteLocalDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function removeQuoteDraft(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // El guardado remoto no debe fallar si el navegador bloquea localStorage.
+  }
+}
+
 type QuoteSort = "created-desc" | "created-asc" | "price-asc" | "price-desc";
 
 const blankItem = (): ItemDraft => ({
@@ -295,6 +349,10 @@ export function QuotesView({
   const [isBuiltPc, setIsBuiltPc] = useState(false);
   const [observation, setObservation] = useState("");
   const [items, setItems] = useState<ItemDraft[]>([]);
+  const [editorDraftKey, setEditorDraftKey] = useState<string | null>(null);
+  const [draftRecovered, setDraftRecovered] = useState(false);
+  const draftFallbackRef = useRef<QuoteLocalDraft | null>(null);
+  const draftBaselineRef = useRef("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [retargetArs, setRetargetArs] = useState("");
   const [roundStepPesos, setRoundStepPesos] = useState<"" | "100" | "500" | "1000" | "5000">("");
@@ -414,20 +472,15 @@ export function QuotesView({
   );
 
   const applyDetail = useCallback(
-    (quote: Quote) => {
+    (quote: Quote, restoreLocalDraft = true) => {
       setDetail(quote);
       setSelectedId(quote.id);
-      setInternalName(quote.internalName);
-      setCustomerId(quote.customerId ?? "");
-      setRequestId(quote.requestId ?? "");
-      setIsBuiltPc(quote.isBuiltPc);
       setCollectionIds(
         (quote.collections ?? [])
           .map((row) => row.collectionId ?? row.collection?.id ?? "")
           .filter(Boolean),
       );
       const version = getActiveVersion(quote);
-      setObservation(version?.publicObservation ?? "");
       const mapped = getQuoteItems(quote).map((item) => ({
         key: crypto.randomUUID(),
         productId: item.productId ?? "",
@@ -440,17 +493,57 @@ export function QuotesView({
         observation: item.observation ?? "",
         priceMode: "markup" as const,
       }));
-      setItems(
-        quote.isBuiltPc && pcLines.length
+      const fallback: QuoteLocalDraft = {
+        internalName: quote.internalName,
+        customerId: quote.customerId ?? "",
+        requestId: quote.requestId ?? "",
+        isBuiltPc: quote.isBuiltPc,
+        observation: version?.publicObservation ?? "",
+        items: quote.isBuiltPc && pcLines.length
           ? buildPcSlots(pcLines, mapped, productById)
           : mapped.filter((i) => !isSlotEmpty(i)),
-      );
+      };
+      const key = quoteDraftKey(quote.id);
+      const baseline = JSON.stringify(fallback);
+      const stored = restoreLocalDraft ? readQuoteDraft(key) : null;
+      const recovered = stored && JSON.stringify(stored) !== baseline ? stored : null;
+      if (stored && !recovered) removeQuoteDraft(key);
+      const form = recovered ?? fallback;
+      draftFallbackRef.current = fallback;
+      draftBaselineRef.current = baseline;
+      setEditorDraftKey(key);
+      setDraftRecovered(Boolean(recovered));
+      setInternalName(form.internalName);
+      setCustomerId(form.customerId);
+      setRequestId(form.requestId);
+      setIsBuiltPc(form.isBuiltPc);
+      setObservation(form.observation);
+      setItems(form.items);
       setEditingKey(null);
       setPickingLineId(null);
       setReplaceItemKey(null);
     },
     [pcLines, productById],
   );
+
+  useEffect(() => {
+    if (!drawerOpen || !editorDraftKey) return;
+    const draft: QuoteLocalDraft = {
+      items,
+      internalName,
+      customerId,
+      requestId,
+      isBuiltPc,
+      observation,
+    };
+    try {
+      const serialized = JSON.stringify(draft);
+      if (serialized === draftBaselineRef.current) removeQuoteDraft(editorDraftKey);
+      else window.localStorage.setItem(editorDraftKey, serialized);
+    } catch {
+      // El presupuesto sigue siendo editable aunque el navegador bloquee localStorage.
+    }
+  }, [drawerOpen, editorDraftKey, items, internalName, customerId, requestId, isBuiltPc, observation]);
 
   async function loadSideData(id: string) {
     const [timelinePayload, pdfPayload, similarPayload, habitualPayload] = await Promise.all([
@@ -582,8 +675,8 @@ export function QuotesView({
     }
   }
 
-  async function reloadDetail(id: string) {
-    applyDetail(await api<Quote>(`/quotes/${id}`));
+  async function reloadDetail(id: string, restoreLocalDraft = true) {
+    applyDetail(await api<Quote>(`/quotes/${id}`), restoreLocalDraft);
     await loadSideData(id);
   }
 
@@ -712,15 +805,33 @@ export function QuotesView({
   }
 
   function openNew() {
+    const key = quoteDraftKey(null);
+    const fallback: QuoteLocalDraft = {
+      internalName: "",
+      customerId: "",
+      requestId: "",
+      isBuiltPc: false,
+      observation: "",
+      items: [],
+    };
+    const baseline = JSON.stringify(fallback);
+    const stored = readQuoteDraft(key);
+    const recovered = stored && JSON.stringify(stored) !== baseline ? stored : null;
+    if (stored && !recovered) removeQuoteDraft(key);
+    const form = recovered ?? fallback;
+    draftFallbackRef.current = fallback;
+    draftBaselineRef.current = baseline;
+    setEditorDraftKey(key);
+    setDraftRecovered(Boolean(recovered));
     setSelectedId(null);
     setDetail(null);
-    setInternalName("");
-    setCustomerId("");
-    setRequestId("");
-    setIsBuiltPc(false);
+    setInternalName(form.internalName);
+    setCustomerId(form.customerId);
+    setRequestId(form.requestId);
+    setIsBuiltPc(form.isBuiltPc);
     setCollectionIds([]);
-    setObservation("");
-    setItems([]);
+    setObservation(form.observation);
+    setItems(form.items);
     setEditingKey(null);
     setPickingLineId(null);
     setReplaceItemKey(null);
@@ -735,15 +846,33 @@ export function QuotesView({
   }
 
   function openNewFromRequest(seed: QuoteFromRequestSeed) {
+    const key = quoteDraftKey(null);
+    const fallback: QuoteLocalDraft = {
+      internalName: seed.internalName,
+      customerId: seed.customerId ?? "",
+      requestId: seed.requestId,
+      isBuiltPc: false,
+      observation: "",
+      items: [],
+    };
+    const baseline = JSON.stringify(fallback);
+    const stored = readQuoteDraft(key);
+    const recovered = stored && JSON.stringify(stored) !== baseline ? stored : null;
+    if (stored && !recovered) removeQuoteDraft(key);
+    const form = recovered ?? fallback;
+    draftFallbackRef.current = fallback;
+    draftBaselineRef.current = baseline;
+    setEditorDraftKey(key);
+    setDraftRecovered(Boolean(recovered));
     setSelectedId(null);
     setDetail(null);
-    setInternalName(seed.internalName);
-    setCustomerId(seed.customerId ?? "");
-    setRequestId(seed.requestId);
-    setIsBuiltPc(false);
+    setInternalName(form.internalName);
+    setCustomerId(form.customerId);
+    setRequestId(form.requestId);
+    setIsBuiltPc(form.isBuiltPc);
     setCollectionIds([]);
-    setObservation("");
-    setItems([]);
+    setObservation(form.observation);
+    setItems(form.items);
     setEditingKey(null);
     setPickingLineId(null);
     setReplaceItemKey(null);
@@ -764,6 +893,23 @@ export function QuotesView({
     openNewFromRequest(seedFromRequest);
     onSeedConsumed?.();
   }, [seedFromRequest, onSeedConsumed]);
+
+  function discardRecoveredDraft() {
+    if (!editorDraftKey) return;
+    removeQuoteDraft(editorDraftKey);
+    setDraftRecovered(false);
+    const fallback = draftFallbackRef.current;
+    if (!fallback) return;
+    setInternalName(fallback.internalName);
+    setCustomerId(fallback.customerId);
+    setRequestId(fallback.requestId);
+    setIsBuiltPc(fallback.isBuiltPc);
+    setObservation(fallback.observation);
+    setItems(fallback.items);
+    setEditingKey(null);
+    setPickingLineId(null);
+    setReplaceItemKey(null);
+  }
 
   /* ————— items ————— */
 
@@ -1090,10 +1236,10 @@ export function QuotesView({
     setCatalogPickerLoading(true);
     const timer = window.setTimeout(() => {
       void api<CatalogPickerResponse>("/catalog", {
-        query: { q: query, pageSize: 8 },
+        query: { q: query, pageSize: 40, sort: "price_asc" },
         signal: controller.signal,
       })
-        .then((payload) => setCatalogPickerMatches(payload.items.slice(0, 8)))
+        .then((payload) => setCatalogPickerMatches(payload.items))
         .catch(() => {
           if (!controller.signal.aborted) setCatalogPickerMatches([]);
         })
@@ -1295,6 +1441,8 @@ export function QuotesView({
           items: itemsToPayload(items),
         },
       });
+      if (editorDraftKey) removeQuoteDraft(editorDraftKey);
+      setDraftRecovered(false);
       setNotice(
         requestId
           ? "Presupuesto creado y solicitud marcada como Lista."
@@ -1304,7 +1452,7 @@ export function QuotesView({
       );
       await loadList();
       if (created.id) {
-        applyDetail(created);
+        applyDetail(created, false);
         setSelectedId(created.id);
         await api(`/quotes/${created.id}/pdf`, {
           method: "POST",
@@ -1357,7 +1505,10 @@ export function QuotesView({
           ? "Nueva versión guardada. Solicitud en Lista si seguía en preparación."
           : "Nueva versión guardada; la anterior quedó intacta.",
       );
-      await reloadDetail(selectedId);
+      const savedDraftKey = quoteDraftKey(selectedId);
+      removeQuoteDraft(savedDraftKey);
+      setDraftRecovered(false);
+      await reloadDetail(selectedId, false);
       await loadList();
     } catch (err) {
       setError(errorMessage(err));
@@ -1366,15 +1517,16 @@ export function QuotesView({
     }
   }
 
-  async function duplicateQuote() {
-    if (!selectedId) return;
+  async function duplicateQuote(id: string | null = selectedId) {
+    if (!id) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      const duplicated = await api<Quote>(`/quotes/${selectedId}/duplicate`, {
+      const duplicated = await api<Quote>(`/quotes/${id}/duplicate`, {
         method: "POST",
       });
+      setSelectedId(duplicated.id);
       applyDetail(duplicated);
       await Promise.all([loadSideData(duplicated.id), loadList()]);
       setDrawerOpen(true);
@@ -1655,6 +1807,9 @@ export function QuotesView({
                           <button type="button" onClick={() => void editQuote(quote)}>
                             Editar
                           </button>
+                          <button type="button" onClick={() => void duplicateQuote(quote.id)}>
+                            Duplicar
+                          </button>
                           <button type="button" onClick={() => void showHistory(quote)}>
                             Versiones
                           </button>
@@ -1700,6 +1855,7 @@ export function QuotesView({
               <div className="mobile-card-actions" onClick={(event) => event.stopPropagation()}>
                 <button type="button" onClick={() => void printQuote(quote)}>Imprimir</button>
                 <button type="button" onClick={() => void editQuote(quote)}>Editar</button>
+                <button type="button" onClick={() => void duplicateQuote(quote.id)}>Duplicar</button>
                 <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>Versiones</button>
                 <button type="button" className="btn-danger" onClick={() => void deleteQuote(quote)}>Eliminar</button>
               </div>
@@ -1748,6 +1904,14 @@ export function QuotesView({
       >
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="ok">{notice}</Alert> : null}
+        {draftRecovered ? (
+          <p className="section-note">
+            Se recuperó un borrador sin guardar.{" "}
+            <button type="button" className="btn-ghost" onClick={discardRecoveredDraft}>
+              Descartarlo
+            </button>
+          </p>
+        ) : null}
 
         {activeVersion ? (
           <div className="totals-bar">
@@ -2060,10 +2224,16 @@ export function QuotesView({
                               <span className="po-name">
                                 <span className="po-tag">AcuStock</span>
                                 {p.title}
+                                {p.mpn || p.brand ? (
+                                  <span className="cell-sub">
+                                    {[p.mpn ? `SKU: ${p.mpn}` : "", p.brand ?? ""]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </span>
+                                ) : null}
                               </span>
                               <span className="po-price">
                                 {formatArs(p.priceCents)}
-                                {p.brand ? ` · ${p.brand}` : ""}
                                 {` · stock ${p.stockQuantity}`}
                               </span>
                             </button>
