@@ -7,7 +7,7 @@
  * detección: si nada matchea, `detectChat()` devuelve confianza 0 y un `warning` explícito.
  */
 
-export const SELECTOR_VERSION = "2026-08-chatbot-v8-header-name-fix";
+export const SELECTOR_VERSION = "2026-08-chatbot-v9-switch-mousedown-fix";
 
 export interface SelectorSet {
   id: string;
@@ -264,6 +264,29 @@ export function detectChatList(ignoredAutoMessages: string[] = []): ChatListDete
 }
 
 /** Abre un chat detectado, simulando un click real en su fila. */
+/**
+ * WhatsApp navega entre chats con el handler `onMouseDown` de la fila, NO con `onClick`.
+ * Por eso `Element.click()` (que solo emite un evento `click`) no cambia de conversación:
+ * el recorrido automático quedaba atascado en el chat activo y `waitForActiveChat` siempre
+ * daba timeout ("no confirmó el cambio"), dejando cero borradores. Emitimos la secuencia
+ * completa de mouse sobre un leaf de la fila (el título), que burbujea hasta el handler.
+ */
+function fireRowNavigation(el:Element):void {
+  const rect=el.getBoundingClientRect();
+  const opts:MouseEventInit={
+    bubbles:true,
+    cancelable:true,
+    composed:true,
+    view:window,
+    button:0,
+    clientX:rect.left+Math.min(10,rect.width/2||10),
+    clientY:rect.top+Math.min(10,rect.height/2||10),
+  };
+  el.dispatchEvent(new MouseEvent("mousedown",opts));
+  el.dispatchEvent(new MouseEvent("mouseup",opts));
+  el.dispatchEvent(new MouseEvent("click",opts));
+}
+
 export function switchToChat(chatKey: string): InsertResult {
   for (const strategy of CHAT_LIST_STRATEGIES) {
     const container = document.querySelector(strategy.container);
@@ -276,7 +299,9 @@ export function switchToChat(chatKey: string): InsertResult {
         if (!target) break;
         (row as HTMLElement).style.display="";
         target.scrollIntoView({block: "nearest"});
-        target.click();
+        // Disparar sobre el título (leaf) para que el mousedown alcance el handler de la fila;
+        // recae en la fila completa si por algún motivo no hubiese título.
+        fireRowNavigation((title as HTMLElement) ?? target);
         return {ok: true};
       }
     }
