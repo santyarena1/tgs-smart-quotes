@@ -7,7 +7,7 @@
  * detección: si nada matchea, `detectChat()` devuelve confianza 0 y un `warning` explícito.
  */
 
-export const SELECTOR_VERSION = "2026-07-chatbot-v6-automated-outbound";
+export const SELECTOR_VERSION = "2026-08-chatbot-v7-cellframe-name-fix";
 
 export interface SelectorSet {
   id: string;
@@ -165,10 +165,15 @@ const CHAT_LIST_STRATEGIES = [
     id: "testid-cell-frame",
     container: "#pane-side",
     rows: "[data-testid='cell-frame-container']",
-    title: "[data-testid='cell-frame-title'], span[title]",
-    preview: "[data-testid='last-msg-status'], [data-testid='cell-frame-secondary']",
-    unread: "[data-testid='icon-unread-count'], [aria-label*='mensaje no leído' i], [aria-label*='unread message' i]",
-    outgoing: "[data-testid='last-msg-status'], span[data-icon='msg-check'], span[data-icon='msg-dblcheck'], span[data-icon='msg-time'], span[data-icon='ic-schedule']",
+    // El nombre real vive en span[title]. `cell-frame-title` ya NO es el nombre (WhatsApp lo cambió:
+    // ahora contiene el conteo de no-leídos), así que usarlo corrompía el nombre/chatKey.
+    title: "span[title]",
+    preview: "[data-testid='cell-frame-secondary'], [data-testid='last-msg-status']",
+    unread: "[data-testid='icon-unread-count'], [aria-label*='no leído' i], [aria-label*='unread' i]",
+    // OJO: no usar last-msg-status como indicador de saliente: existe en TODAS las filas (marcaría
+    // todo como OUTGOING → no procesa nada). La dirección real se resuelve DENTRO del chat abierto
+    // (lastOpenMessageDirection). Acá solo dejamos íconos legacy por si vuelven.
+    outgoing: "span[data-icon='msg-check'], span[data-icon='msg-dblcheck'], span[data-icon='msg-time'], span[data-icon='ic-schedule']",
     automated: "[data-icon='ic-schedule'], [data-testid*='scheduled' i], [data-testid*='automated' i], [aria-label*='programado' i], [aria-label*='scheduled' i], [aria-label*='automático' i], [aria-label*='automatic' i]",
     confidence: 95,
   },
