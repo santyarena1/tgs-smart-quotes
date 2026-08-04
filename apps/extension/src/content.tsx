@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, insertMessageIntoComposer, insertMessageIntoEmptyComposer, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, switchToChat, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
+import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, switchToChat, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
 import {
   changeQuoteState,
   createQuickRequest,
@@ -935,6 +935,7 @@ type ChatbotRuntime = {
   suggestionBusy:boolean;
   busy: boolean;
   refresh:()=>Promise<void>;
+  ensureEnabled:()=>Promise<void>;
   toggle:(enabled:boolean)=>Promise<void>;
   setMode:(mode:ChatbotMode|null)=>Promise<void>;
   clearEscalation:()=>Promise<void>;
@@ -1093,6 +1094,12 @@ function useChatbotRuntime(
       if(!switchedResult.ok)throw new Error(switchedResult.error);
       const confirmed=await waitForActiveChat(chatKey,6000,displayName);
       if(!confirmed.ok)throw new Error(confirmed.error);
+    }
+    if(lastOpenMessageDirection()==="OUTBOUND"){
+      queueRef.current.delete(chatKey);
+      onPhase?.("Chat omitido: el último mensaje es nuestro.");
+      botDebug("chat skipped: last message outbound",{chatKey});
+      return;
     }
     onPhase?.("Leyendo el último mensaje entrante…");
     const incoming=findLastIncomingMessage(
@@ -1665,6 +1672,10 @@ function useChatbotRuntime(
     return()=>{stopped=true;window.clearTimeout(timer)};
   },[processChat]);
 
+  const ensureEnabled=useCallback(async()=>{
+    const current=await getChatbotSettings();
+    setSettings(current.enabled?current:await setChatbotEnabled(true));
+  },[]);
   const toggle=async(enabled:boolean)=>{setBusy(true);try{setSettings(await setChatbotEnabled(enabled));setWarning(null)}catch(error){setWarning(errorMessage(error))}finally{setBusy(false)}};
   const setMode=async(mode:ChatbotMode|null)=>{if(!currentKey)return;setBusy(true);try{await updateChatbotConversation(currentKey,{displayName:name||null,modeOverride:mode});await refresh()}catch(error){setWarning(errorMessage(error))}finally{setBusy(false)}};
   const clearEscalation=async()=>{if(!currentKey)return;setBusy(true);try{await updateChatbotConversation(currentKey,{clearEscalation:true});await refresh()}catch(error){setWarning(errorMessage(error))}finally{setBusy(false)}};
@@ -1748,6 +1759,7 @@ function useChatbotRuntime(
     suggestionBusy,
     busy,
     refresh,
+    ensureEnabled,
     toggle,
     setMode,
     clearEscalation,
@@ -1938,18 +1950,6 @@ function ChatbotTab({runtime,notifications,currentKey,phone,name}:{runtime:Chatb
       </>}
     </Section>
     <ChatbotCustomerContext runtime={runtime} phone={phone} detectedName={name}/>
-    <Section title="Bot en todos los chats">
-      <div className="tgs-row between">
-        <div>
-          <b>Respuestas del bot</b>
-          <div className="tgs-muted">{runtime.settings?.enabled?"Encendidas":"Apagadas"}</div>
-        </div>
-        <button className={`tgs-btn sm ${runtime.settings?.enabled?"danger":""}`} disabled={runtime.busy||!runtime.settings} onClick={()=>void runtime.toggle(!runtime.settings?.enabled)}>
-          {runtime.settings?.enabled?"Desactivar":"Activar"}
-        </button>
-      </div>
-      <div className="tgs-muted">Si lo apagás, el bot deja de generar y enviar respuestas en todos los chats.</div>
-    </Section>
     <Section title="Actividad reciente">
       <div className="tgs-list">{runtime.logs.length?runtime.logs.map(log=><div className="tgs-list-item" key={log.id}>
         <div className="tgs-row between"><div className="tgs-row">{log.direction==="OUTBOUND"&&log.decisionMetadata?.simulated?<Pill tone="warn">PRUEBA</Pill>:null}<Pill tone={log.status==="SENT"?"ok":log.status.includes("FAIL")?"bad":log.status==="ESCALATED"?"warn":"neutral"}>{log.direction==="OUTBOUND"&&log.decisionMetadata?.simulated?"No enviado":log.status}</Pill></div><span className="tgs-muted">{relativeTime(log.createdAt)}</span></div>
@@ -2110,6 +2110,11 @@ export function Panel() {
   }, []);
 
   const chatbotRuntime=useChatbotRuntime(phoneOverride,nameOverride,notifications,loadNotifications);
+
+  useEffect(()=>{
+    if(!connection?.ok)return;
+    void chatbotRuntime.ensureEnabled().catch(error=>console.warn("[tgs-bot] no se pudo asegurar que el bot esté encendido",error));
+  },[connection,chatbotRuntime.ensureEnabled]);
 
   useEffect(() => {
     void loadNotifications();

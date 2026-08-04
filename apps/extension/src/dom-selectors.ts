@@ -653,6 +653,15 @@ function messageRows():Element[] {
   return [...document.querySelectorAll(LEGACY_MESSAGE_ROW_SELECTOR)];
 }
 
+/** Dirección del mensaje más reciente actualmente renderizado en el chat abierto. */
+export function lastOpenMessageDirection():"INBOUND"|"OUTBOUND"|null {
+  const rows=messageRows();
+  const lastRow=rows[rows.length-1];
+  if(!lastRow)return null;
+  const direction=directMessageDirection(lastRow);
+  return direction==="UNKNOWN"?null:direction;
+}
+
 /**
  * Resuelve dirección una sola vez para todas las funciones consumidoras.
  * En mensajes agrupados sin tail:
