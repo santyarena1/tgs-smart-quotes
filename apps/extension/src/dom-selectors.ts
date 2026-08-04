@@ -464,25 +464,37 @@ export function applyNativeChatStatuses(statuses:NativeChatStatus[]):ChatListDet
   return detection;
 }
 
-/** Inserta texto en el composer de WhatsApp. NUNCA envía: el usuario decide cuándo apretar enviar. */
-export function insertMessageIntoComposer(text: string): InsertResult {
-  const composer = findComposer();
-  if (!composer) {
-    return {
-      ok: false,
-      error:
-        "No se encontró el cuadro de mensaje de WhatsApp. Abrí un chat y volvé a intentar (ver dom-selectors.ts).",
+type ComposerBridgeAction="insert"|"clear"|"insertEmpty";
+interface ComposerBridgeResponse {source:"tgs-page";id:string;ok:boolean;error?:string}
+let composerBridgeCounter=0;
+
+function wait(ms:number):Promise<void>{return new Promise(resolve=>window.setTimeout(resolve,ms))}
+
+function requestComposerBridge(action:ComposerBridgeAction,text?:string):Promise<InsertResult>{
+  const id=`tgs-${Date.now()}-${++composerBridgeCounter}`;
+  return new Promise(resolve=>{
+    const finish=(result:InsertResult)=>{
+      window.clearTimeout(timeout);
+      window.removeEventListener("message",onMessage);
+      resolve(result);
     };
-  }
-  composer.focus();
-  const inserted = document.execCommand("insertText", false, text);
-  composer.dispatchEvent(
-    new InputEvent("input", { bubbles: true, inputType: "insertText" }),
-  );
-  if (!inserted) {
-    return { ok: false, error: "El navegador rechazó insertar el texto (execCommand falló)." };
-  }
-  return { ok: true };
+    const onMessage=(event:MessageEvent<unknown>)=>{
+      if(event.source!==window||!event.data||typeof event.data!=="object")return;
+      const response=event.data as Partial<ComposerBridgeResponse>;
+      if(response.source!=="tgs-page"||response.id!==id||typeof response.ok!=="boolean")return;
+      finish({ok:response.ok,...(response.error?{error:response.error}:{})});
+    };
+    const timeout=window.setTimeout(()=>finish({ok:false,error:"El bridge de Lexical no respondió dentro de 3 segundos."}),3000);
+    window.addEventListener("message",onMessage);
+    window.postMessage({source:"tgs-cs",id,action,...(text===undefined?{}:{text})},"*");
+  });
+}
+
+/** Inserta texto mediante Lexical. NUNCA envía: el usuario decide cuándo apretar enviar. */
+export async function insertMessageIntoComposer(text:string):Promise<InsertResult>{
+  const result=await requestComposerBridge("insert",text);
+  if(result.ok)await wait(250);
+  return result;
 }
 
 export function readComposerText():string|null {
@@ -492,7 +504,7 @@ export function readComposerText():string|null {
 }
 
 /** Inserta únicamente si el usuario todavía no escribió nada. */
-export function insertMessageIntoEmptyComposer(text:string):InsertResult {
+export async function insertMessageIntoEmptyComposer(text:string):Promise<InsertResult> {
   const current=readComposerText();
   if(current===null){
     return {ok:false,error:"No se encontró el cuadro de mensaje de WhatsApp."};
@@ -500,25 +512,24 @@ export function insertMessageIntoEmptyComposer(text:string):InsertResult {
   if(current){
     return {ok:false,error:"Ya hay un mensaje escrito. No se reemplazó ni modificó."};
   }
-  return insertMessageIntoComposer(text);
+  const result=await requestComposerBridge("insertEmpty",text);
+  if(result.ok)await wait(250);
+  return result;
+}
+
+export async function clearComposer():Promise<boolean>{
+  const result=await requestComposerBridge("clear");
+  if(result.ok)await wait(250);
+  return result.ok;
 }
 
 /** Al descartar, limpia solo si el composer todavía contiene exactamente la sugerencia. */
-export function clearComposerIfMatches(expectedText:string):boolean {
+export async function clearComposerIfMatches(expectedText:string):Promise<boolean> {
   const composer=findComposer();
   if(!composer)return false;
   const current=(composer.innerText||composer.textContent||"").replace(/\u200B/g,"").trim();
   if(normalizeMessage(current)!==normalizeMessage(expectedText))return false;
-  composer.focus();
-  const selection=window.getSelection();
-  const range=document.createRange();
-  range.selectNodeContents(composer);
-  selection?.removeAllRanges();
-  selection?.addRange(range);
-  const deleted=document.execCommand("delete",false);
-  selection?.removeAllRanges();
-  composer.dispatchEvent(new InputEvent("input",{bubbles:true,inputType:"deleteContentBackward"}));
-  return deleted;
+  return clearComposer();
 }
 
 const MESSAGE_CONTAINER_SELECTORS = ["#main [role='application']", "#main .copyable-area", "#main"];
@@ -883,7 +894,7 @@ export async function sendMessageAutomatically(
   if (!activeId || (chatId && activeId !== chatId && !chatId.endsWith(activeId))) {
     return {ok:false, confidence:0, text:null, filename:null, timedOut:false, error:"El chat activo no coincide con el destino; se canceló el envío."};
   }
-  const inserted = insertMessageIntoComposer(text);
+  const inserted = await insertMessageIntoComposer(text);
   if (!inserted.ok) return {ok:false, confidence:0, text:null, filename:null, timedOut:false, error:inserted.error};
   const button = findSendButton();
   if (!button) return {ok:false, confidence:0, text:null, filename:null, timedOut:false, error:`No se encontró el botón Enviar (${SELECTOR_VERSION}).`};
@@ -908,7 +919,6 @@ export async function sendMessageAutomatically(
     }
   });
 }
-function wait(ms:number){return new Promise(resolve=>window.setTimeout(resolve,ms))}
 export async function attachFileToComposer(file:File):Promise<boolean>{try{const attachSelectors=["[data-testid='clip']","button[aria-label*='Adjuntar' i]","button[title*='Adjuntar' i]","span[data-icon='plus-rounded']","span[data-icon='clip']"];let trigger:HTMLElement|null=null;for(const selector of attachSelectors){const found=document.querySelector(selector);if(found instanceof HTMLElement){trigger=found.closest("button")??found;break}}if(!trigger)return false;trigger.click();await wait(250);const inputs=[...document.querySelectorAll("input[type='file']")].filter((node):node is HTMLInputElement=>node instanceof HTMLInputElement);const isImage=file.type.startsWith("image/");const input=inputs.find(node=>{const accept=(node.accept||"").toLowerCase();return isImage?accept.includes("image")||accept.includes("*"):accept.includes("pdf")||accept.includes("*")||(!accept.includes("image")&&!accept.includes("video"))});if(!input)return false;const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));return input.files?.length===1}catch{return false}}
 
 /** Adjunta, confirma el preview, pulsa Enviar y exige observar un nuevo saliente. */

@@ -291,7 +291,7 @@ function QuoteDetail({
     setBusy(true); setError(null); setNotice(null); setPdfFallback(null); setSendReview(null);
     try {
       if (!pdfReady[kind]) await handlePreparePdf(kind);
-      const inserted = insertMessageIntoComposer(message);
+      const inserted = await insertMessageIntoComposer(message);
       if (!inserted.ok) throw new Error(inserted.error ?? "No se pudo insertar el mensaje.");
       const filename = `${quote.visibleNumber}-V${version?.version ?? quote.activeVersion}-${kind}.pdf`;
       const blob = await fetchBlob(pdfDownloadPath(quote.id, kind));
@@ -1151,7 +1151,7 @@ function useChatbotRuntime(
     }
     if(result.action==="SIMULATED"){
       if(result.reply){
-        const inserted=insertMessageIntoEmptyComposer(result.reply);
+        const inserted=await insertMessageIntoEmptyComposer(result.reply);
         botDebug(inserted.ok?"simulation draft inserted":"simulation draft skipped",{
           chatKey,
           reason:inserted.ok?undefined:inserted.error,
@@ -1309,7 +1309,7 @@ function useChatbotRuntime(
       return;
     }
     if(!composerText){
-      const inserted=insertMessageIntoEmptyComposer(text);
+      const inserted=await insertMessageIntoEmptyComposer(text);
       if(!inserted.ok){
         botDebug("insert skipped",{reason:"dom-insertion-failed",activeChatKey:activeKey,error:inserted.error});
         throw new Error(inserted.error);
@@ -1337,7 +1337,7 @@ function useChatbotRuntime(
     try{
       humanSendObservationRef.current?.stop();
       humanSendObservationRef.current=null;
-      clearComposerIfMatches(text??currentSuggestion.text);
+      await clearComposerIfMatches(text??currentSuggestion.text);
       await actOnChatbotLog(currentSuggestion.logId,{
         action:"DISMISSED",
         text:text??currentSuggestion.text,
@@ -1629,7 +1629,7 @@ function useChatbotRuntime(
                 });
                 if(generated.reply&&generated.logId){
                   if(simulationActive||mode==="SUGGEST"){
-                    const inserted=insertMessageIntoComposer(generated.reply);
+                    const inserted=await insertMessageIntoComposer(generated.reply);
                     if(!inserted.ok)throw new Error(inserted.error);
                     botDebug(simulationActive?"recontact simulation draft inserted":"recontact suggestion inserted",{
                       chatKey:candidate.chatKey,
@@ -2278,6 +2278,11 @@ export function Panel() {
     </div>
   );
 }
+
+const pageScript=document.createElement("script");
+pageScript.src=chrome.runtime.getURL("injected.js");
+pageScript.onload=()=>pageScript.remove();
+document.documentElement.appendChild(pageScript);
 
 const root = document.createElement("div");
 root.id = "tgs-panel-root";
