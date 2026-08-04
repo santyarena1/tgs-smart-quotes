@@ -558,10 +558,32 @@ export class QuotesController{
           body.pdfOverrides!==undefined||
           body.resolvedPdfConfig!==undefined||
           body.financingSnapshot!==undefined;
-        if(changesContent){
-          const itemRows=body.items
+        const itemRows=changesContent
+          ?(body.items
             ?buildItemRows(body.items,await masterPrices(tx,body.items))
-            :version.items.map((item:any)=>copyItemSnapshot(item));
+            :version.items.map((item:any)=>copyItemSnapshot(item)))
+          :[];
+        // Solo versiona si el contenido REALMENTE cambió (una edición manual: componente, cantidad
+        // o precio de venta). Un guardado que reenvía los mismos ítems —p. ej. el auto-guardado
+        // antes de generar el PDF— no crea versión nueva.
+        const itemsChanged=body.items!==undefined&&(
+          itemRows.length!==version.items.length||
+          itemRows.some((row:any,index:number)=>{
+            const current:any=version.items[index];
+            return !current
+              ||String(row.frozenName)!==String(current.frozenName)
+              ||row.quantity!==current.quantity
+              ||String(row.frozenSalePriceCents)!==String(current.frozenSalePriceCents)
+              ||String(row.productId??'')!==String(current.productId??'');
+          })
+        );
+        const jsonEq=(a:unknown,b:unknown)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+        const actuallyChanged=itemsChanged
+          ||(body.publicObservation!==undefined&&(body.publicObservation??null)!==(version.publicObservation??null))
+          ||(body.pdfOverrides!==undefined&&!jsonEq(body.pdfOverrides,version.pdfOverrides))
+          ||(body.resolvedPdfConfig!==undefined&&!jsonEq(body.resolvedPdfConfig,version.resolvedPdfConfig))
+          ||(body.financingSnapshot!==undefined&&!jsonEq(body.financingSnapshot,version.financingSnapshot));
+        if(actuallyChanged){
           const totalsRow=pricingTotals(itemRows);
           const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
           nextVersion=await tx.quoteVersion.create({data:{
