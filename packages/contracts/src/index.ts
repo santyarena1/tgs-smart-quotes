@@ -530,6 +530,7 @@ export const chatbotConversationUpdateSchema = z
     displayName: z.string().trim().max(200).nullable().optional(),
     modeOverride: chatbotModeOverrideSchema.optional(),
     lastQuoteFamilyId: nullableIdSchema.optional(),
+    lastQuoteVersion: z.number().int().min(1).nullable().optional(),
     clearEscalation: z.boolean().optional(),
     recontactOptOut: z.boolean().optional(),
   })

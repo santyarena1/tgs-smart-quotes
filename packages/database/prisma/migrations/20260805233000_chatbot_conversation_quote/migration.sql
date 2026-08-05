@@ -1,5 +1,6 @@
 ALTER TABLE "ChatbotConversation"
-ADD COLUMN "lastQuoteFamilyId" TEXT;
+ADD COLUMN "lastQuoteFamilyId" TEXT,
+ADD COLUMN "lastQuoteVersion" INTEGER;
 
 ALTER TABLE "ChatbotConversation"
 ADD CONSTRAINT "ChatbotConversation_lastQuoteFamilyId_fkey"

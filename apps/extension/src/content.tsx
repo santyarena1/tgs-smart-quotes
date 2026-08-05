@@ -2416,8 +2416,14 @@ export function Panel() {
   async function associateQuoteWithCurrentChat(selected:Quote){
     if(!persistedChatKey)return;
     setAssociatedQuote(selected);
-    try{await updateChatbotConversation(persistedChatKey,{lastQuoteFamilyId:selected.id})}
+    try{await updateChatbotConversation(persistedChatKey,{lastQuoteFamilyId:selected.id,lastQuoteVersion:selected.version?.version??selected.activeVersion})}
     catch(error){setToolbarNotice(`No se pudo recordar el presupuesto para este chat: ${errorMessage(error)}`)}
+  }
+  async function clearAssociatedQuoteForNewRequest(){
+    if(!persistedChatKey)return;
+    setAssociatedQuote(null);setQuote(null);setSelectedQuoteId(null);
+    try{await updateChatbotConversation(persistedChatKey,{lastQuoteFamilyId:null,lastQuoteVersion:null})}
+    catch(error){setToolbarNotice(`⚠ No se pudo actualizar el presupuesto vigente: ${errorMessage(error)}`)}
   }
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.readAt).length, [notifications]);
@@ -2517,12 +2523,13 @@ export function Panel() {
       </div>
       {toolbarNotice||chatbotRuntime.manualStatus||chatbotRuntime.suggestionError?<div className={`tgs-toolbar-feedback${chatbotRuntime.suggestionError?" error":""}`}>{chatbotRuntime.suggestionError??toolbarNotice??chatbotRuntime.manualStatus}</div>:null}
       {toolbarQuote?.version?<div className="tgs-toolbar-quote">
-        <div className="tgs-toolbar-quote-top"><span className="tgs-toolbar-quote-num">{toolbarQuote.visibleNumber}</span><select className="tgs-toolbar-ver" value={toolbarQuote.version.version} onChange={event=>{const version=toolbarQuote.versions.find(item=>item.version===Number(event.target.value));if(version){const selected={...toolbarQuote,version,items:version.items};setQuote(selected);setAssociatedQuote(selected)}}}>{toolbarQuote.versions.map(version=><option key={version.id} value={version.version}>V{version.version} · {STATE_LABEL[version.state]}</option>)}</select><Pill tone={STATE_TONE[toolbarQuote.version.state]}>{STATE_LABEL[toolbarQuote.version.state]}</Pill><span className="tgs-toolbar-quote-total">{formatArs(toolbarQuote.version.totalSaleCents)}</span></div>
+        <div className="tgs-toolbar-quote-top"><span className="tgs-toolbar-quote-num">{toolbarQuote.visibleNumber}</span><select className="tgs-toolbar-ver" title="Elegir la versión vigente para este chat" value={toolbarQuote.version.version} onChange={event=>{const version=toolbarQuote.versions.find(item=>item.version===Number(event.target.value));if(version){const selected={...toolbarQuote,version,items:version.items};setQuote(selected);setAssociatedQuote(selected);void associateQuoteWithCurrentChat(selected)}}}>{toolbarQuote.versions.map(version=><option key={version.id} value={version.version}>V{version.version} · {STATE_LABEL[version.state]}</option>)}</select><Pill tone={STATE_TONE[toolbarQuote.version.state]}>{STATE_LABEL[toolbarQuote.version.state]}</Pill><span className="tgs-toolbar-quote-total">{formatArs(toolbarQuote.version.totalSaleCents)}</span></div>
         {toolbarItemsPreview?<div className="tgs-toolbar-quote-items" title={toolbarItemsPreview}>{toolbarItemsPreview}</div>:null}
         <div className="tgs-toolbar-actions">
           <button className="tgs-toolbar-btn" title={toolbarQuote.version.version!==toolbarQuote.activeVersion?"Solo se puede aprobar la versión activa":""} disabled={toolbarQuote.version.state==="ACEPTADO"||toolbarQuote.version.version!==toolbarQuote.activeVersion} onClick={()=>void changeQuoteState(toolbarQuote.id,"ACEPTADO").then(()=>getQuote(toolbarQuote.id)).then(updated=>{setQuote(updated);setAssociatedQuote(updated);if(phoneOverride)void getLatestSentQuote(phoneOverride).then(setLatestSent)})}>✓ Aprobar</button>
           <button className="tgs-toolbar-btn primary" onClick={()=>setActiveModal("send")}>📤 Enviar</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>🔄 Solicitar otro</button>
+          <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("search")}>🔍 Elegir otro</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("edit")}>✏️ Nueva versión</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("history")}>🕘 Historial</button>
         </div>
@@ -2530,7 +2537,7 @@ export function Panel() {
     </div>
   ,toolbarHost)}
   {createPortal(<>
-    {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
+    {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void clearAssociatedQuoteForNewRequest();void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
     {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onView={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);void associateQuoteWithCurrentChat(selected);setToolbarNotice(`${selected.visibleNumber} seleccionado.`);setActiveModal(null)}} onEdit={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);void associateQuoteWithCurrentChat(selected);setActiveModal("edit")}} onSend={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);void associateQuoteWithCurrentChat(selected);setActiveModal("send")}}/>:null}
     {activeModal==="product"?<ProductSearchModal onClose={()=>setActiveModal(null)} onPrepare={prepareProductForChat}/>:null}
     {activeModal==="webSearch"?<WebSearchModal onClose={()=>setActiveModal(null)} onInsert={async query=>{const{url}=await getStoreSearchUrl(query);const inserted=await insertMessageIntoEmptyComposer(url);if(!inserted.ok)throw new Error(inserted.error??"No se pudo insertar el enlace en WhatsApp");setToolbarNotice("Enlace de búsqueda listo para enviar.")}}/>:null}

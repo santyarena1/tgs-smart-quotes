@@ -338,6 +338,29 @@ export async function transitionVersionState(
   return {nextVersion,replaced};
 }
 
+export async function associateConversationQuote(
+  tx:any,chatKey:string,familyId:string|null,versionNumber:number|null,actor:RequestUser,
+){
+  const current=await tx.chatbotConversation.findUnique({where:{chatKey}});
+  const changed=current?.lastQuoteFamilyId!==familyId
+    ||(familyId!==null&&current?.lastQuoteVersion!==(versionNumber??null));
+  if(changed&&current?.lastQuoteFamilyId){
+    const previousFamily=await loadFamily(tx,current.lastQuoteFamilyId).catch(()=>null);
+    const previousVersion=previousFamily
+      ?previousFamily.versions.find((item:any)=>item.version===(current.lastQuoteVersion??previousFamily.activeVersion))
+        ??previousFamily.versions.find((item:any)=>item.version===previousFamily.activeVersion)
+      :null;
+    if(previousFamily&&previousVersion?.state==='ACEPTADO'){
+      await transitionVersionState(tx,previousFamily,previousVersion,actor,'ENVIADO',{reason:'Dejó de ser el presupuesto vigente del chat.'});
+    }
+  }
+  return tx.chatbotConversation.upsert({
+    where:{chatKey},
+    create:{chatKey,lastQuoteFamilyId:familyId,lastQuoteVersion:versionNumber},
+    update:{lastQuoteFamilyId:familyId,lastQuoteVersion:versionNumber},
+  });
+}
+
 @Controller('quotes')
 export class QuotesController{
   @Get('sent/latest')
@@ -451,7 +474,8 @@ export class QuotesController{
         }
         if(family.requestId){
           await markRequestListaIfPreparing(tx,family.requestId,actor.id);
-          await tx.chatbotConversation.updateMany({where:{activeRequestId:family.requestId},data:{lastQuoteFamilyId:family.id}});
+          const conversations=await tx.chatbotConversation.findMany({where:{activeRequestId:family.requestId},select:{chatKey:true}});
+          for(const conversation of conversations)await associateConversationQuote(tx,conversation.chatKey,family.id,version.version,actor);
         }
         await statusEvent(tx,{
           type:'PRESUPUESTO_CREADO',
@@ -1074,11 +1098,7 @@ export class QuotesController{
         userId:actor.id,
       }});
       if(body.chatKey){
-        await tx.chatbotConversation.upsert({
-          where:{chatKey:body.chatKey},
-          create:{chatKey:body.chatKey,lastQuoteFamilyId:id},
-          update:{lastQuoteFamilyId:id},
-        });
+        await associateConversationQuote(tx,body.chatKey,id,version.version,actor);
       }
       await statusEvent(tx,{
         type:'ENVIO_DETECTADO',

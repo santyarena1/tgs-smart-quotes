@@ -736,6 +736,7 @@ model ChatbotConversation {
   activeRequestId        String?
   activeRequest          QuoteRequest?       @relation(fields: [activeRequestId], references: [id], onDelete: SetNull)
   lastQuoteFamilyId      String?
+  lastQuoteVersion       Int?
   lastQuoteFamily        QuoteFamily?         @relation(fields: [lastQuoteFamilyId], references: [id], onDelete: SetNull)
   lastInboundFingerprint String?
   lastInboundText        String?

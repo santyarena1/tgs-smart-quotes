@@ -613,13 +613,13 @@ export function applyNativeChatStatuses(statuses:NativeChatStatus[]):ChatListDet
   return detection;
 }
 
-type ComposerBridgeAction="insert"|"clear"|"insertEmpty"|"insertCaption";
+type ComposerBridgeAction="insert"|"clear"|"insertEmpty"|"insertCaption"|"pasteFile";
 interface ComposerBridgeResponse {source:"tgs-page";id:string;ok:boolean;error?:string}
 let composerBridgeCounter=0;
 
 function wait(ms:number):Promise<void>{return new Promise(resolve=>window.setTimeout(resolve,ms))}
 
-function requestComposerBridge(action:ComposerBridgeAction,text?:string):Promise<InsertResult>{
+function requestComposerBridge(action:ComposerBridgeAction,text?:string,file?:{name:string;type:string;bytes:ArrayBuffer}):Promise<InsertResult>{
   const id=`tgs-${Date.now()}-${++composerBridgeCounter}`;
   return new Promise(resolve=>{
     const finish=(result:InsertResult)=>{
@@ -635,7 +635,7 @@ function requestComposerBridge(action:ComposerBridgeAction,text?:string):Promise
     };
     const timeout=window.setTimeout(()=>finish({ok:false,error:"El bridge de Lexical no respondió dentro de 3 segundos."}),3000);
     window.addEventListener("message",onMessage);
-    window.postMessage({source:"tgs-cs",id,action,...(text===undefined?{}:{text})},"*");
+    window.postMessage({source:"tgs-cs",id,action,...(text===undefined?{}:{text}),...(file??{})},"*");
   });
 }
 
@@ -1102,15 +1102,8 @@ export async function sendMessageAutomatically(
  * sintético lo ignora. El paste sí funciona (verificado en vivo con un PDF).
  */
 async function pasteFileIntoComposer(file:File):Promise<boolean>{
-  const composer=findComposer()??document.querySelector<HTMLElement>("#main [data-testid='conversation-compose-box-input'], #main footer [contenteditable='true']");
-  if(!composer)return false;
-  composer.focus?.();
-  const transfer=new DataTransfer();
-  transfer.items.add(file);
-  const event=new ClipboardEvent("paste",{bubbles:true,cancelable:true});
-  // clipboardData suele ser de solo lectura: lo forzamos para que el handler lea los files.
-  try{Object.defineProperty(event,"clipboardData",{value:transfer});}catch{/* algunos navegadores lo aceptan por el init */}
-  composer.dispatchEvent(event);
+  const result=await requestComposerBridge("pasteFile",undefined,{name:file.name,type:file.type,bytes:await file.arrayBuffer()});
+  if(!result.ok)return false;
   // Confirmar que WhatsApp abrió el preview del adjunto (muestra el nombre del archivo).
   for(let attempt=0;attempt<24;attempt+=1){
     await wait(150);

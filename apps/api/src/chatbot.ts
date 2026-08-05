@@ -34,7 +34,7 @@ import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
 import {normalizePhone, normalizeText, productSimilarity} from '@tgs/validation';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
-import {activeBundle, createQuoteRequest, quoteInclude} from './quotes.js';
+import {activeBundle, associateConversationQuote, createQuoteRequest, quoteInclude} from './quotes.js';
 import {saveChatbotRuleImage} from './chatbot-storage.js';
 import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 
@@ -597,10 +597,15 @@ export class ChatbotController {
   @Get('conversations/:chatKey/quote')
   async conversationQuote(@Param('chatKey') rawChatKey:string){
     const chatKey=decodeURIComponent(rawChatKey).slice(0,CHAT_KEY_MAX);
-    const conversation=await db.chatbotConversation.findUnique({where:{chatKey},select:{lastQuoteFamilyId:true}});
+    const conversation=await db.chatbotConversation.findUnique({where:{chatKey},select:{lastQuoteFamilyId:true,lastQuoteVersion:true}});
     if(!conversation?.lastQuoteFamilyId)return null;
     const family=await db.quoteFamily.findUnique({where:{id:conversation.lastQuoteFamilyId},include:quoteInclude});
-    return family?jsonSafe(activeBundle(family)):null;
+    if(!family)return null;
+    const bundle=activeBundle(family) as any;
+    const selected=conversation.lastQuoteVersion
+      ?bundle.versions.find((version:any)=>version.version===conversation.lastQuoteVersion)
+      :bundle.version;
+    return jsonSafe(selected?{...bundle,version:selected,items:selected.items}:bundle);
   }
 
   @Put('conversations/:chatKey')
@@ -610,22 +615,27 @@ export class ChatbotController {
     @CurrentUser() actor: RequestUser,
   ) {
     const chatKey = decodeURIComponent(rawChatKey).slice(0, CHAT_KEY_MAX);
-    const next = await db.chatbotConversation.upsert({
+    const next = await db.$transaction(async tx=>{
+      if(body.lastQuoteFamilyId!==undefined){
+        await associateConversationQuote(tx,chatKey,body.lastQuoteFamilyId,body.lastQuoteFamilyId?body.lastQuoteVersion??null:null,actor);
+      }
+      return tx.chatbotConversation.upsert({
       where: {chatKey},
       create: {
         chatKey,
         displayName: body.displayName,
         modeOverride: body.modeOverride,
         recontactOptOut: body.recontactOptOut,
-        lastQuoteFamilyId:body.lastQuoteFamilyId,
+        ...(body.lastQuoteFamilyId===undefined?{}:{lastQuoteFamilyId:body.lastQuoteFamilyId,lastQuoteVersion:body.lastQuoteVersion}),
       },
       update: {
         displayName: body.displayName,
         modeOverride: body.modeOverride,
         recontactOptOut: body.recontactOptOut,
-        lastQuoteFamilyId:body.lastQuoteFamilyId,
+        ...(body.lastQuoteFamilyId===undefined?{}:{lastQuoteFamilyId:body.lastQuoteFamilyId,lastQuoteVersion:body.lastQuoteVersion}),
         ...(body.clearEscalation ? {escalatedAt: null, escalationReason: null} : {}),
       },
+      });
     });
     await db.auditLog.create({data: {
       userId: actor.id,

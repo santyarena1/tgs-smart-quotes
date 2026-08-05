@@ -22,8 +22,8 @@ interface LexicalEditor {
 }
 
 type LexicalComposer = HTMLElement & { __lexicalEditor?: LexicalEditor };
-type PageAction = "insert" | "clear" | "insertEmpty" | "insertCaption";
-interface ContentRequest { source: "tgs-cs"; id: string; action: PageAction; text?: string }
+type PageAction = "insert" | "clear" | "insertEmpty" | "insertCaption" | "pasteFile";
+interface ContentRequest { source: "tgs-cs"; id: string; action: PageAction; text?: string;name?:string;type?:string;bytes?:ArrayBuffer }
 
 function tgsComposer(): LexicalComposer | null {
   return document.querySelector<LexicalComposer>(COMPOSER_SEL);
@@ -57,20 +57,35 @@ function tgsClearComposer(): boolean {
   return true;
 }
 
+function tgsPasteFile(name:string,type:string,bytes:ArrayBuffer):boolean{
+  const composer=document.querySelector<HTMLElement>("#main [data-testid='conversation-compose-box-input'], #main footer [contenteditable='true']")??tgsComposer();
+  if(!composer)return false;
+  composer.focus();
+  const file=new File([bytes],name,{type});
+  const transfer=new DataTransfer();
+  transfer.items.add(file);
+  const pasteEvent=new ClipboardEvent("paste",{bubbles:true,cancelable:true});
+  Object.defineProperty(pasteEvent,"clipboardData",{value:transfer});
+  composer.dispatchEvent(pasteEvent);
+  return transfer.files.length===1;
+}
+
 function isContentRequest(value: unknown): value is ContentRequest {
   if (!value || typeof value !== "object") return false;
   const message = value as Partial<ContentRequest>;
   return message.source === "tgs-cs"
     && typeof message.id === "string"
-    && (message.action === "insert" || message.action === "clear" || message.action === "insertEmpty" || message.action === "insertCaption");
+    && (message.action === "insert" || message.action === "clear" || message.action === "insertEmpty" || message.action === "insertCaption" || message.action === "pasteFile")
+    &&(message.action!=="pasteFile"||(typeof message.name==="string"&&typeof message.type==="string"&&message.bytes instanceof ArrayBuffer));
 }
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
   if (event.source !== window || !isContentRequest(event.data)) return;
-  const { id, action, text } = event.data;
+  const { id, action, text,name,type,bytes } = event.data;
   try {
     let ok = false;
     if (action === "clear") ok = tgsClearComposer();
+    else if(action==="pasteFile")ok=tgsPasteFile(name!,type!,bytes!);
     else if (typeof text !== "string") throw new Error("La acción requiere texto.");
     else if(action==="insertCaption")ok=tgsInsertText(text,tgsCaptionComposer());
     else if (action === "insert") ok = tgsInsertText(text);
