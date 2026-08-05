@@ -242,6 +242,7 @@ export async function searchAcustockProducts(q:string):Promise<AcustockProductSe
 }
 export const acustockProductImagePath=(mpn:string)=>`/catalog/${encodeURIComponent(mpn)}/image`;
 export const getStoreSearchUrl=(q:string)=>api<{url:string}>("/catalog/web-search",{query:{q}});
+export const generateQuoteSendMessage=(id:string,body:{chatKey:string;version?:number;recentMessages:Array<{direction:"INBOUND"|"OUTBOUND";text:string}>})=>api<{text:string;usedAi:boolean}>(`/chatbot/quotes/${id}/send-message`,{body});
 export const listPcLines=()=>api<PcLine[]>("/pc-lines");
 export const updateQuote=(id:string,body:{customerId?:string|null;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}`,{method:"PUT",body});
 export const updateRequest=(id:string,body:Record<string,unknown>)=>api<QuoteRequest>(`/requests/${id}`,{method:"PUT",body});

@@ -22,6 +22,7 @@ import {
   chatbotRecontactSchema,
   chatbotRespondSchema,
   chatbotSettingsInputSchema,
+  quoteSendMessageSchema,
   type ChatbotConversationUpdate,
   type ChatbotLogActionInput,
   type ChatbotRecontactInput,
@@ -114,6 +115,7 @@ function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; updated
       ? {...defaultMultiMessage,...row.multiMessage,quoteFollowup:{...defaultMultiMessage.quoteFollowup,...row.multiMessage.quoteFollowup}}
       : defaultMultiMessage,
     productMessageIntro:typeof row.productMessageIntro==='string'?row.productMessageIntro:'Este sería el producto 👇',
+    quoteSendPrompt:typeof row.quoteSendPrompt==='string'&&row.quoteSendPrompt.trim()?row.quoteSendPrompt:'Redactá un mensaje breve y cálido presentando el presupuesto adjunto, respondiendo puntualmente a lo que el cliente pidió según los últimos mensajes. No inventes datos.',
     ignoredAutoMessages: Array.isArray(row.ignoredAutoMessages)
       ? row.ignoredAutoMessages
       : ['¡Hola! ¿Cómo podemos ayudarte'],
@@ -436,6 +438,54 @@ export class ChatbotController {
       }});
       return jsonSafe(settingsDto(next));
     });
+  }
+
+  @Post('quotes/:id/send-message')
+  async quoteSendMessage(
+    @Param('id') id:string,
+    @Body(new ZodPipe(quoteSendMessageSchema)) body:z.infer<typeof quoteSendMessageSchema>,
+  ){
+    const [settings,aiSettings,quote]=await Promise.all([
+      db.chatbotSettings.findUniqueOrThrow({where:{id:'singleton'}}).then(settingsDto),
+      db.aiSettings.findUniqueOrThrow({where:{id:'singleton'}}),
+      db.quoteFamily.findUnique({where:{id},include:{customer:true,versions:{include:{items:{orderBy:{position:'asc'}}},orderBy:{version:'desc'}}}}),
+    ]);
+    if(!quote)throw new NotFoundException('Presupuesto inexistente');
+    const version=body.version
+      ?quote.versions.find(item=>item.version===body.version)
+      :quote.versions.find(item=>item.version===quote.activeVersion)??quote.versions[0];
+    if(!version)throw new NotFoundException('Versión inexistente');
+    if(!aiSettings.enabled||!aiSettings.responsesEnabled)throw new ServiceUnavailableException('Las respuestas con IA están deshabilitadas en Configuración.');
+    const key=aiSettings.apiKeyEncrypted?decryptSecret(aiSettings.apiKeyEncrypted):process.env.OPENAI_API_KEY;
+    if(!key?.trim())throw new ServiceUnavailableException('No hay una API key de OpenAI configurada.');
+    const recentMessages=body.recentMessages.slice(-5);
+    const latestIncoming=[...recentMessages].reverse().find(message=>message.direction==='INBOUND')?.text
+      ??'Presentá el presupuesto adjunto de forma breve y pertinente.';
+    const quoteContext={
+      numero:quote.visibleNumber,
+      version:version.version,
+      cliente:quote.customer?.name??null,
+      totalSaleCents:version.totalSaleCents.toString(),
+      items:version.items.map(item=>({nombre:item.frozenName,cantidad:item.quantity,subtotalCents:item.subtotalCents.toString()})),
+    };
+    const service=new ChatbotResponseService({client:createAiClient({apiKey:key}),model:settings.model??aiSettings.model??DEFAULT_AI_MODEL});
+    const generated=await service.respond({
+      chatKey:body.chatKey,
+      latestMessage:latestIncoming,
+      recentMessages,
+      config:{
+        persona:`${settings.persona}\n\nINSTRUCCIÓN PARA PRESENTAR PRESUPUESTOS\n${settings.quoteSendPrompt}`,
+        openingMessages:[],closingMessages:[],
+        responses:[{id:'quote-send',enabled:true,activators:[],similarityThreshold:0,answer:`Presentá este presupuesto sin alterar ni inventar datos: ${JSON.stringify(quoteContext)}`,context:'El archivo PDF quedará adjunto al mismo envío.',attachments:{imageUrl:null,url:null,quote:null}}],
+        escalationInstructions:'Generá un mensaje editable y no escales.',modelCanEscalate:false,
+        businessContext:`Mensaje para presentar un PDF de presupuesto. Datos autoritativos: ${JSON.stringify(quoteContext)}`,
+        responseStyle:{...settings.responseStyle,length:'SHORT',maxCharacters:500},
+        multiMessage:{maxBubbles:1,splitMode:'FIXED_ONLY'},
+      },
+    });
+    const text=(generated.result.messages[0]??generated.result.reply).trim();
+    if(!text)throw new BadGatewayException('La IA no devolvió un mensaje para presentar el presupuesto.');
+    return{text,usedAi:generated.metadata.usedAi};
   }
 
   @Put('settings/enabled')

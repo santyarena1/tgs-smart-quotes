@@ -1114,9 +1114,13 @@ export async function attachFileToComposer(file:File):Promise<boolean>{
       return /sticker|calcoman/i.test(context);
     };
     const isImage=file.type.startsWith("image/");
-    const input=(isImage?inputs.find(isPhotoVideo):undefined)
-      ??(isImage?inputs.find(node=>accept(node).includes("image")&&!isSticker(node)):undefined)
-      ??inputs.find(node=>accept(node).includes("pdf")||accept(node).includes("*")||(!accept(node).includes("image")&&!accept(node).includes("video")));
+    // OJO: NO usar accept.includes("*") para documentos: el input de fotos declara
+    // "image/*,video/*" que también incluye "*", y un PDF terminaba ahí → "archivo no
+    // compatible". Para documentos elegimos el input que NO acepta imagen ni video.
+    const isDocInput=(node:HTMLInputElement)=>!accept(node).includes("image")&&!accept(node).includes("video");
+    const input=isImage
+      ?(inputs.find(isPhotoVideo)??inputs.find(node=>accept(node).includes("image")&&!isSticker(node)))
+      :(inputs.find(node=>accept(node).includes("pdf"))??inputs.find(isDocInput)??inputs.find(node=>accept(node).includes("*")&&!isPhotoVideo(node)));
     if(!input)return false;
     const transfer=new DataTransfer();
     transfer.items.add(file);

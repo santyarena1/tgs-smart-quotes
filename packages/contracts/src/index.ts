@@ -507,6 +507,7 @@ export const chatbotSettingsInputSchema = z
       draftMode:'QUEUE',betweenDelayMinSeconds:2,betweenDelayMaxSeconds:6,
     }),
     productMessageIntro: z.string().trim().max(500).default('Este sería el producto 👇'),
+    quoteSendPrompt: z.string().trim().min(1).max(5000).default('Redactá un mensaje breve y cálido presentando el presupuesto adjunto, respondiendo puntualmente a lo que el cliente pidió según los últimos mensajes. No inventes datos.'),
     ignoredAutoMessages: z.array(z.string().trim().min(1).max(2000)).max(100),
     autoDelayMaxSeconds: z.number().int().min(0).max(120),
     reuseSimilarityThreshold: z.number().int().min(0).max(100),
@@ -559,6 +560,11 @@ export const chatbotRecontactSchema = z
     }).strict()).max(50).optional(),
   })
   .strict();
+export const quoteSendMessageSchema=z.object({
+  chatKey:z.string().trim().min(1).max(200),
+  version:z.number().int().min(1).optional(),
+  recentMessages:z.array(z.object({direction:z.enum(['INBOUND','OUTBOUND']),text:z.string().trim().min(1).max(10000)}).strict()).max(5).default([]),
+}).strict();
 export const chatbotLogActionSchema = z.object({
   action: z.enum(['SENT', 'SEND_FAILED', 'HUMAN_SENT', 'DISMISSED', 'ATTACHMENT_SENT', 'ATTACHMENT_FAILED']),
   text: z.string().trim().min(1).max(20000).optional(),
