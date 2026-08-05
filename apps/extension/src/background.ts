@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   if (message?.type === "FETCH_BLOB") {
     fetch(buildUrl(message.path), { credentials: "include" })
       .then(async (response) => {
-        if (!response.ok) { sendResponse({ ok: false, status: response.status, error: `PDF HTTP ${response.status}` }); return; }
+        if (!response.ok) { sendResponse({ ok: false, status: response.status, error: `Descarga HTTP ${response.status}` }); return; }
         const bytes = Array.from(new Uint8Array(await response.arrayBuffer()));
         sendResponse({ ok: true, status: response.status, bytes, contentType: response.headers.get("content-type") ?? "application/pdf" });
       })

@@ -194,6 +194,7 @@ export const createSendAttempt = (
     pdfName?: string | null;
     confidence?: number | null;
     internalNote?: string | null;
+    version?:number;
   },
 ) => api<SendAttempt>(`/quotes/${id}/send-attempts`, { body });
 
@@ -214,8 +215,8 @@ export const createQuoteVersion = (id: string, reason?: string | null, sourceVer
 
 export const getTimeline = (id: string) => api<QuoteTimeline>(`/quotes/${id}/timeline`);
 export const getLatestSentQuote = (phone: string) => api<LatestSentQuote|null>("/quotes/sent/latest", {query:{phone}});
-export const generateVersionPdf = (id:string,version:number) => api(`/quotes/${id}/versions/${version}/pdf`,{body:{}});
-export const versionPdfDownloadPath = (id:string,version:number) => `/quotes/${id}/versions/${version}/pdf`;
+export const generateVersionPdf = (id:string,version:number,kind:PdfKind="SIMPLE") => api(`/quotes/${id}/versions/${version}/pdf`,{body:{kind}});
+export const versionPdfDownloadPath = (id:string,version:number,kind:PdfKind="SIMPLE") => `/quotes/${id}/versions/${version}/pdf/${kind}`;
 
 /** IA siempre opcional: si el endpoint falla o está deshabilitado, el llamador cae a texto vacío editable. */
 export const suggestResponse = (id: string) =>
@@ -247,7 +248,7 @@ export const updateRequest=(id:string,body:Record<string,unknown>)=>api<QuoteReq
 export const createQuoteVersionWithChanges=(id:string,body:{reason?:string|null;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}/version`,{body});
 export const retargetQuote=(id:string,targetTotalCents:string,previewOnly=false)=>api<Quote>(`/quotes/${id}/retarget`,{body:{targetTotalCents,previewOnly}});
 export const createQuoteReply=(id:string,body:{chatPhone?:string|null;text:string;intent:ReplyIntent;confidence?:number|null;source:string;applyState?:QuoteState|null})=>api(`/quotes/${id}/replies`,{body});
-export async function fetchBlob(path:string):Promise<Blob>{const response=await sendToBackground<{ok:boolean;status:number;bytes?:number[];contentType?:string;error?:string}>({type:"FETCH_BLOB",path});if(!response?.ok||!response.bytes)throw new ApiError(response?.error??"No se pudo descargar el PDF.",response?.status??0);return new Blob([new Uint8Array(response.bytes)],{type:response.contentType??"application/pdf"})}
+export async function fetchBlob(path:string,options?:{errorMessage?:string;retry429?:number}):Promise<Blob>{const retries=Math.max(0,options?.retry429??0);for(let attempt=0;;attempt+=1){const response=await sendToBackground<{ok:boolean;status:number;bytes?:number[];contentType?:string;error?:string}>({type:"FETCH_BLOB",path});if(response?.ok&&response.bytes)return new Blob([new Uint8Array(response.bytes)],{type:response.contentType??"application/octet-stream"});if(response?.status===429&&attempt<retries){await new Promise(resolve=>window.setTimeout(resolve,600*2**attempt));continue}throw new ApiError(options?.errorMessage??response?.error??"No se pudo descargar el archivo.",response?.status??0)}}
 export async function openAuthenticated(path:string):Promise<void>{const response=await sendToBackground<{ok:boolean;error?:string}>({type:"OPEN_URL",path});if(!response?.ok)throw new ApiError(response?.error??"No se pudo abrir el PDF.",0)}
 export const classifyIntent=(id:string,replyText:string)=>api<{result:{intent:ReplyIntent;confidence:number};metadata:{usedAi:boolean};requiresReview:boolean}>(`/quotes/${id}/ai/intent`,{body:{replyText}});
 

@@ -1,10 +1,21 @@
-import { BadGatewayException, Controller, Get, NotFoundException, Param, Post, Query, StreamableFile } from "@nestjs/common";
+import { BadGatewayException, Controller, Get, NotFoundException, Param, Post, Query, Res, StreamableFile } from "@nestjs/common";
 import { catalogQuerySchema, type CatalogQuery } from "@tgs/contracts";
 import { db, Prisma, syncAcustockCatalog } from "@tgs/database";
-import { jsonSafe, ZodPipe } from "./infrastructure.js";
+import { jsonSafe, SkipRateLimit, ZodPipe } from "./infrastructure.js";
 import {z} from "zod";
 
 const TGS_STORE_URL="https://thegamershop.com.ar";
+const IMAGE_CACHE_MAX_BYTES=64*1024*1024;
+const IMAGE_CACHE_MAX_ITEMS=256;
+const imageCache=new Map<string,{bytes:Buffer;contentType:string}>();
+let imageCacheBytes=0;
+
+function cachedImage(mpn:string){const entry=imageCache.get(mpn);if(!entry)return null;imageCache.delete(mpn);imageCache.set(mpn,entry);return entry}
+function cacheImage(mpn:string,entry:{bytes:Buffer;contentType:string}){
+  const previous=imageCache.get(mpn);if(previous)imageCacheBytes-=previous.bytes.byteLength;
+  imageCache.delete(mpn);imageCache.set(mpn,entry);imageCacheBytes+=entry.bytes.byteLength;
+  while(imageCache.size>IMAGE_CACHE_MAX_ITEMS||imageCacheBytes>IMAGE_CACHE_MAX_BYTES){const oldest=imageCache.entries().next().value as [string,{bytes:Buffer}]|undefined;if(!oldest)break;imageCache.delete(oldest[0]);imageCacheBytes-=oldest[1].bytes.byteLength}
+}
 
 function wordpressProductSlug(title:string):string{
   return title.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("es-AR")
@@ -25,7 +36,11 @@ export class CatalogController {
   }
 
   @Get(":mpn/image")
-  async image(@Param("mpn") mpn:string){
+  @SkipRateLimit()
+  async image(@Param("mpn") mpn:string,@Res({passthrough:true}) res:any){
+    res.header("Cache-Control","public, max-age=86400, immutable");
+    const cached=cachedImage(mpn);
+    if(cached)return new StreamableFile(cached.bytes,{type:cached.contentType,disposition:`inline; filename="${mpn.replace(/[^\w.-]+/g,"-")}.jpg"`});
     const product=await db.acustockProduct.findUnique({where:{mpn},select:{imageUrl:true}});
     if(!product?.imageUrl)throw new NotFoundException("El producto no tiene imagen disponible");
     let response:Response;
@@ -36,6 +51,7 @@ export class CatalogController {
     if(!contentType.toLowerCase().startsWith("image/"))throw new BadGatewayException("AcuStock devolvió un archivo que no es una imagen");
     const bytes=Buffer.from(await response.arrayBuffer());
     if(!bytes.length||bytes.length>12*1024*1024)throw new BadGatewayException("La imagen de AcuStock está vacía o supera 12 MB");
+    cacheImage(mpn,{bytes,contentType});
     return new StreamableFile(bytes,{type:contentType,disposition:`inline; filename="${mpn.replace(/[^\w.-]+/g,"-")}.jpg"`});
   }
 

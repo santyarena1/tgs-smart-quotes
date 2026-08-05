@@ -8,8 +8,10 @@ import {
   errorMessage,
   fetchBlob,
   generatePdf,
+  generateVersionPdf,
   getTimeline,
   pdfDownloadPath,
+  versionPdfDownloadPath,
   queueChatbotRecontact,
   resolveSendAttempt,
   searchAcustockProducts,
@@ -213,31 +215,7 @@ export function QuoteSearchModal({
         ) : items.length ? (
           <div className="tgs-list">
             {items.map((item) => (
-              <div className="tgs-list-item tgs-stack" key={item.id}>
-                <div className="tgs-row between">
-                  <b>
-                    {item.visibleNumber} · V
-                    {item.version?.version ?? item.activeVersion}
-                  </b>
-                  <Pill>{item.version?.state ?? "—"}</Pill>
-                </div>
-                <div>{item.internalName}</div>
-                <div className="tgs-muted">
-                  {item.customer?.name ?? "Sin cliente"} ·{" "}
-                  {formatArs(item.version?.totalSaleCents)}
-                </div>
-                <div className="tgs-row wrap">
-                  <button type="button" className="tgs-btn sm" onClick={() => onSend(item)}>
-                    📤 Enviar
-                  </button>
-                  <button type="button" className="tgs-btn ghost sm" onClick={() => onEdit(item)}>
-                    ✏️ Editar
-                  </button>
-                  <button type="button" className="tgs-btn ghost sm" onClick={() => onView(item)}>
-                    Ver / seleccionar
-                  </button>
-                </div>
-              </div>
+              <QuoteSearchCard key={item.id} quote={item} onView={onView} onEdit={onEdit} onSend={onSend}/>
             ))}
           </div>
         ) : searched ? (
@@ -250,49 +228,83 @@ export function QuoteSearchModal({
   );
 }
 
+function quoteAtVersion(quote:Quote,versionNumber:number):Quote{
+  const version=quote.versions.find(item=>item.version===versionNumber)??quote.version;
+  return{...quote,version,items:version?.items??quote.items};
+}
+function quoteItemsPreview(quote:Quote):string{
+  const names=(quote.version?.items?.length?quote.version.items:quote.items).map(item=>item.frozenName??item.name??"").filter(Boolean);
+  return names.length?`${names.slice(0,4).join(" · ")}${names.length>4?" · …":""}`:"Sin componentes cargados";
+}
+function QuoteSearchCard({quote,onView,onEdit,onSend}:{quote:Quote;onView:(quote:Quote)=>void;onEdit:(quote:Quote)=>void;onSend:(quote:Quote)=>void}){
+  const initial=quote.version?.version??quote.activeVersion;
+  const[selectedVersion,setSelectedVersion]=useState(initial);
+  const selected=quoteAtVersion(quote,selectedVersion);
+  return <div className="tgs-list-item tgs-stack">
+    <div className="tgs-row between"><div><b>{quote.visibleNumber}</b><div>{quote.internalName}</div></div><Pill>{selected.version?.state??"—"}</Pill></div>
+    <div className="tgs-row wrap">
+      <Field label="Versión">
+        <select className="tgs-input" value={selectedVersion} onChange={event=>setSelectedVersion(Number(event.target.value))}>
+          {(quote.versions.length?quote.versions:[quote.version].filter((value):value is NonNullable<Quote["version"]>=>Boolean(value))).map(version=><option key={version.id} value={version.version}>V{version.version} · {version.state}</option>)}
+        </select>
+      </Field>
+      <div><div className="tgs-muted">Cliente</div><span>{quote.customer?.name??"Sin cliente"}</span></div>
+      <div><div className="tgs-muted">Total</div><b>{formatArs(selected.version?.totalSaleCents)}</b></div>
+    </div>
+    <div className="tgs-muted" title={quoteItemsPreview(selected)}>{quoteItemsPreview(selected)}</div>
+    <div className="tgs-row wrap">
+      <button type="button" className="tgs-btn sm" onClick={()=>onSend(selected)}>📤 Enviar V{selectedVersion}</button>
+      <button type="button" className="tgs-btn ghost sm" onClick={()=>onEdit(selected)}>✏️ Editar V{selectedVersion}</button>
+      <button type="button" className="tgs-btn ghost sm" onClick={()=>onView(selected)}>Ver / seleccionar</button>
+    </div>
+  </div>;
+}
+
 export function ProductSearchModal({
   onClose,
   onPrepare,
 }: {
   onClose: () => void;
-  onPrepare: (product: AcustockProduct) => Promise<void>;
+  onPrepare: (product: AcustockProduct, imageBlob?: Blob) => Promise<void>;
 }) {
   const [q, setQ] = useState("");
   const [items, setItems] = useState<AcustockProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [preparing, setPreparing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const imageBlobs=useRef(new Map<string,Blob>());
   useEffect(() => {
-    const timer = window.setTimeout(
-      () => {
-        setLoading(true);
-        setError(null);
-        void searchAcustockProducts(q.trim())
-          .then((result) =>
-            setItems(
-              result.items.slice().sort((a, b) => {
-                const left = BigInt(a.salePriceCents ?? a.priceCents),
-                  right = BigInt(b.salePriceCents ?? b.priceCents);
-                return left < right
-                  ? -1
-                  : left > right
-                    ? 1
-                    : a.title.localeCompare(b.title, "es-AR");
-              }),
-            ),
-          )
-          .catch((reason) => setError(errorMessage(reason)))
-          .finally(() => setLoading(false));
-      },
-      q.trim() ? 250 : 0,
-    );
-    return () => window.clearTimeout(timer);
+    const query=q.trim();
+    if(query.length<2){setItems([]);setLoading(false);setError(null);return}
+    let cancelled=false;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError(null);
+      void searchAcustockProducts(query)
+        .then((result) => {
+          if(cancelled)return;
+          setItems(
+            result.items.slice().sort((a, b) => {
+              const left = BigInt(a.salePriceCents ?? a.priceCents),
+                right = BigInt(b.salePriceCents ?? b.priceCents);
+              return left < right
+                ? -1
+                : left > right
+                  ? 1
+                  : a.title.localeCompare(b.title, "es-AR");
+            }),
+          );
+        })
+        .catch((reason) => {if(!cancelled)setError(errorMessage(reason))})
+        .finally(() => {if(!cancelled)setLoading(false)});
+    },300);
+    return () => {cancelled=true;window.clearTimeout(timer)};
   }, [q]);
   async function prepare(product: AcustockProduct) {
     setPreparing(product.mpn);
     setError(null);
     try {
-      await onPrepare(product);
+      await onPrepare(product,imageBlobs.current.get(product.mpn));
       onClose();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -323,7 +335,9 @@ export function ProductSearchModal({
             placeholder="Ej. monitor ASUS VG279…"
           />
         </Field>
-        {loading ? (
+        {q.trim().length<2 ? (
+          <EmptyState icon="⌕" text="Escribí al menos dos caracteres para buscar un producto." />
+        ) : loading ? (
           <Skeleton rows={6} />
         ) : items.length ? (
           <div className="tgs-product-catalog">
@@ -334,7 +348,7 @@ export function ProductSearchModal({
                 disabled={Boolean(preparing)}
                 onClick={() => void prepare(product)}
               >
-                <ProductThumbnail product={product}/>
+                <ProductThumbnail product={product} cache={imageBlobs.current}/>
                 <span className="tgs-product-card-body">
                   <b>{product.title}</b>
                   <span className="tgs-muted">
@@ -358,9 +372,9 @@ export function ProductSearchModal({
   );
 }
 
-function ProductThumbnail({product}:{product:AcustockProduct}){
+function ProductThumbnail({product,cache}:{product:AcustockProduct;cache:Map<string,Blob>}){
   const host=useRef<HTMLSpanElement>(null);const[src,setSrc]=useState<string|null>(null);const[failed,setFailed]=useState(!product.imageUrl);
-  useEffect(()=>{if(!product.imageUrl)return;let objectUrl:string|null=null,cancelled=false;const load=()=>{void fetchBlob(acustockProductImagePath(product.mpn)).then(blob=>{if(cancelled)return;objectUrl=URL.createObjectURL(blob);setSrc(objectUrl)}).catch(()=>{if(!cancelled)setFailed(true)})};const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();load()}},{rootMargin:"160px"});if(host.current)observer.observe(host.current);return()=>{cancelled=true;observer.disconnect();if(objectUrl)URL.revokeObjectURL(objectUrl)}},[product.imageUrl,product.mpn]);
+  useEffect(()=>{if(!product.imageUrl)return;let objectUrl:string|null=null,cancelled=false;const show=(blob:Blob)=>{if(cancelled)return;objectUrl=URL.createObjectURL(blob);setSrc(objectUrl)};const load=()=>{const cached=cache.get(product.mpn);if(cached){show(cached);return}void fetchBlob(acustockProductImagePath(product.mpn),{errorMessage:"No se pudo descargar la imagen del producto.",retry429:2}).then(blob=>{cache.set(product.mpn,blob);show(blob)}).catch(()=>{if(!cancelled)setFailed(true)})};const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();load()}},{rootMargin:"160px"});if(host.current)observer.observe(host.current);return()=>{cancelled=true;observer.disconnect();if(objectUrl)URL.revokeObjectURL(objectUrl)}},[product.imageUrl,product.mpn,cache]);
   return <span ref={host}>{src?<img src={src} alt=""/>:<span className="tgs-product-no-image">{failed?"Sin foto":"Cargando…"}</span>}</span>;
 }
 
@@ -516,12 +530,16 @@ export function SendQuoteModal({
   const [notice, setNotice] = useState<string | null>(null);
   const [review, setReview] = useState<{ attemptId: string } | null>(null);
   const observation = useRef<{ stop(): void } | null>(null);
+  const selectedVersion=quote.version?.version??quote.activeVersion;
+  const historical=selectedVersion!==quote.activeVersion;
   useEffect(() => () => observation.current?.stop(), []);
   async function preparePdf() {
     setBusy(true);
     setError(null);
     try {
-      const result = await generatePdf(quote.id, kind);
+      const result = historical
+        ?await generateVersionPdf(quote.id,selectedVersion,kind) as {reused?:boolean}
+        :await generatePdf(quote.id, kind);
       setReady((current) => ({ ...current, [kind]: true }));
       setNotice(
         result.reused ? "PDF reutilizado y listo." : "PDF generado y listo.",
@@ -540,14 +558,17 @@ export function SendQuoteModal({
     setNotice(null);
     setReview(null);
     try {
-      if (!ready[kind]) await generatePdf(quote.id, kind);
+      if (!ready[kind]){
+        if(historical)await generateVersionPdf(quote.id,selectedVersion,kind);
+        else await generatePdf(quote.id, kind);
+      }
       const inserted = await insertMessageIntoComposer(message.trim());
       if (!inserted.ok)
         throw new Error(
           inserted.error ?? "No se pudo insertar el mensaje en WhatsApp.",
         );
       const filename = `${quote.visibleNumber}-V${quote.version?.version ?? quote.activeVersion}-${kind}.pdf`;
-      const blob = await fetchBlob(pdfDownloadPath(quote.id, kind));
+      const blob = await fetchBlob(historical?versionPdfDownloadPath(quote.id,selectedVersion,kind):pdfDownloadPath(quote.id, kind));
       if (
         !(await attachFileToComposer(
           new File([blob], filename, { type: "application/pdf" }),
@@ -564,6 +585,7 @@ export function SendQuoteModal({
         pdfName: filename,
         confidence,
         internalNote: note.trim() || null,
+        version:selectedVersion,
       });
       setNotice("Mensaje y PDF listos. Revisalos y tocá Enviar en WhatsApp.");
       observation.current?.stop();

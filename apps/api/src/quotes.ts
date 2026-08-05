@@ -1056,7 +1056,10 @@ export class QuotesController{
   ){
     return db.$transaction(async tx=>{
       const family=await loadFamily(tx,id);
-      const version=activeVersion(family);
+      const version=body.version
+        ?family.versions.find((item:any)=>item.version===body.version)
+        :activeVersion(family);
+      if(!version)throw new NotFoundException('Versión inexistente');
       const attempt=await tx.quoteSendAttempt.create({data:{
         versionId:version.id,
         chatPhone:body.chatPhone??null,

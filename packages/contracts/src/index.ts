@@ -749,6 +749,7 @@ export const sendAttemptCreateSchema = z
     confidence: z.number().int().min(0).max(100).nullable().optional(),
     detectionLog: z.record(z.unknown()).nullable().optional(),
     internalNote: z.string().trim().max(2000).nullable().optional(),
+    version: z.number().int().min(1).optional(),
   })
   .strict();
 

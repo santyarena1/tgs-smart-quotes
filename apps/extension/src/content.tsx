@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
-import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, observeToolbarHost, readComposerText, searchChatList, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
+import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertAttachmentCaption, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, observeToolbarHost, readComposerText, searchChatList, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
 import {
   changeQuoteState,
   createQuickRequest,
@@ -2452,10 +2452,10 @@ export function Panel() {
         ? "Sin sesión"
         : "API offline";
 
-  async function prepareProductForChat(product:AcustockProduct){
+  async function prepareProductForChat(product:AcustockProduct,imageBlob?:Blob){
     if(!product.imageUrl)throw new Error("Este producto no tiene una imagen disponible en AcuStock.");
     const expectedChat=chatIdentity(phoneOverride,nameOverride);
-    const blob=await fetchBlob(acustockProductImagePath(product.mpn));
+    const blob=imageBlob??await fetchBlob(acustockProductImagePath(product.mpn),{errorMessage:"No se pudo descargar la imagen del producto.",retry429:2});
     if(!blob.type.startsWith("image/"))throw new Error("AcuStock no devolvió una imagen válida para este producto.");
     const active=detectChat();
     if(!sameChatIdentity(expectedChat,active.phone,active.name))throw new Error("El chat activo cambió mientras se descargaba la imagen. Volvé a elegir el producto.");
@@ -2465,17 +2465,26 @@ export function Panel() {
     const intro=chatbotRuntime.settings?.productMessageIntro.trim()||"Este sería el producto 👇";
     const text=[intro,product.title,formatArsWhole(product.salePriceCents??product.priceCents),product.productUrl].filter(Boolean).join("\n");
     productQueueCleanupRef.current?.();
+    const caption=await insertAttachmentCaption(text);
+    if(caption.ok){
+      hideMessageQueue();
+      productQueueCleanupRef.current=null;
+      setToolbarNotice("Foto y descripción listas. Revisalas y tocá Enviar en WhatsApp.");
+      return;
+    }
     let stopped=false;let outgoing:{stop():void}|null=null;
     const cleanup=()=>{if(stopped)return;stopped=true;outgoing?.stop();hideMessageQueue();if(productQueueCleanupRef.current===cleanup)productQueueCleanupRef.current=null};
     const arm=()=>{if(stopped)return;outgoing?.stop();outgoing=observeNextOutgoingMessage(expectedChat,5*60*1000,result=>{outgoing=null;if(stopped)return;const current=detectChat();if(!sameChatIdentity(expectedChat,current.phone,current.name)){cleanup();return}if(result.timedOut||result.confidence<70){arm();return}void(async()=>{const inserted=await insertMessageIntoEmptyComposer(text);if(inserted.ok){cleanup();setToolbarNotice("Foto enviada. El texto del producto quedó listo para que lo envíes.")}else{setToolbarNotice("Hay texto en el composer; conservamos la cola del producto hasta el próximo envío.");arm()}})().catch(error=>{setToolbarNotice(errorMessage(error));arm()})})};
     productQueueCleanupRef.current=cleanup;
     showMessageQueue([text],()=>{cleanup();setToolbarNotice("Cola del producto cancelada; la foto sigue abierta.")});
     arm();
-    setToolbarNotice("Foto lista. Cuando la envíes, va a bajar el texto del producto al composer.");
+    setToolbarNotice("La foto quedó lista. WhatsApp no habilitó el caption; cuando la envíes bajará el texto al composer.");
   }
 
   if(!toolbarHost)return null;
   const toolbarQuote=quote??latestSent?.quote;
+  const toolbarItemNames=(toolbarQuote?.version?.items?.length?toolbarQuote.version.items:toolbarQuote?.items??[]).map(item=>item.frozenName??item.name??"").filter(Boolean);
+  const toolbarItemsPreview=`${toolbarItemNames.slice(0,4).join(" · ")}${toolbarItemNames.length>4?" · …":""}`;
   const modalRoot=document.getElementById("tgs-modal-root")??document.body;
   return <>{createPortal(
     <div className="tgs-toolbar-main">
@@ -2490,14 +2499,14 @@ export function Panel() {
         <span className={`tgs-toolbar-status ${connection?.ok?"ok":"warn"}`}>{connectionLabel}{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.autoRunning?" · AUTO":""}</span>
       </div>
       {toolbarNotice||chatbotRuntime.manualStatus||chatbotRuntime.suggestionError?<div className={`tgs-toolbar-feedback${chatbotRuntime.suggestionError?" error":""}`}>{chatbotRuntime.suggestionError??toolbarNotice??chatbotRuntime.manualStatus}</div>:null}
-      {latestSent?.quote.version?<div className="tgs-toolbar-quote">
-        <div className="tgs-toolbar-quote-meta"><b>{latestSent.quote.visibleNumber} · V{latestSent.quote.version.version}</b><span>{formatArs(latestSent.quote.version.totalSaleCents)}</span><Pill tone={STATE_TONE[latestSent.quote.version.state]}>{STATE_LABEL[latestSent.quote.version.state]}</Pill></div>
+      {toolbarQuote?.version?<div className="tgs-toolbar-quote">
+        <div className="tgs-toolbar-quote-meta"><b>{toolbarQuote.visibleNumber}</b><select className="tgs-input" style={{width:"auto",height:28}} value={toolbarQuote.version.version} onChange={event=>{const version=toolbarQuote.versions.find(item=>item.version===Number(event.target.value));if(version)setQuote({...toolbarQuote,version,items:version.items})}}>{toolbarQuote.versions.map(version=><option key={version.id} value={version.version}>V{version.version} · {STATE_LABEL[version.state]}</option>)}</select><span>{formatArs(toolbarQuote.version.totalSaleCents)}</span><Pill tone={STATE_TONE[toolbarQuote.version.state]}>{STATE_LABEL[toolbarQuote.version.state]}</Pill><span className="tgs-muted" title={toolbarItemsPreview}>{toolbarItemsPreview}</span></div>
         <div className="tgs-toolbar-actions compact">
-          <button className="tgs-toolbar-btn" disabled={latestSent.quote.version.state==="ACEPTADO"} onClick={()=>void changeQuoteState(latestSent.quote.id,"ACEPTADO").then(()=>getLatestSentQuote(phoneOverride)).then(setLatestSent)}>✓ Aprobar</button>
-          <button className="tgs-toolbar-btn primary" onClick={()=>{setQuote(latestSent.quote);setActiveModal("send")}}>📤 Enviar</button>
+          <button className="tgs-toolbar-btn" title={toolbarQuote.version.version!==toolbarQuote.activeVersion?"Solo se puede aprobar la versión activa":""} disabled={toolbarQuote.version.state==="ACEPTADO"||toolbarQuote.version.version!==toolbarQuote.activeVersion} onClick={()=>void changeQuoteState(toolbarQuote.id,"ACEPTADO").then(()=>getLatestSentQuote(phoneOverride)).then(setLatestSent)}>✓ Aprobar</button>
+          <button className="tgs-toolbar-btn primary" onClick={()=>setActiveModal("send")}>📤 Enviar</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>🔄 Solicitar otro</button>
-          <button className="tgs-toolbar-btn" onClick={()=>{setQuote(latestSent.quote);setActiveModal("edit")}}>✏️ Nueva versión</button>
-          <button className="tgs-toolbar-btn" onClick={()=>{setQuote(latestSent.quote);setActiveModal("history")}}>🕘 Historial</button>
+          <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("edit")}>✏️ Nueva versión</button>
+          <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("history")}>🕘 Historial</button>
         </div>
       </div>:null}
     </div>

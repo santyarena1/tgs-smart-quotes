@@ -31,7 +31,7 @@ import {
   type PdfTemplate,
 } from '@tgs/pdf';
 import {activeVersion,audit,loadFamily,statusEvent} from './quotes.js';
-import {CurrentUser,jsonSafe,type RequestUser,ZodPipe} from './infrastructure.js';
+import {CurrentUser,jsonSafe,SkipRateLimit,type RequestUser,ZodPipe} from './infrastructure.js';
 import {resolveLogoForPdf} from './branding-storage.js';
 
 // Instancia única del storage (local o S3 según env). Ver `.env.example` PDF_STORAGE_DRIVER/PDF_LOCAL_DIR/S3_*.
@@ -185,12 +185,11 @@ function storageKeyFor(family: any, version: any, kind: PdfKind) {
 
 @Controller('quotes')
 export class PdfController {
-  private async generateVersionPdf(id: string, versionNumber: number, actor: RequestUser) {
+  private async generateVersionPdf(id: string, versionNumber: number, kind:PdfKind, actor: RequestUser) {
     return db.$transaction(async (tx) => {
       const family = await loadFamily(tx, id);
       const version = family.versions.find((item: any) => item.version === versionNumber);
       if (!version) throw new NotFoundException('Versión inexistente');
-      const kind: PdfKind = 'SIMPLE';
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind}},
       });
@@ -220,29 +219,33 @@ export class PdfController {
   async generateHistorical(
     @Param('id', new ZodPipe(idSchema)) id: string,
     @Param('version') versionParam: string,
+    @Body(new ZodPipe(pdfGenerateSchema)) body:PdfGenerateInput,
     @CurrentUser() actor: RequestUser,
   ) {
     const version = Number(versionParam);
     if (!Number.isInteger(version) || version < 1) throw new BadRequestException('Versión inválida');
-    return this.generateVersionPdf(id, version, actor);
+    return this.generateVersionPdf(id, version, body.kind, actor);
   }
 
-  @Get(':id/versions/:version/pdf')
+  @Get([':id/versions/:version/pdf',':id/versions/:version/pdf/:kind'])
+  @SkipRateLimit()
   async downloadHistorical(
     @Param('id', new ZodPipe(idSchema)) id: string,
     @Param('version') versionParam: string,
+    @Param('kind') kindParam:string|undefined,
     @Res() res: any,
   ) {
     const versionNumber = Number(versionParam);
+    const kind=kindParam?pdfKindSchema.parse(kindParam):'SIMPLE';
     const pdf = await db.quotePdf.findFirst({
-      where: {kind: 'SIMPLE', version: {familyId: id, version: versionNumber}},
+      where: {kind, version: {familyId: id, version: versionNumber}},
       include: {version: {include: {family: true}}},
     });
     if (!pdf) throw new NotFoundException('El PDF todavía no fue generado');
     const buffer = await pdfStorage.get(pdf.storageKey).catch(() => null);
     if (!buffer) throw new NotFoundException('No se pudo leer el PDF almacenado');
     res.header('Content-Type', 'application/pdf');
-    res.header('Content-Disposition', `inline; filename="${pdfFileName(pdf.version.family.visibleNumber, versionNumber, 'SIMPLE')}"`);
+    res.header('Content-Disposition', `inline; filename="${pdfFileName(pdf.version.family.visibleNumber, versionNumber, kind)}"`);
     res.header('Content-Length', String(buffer.byteLength));
     res.send(buffer);
   }
@@ -351,6 +354,7 @@ export class PdfController {
 
   /** Descarga un PDF histórico por id (no solo el de la versión activa). */
   @Get(':id/pdfs/:pdfId')
+  @SkipRateLimit()
   async downloadById(
     @Param('id', new ZodPipe(idSchema)) id: string,
     @Param('pdfId', new ZodPipe(idSchema)) pdfId: string,
@@ -379,6 +383,7 @@ export class PdfController {
   }
 
   @Get(':id/pdf/:kind')
+  @SkipRateLimit()
   async download(
     @Param('id', new ZodPipe(idSchema)) id: string,
     @Param('kind', new ZodPipe(pdfKindSchema)) kind: PdfKind,
