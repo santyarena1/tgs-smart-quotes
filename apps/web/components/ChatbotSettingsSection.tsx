@@ -251,6 +251,29 @@ export function ChatbotSettingsSection() {
         </Field>
         <Checkbox label="Evitar repeticiones literales" checked={settings.responseStyle.avoidRepetition} onChange={avoidRepetition=>setSettings({...settings,responseStyle:{...settings.responseStyle,avoidRepetition}})}/>
       </div>
+      <section className="card card-pad form-grid">
+        <div><h3 className="panel-title">Mensajes múltiples</h3><p className="section-note">Hace que la respuesta salga en varias burbujas cortas, como una conversación natural.</p></div>
+        <Checkbox label="Enviar respuestas en varias burbujas" checked={settings.multiMessage.enabled} onChange={enabled=>setSettings({...settings,multiMessage:{...settings.multiMessage,enabled}})}/>
+        <div className="grid-2">
+          <Field label="Cómo dividir la respuesta">
+            <select value={settings.multiMessage.splitMode} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,splitMode:event.target.value as ChatbotSettings["multiMessage"]["splitMode"]}})}>
+              <option value="AI_NATURAL">La IA la parte naturalmente</option><option value="AI_PLUS_FIXED">IA más apertura y cierre fijos</option><option value="FIXED_ONLY">Una respuesta central más mensajes fijos</option>
+            </select>
+          </Field>
+          <Field label="Máximo de burbujas de la IA"><input type="number" min={1} max={5} value={settings.multiMessage.maxBubbles} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,maxBubbles:Number(event.target.value)}})}/></Field>
+        </div>
+        <div className="grid-2">
+          <Field label="Burbuja fija de apertura" hint="Solo se agrega en la primera respuesta del bot."><textarea rows={3} maxLength={1000} value={settings.multiMessage.openingMessage} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,openingMessage:event.target.value}})}/></Field>
+          <Field label="Burbuja fija de cierre"><textarea rows={3} maxLength={1000} value={settings.multiMessage.closingMessage} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,closingMessage:event.target.value}})}/></Field>
+        </div>
+        <Checkbox label="Enviar seguimiento después del PDF del presupuesto" checked={settings.multiMessage.quoteFollowup.enabled} onChange={enabled=>setSettings({...settings,multiMessage:{...settings.multiMessage,quoteFollowup:{...settings.multiMessage.quoteFollowup,enabled}}})}/>
+        <Field label="Mensaje después del presupuesto"><textarea rows={3} maxLength={1000} value={settings.multiMessage.quoteFollowup.message} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,quoteFollowup:{...settings.multiMessage.quoteFollowup,message:event.target.value}}})}/></Field>
+        <div className="grid-3">
+          <Field label="Modo de sugerencia"><select value={settings.multiMessage.draftMode} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,draftMode:event.target.value as ChatbotSettings["multiMessage"]["draftMode"]}})}><option value="QUEUE">Cola arriba del cuadro (recomendado): manda una por una, vos apretás Enviar y baja la siguiente</option><option value="JOINED">Todo junto en el borrador separado por líneas</option><option value="FIRST_ONLY">Solo la primera burbuja</option></select></Field>
+          <Field label="Demora mínima entre burbujas (s)"><input type="number" min={0} max={30} value={settings.multiMessage.betweenDelayMinSeconds} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,betweenDelayMinSeconds:Number(event.target.value)}})}/></Field>
+          <Field label="Demora máxima entre burbujas (s)"><input type="number" min={0} max={60} value={settings.multiMessage.betweenDelayMaxSeconds} onChange={event=>setSettings({...settings,multiMessage:{...settings.multiMessage,betweenDelayMaxSeconds:Number(event.target.value)}})}/></Field>
+        </div>
+      </section>
     </section>:null}
 
     {activeTab==="responses"?<section className="card card-pad form-grid">

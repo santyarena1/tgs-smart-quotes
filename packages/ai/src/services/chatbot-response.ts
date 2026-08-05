@@ -11,6 +11,7 @@ import {productSimilarity} from "@tgs/validation";
 function fallback(input: ChatbotResponseInput): ChatbotResponseOutput {
   return {
     reply: "",
+    messages: [],
     shouldEscalate: true,
     escalationReason: "No fue posible generar una respuesta confiable con IA.",
     updatedSummary: input.conversationSummary ?? null,
@@ -77,6 +78,10 @@ REGLAS INNEGOCIABLES
 - Si shouldCreateRequest=false, requestDraft debe ser null.
 - Si el contexto ya incluye una solicitud activa, no pidas crear otra: shouldCreateRequest=false y continuá la conversación teniendo presente esa solicitud.
 - Si hay una RESPUESTA ACTIVADA, "answer" es información autoritativa que debés transmitir. "context" es apoyo para comprender y redactar natural: no lo repitas textual ni lo conviertas en datos nuevos.
+- Devolvé messages como las burbujas que mandaría una persona por WhatsApp: frases breves, naturales, sin bloques largos ni tono de IA.
+- messages debe tener entre 1 y ${input.config.multiMessage.maxBubbles} elementos cuando no escalás y hay texto para responder.
+- reply debe ser exactamente messages unido con un salto de línea ("\\n"), conservando ambos campos por compatibilidad.
+- Modo de división: ${input.config.multiMessage.splitMode}. En FIXED_ONLY devolvé una sola burbuja central; las aperturas y cierres fijos los agrega el sistema.
 
 RESPUESTA ACTIVADA PARA ESTE MENSAJE (solo gana la de mayor similitud)
 ${matchedResponse
@@ -116,7 +121,7 @@ export class ChatbotResponseService {
     options?: AiRunOptions,
   ): Promise<AiServiceResult<ChatbotResponseOutput>> {
     const parsed = chatbotResponseInputSchema.parse(input);
-    return runAiTask({
+    const run=await runAiTask({
       task: AiTask.CHATBOT_RESPONSE,
       input: parsed,
       hashPayload: parsed,
@@ -136,5 +141,6 @@ export class ChatbotResponseService {
       // Una conversación es estado vivo: nunca reutilizar una decisión vieja implícitamente.
       options: {...options, regenerate: true},
     });
+    return {...run,result:{...run.result,messages:run.result.messages??[]}};
   }
 }

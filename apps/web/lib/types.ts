@@ -206,6 +206,17 @@ export type ChatbotSettings = {
     paragraphs: "COMPACT" | "SHORT" | "FREE";
     avoidRepetition: boolean;
   };
+  multiMessage: {
+    enabled: boolean;
+    splitMode: "AI_NATURAL" | "AI_PLUS_FIXED" | "FIXED_ONLY";
+    maxBubbles: number;
+    openingMessage: string;
+    closingMessage: string;
+    quoteFollowup: {enabled:boolean;message:string};
+    draftMode: "QUEUE" | "JOINED" | "FIRST_ONLY";
+    betweenDelayMinSeconds: number;
+    betweenDelayMaxSeconds: number;
+  };
   ignoredAutoMessages: string[];
   autoDelayMaxSeconds: number;
   reuseSimilarityThreshold: number;

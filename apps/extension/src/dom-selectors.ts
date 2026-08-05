@@ -400,8 +400,54 @@ function ensureNativeStyles(){
     .tgs-native-status{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 5px;border-radius:999px;color:#fff;font:600 10px/16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;vertical-align:middle;white-space:nowrap}
     #tgs-native-chat-filter{display:flex;gap:6px;align-items:center;padding:6px 10px;background:var(--panel-background,#111b21);border-bottom:1px solid rgba(134,150,160,.15);color:var(--primary,#e9edef);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #tgs-native-chat-filter select{flex:1;min-width:0;background:var(--search-container-background,#202c33);color:inherit;border:1px solid rgba(134,150,160,.3);border-radius:7px;padding:5px 7px}
+    #tgs-message-queue{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--panel-background,#111b21);border-bottom:1px solid rgba(134,150,160,.18);color:var(--primary,#e9edef);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+    #tgs-message-queue .tgs-queue-label{font-weight:700;white-space:nowrap}
+    #tgs-message-queue .tgs-queue-items{display:flex;gap:6px;min-width:0;overflow-x:auto;flex:1}
+    #tgs-message-queue .tgs-queue-chip{display:inline-flex;align-items:center;gap:5px;max-width:240px;padding:4px 8px;border-radius:999px;background:var(--search-container-background,#202c33);border:1px solid rgba(134,150,160,.25);white-space:nowrap}
+    #tgs-message-queue .tgs-queue-text{overflow:hidden;text-overflow:ellipsis}
+    #tgs-message-queue .tgs-queue-cancel{border:0;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;padding:2px 5px}
   `;
   document.head.appendChild(style);
+}
+
+let messageQueueCancel:(()=>void)|null=null;
+
+export function updateMessageQueue(items:string[]):void {
+  const queue=document.getElementById("tgs-message-queue");
+  if(!queue)return;
+  if(!items.length){hideMessageQueue();return}
+  const host=queue.querySelector<HTMLElement>(".tgs-queue-items");
+  if(!host)return;
+  host.replaceChildren(...items.map((item,index)=>{
+    const chip=document.createElement("span");chip.className="tgs-queue-chip";chip.title=item;
+    const number=document.createElement("strong");number.textContent=String(index+2);
+    const text=document.createElement("span");text.className="tgs-queue-text";text.textContent=item;
+    chip.append(number,text);return chip;
+  }));
+}
+
+export function showMessageQueue(items:string[],onCancel:()=>void):void {
+  hideMessageQueue();
+  if(!items.length)return;
+  ensureNativeStyles();
+  const footer=document.querySelector<HTMLElement>("#main footer");
+  const composer=findComposer();
+  if(!footer||!composer)return;
+  let composerHost:HTMLElement=composer;
+  while(composerHost.parentElement&&composerHost.parentElement!==footer)composerHost=composerHost.parentElement;
+  if(composerHost.parentElement!==footer)composerHost=footer.firstElementChild as HTMLElement??composer;
+  const queue=document.createElement("div");queue.id="tgs-message-queue";
+  const label=document.createElement("span");label.className="tgs-queue-label";label.textContent="Siguientes";
+  const host=document.createElement("div");host.className="tgs-queue-items";
+  const cancel=document.createElement("button");cancel.type="button";cancel.className="tgs-queue-cancel";cancel.title="Vaciar cola";cancel.setAttribute("aria-label","Vaciar cola de mensajes");cancel.textContent="×";
+  messageQueueCancel=onCancel;cancel.addEventListener("click",()=>messageQueueCancel?.());
+  queue.append(label,host,cancel);footer.insertBefore(queue,composerHost);
+  updateMessageQueue(items);
+}
+
+export function hideMessageQueue():void {
+  document.getElementById("tgs-message-queue")?.remove();
+  messageQueueCancel=null;
 }
 
 function nativeStatusMap(){

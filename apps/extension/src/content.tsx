@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, switchToChat, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
+import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
 import {
   changeQuoteState,
   createQuickRequest,
@@ -919,6 +919,9 @@ type CurrentChatSuggestion={
   inserted:boolean;
   composerBlocked:boolean;
   attachments:ChatbotResolvedAttachment[];
+  messages:string[];
+  quoteFollowupMessage:string|null;
+  draftMode:ChatbotSettings["multiMessage"]["draftMode"];
 };
 
 type ChatbotRuntime = {
@@ -990,6 +993,7 @@ function useChatbotRuntime(
   const simulatedChatsRef=useRef(new Map<string,string>());
   const processedRecontactsRef=useRef(new Set<string>());
   const humanSendObservationRef=useRef<{stop():void}|null>(null);
+  const messageQueueCleanupRef=useRef<(()=>void)|null>(null);
   const currentSuggestionRef=useRef<CurrentChatSuggestion|null>(null);
   const settingsRef=useRef<ChatbotSettings|null>(null);
   const simulationModeRef=useRef(simulationMode);
@@ -1060,6 +1064,9 @@ function useChatbotRuntime(
   useEffect(()=>{
     humanSendObservationRef.current?.stop();
     humanSendObservationRef.current=null;
+    messageQueueCleanupRef.current?.();
+    messageQueueCleanupRef.current=null;
+    hideMessageQueue();
     autoSuggestRunRef.current+=1;
     setSuggestionBusy(false);
     setCurrentSuggestion(null);
@@ -1068,6 +1075,9 @@ function useChatbotRuntime(
     return()=>{
       humanSendObservationRef.current?.stop();
       humanSendObservationRef.current=null;
+      messageQueueCleanupRef.current?.();
+      messageQueueCleanupRef.current=null;
+      hideMessageQueue();
     };
   },[currentKey]);
 
@@ -1090,6 +1100,9 @@ function useChatbotRuntime(
       inserted:previous?.logId===logId?previous.inserted:false,
       composerBlocked:previous?.logId===logId?previous.composerBlocked:false,
       attachments:previous?.logId===logId?previous.attachments:[],
+      messages:previous?.logId===logId?previous.messages:[pending.draft!],
+      quoteFollowupMessage:previous?.logId===logId?previous.quoteFollowupMessage:null,
+      draftMode:previous?.logId===logId?previous.draftMode:(settingsRef.current?.multiMessage.draftMode??"QUEUE"),
     }));
   },[currentKey,notifications]);
 
@@ -1152,8 +1165,13 @@ function useChatbotRuntime(
     if(result.action==="SIMULATED"){
       // Solo se marca "Borrador listo" si de verdad quedó un borrador en el composer.
       let simulationDraftInserted=false;
-      if(result.reply){
-        const inserted=await insertMessageIntoEmptyComposer(result.reply);
+      const bubbles=result.messages?.filter(Boolean).length?result.messages.filter(Boolean):result.reply?[result.reply]:[];
+      const draftMode=result.multiMessage?.draftMode??nextSettings.multiMessage.draftMode;
+      const draft=draftMode==="FIRST_ONLY"
+        ?bubbles[0]??""
+        :[...bubbles,...(result.quoteFollowupMessage?[result.quoteFollowupMessage]:[])].join("\n———\n");
+      if(draft){
+        const inserted=await insertMessageIntoEmptyComposer(draft);
         simulationDraftInserted=inserted.ok;
         botDebug(inserted.ok?"simulation draft inserted":"simulation draft skipped",{
           chatKey,
@@ -1195,17 +1213,40 @@ function useChatbotRuntime(
     }
     const active=detectChat();
     const activeId=active.phone||active.name;
-    if(!result.reply){
+    const bubbles=result.messages?.filter(Boolean).length?result.messages.filter(Boolean):result.reply?[result.reply]:[];
+    if(!bubbles.length){
       await actOnChatbotLog(result.logId,{action:"SEND_FAILED",error:"La respuesta automática llegó sin texto enviable."});
       return result;
     }
-    const reply=result.reply;
-    const sent=await sendMessageAutomatically(activeId,reply,authoritative.sendConfirmationTimeoutMs);
-    await actOnChatbotLog(result.logId,sent.ok
-      ?{action:"SENT",text:reply}
-      :{action:"SEND_FAILED",text:reply,error:sent.error??"Envío no confirmado"});
-    if(!sent.ok)setWarning(sent.error??"WhatsApp no confirmó el autoenvío.");
-    if(sent.ok){
+    const ensureAutoAuthorized=async()=>{
+      const [latestSettings,latestConversation]=await Promise.all([getChatbotSettings(),getChatbotConversation(chatKey)]);
+      return latestSettings.enabled&&(latestConversation.modeOverride??latestSettings.defaultMode)==="AUTO"&&!latestConversation.escalatedAt;
+    };
+    const delayConfig=result.multiMessage??authoritative.multiMessage;
+    const minBetween=Math.max(0,Math.min(30,delayConfig.betweenDelayMinSeconds));
+    const maxBetween=Math.max(minBetween,Math.min(60,delayConfig.betweenDelayMaxSeconds));
+    let textSent=true;
+    for(let index=0;index<bubbles.length;index++){
+      if(index>0){
+        const delaySeconds=minBetween+Math.random()*(maxBetween-minBetween);
+        if(delaySeconds>0)await new Promise(resolve=>window.setTimeout(resolve,Math.round(delaySeconds*1000)));
+      }
+      if(!await ensureAutoAuthorized()){
+        textSent=false;
+        await actOnChatbotLog(result.logId,{action:"SEND_FAILED",text:bubbles.slice(0,index).join("\n"),error:"La autorización de envío cambió entre burbujas."});
+        break;
+      }
+      const sent=await sendMessageAutomatically(activeId,bubbles[index],authoritative.sendConfirmationTimeoutMs);
+      if(!sent.ok){
+        textSent=false;
+        await actOnChatbotLog(result.logId,{action:"SEND_FAILED",text:bubbles.slice(0,index+1).join("\n"),error:sent.error??"Envío no confirmado"});
+        setWarning(sent.error??"WhatsApp no confirmó el autoenvío.");
+        break;
+      }
+    }
+    if(textSent)await actOnChatbotLog(result.logId,{action:"SENT",text:bubbles.join("\n")});
+    if(textSent){
+      let attachmentsDelivered=true;
       attachmentLoop: for(const attachment of result.attachments??[]){
         const targets:Array<{label:string;file:File}>=[];
         try{
@@ -1226,6 +1267,7 @@ function useChatbotRuntime(
             const latestMode=latestConversation.modeOverride??latestSettings.defaultMode;
             if(!latestSettings.enabled||latestMode!=="AUTO"||latestConversation.escalatedAt){
               botDebug("attachment skipped",{chatKey,reason:"authorization-changed",attachment:target.label});
+              attachmentsDelivered=false;
               break attachmentLoop;
             }
             const delivered=await sendAttachedFileAutomatically(activeId,target.file,authoritative.sendConfirmationTimeoutMs);
@@ -1235,14 +1277,22 @@ function useChatbotRuntime(
               error:delivered.ok?undefined:delivered.error??"Envío no confirmado",
             });
             if(!delivered.ok){
+              attachmentsDelivered=false;
               setWarning(`No se pudo enviar ${target.label}. El chat quedó pausado para revisión humana.`);
               break attachmentLoop;
             }
           }
         }catch(error){
+          attachmentsDelivered=false;
           await actOnChatbotLog(result.logId,{action:"ATTACHMENT_FAILED",attachment:`regla ${attachment.ruleId}`,error:errorMessage(error)});
           setWarning(`Falló un adjunto automático. El chat quedó pausado: ${errorMessage(error)}`);
           break attachmentLoop;
+        }
+      }
+      if(attachmentsDelivered&&result.quoteFollowupMessage){
+        if(await ensureAutoAuthorized()){
+          const followup=await sendMessageAutomatically(activeId,result.quoteFollowupMessage,authoritative.sendConfirmationTimeoutMs);
+          if(!followup.ok)setWarning(followup.error??"WhatsApp no confirmó el mensaje posterior al presupuesto.");
         }
       }
     }
@@ -1273,6 +1323,57 @@ function useChatbotRuntime(
         })();
       },
     );
+  },[refresh,reloadNotifications]);
+
+  const startMessageQueue=useCallback((suggestion:CurrentChatSuggestion,items:string[])=>{
+    messageQueueCleanupRef.current?.();
+    let stopped=false;
+    let outgoing:{stop():void}|null=null;
+    let activeChat:{stop():void}|null=null;
+    const remaining=[...items];
+    const cleanup=()=>{
+      if(stopped)return;
+      stopped=true;outgoing?.stop();activeChat?.stop();hideMessageQueue();
+      if(messageQueueCleanupRef.current===cleanup)messageQueueCleanupRef.current=null;
+    };
+    const cancel=()=>{cleanup();setManualStatus("Cola de mensajes cancelada.")};
+    const arm=()=>{
+      if(stopped)return;
+      outgoing?.stop();
+      outgoing=observeNextOutgoingMessage(suggestion.chatKey,5*60*1000,result=>{
+        outgoing=null;
+        if(stopped)return;
+        const active=detectChat();
+        if(!sameChatIdentity(suggestion.chatKey,active.phone,active.name)){cleanup();return}
+        if(result.timedOut){arm();return}
+        if(result.confidence<70){arm();return}
+        void (async()=>{
+          const next=remaining[0];
+          if(!next){
+            cleanup();
+            await actOnChatbotLog(suggestion.logId,{action:"HUMAN_SENT",text:suggestion.messages.join("\n")});
+            setCurrentSuggestion(current=>current?.logId===suggestion.logId?null:current);
+            setManualStatus("Sugerencia enviada completa.");
+            await reloadNotifications();await refresh();
+            return;
+          }
+          const inserted=await insertMessageIntoEmptyComposer(next);
+          if(inserted.ok){
+            remaining.shift();updateMessageQueue(remaining);
+            setManualStatus(remaining.length?`Quedan ${remaining.length} mensajes en la cola.`:"Último mensaje de la cola listo para enviar.");
+          }else{
+            setManualStatus("Hay texto en el cuadro. No lo reemplazamos; la cola sigue esperando.");
+          }
+          arm();
+        })().catch(error=>{setSuggestionError(errorMessage(error));arm()});
+      });
+    };
+    activeChat=observeActiveChat(next=>{
+      if(!sameChatIdentity(suggestion.chatKey,next.phone,next.name))cleanup();
+    });
+    messageQueueCleanupRef.current=cleanup;
+    showMessageQueue(remaining,cancel);
+    arm();
   },[refresh,reloadNotifications]);
 
   const insertSuggestion=useCallback(async(suggestion:CurrentChatSuggestion,text=suggestion.text)=>{
@@ -1311,19 +1412,26 @@ function useChatbotRuntime(
       setManualStatus("Ya hay un mensaje escrito. Conservamos tu texto y dejamos la sugerencia lista para insertar.");
       return;
     }
+    const queueItems=[...suggestion.messages,...(suggestion.quoteFollowupMessage?[suggestion.quoteFollowupMessage]:[])].filter(Boolean);
+    const insertionText=suggestion.draftMode==="FIRST_ONLY"
+      ?queueItems[0]??text
+      :suggestion.draftMode==="JOINED"
+        ?queueItems.join("\n———\n")||text
+        :queueItems[0]??text;
     if(!composerText){
-      const inserted=await insertMessageIntoEmptyComposer(text);
+      const inserted=await insertMessageIntoEmptyComposer(insertionText);
       if(!inserted.ok){
         botDebug("insert skipped",{reason:"dom-insertion-failed",activeChatKey:activeKey,error:inserted.error});
         throw new Error(inserted.error);
       }
     }
-    const next={...suggestion,text,inserted:true,composerBlocked:false};
+    const next={...suggestion,text:insertionText,inserted:true,composerBlocked:false};
     setCurrentSuggestion(next);
     setManualStatus("Sugerencia colocada en WhatsApp. Revisala y tocá Enviar cuando quieras.");
     botDebug("inserted",{activeChatKey:activeKey,logId:suggestion.logId,textLength:text.length});
-    trackHumanSend(next);
-  },[trackHumanSend]);
+    if(suggestion.draftMode==="QUEUE"&&queueItems.length>1)startMessageQueue(next,queueItems.slice(1));
+    else trackHumanSend(next);
+  },[startMessageQueue,trackHumanSend]);
 
   const insertCurrentSuggestion=async(text?:string)=>{
     if(!currentSuggestion)return;
@@ -1340,6 +1448,9 @@ function useChatbotRuntime(
     try{
       humanSendObservationRef.current?.stop();
       humanSendObservationRef.current=null;
+      messageQueueCleanupRef.current?.();
+      messageQueueCleanupRef.current=null;
+      hideMessageQueue();
       await clearComposerIfMatches(text??currentSuggestion.text);
       await actOnChatbotLog(currentSuggestion.logId,{
         action:"DISMISSED",
@@ -1468,6 +1579,9 @@ function useChatbotRuntime(
               inserted:false,
               composerBlocked:false,
               attachments:result.attachments??[],
+              messages:result.messages?.filter(Boolean).length?result.messages.filter(Boolean):[result.reply],
+              quoteFollowupMessage:result.quoteFollowupMessage??null,
+              draftMode:result.multiMessage?.draftMode??latestSettings.multiMessage.draftMode,
             };
             setCurrentSuggestion(suggestion);
             await insertSuggestionRef.current(suggestion);
@@ -1744,6 +1858,9 @@ function useChatbotRuntime(
           inserted:false,
           composerBlocked:false,
           attachments:result.attachments??[],
+          messages:result.messages?.filter(Boolean).length?result.messages.filter(Boolean):[result.reply],
+          quoteFollowupMessage:result.quoteFollowupMessage??null,
+          draftMode:result.multiMessage?.draftMode??nextSettings.multiMessage.draftMode,
         };
         setCurrentSuggestion(suggestion);
         await insertSuggestion(suggestion);

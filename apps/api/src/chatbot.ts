@@ -38,6 +38,11 @@ import {saveChatbotRuleImage} from './chatbot-storage.js';
 
 const CHAT_KEY_MAX = 200;
 const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+const defaultMultiMessage:ChatbotSettingsInput['multiMessage']={
+  enabled:true,splitMode:'AI_NATURAL',maxBubbles:3,openingMessage:'',closingMessage:'',
+  quoteFollowup:{enabled:true,message:'Decime si querés cambiar algo o sumar/sacar componentes 👍'},
+  draftMode:'QUEUE',betweenDelayMinSeconds:2,betweenDelayMaxSeconds:6,
+};
 
 function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; updatedAt: Date} {
   const emptyAttachments={imageUrl:null,url:null,quote:null};
@@ -104,6 +109,9 @@ function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; updated
     businessHours: row.businessHours,
     outsideHoursBehavior: row.outsideHoursBehavior,
     responseStyle: row.responseStyle,
+    multiMessage: row.multiMessage&&typeof row.multiMessage==='object'
+      ? {...defaultMultiMessage,...row.multiMessage,quoteFollowup:{...defaultMultiMessage.quoteFollowup,...row.multiMessage.quoteFollowup}}
+      : defaultMultiMessage,
     ignoredAutoMessages: Array.isArray(row.ignoredAutoMessages)
       ? row.ignoredAutoMessages
       : ['¡Hola! ¿Cómo podemos ayudarte'],
@@ -708,6 +716,7 @@ export class ChatbotController {
         modelCanEscalate:false,
         businessContext:'Mensaje proactivo de recontacto; no presupongas que el cliente acaba de escribir.',
         responseStyle:settings.responseStyle,
+        multiMessage:{maxBubbles:1,splitMode:'FIXED_ONLY'},
       },
     });
     if(!result.metadata.usedAi||!result.metadata.success){
@@ -728,7 +737,7 @@ export class ChatbotController {
         decisionReason:result.result.decisionReason,usedAi:result.metadata.usedAi,
       },
     }});
-    return jsonSafe({reply,logId:log.id,action:'SUGGESTED'});
+    return jsonSafe({reply,messages:[reply],quoteFollowupMessage:null,logId:log.id,action:'SUGGESTED'});
   }
 
   @Post('recontact/:chatKey/mark-sent')
@@ -853,6 +862,7 @@ export class ChatbotController {
       ? {
           result:{
             reply:reusable.reply,
+            messages:[reusable.reply],
             shouldEscalate:false,
             escalationReason:null,
             updatedSummary:null,
@@ -877,6 +887,7 @@ export class ChatbotController {
       ? {
           result: {
             reply: '',
+            messages: [],
             shouldEscalate: true,
             escalationReason: localEscalationReason,
             updatedSummary: conversation.summary ?? null,
@@ -922,6 +933,10 @@ export class ChatbotController {
               ? `Fuera de horario. Conducta configurada: ${settings.outsideHoursBehavior.mode}. Mensaje permitido: ${settings.outsideHoursBehavior.message}`
               : 'Dentro del horario de atención.',
             responseStyle: settings.responseStyle,
+            multiMessage:{
+              maxBubbles:settings.multiMessage.maxBubbles,
+              splitMode:settings.multiMessage.splitMode,
+            },
           },
         });
 
@@ -940,10 +955,35 @@ export class ChatbotController {
       ?[responseMatch.response.attachments.url]
       :[];
     const baseReply=result.result.reply.trim().slice(0,settings.responseStyle.maxCharacters);
-    const reply=[baseReply,...configuredUrls.filter(url=>!baseReply.includes(url))]
+    const legacyReply=[baseReply,...configuredUrls.filter(url=>!baseReply.includes(url))]
       .filter(Boolean)
       .join('\n\n');
     const resolvedAttachments=await resolveRuleAttachments(settings.responses,body.message);
+    const aiMessages=settings.multiMessage.splitMode==='FIXED_ONLY'
+      ?[baseReply]
+      :(result.result.messages.length?result.result.messages:[baseReply]).slice(0,settings.multiMessage.maxBubbles);
+    let messages=settings.multiMessage.enabled
+      ?[
+          ...(!conversation.lastOutboundText&&settings.multiMessage.openingMessage.trim()?[settings.multiMessage.openingMessage.trim()]:[]),
+          ...aiMessages.map(message=>message.trim()).filter(Boolean),
+          ...(settings.multiMessage.closingMessage.trim()?[settings.multiMessage.closingMessage.trim()]:[]),
+        ]
+      :[legacyReply];
+    if(settings.multiMessage.enabled&&configuredUrls.length){
+      const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
+      if(urls.length){
+        const last=messages.length-1;
+        if(last>=0)messages[last]=[messages[last],...urls].join('\n\n');
+        else messages=urls;
+      }
+    }
+    messages=shouldEscalate?[]:messages.filter(Boolean);
+    const reply=messages.join('\n');
+    const quoteFollowupMessage=!shouldEscalate
+      &&settings.multiMessage.quoteFollowup.enabled
+      &&resolvedAttachments.some(attachment=>attachment.quote)
+      ?settings.multiMessage.quoteFollowup.message.trim()||null
+      :null;
     if (!shouldEscalate && !reply) throw new BadRequestException('La IA no generó una respuesta utilizable');
     if (!shouldEscalate && settings.responseStyle.avoidRepetition && reply === conversation.lastOutboundText?.trim()) {
       throw new ConflictException('La respuesta repite exactamente el último mensaje; se bloqueó por seguridad');
@@ -1069,6 +1109,12 @@ export class ChatbotController {
       reply: output.action === 'AUTO_REPLY' || output.action === 'SUGGESTED' || output.action === 'SIMULATED'
         ? reply
         : undefined,
+      messages: output.action === 'AUTO_REPLY' || output.action === 'SUGGESTED' || output.action === 'SIMULATED'
+        ? messages
+        : [],
+      quoteFollowupMessage: output.action === 'AUTO_REPLY' || output.action === 'SUGGESTED' || output.action === 'SIMULATED'
+        ? quoteFollowupMessage
+        : null,
       logId: output.log.id,
       notificationId: output.notification?.id,
       request: output.requestResult ? {
@@ -1084,6 +1130,11 @@ export class ChatbotController {
       wouldEscalate: body.simulation&&shouldEscalate?{reason}:undefined,
       reused: reusable ?? undefined,
       attachments: resolvedAttachments,
+      multiMessage:{
+        draftMode:settings.multiMessage.draftMode,
+        betweenDelayMinSeconds:settings.multiMessage.betweenDelayMinSeconds,
+        betweenDelayMaxSeconds:settings.multiMessage.betweenDelayMaxSeconds,
+      },
     });
   }
 

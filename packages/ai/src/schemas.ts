@@ -186,12 +186,17 @@ export const chatbotResponseInputSchema = z.object({
     modelCanEscalate: z.boolean(),
     businessContext: z.string().optional(),
     responseStyle: z.record(z.string(), z.unknown()),
+    multiMessage: z.object({
+      maxBubbles: z.number().int().min(1).max(5),
+      splitMode: z.enum(["AI_NATURAL", "AI_PLUS_FIXED", "FIXED_ONLY"]),
+    }).strict().default({maxBubbles:3,splitMode:"AI_NATURAL"}),
   }).strict(),
 }).strict();
 export type ChatbotResponseInput = z.infer<typeof chatbotResponseInputSchema>;
 
 export const chatbotResponseOutputSchema = z.object({
   reply: z.string(),
+  messages: z.array(z.string()).default([]),
   shouldEscalate: z.boolean(),
   escalationReason: z.string().nullable(),
   updatedSummary: z.string().nullable(),
