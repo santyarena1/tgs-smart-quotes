@@ -512,6 +512,7 @@ export function SendQuoteModal({
   onClose,
   onUpdated,
   onEdit,
+  onBackgroundNotice,
 }: {
   quote: Quote;
   chatKey:string;
@@ -521,6 +522,7 @@ export function SendQuoteModal({
   onClose: () => void;
   onUpdated: () => Promise<void>;
   onEdit: () => void;
+  onBackgroundNotice:(message:string)=>void;
 }) {
   const [kind, setKind] = useState<PdfKind>("SIMPLE");
   const fallbackMessage=quote.version?.sentMessage??`Hola! Te comparto el presupuesto ${quote.visibleNumber} por un total de ${formatArs(quote.version?.totalSaleCents)}. Cualquier consulta quedo a disposición.`;
@@ -586,9 +588,15 @@ export function SendQuoteModal({
       }
       const filename = `${quote.visibleNumber}-V${quote.version?.version ?? quote.activeVersion}-${kind}.pdf`;
       const blob = await fetchBlob(historical?versionPdfDownloadPath(quote.id,selectedVersion,kind):pdfDownloadPath(quote.id, kind));
+      const file=new File([blob], filename, { type: "application/pdf" });
+      // El paste de documentos necesita foco real en WhatsApp: primero desmontamos modal/backdrop.
+      keepObservationAfterClose.current=true;
+      closed=true;
+      onClose();
+      await new Promise(resolve=>window.setTimeout(resolve,350));
       if (
         !(await attachFileToComposer(
-          new File([blob], filename, { type: "application/pdf" }),
+          file,
         ))
       )
         throw new Error(
@@ -607,7 +615,7 @@ export function SendQuoteModal({
         version:selectedVersion,
         chatKey,
       });
-      setNotice("Mensaje y PDF listos. Revisalos y tocá Enviar en WhatsApp.");
+      onBackgroundNotice("Mensaje y PDF listos. Revisalos y tocá Enviar en WhatsApp.");
       observation.current?.stop();
       observation.current = observeOutgoingMessage(
         phone || name,
@@ -621,8 +629,7 @@ export function SendQuoteModal({
                 status: "CONFIRMADO_AUTO",
                 confidence: result.confidence,
               });
-              setNotice("Envío detectado y confirmado.");
-              setReview(null);
+              onBackgroundNotice("Envío del presupuesto detectado y confirmado.");
             } else {
               if (result.confidence > 0)
                 await resolveSendAttempt(quote.id, attempt.id, {
@@ -630,18 +637,16 @@ export function SendQuoteModal({
                   confidence: result.confidence,
                   createDelivery: false,
                 });
-              setReview({ attemptId: attempt.id });
+              onBackgroundNotice("⚠ No pudimos confirmar automáticamente el envío del presupuesto. Revisá el chat.");
             }
             await onUpdated();
-          })().catch((reason) => setError(errorMessage(reason)));
+          })().catch((reason) => onBackgroundNotice(`⚠ ${errorMessage(reason)}`));
         },
         filename,
       );
-      keepObservationAfterClose.current=true;
-      closed=true;
-      onClose();
     } catch (reason) {
-      setError(errorMessage(reason));
+      if(closed)onBackgroundNotice(`⚠ ${errorMessage(reason)}`);
+      else setError(errorMessage(reason));
     } finally {
       if(!closed)setBusy(false);
     }
