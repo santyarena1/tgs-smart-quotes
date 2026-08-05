@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
+import { createPortal } from "react-dom";
+import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertAttachmentCaption, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, observeToolbarHost, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
 import {
   changeQuoteState,
   createQuickRequest,
@@ -46,6 +47,7 @@ import {
   createCustomerQuick,
   updateRequest,
   type ExtensionConnection,
+  acustockProductImagePath,
 } from "./lib/api";
 import { formatArs, formatDateTime } from "./lib/format";
 import type {
@@ -66,9 +68,11 @@ import type {
   ChatbotChatContext,
   LatestSentQuote,
   ChatbotResolvedAttachment,
+  AcustockProduct,
 } from "./lib/types";
 import { Alert, ConfidenceBar, ConfirmModal, EmptyState, Field, ModalShell, Pill, Section, Skeleton, Tabs, Tone, injectPanelStyles } from "./panel/ui";
 import { CustomerModal, QuickEditModal } from "./panel/modals";
+import {BotSettingsModal,ProductSearchModal,QuickRequestModal,QuoteSearchModal,TimelineModal} from "./panel/toolbar-modals";
 
 const STATE_LABEL: Record<QuoteState, string> = {
   BORRADOR: "Borrador",
@@ -1236,7 +1240,7 @@ function useChatbotRuntime(
         await actOnChatbotLog(result.logId,{action:"SEND_FAILED",text:bubbles.slice(0,index).join("\n"),error:"La autorización de envío cambió entre burbujas."});
         break;
       }
-      const sent=await sendMessageAutomatically(activeId,bubbles[index],authoritative.sendConfirmationTimeoutMs);
+      const sent=await sendMessageAutomatically(activeId,bubbles[index]!,authoritative.sendConfirmationTimeoutMs);
       if(!sent.ok){
         textSent=false;
         await actOnChatbotLog(result.logId,{action:"SEND_FAILED",text:bubbles.slice(0,index+1).join("\n"),error:sent.error??"Envío no confirmado"});
@@ -2130,6 +2134,9 @@ export function Panel() {
     injectPanelStyles();
   }, []);
 
+  const[toolbarHost,setToolbarHost]=useState<HTMLElement|null>(null);
+  const[activeModal,setActiveModal]=useState<"request"|"search"|"product"|"settings"|"history"|"edit"|null>(null);
+  const[toolbarNotice,setToolbarNotice]=useState<string|null>(null);
   const [open, setOpen] = useState(true);
   const panelRef=useRef<HTMLDivElement>(null);
   const [position,setPosition]=useState<{left:number;top:number}|null>(()=>{
@@ -2163,6 +2170,11 @@ export function Panel() {
   const [connection, setConnection] = useState<ExtensionConnection | null>(null);
   const [connectionBusy, setConnectionBusy] = useState(false);
 
+  useEffect(()=>{
+    const subscription=observeToolbarHost(setToolbarHost);
+    return()=>subscription.stop();
+  },[]);
+
   const loadCustomers = useCallback(async () => { setCustomerLoading(true); try { setCustomers(await listCustomers()); } catch { setCustomers([]); } finally { setCustomerLoading(false); } }, []);
   useEffect(() => { void loadCustomers(); }, [loadCustomers]);
   const phoneKey = phoneOverride.replace(/\D/g, "").replace(/^549?/, "").replace(/^0/, "");
@@ -2170,13 +2182,6 @@ export function Panel() {
     if(!phoneOverride){setLatestSent(null);return}
     void getLatestSentQuote(phoneOverride).then(setLatestSent).catch(()=>setLatestSent(null));
   },[phoneOverride,quote?.version?.state]);
-  useEffect(()=>{
-    const outside=(event:PointerEvent)=>{if(open&&panelRef.current&&!panelRef.current.contains(event.target as Node))setOpen(false)};
-    const move=(event:PointerEvent)=>{if(!dragRef.current)return;const width=panelRef.current?.offsetWidth??380,height=panelRef.current?.offsetHeight??56;setPosition({left:Math.max(8,Math.min(window.innerWidth-width-8,event.clientX-dragRef.current.dx)),top:Math.max(8,Math.min(window.innerHeight-height-8,event.clientY-dragRef.current.dy))})};
-    const up=()=>{dragRef.current=null;setPosition(current=>{if(current)localStorage.setItem("tgs-panel-position",JSON.stringify(current));return current})};
-    document.addEventListener("pointerdown",outside);document.addEventListener("pointermove",move);document.addEventListener("pointerup",up);
-    return()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up)}
-  },[open]);
   const matchedCustomer = useMemo(() => customers.find(customer => { const value=(customer.normalizedPhone || customer.phone || "").replace(/\D/g, "").replace(/^549?/, "").replace(/^0/, ""); return Boolean(phoneKey) && value.endsWith(phoneKey); }) ?? null, [customers, phoneKey]);
   const checkConnection = useCallback(async () => {
     setConnectionBusy(true);
@@ -2216,6 +2221,9 @@ export function Panel() {
     );
     if (previousKey === nextKey) return;
 
+    setActiveModal(null);
+    setNotifOpen(false);
+    setToolbarNotice(null);
     if (previousKey) chatSelectionsRef.current.set(previousKey, { selectedQuoteId });
     activeChatKeyRef.current = nextKey;
     setQuoteError(null);
@@ -2273,6 +2281,36 @@ export function Panel() {
     return () => window.clearInterval(interval);
   }, [loadNotifications]);
 
+  useEffect(()=>{
+    let timer=0;let stopped=false;
+    const refreshStatuses=()=>{
+      window.clearTimeout(timer);
+      timer=window.setTimeout(()=>{void (async()=>{
+        try{
+          const [list,rows]=[detectChatList(settingsRefForStatus()),await listChatbotConversations()];
+          if(stopped||list.confidence===0)return;
+          const byKey=new Map(rows.map(row=>[row.chatKey,row]));
+          const statuses:NativeChatStatus[]=list.chats.map(chat=>{
+            const row=byKey.get(chat.chatKey);
+            if(row?.nativeStatus)return{chatKey:chat.chatKey,displayName:chat.name,status:row.nativeStatus.status,label:row.nativeStatus.label};
+            return chat.lastDirection==="OUTGOING"
+              ?{chatKey:chat.chatKey,displayName:chat.name,status:"RESPONDED",label:"Respondido"}
+              :{chatKey:chat.chatKey,displayName:chat.name,status:"NEEDS_REPLY",label:"Pendiente respuesta"};
+          });
+          applyNativeChatStatuses(statuses);
+        }catch(error){console.debug("[tgs-toolbar] no se pudieron refrescar etiquetas",error)}
+      })()},450);
+    };
+    const settingsRefForStatus=()=>chatbotRuntime.settings?.ignoredAutoMessages??[];
+    const observer=new MutationObserver(records=>{
+      if(records.every(record=>(record.target as Element).closest?.(".tgs-native-status,#tgs-native-chat-filter,#tgs-toolbar")))return;
+      refreshStatuses();
+    });
+    observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+    refreshStatuses();
+    return()=>{stopped=true;observer.disconnect();window.clearTimeout(timer)};
+  },[chatbotRuntime.settings?.ignoredAutoMessages]);
+
   async function selectQuote(id: string) {
     setSelectedQuoteId(id);
     setActiveTab("quote");
@@ -2326,6 +2364,55 @@ export function Panel() {
         ? "Sin sesión"
         : "API offline";
 
+  async function prepareProductForChat(product:AcustockProduct){
+    if(!product.imageUrl)throw new Error("Este producto no tiene una imagen disponible en AcuStock.");
+    const expectedChat=chatIdentity(phoneOverride,nameOverride);
+    const blob=await fetchBlob(acustockProductImagePath(product.mpn));
+    if(!blob.type.startsWith("image/"))throw new Error("AcuStock no devolvió una imagen válida para este producto.");
+    const active=detectChat();
+    if(!sameChatIdentity(expectedChat,active.phone,active.name))throw new Error("El chat activo cambió mientras se descargaba la imagen. Volvé a elegir el producto.");
+    const extension=blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg";
+    const filename=`${product.mpn.replace(/[^\w.-]+/g,"-")}.${extension}`;
+    if(!await attachFileToComposer(new File([blob],filename,{type:blob.type})))throw new Error("WhatsApp no pudo abrir la foto en el preview de adjuntos.");
+    const caption=`${product.title}\n${formatArs(product.salePriceCents??product.priceCents)}`;
+    const inserted=await insertAttachmentCaption(caption);
+    if(!inserted.ok)throw new Error(`${inserted.error??"No se pudo insertar el texto del producto"} La foto quedó abierta para que puedas completar el caption manualmente.`);
+    setToolbarNotice("Producto listo: revisá la foto y tocá Enviar cuando quieras.");
+  }
+
+  if(!toolbarHost)return null;
+  const toolbarQuote=latestSent?.quote??quote;
+  return createPortal(<>
+    <div className="tgs-toolbar-main">
+      <div className="tgs-toolbar-actions">
+        <button className="tgs-toolbar-btn primary" disabled={!chatIdentity(phoneOverride,nameOverride)||chatbotRuntime.suggestionBusy} onClick={()=>void chatbotRuntime.suggestNow()}>{chatbotRuntime.suggestionBusy?"⏳ Generando…":"✨ Sugerir"}</button>
+        <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>➕ Solicitud rápida</button>
+        <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("search")}>🔍 Buscar presupuesto</button>
+        <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("product")}>🛒 Producto</button>
+        <NotificationsBell notifications={notifications} open={notifOpen} onToggle={()=>setNotifOpen(value=>!value)} onMark={(id,body)=>void handleMarkNotification(id,body)} error={notifError} loading={notifLoading}/>
+        <button className="tgs-toolbar-btn icon" title="Configuración" onClick={()=>setActiveModal("settings")}>⚙️</button>
+        <span className={`tgs-toolbar-status ${connection?.ok?"ok":"warn"}`}>{connectionLabel}{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.autoRunning?" · AUTO":""}</span>
+      </div>
+      {toolbarNotice||chatbotRuntime.manualStatus||chatbotRuntime.suggestionError?<div className={`tgs-toolbar-feedback${chatbotRuntime.suggestionError?" error":""}`}>{chatbotRuntime.suggestionError??toolbarNotice??chatbotRuntime.manualStatus}</div>:null}
+      {latestSent?.quote.version?<div className="tgs-toolbar-quote">
+        <div className="tgs-toolbar-quote-meta"><b>{latestSent.quote.visibleNumber} · V{latestSent.quote.version.version}</b><span>{formatArs(latestSent.quote.version.totalSaleCents)}</span><Pill tone={STATE_TONE[latestSent.quote.version.state]}>{STATE_LABEL[latestSent.quote.version.state]}</Pill></div>
+        <div className="tgs-toolbar-actions compact">
+          <button className="tgs-toolbar-btn" disabled={latestSent.quote.version.state==="ACEPTADO"} onClick={()=>void changeQuoteState(latestSent.quote.id,"ACEPTADO").then(()=>getLatestSentQuote(phoneOverride)).then(setLatestSent)}>✓ Aprobar</button>
+          <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>🔄 Solicitar otro</button>
+          <button className="tgs-toolbar-btn" onClick={()=>{setQuote(latestSent.quote);setActiveModal("edit")}}>✏️ Nueva versión</button>
+          <button className="tgs-toolbar-btn" onClick={()=>{setQuote(latestSent.quote);setActiveModal("history")}}>🕘 Historial</button>
+        </div>
+      </div>:null}
+    </div>
+    {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
+    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onSelect={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("edit")}}/>:null}
+    {activeModal==="product"?<ProductSearchModal onClose={()=>setActiveModal(null)} onPrepare={prepareProductForChat}/>:null}
+    {activeModal==="edit"&&toolbarQuote?<QuickEditModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onSaved={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride))}}/>:null}
+    {activeModal==="history"&&toolbarQuote?<TimelineModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onVersion={version=>{if(window.confirm(`¿Crear una nueva versión restaurando V${version}?`))void createQuoteVersion(toolbarQuote.id,`Restaurada desde V${version}`,version).then(()=>reloadQuote(toolbarQuote.id))}}/>:null}
+    {activeModal==="settings"&&chatbotRuntime.settings?<BotSettingsModal initial={chatbotRuntime.settings} currentMode={chatbotRuntime.conversation?.modeOverride??null} simulationMode={chatbotRuntime.simulationMode} autoRunning={chatbotRuntime.autoRunning} onMode={mode=>void chatbotRuntime.setMode(mode)} onSimulation={chatbotRuntime.setSimulationMode} onAutoRunning={chatbotRuntime.setAutoRunning} onSaved={()=>void chatbotRuntime.refresh()} onClose={()=>setActiveModal(null)}/>:null}
+  </>,toolbarHost);
+
+  /* Panel lateral retirado: la barra y sus modales son la UI principal.
   return (
     <div ref={panelRef} className={`tgs-panel${open ? "" : " collapsed"}`} style={position?{left:position.left,top:position.top,right:"auto"}:undefined}>
       <div className="tgs-header" onClick={() => open || setOpen(true)} onPointerDown={event=>{if(!open||event.button!==0)return;const rect=panelRef.current?.getBoundingClientRect();if(rect)dragRef.current={dx:event.clientX-rect.left,dy:event.clientY-rect.top}}}>
@@ -2408,6 +2495,7 @@ export function Panel() {
       ) : null}
     </div>
   );
+  */
 }
 
 const pageScript=document.createElement("script");

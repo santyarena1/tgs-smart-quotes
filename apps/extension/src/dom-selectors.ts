@@ -7,7 +7,7 @@
  * detección: si nada matchea, `detectChat()` devuelve confianza 0 y un `warning` explícito.
  */
 
-export const SELECTOR_VERSION = "2026-08-chatbot-v9-switch-mousedown-fix";
+export const SELECTOR_VERSION = "2026-08-toolbar-v10";
 
 export interface SelectorSet {
   id: string;
@@ -362,6 +362,28 @@ export function observeActiveChat(onChange:(next:ChatDetection)=>void):{stop():v
   return {stop(){observer.disconnect();window.clearTimeout(timer)}};
 }
 
+/** Mantiene un host propio inmediatamente debajo del header del chat aunque WhatsApp reconstruya #main. */
+export function observeToolbarHost(onHost:(host:HTMLElement|null)=>void):{stop():void}{
+  let current:HTMLElement|null=null;
+  let timer=0;
+  const ensure=()=>{
+    window.clearTimeout(timer);
+    timer=window.setTimeout(()=>{
+      const main=document.querySelector<HTMLElement>("#main");
+      const header=main?.querySelector<HTMLElement>(":scope > header, header");
+      if(!main||!header){if(current){current=null;onHost(null)}return}
+      let host=main.querySelector<HTMLElement>("#tgs-toolbar");
+      if(!host){host=document.createElement("div");host.id="tgs-toolbar";header.insertAdjacentElement("afterend",host)}
+      else if(host.previousElementSibling!==header)header.insertAdjacentElement("afterend",host);
+      if(host!==current){current=host;onHost(host)}
+    },60);
+  };
+  const observer=new MutationObserver(ensure);
+  observer.observe(document.body,{childList:true,subtree:true});
+  ensure();
+  return{stop(){observer.disconnect();window.clearTimeout(timer);current?.remove();current=null}};
+}
+
 export type NativeChatStatusKey =
   | "ESCALATED"
   | "UNRESOLVED"
@@ -538,7 +560,7 @@ export function applyNativeChatStatuses(statuses:NativeChatStatus[]):ChatListDet
   return detection;
 }
 
-type ComposerBridgeAction="insert"|"clear"|"insertEmpty";
+type ComposerBridgeAction="insert"|"clear"|"insertEmpty"|"insertCaption";
 interface ComposerBridgeResponse {source:"tgs-page";id:string;ok:boolean;error?:string}
 let composerBridgeCounter=0;
 
@@ -569,6 +591,16 @@ export async function insertMessageIntoComposer(text:string):Promise<InsertResul
   const result=await requestComposerBridge("insert",text);
   if(result.ok)await wait(250);
   return result;
+}
+
+/** Escribe el caption del preview de un adjunto. Nunca pulsa Enviar. */
+export async function insertAttachmentCaption(text:string):Promise<InsertResult>{
+  for(let attempt=0;attempt<20;attempt++){
+    const visible=[...document.querySelectorAll<HTMLElement>("[data-testid='media-caption-input-container'] div[contenteditable='true'], [role='dialog'] div[contenteditable='true'][role='textbox'], div[contenteditable='true'][aria-label*='comentario' i], div[contenteditable='true'][aria-label*='caption' i]")].find(node=>node.offsetParent!==null);
+    if(visible){const result=await requestComposerBridge("insertCaption",text);if(result.ok)return result}
+    await wait(150);
+  }
+  return{ok:false,error:"No se encontró el cuadro de texto del preview del adjunto."};
 }
 
 export function readComposerText():string|null {

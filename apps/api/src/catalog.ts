@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query } from "@nestjs/common";
+import { BadGatewayException, Controller, Get, NotFoundException, Param, Post, Query, StreamableFile } from "@nestjs/common";
 import { catalogQuerySchema, type CatalogQuery } from "@tgs/contracts";
 import { db, Prisma, syncAcustockCatalog } from "@tgs/database";
 import { jsonSafe, ZodPipe } from "./infrastructure.js";
@@ -9,6 +9,21 @@ function pesosToCents(value: number | undefined): bigint | undefined {
 
 @Controller("catalog")
 export class CatalogController {
+  @Get(":mpn/image")
+  async image(@Param("mpn") mpn:string){
+    const product=await db.acustockProduct.findUnique({where:{mpn},select:{imageUrl:true}});
+    if(!product?.imageUrl)throw new NotFoundException("El producto no tiene imagen disponible");
+    let response:Response;
+    try{response=await fetch(product.imageUrl,{signal:AbortSignal.timeout(10_000)})}
+    catch{throw new BadGatewayException("No se pudo descargar la imagen de AcuStock")}
+    if(!response.ok)throw new BadGatewayException(`AcuStock respondió HTTP ${response.status} al descargar la imagen`);
+    const contentType=response.headers.get("content-type")??"image/jpeg";
+    if(!contentType.toLowerCase().startsWith("image/"))throw new BadGatewayException("AcuStock devolvió un archivo que no es una imagen");
+    const bytes=Buffer.from(await response.arrayBuffer());
+    if(!bytes.length||bytes.length>12*1024*1024)throw new BadGatewayException("La imagen de AcuStock está vacía o supera 12 MB");
+    return new StreamableFile(bytes,{type:contentType,disposition:`inline; filename="${mpn.replace(/[^\w.-]+/g,"-")}.jpg"`});
+  }
+
   @Get()
   async list(@Query(new ZodPipe(catalogQuerySchema)) query: CatalogQuery) {
     const priceFilter: Prisma.BigIntFilter | undefined =
@@ -22,6 +37,7 @@ export class CatalogController {
               { title: { contains: query.q, mode: "insensitive" } },
               { description: { contains: query.q, mode: "insensitive" } },
               { mpn: { contains: query.q, mode: "insensitive" } },
+              { brand: { contains: query.q, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -67,7 +83,12 @@ export class CatalogController {
     ]);
 
     return jsonSafe({
-      items,
+      items:items.map(item=>({
+        ...item,
+        id:item.mpn,
+        name:item.title,
+        salePriceCents:item.salePriceCents??item.priceCents,
+      })),
       total,
       page: query.page,
       pageSize: query.pageSize,

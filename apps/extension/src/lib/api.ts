@@ -17,6 +17,7 @@ import type {
   QuoteItemInput,
   ReplyIntent,
   ChatbotSettings,
+  AcustockProductSearch,
   ChatbotConversation,
   ChatbotLog,
   ChatbotRespondResult,
@@ -231,6 +232,14 @@ export const createCustomer=(body:{name:string;phone?:string|null;dni?:string|nu
 export const createCustomerQuick=(phone:string)=>api<Customer&{created:boolean}>("/customers/quick",{body:{phone}});
 export const updateCustomer=(id:string,body:{name:string;phone?:string|null;dni?:string|null})=>api<Customer>(`/customers/${id}`,{method:"PUT",body});
 export const listProducts=(q="")=>api<Product[]>("/products",{query:{q}});
+export async function searchAcustockProducts(q:string):Promise<AcustockProductSearch>{
+  const first=await api<AcustockProductSearch>("/catalog",{query:{q:q||undefined,sort:"price_asc",page:1,pageSize:100}});
+  const pages=Math.ceil(first.total/first.pageSize);
+  if(pages<=1)return first;
+  const rest=await Promise.all(Array.from({length:pages-1},(_,index)=>api<AcustockProductSearch>("/catalog",{query:{q:q||undefined,sort:"price_asc",page:index+2,pageSize:100}})));
+  return{...first,items:[...first.items,...rest.flatMap(page=>page.items)]};
+}
+export const acustockProductImagePath=(mpn:string)=>`/catalog/${encodeURIComponent(mpn)}/image`;
 export const listPcLines=()=>api<PcLine[]>("/pc-lines");
 export const updateQuote=(id:string,body:{customerId?:string|null;items?:QuoteItemInput[];publicObservation?:string|null;resolvedPdfConfig?:Record<string,unknown>;pdfOverrides?:Record<string,unknown>})=>api<Quote>(`/quotes/${id}`,{method:"PUT",body});
 export const updateRequest=(id:string,body:Record<string,unknown>)=>api<QuoteRequest>(`/requests/${id}`,{method:"PUT",body});
@@ -242,11 +251,13 @@ export async function openAuthenticated(path:string):Promise<void>{const respons
 export const classifyIntent=(id:string,replyText:string)=>api<{result:{intent:ReplyIntent;confidence:number};metadata:{usedAi:boolean};requiresReview:boolean}>(`/quotes/${id}/ai/intent`,{body:{replyText}});
 
 export const getChatbotSettings=()=>api<ChatbotSettings>("/chatbot/settings");
+export const updateChatbotSettings=(body:Omit<ChatbotSettings,"id"|"updatedAt">)=>api<ChatbotSettings>("/chatbot/settings",{method:"PUT",body});
 export const setChatbotEnabled=(enabled:boolean)=>api<ChatbotSettings>("/chatbot/settings/enabled",{method:"PUT",body:{enabled}});
 export const listChatbotConversations=()=>api<ChatbotConversation[]>("/chatbot/conversations");
 export const getChatbotContext=(chatKey:string,phone?:string|null)=>api<ChatbotChatContext>(`/chatbot/context/${encodeURIComponent(chatKey)}`,{query:{phone}});
 export const getChatbotConversation=(chatKey:string)=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`);
 export const updateChatbotConversation=(chatKey:string,body:{displayName?:string|null;modeOverride?:ChatbotMode|null;clearEscalation?:boolean})=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`,{method:"PUT",body});
+export const queueChatbotRecontact=(chatKey:string,body:{requestId:string;displayName?:string})=>api<{action:"QUEUED";queuedAt:string}>(`/chatbot/conversations/${encodeURIComponent(chatKey)}/queue-recontact`,{body});
 export const respondChatbot=(body:{chatKey:string;displayName?:string;detectedPhone?:string|null;message:string;messageType?:"TEXT"|"AUDIO";messageFingerprint:string;manualSuggestion?:boolean;simulation?:boolean;recentMessages?:Array<{direction:"INBOUND"|"OUTBOUND";text:string}>})=>api<ChatbotRespondResult>("/chatbot/respond",{body});
 export const listChatbotLogs=(chatKey?:string,limit=40)=>api<ChatbotLog[]>("/chatbot/logs",{query:{chatKey,limit}});
 export const actOnChatbotLog=(id:string,body:{action:"SENT"|"SEND_FAILED"|"HUMAN_SENT"|"DISMISSED"|"ATTACHMENT_SENT"|"ATTACHMENT_FAILED";text?:string;error?:string;attachment?:string})=>api<ChatbotLog>(`/chatbot/logs/${id}/action`,{body});

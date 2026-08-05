@@ -575,6 +575,23 @@ export class ChatbotController {
     return jsonSafe(next);
   }
 
+  @Post('conversations/:chatKey/queue-recontact')
+  async queueConversationRecontact(
+    @Param('chatKey') rawChatKey:string,
+    @Body(new ZodPipe(z.object({requestId:z.string().trim().min(1),displayName:z.string().trim().max(200).optional()}).strict())) body:{requestId:string;displayName?:string},
+  ){
+    const chatKey=decodeURIComponent(rawChatKey).slice(0,CHAT_KEY_MAX);
+    const request=await db.quoteRequest.findUnique({where:{id:body.requestId},select:{id:true}});
+    if(!request)throw new NotFoundException('Solicitud inexistente');
+    const queuedAt=new Date();
+    const conversation=await db.chatbotConversation.upsert({
+      where:{chatKey},
+      create:{chatKey,displayName:body.displayName,activeRequestId:request.id,lastOutboundAt:queuedAt},
+      update:{displayName:body.displayName,activeRequestId:request.id,lastOutboundAt:queuedAt,recontactCount:0,recontactOptOut:false},
+    });
+    return jsonSafe({action:'QUEUED',chatKey,requestId:request.id,queuedAt:conversation.lastOutboundAt});
+  }
+
   @Get('logs')
   async logs(@Query(new ZodPipe(chatbotLogsQuerySchema)) query: {chatKey?: string; limit: number}) {
     return jsonSafe(await db.chatbotMessageLog.findMany({
@@ -603,30 +620,25 @@ export class ChatbotController {
           {activeRequestId:null},
           {activeRequest:{is:{state:{not:'CERRADA'}}}},
         ],
-        messages:{some:{direction:'OUTBOUND',createdAt:{lte:cutoff}}},
+        lastOutboundAt:{lte:cutoff},
       },
       select:{
         chatKey:true,
         displayName:true,
         recontactCount:true,
-        messages:{
-          orderBy:{createdAt:'desc'},
-          take:1,
-          select:{direction:true,createdAt:true},
-        },
+        lastOutboundAt:true,
       },
     });
 
     return jsonSafe(conversations
       .flatMap(conversation=>{
-        const lastMessage=conversation.messages[0];
-        if(!lastMessage||lastMessage.direction!=='OUTBOUND'||lastMessage.createdAt>cutoff)return [];
+        if(!conversation.lastOutboundAt||conversation.lastOutboundAt>cutoff)return [];
         return [{
           chatKey:conversation.chatKey,
           displayName:conversation.displayName,
-          lastOutboundAt:lastMessage.createdAt,
+          lastOutboundAt:conversation.lastOutboundAt,
           recontactCount:conversation.recontactCount,
-          daysSince:Math.floor((now.getTime()-lastMessage.createdAt.getTime())/86_400_000),
+          daysSince:Math.floor((now.getTime()-conversation.lastOutboundAt.getTime())/86_400_000),
         }];
       })
       .sort((left,right)=>left.lastOutboundAt.getTime()-right.lastOutboundAt.getTime()));
