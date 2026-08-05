@@ -34,7 +34,7 @@ import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
 import {normalizePhone, normalizeText, productSimilarity} from '@tgs/validation';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
-import {createQuoteRequest} from './quotes.js';
+import {activeBundle, createQuoteRequest, quoteInclude} from './quotes.js';
 import {saveChatbotRuleImage} from './chatbot-storage.js';
 import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 
@@ -594,6 +594,15 @@ export class ChatbotController {
     });
   }
 
+  @Get('conversations/:chatKey/quote')
+  async conversationQuote(@Param('chatKey') rawChatKey:string){
+    const chatKey=decodeURIComponent(rawChatKey).slice(0,CHAT_KEY_MAX);
+    const conversation=await db.chatbotConversation.findUnique({where:{chatKey},select:{lastQuoteFamilyId:true}});
+    if(!conversation?.lastQuoteFamilyId)return null;
+    const family=await db.quoteFamily.findUnique({where:{id:conversation.lastQuoteFamilyId},include:quoteInclude});
+    return family?jsonSafe(activeBundle(family)):null;
+  }
+
   @Put('conversations/:chatKey')
   async putConversation(
     @Param('chatKey') rawChatKey: string,
@@ -608,11 +617,13 @@ export class ChatbotController {
         displayName: body.displayName,
         modeOverride: body.modeOverride,
         recontactOptOut: body.recontactOptOut,
+        lastQuoteFamilyId:body.lastQuoteFamilyId,
       },
       update: {
         displayName: body.displayName,
         modeOverride: body.modeOverride,
         recontactOptOut: body.recontactOptOut,
+        lastQuoteFamilyId:body.lastQuoteFamilyId,
         ...(body.clearEscalation ? {escalatedAt: null, escalationReason: null} : {}),
       },
     });

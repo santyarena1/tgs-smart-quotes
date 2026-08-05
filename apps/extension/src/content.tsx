@@ -33,6 +33,7 @@ import {
   getChatbotSettings,
   setChatbotEnabled,
   getChatbotConversation,
+  getChatbotConversationQuote,
   updateChatbotConversation,
   listChatbotConversations,
   respondChatbot,
@@ -2191,6 +2192,7 @@ export function Panel() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [latestSent,setLatestSent]=useState<LatestSentQuote|null>(null);
+  const[associatedQuote,setAssociatedQuote]=useState<Quote|null>(null);
   const chatSelectionsRef = useRef(new Map<string, { selectedQuoteId: string | null }>());
   const activeChatKeyRef = useRef(chatIdentity(detection.phone, detection.name));
 
@@ -2216,6 +2218,14 @@ export function Panel() {
     if(!phoneOverride){setLatestSent(null);return}
     void getLatestSentQuote(phoneOverride).then(setLatestSent).catch(()=>setLatestSent(null));
   },[phoneOverride,quote?.version?.state]);
+  const persistedChatKey=chatIdentity(phoneOverride,nameOverride);
+  useEffect(()=>{
+    let cancelled=false;
+    if(!persistedChatKey){setAssociatedQuote(null);return}
+    setAssociatedQuote(null);
+    void getChatbotConversationQuote(persistedChatKey).then(value=>{if(!cancelled)setAssociatedQuote(value)}).catch(()=>{if(!cancelled)setAssociatedQuote(null)});
+    return()=>{cancelled=true};
+  },[persistedChatKey]);
   const matchedCustomer = useMemo(() => customers.find(customer => { const value=(customer.normalizedPhone || customer.phone || "").replace(/\D/g, "").replace(/^549?/, "").replace(/^0/, ""); return Boolean(phoneKey) && value.endsWith(phoneKey); }) ?? null, [customers, phoneKey]);
   const checkConnection = useCallback(async () => {
     setConnectionBusy(true);
@@ -2403,6 +2413,13 @@ export function Panel() {
     }
   }
 
+  async function associateQuoteWithCurrentChat(selected:Quote){
+    if(!persistedChatKey)return;
+    setAssociatedQuote(selected);
+    try{await updateChatbotConversation(persistedChatKey,{lastQuoteFamilyId:selected.id})}
+    catch(error){setToolbarNotice(`No se pudo recordar el presupuesto para este chat: ${errorMessage(error)}`)}
+  }
+
   const unreadCount = useMemo(() => notifications.filter((n) => !n.readAt).length, [notifications]);
 
   async function handleMarkNotification(id: string, body: { read?: boolean; acted?: boolean }) {
@@ -2482,7 +2499,7 @@ export function Panel() {
   }
 
   if(!toolbarHost)return null;
-  const toolbarQuote=quote??latestSent?.quote;
+  const toolbarQuote=associatedQuote??quote??latestSent?.quote;
   const toolbarItemNames=(toolbarQuote?.version?.items?.length?toolbarQuote.version.items:toolbarQuote?.items??[]).map(item=>item.frozenName??item.name??"").filter(Boolean);
   const toolbarItemsPreview=`${toolbarItemNames.slice(0,4).join(" · ")}${toolbarItemNames.length>4?" · …":""}`;
   const modalRoot=document.getElementById("tgs-modal-root")??document.body;
@@ -2500,10 +2517,10 @@ export function Panel() {
       </div>
       {toolbarNotice||chatbotRuntime.manualStatus||chatbotRuntime.suggestionError?<div className={`tgs-toolbar-feedback${chatbotRuntime.suggestionError?" error":""}`}>{chatbotRuntime.suggestionError??toolbarNotice??chatbotRuntime.manualStatus}</div>:null}
       {toolbarQuote?.version?<div className="tgs-toolbar-quote">
-        <div className="tgs-toolbar-quote-top"><span className="tgs-toolbar-quote-num">{toolbarQuote.visibleNumber}</span><select className="tgs-toolbar-ver" value={toolbarQuote.version.version} onChange={event=>{const version=toolbarQuote.versions.find(item=>item.version===Number(event.target.value));if(version)setQuote({...toolbarQuote,version,items:version.items})}}>{toolbarQuote.versions.map(version=><option key={version.id} value={version.version}>V{version.version} · {STATE_LABEL[version.state]}</option>)}</select><Pill tone={STATE_TONE[toolbarQuote.version.state]}>{STATE_LABEL[toolbarQuote.version.state]}</Pill><span className="tgs-toolbar-quote-total">{formatArs(toolbarQuote.version.totalSaleCents)}</span></div>
+        <div className="tgs-toolbar-quote-top"><span className="tgs-toolbar-quote-num">{toolbarQuote.visibleNumber}</span><select className="tgs-toolbar-ver" value={toolbarQuote.version.version} onChange={event=>{const version=toolbarQuote.versions.find(item=>item.version===Number(event.target.value));if(version){const selected={...toolbarQuote,version,items:version.items};setQuote(selected);setAssociatedQuote(selected)}}}>{toolbarQuote.versions.map(version=><option key={version.id} value={version.version}>V{version.version} · {STATE_LABEL[version.state]}</option>)}</select><Pill tone={STATE_TONE[toolbarQuote.version.state]}>{STATE_LABEL[toolbarQuote.version.state]}</Pill><span className="tgs-toolbar-quote-total">{formatArs(toolbarQuote.version.totalSaleCents)}</span></div>
         {toolbarItemsPreview?<div className="tgs-toolbar-quote-items" title={toolbarItemsPreview}>{toolbarItemsPreview}</div>:null}
         <div className="tgs-toolbar-actions">
-          <button className="tgs-toolbar-btn" title={toolbarQuote.version.version!==toolbarQuote.activeVersion?"Solo se puede aprobar la versión activa":""} disabled={toolbarQuote.version.state==="ACEPTADO"||toolbarQuote.version.version!==toolbarQuote.activeVersion} onClick={()=>void changeQuoteState(toolbarQuote.id,"ACEPTADO").then(()=>getLatestSentQuote(phoneOverride)).then(setLatestSent)}>✓ Aprobar</button>
+          <button className="tgs-toolbar-btn" title={toolbarQuote.version.version!==toolbarQuote.activeVersion?"Solo se puede aprobar la versión activa":""} disabled={toolbarQuote.version.state==="ACEPTADO"||toolbarQuote.version.version!==toolbarQuote.activeVersion} onClick={()=>void changeQuoteState(toolbarQuote.id,"ACEPTADO").then(()=>getQuote(toolbarQuote.id)).then(updated=>{setQuote(updated);setAssociatedQuote(updated);if(phoneOverride)void getLatestSentQuote(phoneOverride).then(setLatestSent)})}>✓ Aprobar</button>
           <button className="tgs-toolbar-btn primary" onClick={()=>setActiveModal("send")}>📤 Enviar</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>🔄 Solicitar otro</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("edit")}>✏️ Nueva versión</button>
@@ -2514,11 +2531,11 @@ export function Panel() {
   ,toolbarHost)}
   {createPortal(<>
     {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
-    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onView={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setToolbarNotice(`${selected.visibleNumber} seleccionado.`);setActiveModal(null)}} onEdit={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("edit")}} onSend={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("send")}}/>:null}
+    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onView={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);void associateQuoteWithCurrentChat(selected);setToolbarNotice(`${selected.visibleNumber} seleccionado.`);setActiveModal(null)}} onEdit={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);void associateQuoteWithCurrentChat(selected);setActiveModal("edit")}} onSend={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);void associateQuoteWithCurrentChat(selected);setActiveModal("send")}}/>:null}
     {activeModal==="product"?<ProductSearchModal onClose={()=>setActiveModal(null)} onPrepare={prepareProductForChat}/>:null}
     {activeModal==="webSearch"?<WebSearchModal onClose={()=>setActiveModal(null)} onInsert={async query=>{const{url}=await getStoreSearchUrl(query);const inserted=await insertMessageIntoEmptyComposer(url);if(!inserted.ok)throw new Error(inserted.error??"No se pudo insertar el enlace en WhatsApp");setToolbarNotice("Enlace de búsqueda listo para enviar.")}}/>:null}
-    {activeModal==="edit"&&toolbarQuote?<QuickEditModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onSaved={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride))}}/>:null}
-    {activeModal==="send"&&toolbarQuote?<SendQuoteModal quote={toolbarQuote} chatKey={chatIdentity(phoneOverride,nameOverride)} phone={phoneOverride} name={nameOverride} confidence={detection.confidence} onClose={()=>setActiveModal(null)} onEdit={()=>setActiveModal("edit")} onUpdated={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride));await loadNotifications()}}/>:null}
+    {activeModal==="edit"&&toolbarQuote?<QuickEditModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onSaved={async()=>{await reloadQuote(toolbarQuote.id);if(persistedChatKey)setAssociatedQuote(await getChatbotConversationQuote(persistedChatKey));if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride))}}/>:null}
+    {activeModal==="send"&&toolbarQuote?<SendQuoteModal quote={toolbarQuote} chatKey={persistedChatKey} phone={phoneOverride} name={nameOverride} confidence={detection.confidence} onClose={()=>setActiveModal(null)} onEdit={()=>setActiveModal("edit")} onUpdated={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride));if(persistedChatKey)setAssociatedQuote(await getChatbotConversationQuote(persistedChatKey));await loadNotifications()}}/>:null}
     {activeModal==="history"&&toolbarQuote?<TimelineModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onVersion={version=>{if(window.confirm(`¿Crear una nueva versión restaurando V${version}?`))void createQuoteVersion(toolbarQuote.id,`Restaurada desde V${version}`,version).then(()=>reloadQuote(toolbarQuote.id))}}/>:null}
     {activeModal==="settings"&&chatbotRuntime.settings?<BotSettingsModal initial={chatbotRuntime.settings} currentMode={chatbotRuntime.conversation?.modeOverride??null} simulationMode={chatbotRuntime.simulationMode} autoRunning={chatbotRuntime.autoRunning} onMode={mode=>void chatbotRuntime.setMode(mode)} onSimulation={chatbotRuntime.setSimulationMode} onAutoRunning={chatbotRuntime.setAutoRunning} onSaved={()=>void chatbotRuntime.refresh()} onClose={()=>setActiveModal(null)}/>:null}
   </>,modalRoot)}</>;

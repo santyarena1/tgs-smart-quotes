@@ -374,6 +374,7 @@ model QuoteFamily {
   versions       QuoteVersion[]
   collections    CollectionQuote[]
   events         QuoteStatusEvent[]
+  chatbotConversations ChatbotConversation[]
 
   @@index([internalName])
   @@index([customerId, createdAt])
@@ -734,6 +735,8 @@ model ChatbotConversation {
   escalationReason       String?
   activeRequestId        String?
   activeRequest          QuoteRequest?       @relation(fields: [activeRequestId], references: [id], onDelete: SetNull)
+  lastQuoteFamilyId      String?
+  lastQuoteFamily        QuoteFamily?         @relation(fields: [lastQuoteFamilyId], references: [id], onDelete: SetNull)
   lastInboundFingerprint String?
   lastInboundText        String?
   lastInboundAt          DateTime?
@@ -749,6 +752,7 @@ model ChatbotConversation {
   @@index([escalatedAt])
   @@index([updatedAt])
   @@index([activeRequestId])
+  @@index([lastQuoteFamilyId])
 }
 
 /// Registro inmutable de entradas, decisiones, sugerencias e intentos de envío del chatbot.

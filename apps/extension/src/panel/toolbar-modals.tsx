@@ -33,7 +33,7 @@ import type {
 import {
   attachFileToComposer,
   findRecentMessageSnippets,
-  insertMessageIntoComposer,
+  insertAttachmentCaption,
   observeOutgoingMessage,
 } from "../dom-selectors";
 import { formatArs, formatArsWhole, formatDateTime } from "../lib/format";
@@ -584,11 +584,6 @@ export function SendQuoteModal({
         if(historical)await generateVersionPdf(quote.id,selectedVersion,kind);
         else await generatePdf(quote.id, kind);
       }
-      const inserted = await insertMessageIntoComposer(message.trim());
-      if (!inserted.ok)
-        throw new Error(
-          inserted.error ?? "No se pudo insertar el mensaje en WhatsApp.",
-        );
       const filename = `${quote.visibleNumber}-V${quote.version?.version ?? quote.activeVersion}-${kind}.pdf`;
       const blob = await fetchBlob(historical?versionPdfDownloadPath(quote.id,selectedVersion,kind):pdfDownloadPath(quote.id, kind));
       if (
@@ -597,8 +592,10 @@ export function SendQuoteModal({
         ))
       )
         throw new Error(
-          "WhatsApp no pudo abrir el PDF. El mensaje quedó en el composer y no se envió.",
+          "WhatsApp no pudo abrir el PDF y no se envió nada.",
         );
+      const caption=await insertAttachmentCaption(message.trim());
+      if(!caption.ok)throw new Error(caption.error??"WhatsApp abrió el PDF, pero no pudimos insertar el mensaje en su caption.");
       const attempt = await createSendAttempt(quote.id, {
         chatPhone: phone || null,
         chatName: name || null,
@@ -608,6 +605,7 @@ export function SendQuoteModal({
         confidence,
         internalNote: note.trim() || null,
         version:selectedVersion,
+        chatKey,
       });
       setNotice("Mensaje y PDF listos. Revisalos y tocá Enviar en WhatsApp.");
       observation.current?.stop();

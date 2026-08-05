@@ -195,6 +195,7 @@ export const createSendAttempt = (
     confidence?: number | null;
     internalNote?: string | null;
     version?:number;
+    chatKey?:string;
   },
 ) => api<SendAttempt>(`/quotes/${id}/send-attempts`, { body });
 
@@ -259,7 +260,8 @@ export const setChatbotEnabled=(enabled:boolean)=>api<ChatbotSettings>("/chatbot
 export const listChatbotConversations=()=>api<ChatbotConversation[]>("/chatbot/conversations");
 export const getChatbotContext=(chatKey:string,phone?:string|null)=>api<ChatbotChatContext>(`/chatbot/context/${encodeURIComponent(chatKey)}`,{query:{phone}});
 export const getChatbotConversation=(chatKey:string)=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`);
-export const updateChatbotConversation=(chatKey:string,body:{displayName?:string|null;modeOverride?:ChatbotMode|null;clearEscalation?:boolean})=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`,{method:"PUT",body});
+export const getChatbotConversationQuote=(chatKey:string)=>api<Quote|null>(`/chatbot/conversations/${encodeURIComponent(chatKey)}/quote`);
+export const updateChatbotConversation=(chatKey:string,body:{displayName?:string|null;modeOverride?:ChatbotMode|null;clearEscalation?:boolean;lastQuoteFamilyId?:string|null})=>api<ChatbotConversation>(`/chatbot/conversations/${encodeURIComponent(chatKey)}`,{method:"PUT",body});
 export const queueChatbotRecontact=(chatKey:string,body:{requestId:string;displayName?:string})=>api<{action:"QUEUED";queuedAt:string}>(`/chatbot/conversations/${encodeURIComponent(chatKey)}/queue-recontact`,{body});
 export const respondChatbot=(body:{chatKey:string;displayName?:string;detectedPhone?:string|null;message:string;messageType?:"TEXT"|"AUDIO";messageFingerprint:string;manualSuggestion?:boolean;simulation?:boolean;recentMessages?:Array<{direction:"INBOUND"|"OUTBOUND";text:string}>})=>api<ChatbotRespondResult>("/chatbot/respond",{body});
 export const listChatbotLogs=(chatKey?:string,limit=40)=>api<ChatbotLog[]>("/chatbot/logs",{query:{chatKey,limit}});

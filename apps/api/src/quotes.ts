@@ -451,6 +451,7 @@ export class QuotesController{
         }
         if(family.requestId){
           await markRequestListaIfPreparing(tx,family.requestId,actor.id);
+          await tx.chatbotConversation.updateMany({where:{activeRequestId:family.requestId},data:{lastQuoteFamilyId:family.id}});
         }
         await statusEvent(tx,{
           type:'PRESUPUESTO_CREADO',
@@ -1072,6 +1073,13 @@ export class QuotesController{
         internalNote:body.internalNote??null,
         userId:actor.id,
       }});
+      if(body.chatKey){
+        await tx.chatbotConversation.upsert({
+          where:{chatKey:body.chatKey},
+          create:{chatKey:body.chatKey,lastQuoteFamilyId:id},
+          update:{lastQuoteFamilyId:id},
+        });
+      }
       await statusEvent(tx,{
         type:'ENVIO_DETECTADO',
         familyId:id,

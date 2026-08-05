@@ -1094,16 +1094,45 @@ export async function sendMessageAutomatically(
     }
   });
 }
+/**
+ * Adjunta un archivo simulando un PASTE en el composer. WhatsApp maneja el pegado de
+ * archivos y abre el preview del adjunto (documento o media) SIN diálogo nativo del SO.
+ * Es la única forma fiable para DOCUMENTOS: WhatsApp ya no pre-renderiza un input de
+ * documento (solo "image/*") y "Enviar documento" abriría el picker nativo; el drop
+ * sintético lo ignora. El paste sí funciona (verificado en vivo con un PDF).
+ */
+async function pasteFileIntoComposer(file:File):Promise<boolean>{
+  const composer=findComposer()??document.querySelector<HTMLElement>("#main [data-testid='conversation-compose-box-input'], #main footer [contenteditable='true']");
+  if(!composer)return false;
+  composer.focus?.();
+  const transfer=new DataTransfer();
+  transfer.items.add(file);
+  const event=new ClipboardEvent("paste",{bubbles:true,cancelable:true});
+  // clipboardData suele ser de solo lectura: lo forzamos para que el handler lea los files.
+  try{Object.defineProperty(event,"clipboardData",{value:transfer});}catch{/* algunos navegadores lo aceptan por el init */}
+  composer.dispatchEvent(event);
+  // Confirmar que WhatsApp abrió el preview del adjunto (muestra el nombre del archivo).
+  for(let attempt=0;attempt<24;attempt+=1){
+    await wait(150);
+    if((document.querySelector("#main")?.textContent||"").includes(file.name))return true;
+  }
+  return false;
+}
+
 export async function attachFileToComposer(file:File):Promise<boolean>{
   try{
+    const isImage=file.type.startsWith("image/");
+    // Documentos (PDF, etc.): NO existe input de documento pre-renderizado; usamos paste.
+    if(!isImage)return await pasteFileIntoComposer(file);
+    // Imágenes: seteamos files en el input de "Fotos y videos" (nunca el de sticker),
+    // que produce una FOTO con caption (verificado). Fallback a paste si no aparece.
     const attachSelectors=["[data-testid='clip']","button[aria-label*='Adjuntar' i]","button[title*='Adjuntar' i]","span[data-icon='plus-rounded']","span[data-icon='clip']"];
     let trigger:HTMLElement|null=null;
     for(const selector of attachSelectors){
       const found=document.querySelector(selector);
       if(found instanceof HTMLElement){trigger=found.closest("button")??found;break}
     }
-    if(!trigger)return false;
-    // Este es el único click: abre el menú, nunca un input/label/opción que invoque el picker nativo.
+    if(!trigger)return await pasteFileIntoComposer(file);
     trigger.click();
     await wait(250);
     const inputs=[...document.querySelectorAll("input[type='file']")].filter((node):node is HTMLInputElement=>node instanceof HTMLInputElement);
@@ -1113,15 +1142,8 @@ export async function attachFileToComposer(file:File):Promise<boolean>{
       const context=[node.getAttribute("aria-label"),node.getAttribute("title"),node.closest("[role='menuitem'],li,button,label")?.textContent].filter(Boolean).join(" ");
       return /sticker|calcoman/i.test(context);
     };
-    const isImage=file.type.startsWith("image/");
-    // OJO: NO usar accept.includes("*") para documentos: el input de fotos declara
-    // "image/*,video/*" que también incluye "*", y un PDF terminaba ahí → "archivo no
-    // compatible". Para documentos elegimos el input que NO acepta imagen ni video.
-    const isDocInput=(node:HTMLInputElement)=>!accept(node).includes("image")&&!accept(node).includes("video");
-    const input=isImage
-      ?(inputs.find(isPhotoVideo)??inputs.find(node=>accept(node).includes("image")&&!isSticker(node)))
-      :(inputs.find(node=>accept(node).includes("pdf"))??inputs.find(isDocInput)??inputs.find(node=>accept(node).includes("*")&&!isPhotoVideo(node)));
-    if(!input)return false;
+    const input=inputs.find(isPhotoVideo)??inputs.find(node=>accept(node).includes("image")&&!isSticker(node));
+    if(!input)return await pasteFileIntoComposer(file);
     const transfer=new DataTransfer();
     transfer.items.add(file);
     input.files=transfer.files;
