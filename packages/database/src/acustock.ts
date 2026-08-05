@@ -12,6 +12,7 @@ export type AcustockFeedProduct = {
   brand: string | null;
   productType: string | null;
   imageUrl: string | null;
+  productUrl: string | null;
   weightKg: number | null;
   lengthCm: number | null;
   widthCm: number | null;
@@ -96,6 +97,7 @@ function mapItem(item: XmlRecord): AcustockFeedProduct {
     brand: optionalText(item.brand),
     productType: optionalText(item.product_type),
     imageUrl: optionalText(item.image_link),
+    productUrl: optionalText(item.link ?? item["g:link"]),
     weightKg: optionalNumber(item.weight),
     lengthCm: optionalNumber(item.length),
     widthCm: optionalNumber(item.width),

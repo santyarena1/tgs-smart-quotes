@@ -240,6 +240,7 @@ model AcustockProduct {
   brand          String?
   productType    String?
   imageUrl       String?
+  productUrl     String?
   weightKg       Float?
   lengthCm       Float?
   widthCm        Float?

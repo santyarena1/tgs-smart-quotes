@@ -2,6 +2,16 @@ import { BadGatewayException, Controller, Get, NotFoundException, Param, Post, Q
 import { catalogQuerySchema, type CatalogQuery } from "@tgs/contracts";
 import { db, Prisma, syncAcustockCatalog } from "@tgs/database";
 import { jsonSafe, ZodPipe } from "./infrastructure.js";
+import {z} from "zod";
+
+const TGS_STORE_URL="https://thegamershop.com.ar";
+
+function wordpressProductSlug(title:string):string{
+  return title.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("es-AR")
+    .replace(/[^a-z0-9 _-]/g,"").replace(/[ _]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"");
+}
+
+function fallbackProductUrl(title:string):string{return`${TGS_STORE_URL}/producto/${wordpressProductSlug(title)}/`}
 
 function pesosToCents(value: number | undefined): bigint | undefined {
   return value === undefined ? undefined : BigInt(Math.round(value * 100));
@@ -9,6 +19,11 @@ function pesosToCents(value: number | undefined): bigint | undefined {
 
 @Controller("catalog")
 export class CatalogController {
+  @Get("web-search")
+  webSearch(@Query(new ZodPipe(z.object({q:z.string().trim().min(1).max(300)}).strict())) query:{q:string}){
+    return{url:`${TGS_STORE_URL}/?s=${encodeURIComponent(query.q).replace(/%20/g,"+")}&post_type=product&dgwt_wcas=1`};
+  }
+
   @Get(":mpn/image")
   async image(@Param("mpn") mpn:string){
     const product=await db.acustockProduct.findUnique({where:{mpn},select:{imageUrl:true}});
@@ -88,6 +103,7 @@ export class CatalogController {
         id:item.mpn,
         name:item.title,
         salePriceCents:item.salePriceCents??item.priceCents,
+        productUrl:item.productUrl??fallbackProductUrl(item.title),
       })),
       total,
       page: query.page,

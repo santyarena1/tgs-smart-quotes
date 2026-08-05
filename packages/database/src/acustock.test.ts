@@ -15,6 +15,7 @@ describe("AcuStock feed", () => {
           <price>21.362,31 ARS</price><sale_price>20.000,00 ARS</sale_price>
           <availability>in_stock</availability><stock_quantity>5</stock_quantity>
           <brand>Acme</brand><product_type>Accesorios</product_type>
+          <link>https://thegamershop.com.ar/producto/mouse/</link>
           <weight>0.2</weight><length>10</length><width>5</width><height>3</height>
           <tags><tag tipo="proveedor">Disponible en 24hs</tag></tags>
         </item>
@@ -28,6 +29,7 @@ describe("AcuStock feed", () => {
       stockQuantity: 5,
       weightKg: 0.2,
       tags: ["proveedor: Disponible en 24hs"],
+      productUrl:"https://thegamershop.com.ar/producto/mouse/",
     });
   });
 });

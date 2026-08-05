@@ -48,6 +48,7 @@ import {
   updateRequest,
   type ExtensionConnection,
   acustockProductImagePath,
+  getStoreSearchUrl,
 } from "./lib/api";
 import { formatArs, formatDateTime } from "./lib/format";
 import type {
@@ -72,7 +73,7 @@ import type {
 } from "./lib/types";
 import { Alert, ConfidenceBar, ConfirmModal, EmptyState, Field, ModalShell, Pill, Section, Skeleton, Tabs, Tone, injectPanelStyles } from "./panel/ui";
 import { CustomerModal, QuickEditModal } from "./panel/modals";
-import {BotSettingsModal,ProductSearchModal,QuickRequestModal,QuoteSearchModal,TimelineModal} from "./panel/toolbar-modals";
+import {BotSettingsModal,ProductSearchModal,QuickRequestModal,QuoteSearchModal,TimelineModal,WebSearchModal} from "./panel/toolbar-modals";
 
 const STATE_LABEL: Record<QuoteState, string> = {
   BORRADOR: "Borrador",
@@ -2135,7 +2136,7 @@ export function Panel() {
   }, []);
 
   const[toolbarHost,setToolbarHost]=useState<HTMLElement|null>(null);
-  const[activeModal,setActiveModal]=useState<"request"|"search"|"product"|"settings"|"history"|"edit"|null>(null);
+  const[activeModal,setActiveModal]=useState<"request"|"search"|"product"|"webSearch"|"settings"|"history"|"edit"|null>(null);
   const[toolbarNotice,setToolbarNotice]=useState<string|null>(null);
   const [open, setOpen] = useState(true);
   const panelRef=useRef<HTMLDivElement>(null);
@@ -2374,7 +2375,7 @@ export function Panel() {
     const extension=blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg";
     const filename=`${product.mpn.replace(/[^\w.-]+/g,"-")}.${extension}`;
     if(!await attachFileToComposer(new File([blob],filename,{type:blob.type})))throw new Error("WhatsApp no pudo abrir la foto en el preview de adjuntos.");
-    const caption=`${product.title}\n${formatArs(product.salePriceCents??product.priceCents)}`;
+    const caption=`${product.title}\n${formatArs(product.salePriceCents??product.priceCents)}\n${product.productUrl}`;
     const inserted=await insertAttachmentCaption(caption);
     if(!inserted.ok)throw new Error(`${inserted.error??"No se pudo insertar el texto del producto"} La foto quedó abierta para que puedas completar el caption manualmente.`);
     setToolbarNotice("Producto listo: revisá la foto y tocá Enviar cuando quieras.");
@@ -2389,6 +2390,7 @@ export function Panel() {
         <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>➕ Solicitud rápida</button>
         <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("search")}>🔍 Buscar presupuesto</button>
         <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("product")}>🛒 Producto</button>
+        <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("webSearch")}>🔎 Buscar web</button>
         <NotificationsBell notifications={notifications} open={notifOpen} onToggle={()=>setNotifOpen(value=>!value)} onMark={(id,body)=>void handleMarkNotification(id,body)} error={notifError} loading={notifLoading}/>
         <button className="tgs-toolbar-btn icon" title="Configuración" onClick={()=>setActiveModal("settings")}>⚙️</button>
         <span className={`tgs-toolbar-status ${connection?.ok?"ok":"warn"}`}>{connectionLabel}{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.autoRunning?" · AUTO":""}</span>
@@ -2407,6 +2409,7 @@ export function Panel() {
     {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
     {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onSelect={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("edit")}}/>:null}
     {activeModal==="product"?<ProductSearchModal onClose={()=>setActiveModal(null)} onPrepare={prepareProductForChat}/>:null}
+    {activeModal==="webSearch"?<WebSearchModal onClose={()=>setActiveModal(null)} onInsert={async query=>{const{url}=await getStoreSearchUrl(query);const inserted=await insertMessageIntoEmptyComposer(url);if(!inserted.ok)throw new Error(inserted.error??"No se pudo insertar el enlace en WhatsApp");setToolbarNotice("Enlace de búsqueda listo para enviar.")}}/>:null}
     {activeModal==="edit"&&toolbarQuote?<QuickEditModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onSaved={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride))}}/>:null}
     {activeModal==="history"&&toolbarQuote?<TimelineModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onVersion={version=>{if(window.confirm(`¿Crear una nueva versión restaurando V${version}?`))void createQuoteVersion(toolbarQuote.id,`Restaurada desde V${version}`,version).then(()=>reloadQuote(toolbarQuote.id))}}/>:null}
     {activeModal==="settings"&&chatbotRuntime.settings?<BotSettingsModal initial={chatbotRuntime.settings} currentMode={chatbotRuntime.conversation?.modeOverride??null} simulationMode={chatbotRuntime.simulationMode} autoRunning={chatbotRuntime.autoRunning} onMode={mode=>void chatbotRuntime.setMode(mode)} onSimulation={chatbotRuntime.setSimulationMode} onAutoRunning={chatbotRuntime.setAutoRunning} onSaved={()=>void chatbotRuntime.refresh()} onClose={()=>setActiveModal(null)}/>:null}
