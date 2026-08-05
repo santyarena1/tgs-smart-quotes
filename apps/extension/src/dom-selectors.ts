@@ -654,22 +654,26 @@ export async function insertAttachmentCaption(text:string):Promise<InsertResult>
     return /coment|caption|pie de foto/.test(hint);
   })??[...document.querySelectorAll<HTMLElement>("div[contenteditable='true']")].reverse().find(node=>node.offsetParent!==null&&!node.closest("#main footer"));
   const normalized=(value:string)=>value.replace(/\s+/g," ").trim();
-  const deadline=Date.now()+5_000;
+  const wanted=normalized(text);
+  const has=(node:HTMLElement|null|undefined)=>Boolean(node&&normalized(node.innerText||node.textContent||"").includes(wanted));
+  // Reintentar hasta confirmar el texto: el div del caption puede existir en el DOM antes de que
+  // su editor Lexical (__lexicalEditor, mundo de página) esté listo, y el bridge fallaría en el
+  // primer intento. Por eso NO abandonamos al primer fallo: reintentamos hasta el deadline.
+  const deadline=Date.now()+8_000;
+  let lastError:string|undefined;
   while(Date.now()<deadline){
     const editor=captionEditor();
     if(editor){
+      if(has(editor))return{ok:true};
       const result=await requestComposerBridge("insertCaption",text);
-      if(!result.ok)return result;
-      while(Date.now()<deadline){
-        const current=captionEditor();
-        if(current&&normalized(current.innerText||current.textContent||"").includes(normalized(text)))return{ok:true};
-        await wait(100);
-      }
-      return{ok:false,error:"WhatsApp abrió el caption, pero no confirmó que el texto haya quedado insertado. La foto sigue abierta."};
+      if(!result.ok)lastError=result.error;
+      await wait(200);
+      if(has(captionEditor()))return{ok:true};
     }
-    await wait(150);
+    await wait(200);
   }
-  return{ok:false,error:"No se encontró el editor visible del caption después de esperar 5 segundos. La foto sigue abierta."};
+  if(has(captionEditor()))return{ok:true};
+  return{ok:false,error:lastError??"No se pudo insertar el mensaje en el caption del adjunto (WhatsApp no lo confirmó)."};
 }
 
 export function readComposerText():string|null {

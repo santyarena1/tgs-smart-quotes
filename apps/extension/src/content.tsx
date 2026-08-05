@@ -2201,6 +2201,10 @@ export function Panel() {
   const [notifError, setNotifError] = useState<string | null>(null);
   const [notifLoading, setNotifLoading] = useState(true);
   const clearedEscalationsRef=useRef(new Set<string>());
+  const clearEscalationAttemptAtRef=useRef(new Map<string,number>());
+  const statusOverlayRef=useRef(new Map<string,ChatbotConversation>());
+  const statusOverlayFetchedAtRef=useRef(0);
+  const statusOverlayFetchRef=useRef<Promise<void>|null>(null);
 
   const [connection, setConnection] = useState<ExtensionConnection | null>(null);
   const [connectionBusy, setConnectionBusy] = useState(false);
@@ -2329,61 +2333,72 @@ export function Panel() {
 
   useEffect(()=>{
     let timer=0;let stopped=false;
-    const refreshStatuses=()=>{
-      window.clearTimeout(timer);
-      timer=window.setTimeout(()=>{void (async()=>{
-        try{
-          const [list,rows]=[detectChatList(settingsRefForStatus()),await listChatbotConversations()];
-          if(stopped||list.confidence===0)return;
-          const byKey=new Map(rows.map(row=>[row.chatKey,row]));
-          const clearEscalations:string[]=[];
-          const statuses:NativeChatStatus[]=list.chats.map(chat=>{
-            const row=byKey.get(chat.chatKey);
-            if(!row?.escalatedAt||chat.lastDirection!=="OUTGOING"){
-              // Una conversación no escalada, o un nuevo mensaje entrante que
-              // volvió a escalarla, habilita una futura limpieza.
-              clearedEscalationsRef.current.delete(chat.chatKey);
-            }
-            if(row?.escalatedAt&&chat.lastDirection==="OUTGOING"){
-              if(!clearedEscalationsRef.current.has(chat.chatKey)){
-                clearedEscalationsRef.current.add(chat.chatKey);
-                clearEscalations.push(chat.chatKey);
-              }
-              return{chatKey:chat.chatKey,displayName:chat.name,status:"RESPONDED",label:"Respondido"};
-            }
-            if(row?.nativeStatus)return{chatKey:chat.chatKey,displayName:chat.name,status:row.nativeStatus.status,label:row.nativeStatus.label};
-            return chat.lastDirection==="OUTGOING"
-              ?{chatKey:chat.chatKey,displayName:chat.name,status:"RESPONDED",label:"Respondido"}
-              :{chatKey:chat.chatKey,displayName:chat.name,status:"NEEDS_REPLY",label:"Pendiente respuesta"};
-          });
-          applyNativeChatStatuses(statuses);
-          if(clearEscalations.length){
-            const results=await Promise.all(clearEscalations.map(async chatKey=>{
-              try{
-                await updateChatbotConversation(chatKey,{clearEscalation:true});
-                return{chatKey,ok:true};
-              }catch(error){
-                console.debug("[tgs-toolbar] no se pudo limpiar la escalación",{chatKey,error});
-                return{chatKey,ok:false};
-              }
-            }));
-            if(stopped)return;
-            for(const result of results)if(!result.ok)clearedEscalationsRef.current.delete(result.chatKey);
-            if(results.some(result=>result.ok&&sameChatIdentity(result.chatKey,detection.phone,detection.name))){
-              await chatbotRuntime.refresh();
-            }
-          }
-        }catch(error){console.debug("[tgs-toolbar] no se pudieron refrescar etiquetas",error)}
-      })()},450);
-    };
     const settingsRefForStatus=()=>chatbotRuntime.settings?.ignoredAutoMessages??[];
+    const applyDomStatuses=()=>{
+      if(stopped)return;
+      const list=detectChatList(settingsRefForStatus());
+      if(list.confidence===0)return;
+      const clearEscalations:string[]=[];
+      const statuses:NativeChatStatus[]=list.chats.map(chat=>{
+        const row=statusOverlayRef.current.get(chat.chatKey);
+        const base:NativeChatStatus=chat.lastDirection==="OUTGOING"
+          ?{chatKey:chat.chatKey,displayName:chat.name,status:"RESPONDED",label:"Respondido"}
+          :{chatKey:chat.chatKey,displayName:chat.name,status:"NEEDS_REPLY",label:"Pendiente respuesta"};
+        if(!row)return base;
+        if(!row.escalatedAt||chat.lastDirection!=="OUTGOING")clearedEscalationsRef.current.delete(chat.chatKey);
+        if(row.escalatedAt&&chat.lastDirection==="OUTGOING"){
+          const lastAttempt=clearEscalationAttemptAtRef.current.get(chat.chatKey)??0;
+          if(!clearedEscalationsRef.current.has(chat.chatKey)&&Date.now()-lastAttempt>=7000){
+            clearEscalationAttemptAtRef.current.set(chat.chatKey,Date.now());
+            clearedEscalationsRef.current.add(chat.chatKey);clearEscalations.push(chat.chatKey);
+          }
+          return base;
+        }
+        return row.nativeStatus
+          ?{chatKey:chat.chatKey,displayName:chat.name,status:row.nativeStatus.status,label:row.nativeStatus.label}
+          :base;
+      });
+      // Siempre se aplican primero las etiquetas derivadas del DOM; la red nunca las bloquea.
+      applyNativeChatStatuses(statuses);
+      for(const chatKey of clearEscalations){
+        void updateChatbotConversation(chatKey,{clearEscalation:true}).then(()=>{
+          const cached=statusOverlayRef.current.get(chatKey);
+          if(cached)statusOverlayRef.current.set(chatKey,{...cached,escalatedAt:null,escalationReason:null,nativeStatus:{status:"RESPONDED",label:"Respondido"}});
+          if(!stopped)applyDomStatuses();
+          if(sameChatIdentity(chatKey,detection.phone,detection.name))void chatbotRuntime.refresh();
+        }).catch(error=>{
+          clearedEscalationsRef.current.delete(chatKey);
+          console.debug("[tgs-toolbar] no se pudo limpiar la escalación",{chatKey,error});
+        });
+      }
+    };
+    const scheduleDom=()=>{window.clearTimeout(timer);timer=window.setTimeout(applyDomStatuses,400)};
+    const refreshOverlay=()=>{
+      const now=Date.now();
+      if(statusOverlayFetchRef.current){
+        void statusOverlayFetchRef.current.finally(()=>{if(!stopped)applyDomStatuses()});
+        return statusOverlayFetchRef.current;
+      }
+      if(now-statusOverlayFetchedAtRef.current<7000)return null;
+      const request=listChatbotConversations().then(rows=>{
+        statusOverlayFetchedAtRef.current=Date.now();
+        statusOverlayRef.current=new Map(rows.map(row=>[row.chatKey,row]));
+      }).catch(error=>{
+        statusOverlayFetchedAtRef.current=Date.now();
+        console.debug("[tgs-toolbar] overlay remoto de etiquetas no disponible; se conserva el cache",error);
+      }).finally(()=>{statusOverlayFetchRef.current=null;if(!stopped)applyDomStatuses()});
+      statusOverlayFetchRef.current=request;
+      return request;
+    };
     const observer=new MutationObserver(records=>{
       if(records.every(record=>(record.target as Element).closest?.(".tgs-native-status,#tgs-native-chat-filter,#tgs-toolbar")))return;
-      refreshStatuses();
+      scheduleDom();
     });
     observer.observe(document.body,{childList:true,subtree:true,characterData:true});
-    refreshStatuses();
-    return()=>{stopped=true;observer.disconnect();window.clearTimeout(timer)};
+    applyDomStatuses();
+    void refreshOverlay();
+    const overlayInterval=window.setInterval(()=>void refreshOverlay(),7500);
+    return()=>{stopped=true;observer.disconnect();window.clearTimeout(timer);window.clearInterval(overlayInterval)};
   },[chatbotRuntime.settings?.ignoredAutoMessages,detection.phone,detection.name,chatbotRuntime.refresh]);
 
   async function selectQuote(id: string) {

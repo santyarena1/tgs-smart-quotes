@@ -509,12 +509,14 @@ export class ChatbotController {
 
   @Get('conversations')
   async conversations() {
-    const settings = await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+    const settings = await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'},select:{defaultMode:true}});
     const [rows,pendingSuggestions]=await Promise.all([
       db.chatbotConversation.findMany({
         orderBy: {updatedAt: 'desc'},
         take: 300,
-        include: {
+        select: {
+          chatKey:true,displayName:true,modeOverride:true,escalatedAt:true,escalationReason:true,
+          activeRequestId:true,recontactCount:true,lastRecontactAt:true,recontactOptOut:true,updatedAt:true,
           _count: {select: {messages: true}},
           activeRequest:{select:{id:true,title:true,state:true}},
           messages:{
