@@ -35,6 +35,7 @@ import {normalizePhone, normalizeText, productSimilarity} from '@tgs/validation'
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {createQuoteRequest} from './quotes.js';
 import {saveChatbotRuleImage} from './chatbot-storage.js';
+import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 
 const CHAT_KEY_MAX = 200;
 const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
@@ -961,7 +962,9 @@ export class ChatbotController {
     const resolvedAttachments=await resolveRuleAttachments(settings.responses,body.message);
     const aiMessages=settings.multiMessage.splitMode==='FIXED_ONLY'
       ?[baseReply]
-      :(result.result.messages.length?result.result.messages:[baseReply]).slice(0,settings.multiMessage.maxBubbles);
+      :settings.multiMessage.enabled
+        ?splitChatbotAiMessages(result.result.messages,baseReply,settings.multiMessage.maxBubbles)
+        :(result.result.messages.length?result.result.messages:[baseReply]).slice(0,settings.multiMessage.maxBubbles);
     let messages=settings.multiMessage.enabled
       ?[
           ...(!conversation.lastOutboundText&&settings.multiMessage.openingMessage.trim()?[settings.multiMessage.openingMessage.trim()]:[]),
