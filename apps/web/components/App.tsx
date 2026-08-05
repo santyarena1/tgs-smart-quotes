@@ -104,6 +104,19 @@ export function App() {
       .catch(() => setBranding(null));
   }, [user, nav]);
 
+  useEffect(()=>{
+    const apply=(url:string|null|undefined)=>{
+      let link=document.head.querySelector<HTMLLinkElement>("link[data-tgs-favicon]");
+      if(!url){link?.remove();return}
+      if(!link){link=document.createElement("link");link.rel="icon";link.dataset.tgsFavicon="true";document.head.appendChild(link)}
+      link.href=url;
+    };
+    apply(branding?.faviconUrl);
+    const changed=(event:Event)=>apply((event as CustomEvent<string|null>).detail);
+    window.addEventListener("tgs-favicon-changed",changed);
+    return()=>window.removeEventListener("tgs-favicon-changed",changed);
+  },[branding?.faviconUrl]);
+
   useEffect(() => {
     if (!changelogOpen) return;
     const onClick = (e: MouseEvent) => {

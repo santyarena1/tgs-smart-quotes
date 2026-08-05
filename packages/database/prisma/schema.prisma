@@ -609,6 +609,7 @@ model FinancingPlan {
 model CompanySettings {
   id              String   @id @default("singleton")
   logoUrl         String?
+  faviconUrl      String?
   name            String
   taxCondition    String
   cuit            String

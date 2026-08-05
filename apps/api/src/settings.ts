@@ -36,7 +36,7 @@ import {
 import {renderPdfHtml, type PdfRenderInput, type PdfResolvedConfig, type PdfTemplate} from '@tgs/pdf';
 import {decryptSecret, encryptSecret, maskSecret} from '@tgs/config';
 import {CurrentUser, jsonSafe, Public, type RequestUser, ZodPipe} from './infrastructure.js';
-import {filenameFromLogoUrl, normalizeLogoUrl, removeManagedLogoFile, saveBrandingLogo} from './branding-storage.js';
+import {filenameFromFaviconUrl, filenameFromLogoUrl, normalizeFaviconUrl, normalizeLogoUrl, removeManagedFaviconFile, removeManagedLogoFile, saveBrandingLogo, saveFavicon} from './branding-storage.js';
 import {describeOpenAiError} from '@tgs/ai';
 
 const NON_CHAT_MODEL_FAMILIES =
@@ -75,6 +75,7 @@ export class SettingsController {
     return {
       name: row.name,
       logoUrl: normalizeLogoUrl(row.logoUrl),
+      faviconUrl: normalizeFaviconUrl(row.faviconUrl),
       primaryColor: row.primaryColor,
       accentColor: row.accentColor,
     };
@@ -83,7 +84,7 @@ export class SettingsController {
   @Get('company')
   async company() {
     const row = await db.companySettings.findUniqueOrThrow({where: {id: 'singleton'}});
-    return {...row, logoUrl: normalizeLogoUrl(row.logoUrl)};
+    return {...row, logoUrl: normalizeLogoUrl(row.logoUrl), faviconUrl: normalizeFaviconUrl(row.faviconUrl)};
   }
 
   @Put('company')
@@ -95,7 +96,7 @@ export class SettingsController {
       const old = await tx.companySettings.findUniqueOrThrow({where: {id: 'singleton'}});
       const next = await tx.companySettings.update({where: {id: 'singleton'}, data: body});
       await audit(tx, u.id, 'CompanySettings', 'singleton', 'UPDATE', old, next);
-      return next;
+      return {...next,logoUrl:normalizeLogoUrl(next.logoUrl),faviconUrl:normalizeFaviconUrl(next.faviconUrl)};
     });
   }
 
@@ -138,6 +139,33 @@ export class SettingsController {
       });
       await audit(tx, u.id, 'CompanySettings', 'singleton', 'LOGO_CLEAR', old, next);
       return next;
+    });
+  }
+
+  /** Sube un favicon ICO/PNG/SVG de hasta 1 MB. */
+  @Post('company/favicon')
+  async uploadFavicon(@Req() req:any,@CurrentUser() u:RequestUser){
+    if(typeof req.file!=='function')throw new BadRequestException('Upload multipart no disponible en el servidor');
+    const part=await req.file();
+    if(!part)throw new BadRequestException('Seleccioná un archivo de favicon');
+    const saved=await saveFavicon(await part.toBuffer(),String(part.mimetype??''));
+    return db.$transaction(async tx=>{
+      const old=await tx.companySettings.findUniqueOrThrow({where:{id:'singleton'}});
+      if(old.faviconUrl&&filenameFromFaviconUrl(old.faviconUrl)!==saved.filename)await removeManagedFaviconFile(old.faviconUrl);
+      const next=await tx.companySettings.update({where:{id:'singleton'},data:{faviconUrl:saved.url}});
+      await audit(tx,u.id,'CompanySettings','singleton','FAVICON_UPLOAD',old,next);
+      return{...next,logoUrl:normalizeLogoUrl(next.logoUrl),faviconUrl:normalizeFaviconUrl(next.faviconUrl)};
+    });
+  }
+
+  @Delete('company/favicon')
+  async clearFavicon(@CurrentUser() u:RequestUser){
+    return db.$transaction(async tx=>{
+      const old=await tx.companySettings.findUniqueOrThrow({where:{id:'singleton'}});
+      await removeManagedFaviconFile(old.faviconUrl);
+      const next=await tx.companySettings.update({where:{id:'singleton'},data:{faviconUrl:null}});
+      await audit(tx,u.id,'CompanySettings','singleton','FAVICON_CLEAR',old,next);
+      return{...next,logoUrl:normalizeLogoUrl(next.logoUrl),faviconUrl:null};
     });
   }
 

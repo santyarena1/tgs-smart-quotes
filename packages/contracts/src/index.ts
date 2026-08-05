@@ -64,6 +64,10 @@ export const companySettingsInputSchema = z
       .union([z.string().url(), z.string().regex(/^\/[\w./-]+$/), z.literal('')])
       .nullable()
       .transform((v) => (v === '' ? null : v)),
+    faviconUrl: z
+      .union([z.string().url(), z.string().regex(/^\/[\w./-]+$/), z.literal('')])
+      .nullable()
+      .transform((v) => (v === '' ? null : v)),
     name: text,
     taxCondition: text,
     cuit: text,

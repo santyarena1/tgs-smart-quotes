@@ -1094,7 +1094,37 @@ export async function sendMessageAutomatically(
     }
   });
 }
-export async function attachFileToComposer(file:File):Promise<boolean>{try{const attachSelectors=["[data-testid='clip']","button[aria-label*='Adjuntar' i]","button[title*='Adjuntar' i]","span[data-icon='plus-rounded']","span[data-icon='clip']"];let trigger:HTMLElement|null=null;for(const selector of attachSelectors){const found=document.querySelector(selector);if(found instanceof HTMLElement){trigger=found.closest("button")??found;break}}if(!trigger)return false;trigger.click();await wait(250);const allInputs=()=>[...document.querySelectorAll("input[type='file']")].filter((node):node is HTMLInputElement=>node instanceof HTMLInputElement);const accept=(node:HTMLInputElement)=>(node.accept||"").toLowerCase();const isPhotoVideo=(node:HTMLInputElement)=>accept(node).includes("image")&&accept(node).includes("video");const isSticker=(node:HTMLInputElement)=>{const context=[node.getAttribute("aria-label"),node.getAttribute("title"),node.closest("[role='menuitem'],li,button,label")?.textContent].filter(Boolean).join(" ");return /sticker|calcoman/i.test(context)};const isImage=file.type.startsWith("image/");let inputs=allInputs();let input=isImage?inputs.find(isPhotoVideo):undefined;if(isImage&&!input){const photoAction=[...document.querySelectorAll<HTMLElement>("[role='menuitem'],li,button")].find(node=>node.offsetParent!==null&&/fotos?\s*(y|&|and)\s*v[ií]deos?|photos?\s*(and|&)\s*videos?/i.test(`${node.textContent??""} ${node.getAttribute("aria-label")??""}`));if(photoAction){photoAction.click();await wait(250);inputs=allInputs();input=inputs.find(isPhotoVideo)}}if(isImage&&!input)input=inputs.find(node=>accept(node).includes("image")&&!isSticker(node));if(isImage&&!input)input=inputs.find(node=>accept(node).includes("image"));if(!input)input=inputs.find(node=>accept(node).includes("pdf")||accept(node).includes("*")||(!accept(node).includes("image")&&!accept(node).includes("video")));if(!input)return false;const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));return input.files?.length===1}catch{return false}}
+export async function attachFileToComposer(file:File):Promise<boolean>{
+  try{
+    const attachSelectors=["[data-testid='clip']","button[aria-label*='Adjuntar' i]","button[title*='Adjuntar' i]","span[data-icon='plus-rounded']","span[data-icon='clip']"];
+    let trigger:HTMLElement|null=null;
+    for(const selector of attachSelectors){
+      const found=document.querySelector(selector);
+      if(found instanceof HTMLElement){trigger=found.closest("button")??found;break}
+    }
+    if(!trigger)return false;
+    // Este es el único click: abre el menú, nunca un input/label/opción que invoque el picker nativo.
+    trigger.click();
+    await wait(250);
+    const inputs=[...document.querySelectorAll("input[type='file']")].filter((node):node is HTMLInputElement=>node instanceof HTMLInputElement);
+    const accept=(node:HTMLInputElement)=>(node.accept||"").toLowerCase();
+    const isPhotoVideo=(node:HTMLInputElement)=>accept(node).includes("image")&&accept(node).includes("video");
+    const isSticker=(node:HTMLInputElement)=>{
+      const context=[node.getAttribute("aria-label"),node.getAttribute("title"),node.closest("[role='menuitem'],li,button,label")?.textContent].filter(Boolean).join(" ");
+      return /sticker|calcoman/i.test(context);
+    };
+    const isImage=file.type.startsWith("image/");
+    const input=(isImage?inputs.find(isPhotoVideo):undefined)
+      ??(isImage?inputs.find(node=>accept(node).includes("image")&&!isSticker(node)):undefined)
+      ??inputs.find(node=>accept(node).includes("pdf")||accept(node).includes("*")||(!accept(node).includes("image")&&!accept(node).includes("video")));
+    if(!input)return false;
+    const transfer=new DataTransfer();
+    transfer.items.add(file);
+    input.files=transfer.files;
+    input.dispatchEvent(new Event("change",{bubbles:true}));
+    return input.files?.length===1;
+  }catch{return false}
+}
 
 /** Adjunta, confirma el preview, pulsa Enviar y exige observar un nuevo saliente. */
 export async function sendAttachedFileAutomatically(

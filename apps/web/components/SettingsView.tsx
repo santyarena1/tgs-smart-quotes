@@ -119,6 +119,7 @@ export function SettingsView() {
   const [finDraft, setFinDraft] = useState<FinDraft>(emptyFin());
   const [finModalOpen, setFinModalOpen] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
+  const [faviconBusy,setFaviconBusy]=useState(false);
   const [extInfo, setExtInfo] = useState<ExtensionInfo | null>(null);
   const [extInstructions, setExtInstructions] = useState<ExtensionInstructions | null>(null);
   const [extApiTest, setExtApiTest] = useState<string | null>(null);
@@ -208,6 +209,26 @@ export function SettingsView() {
     } finally {
       setLogoBusy(false);
     }
+  }
+
+  async function uploadFavicon(file:File|null){
+    if(!file)return;
+    setFaviconBusy(true);setError(null);setNotice(null);
+    try{
+      const form=new FormData();form.append("file",file);
+      const next=await apiUpload<CompanySettings>("/settings/company/favicon",form);setCompany(next);
+      window.dispatchEvent(new CustomEvent("tgs-favicon-changed",{detail:next.faviconUrl}));
+      setNotice("Favicon subido y aplicado al web app.");
+    }catch(err){setError(errorMessage(err))}finally{setFaviconBusy(false)}
+  }
+
+  async function clearFavicon(){
+    setFaviconBusy(true);setError(null);setNotice(null);
+    try{
+      const next=await api<CompanySettings>("/settings/company/favicon",{method:"DELETE"});setCompany(next);
+      window.dispatchEvent(new CustomEvent("tgs-favicon-changed",{detail:null}));
+      setNotice("Favicon eliminado.");
+    }catch(err){setError(errorMessage(err))}finally{setFaviconBusy(false)}
   }
 
   async function savePdf(e: FormEvent) {
@@ -500,6 +521,28 @@ export function SettingsView() {
                     Quitar logo
                   </button>
                 ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="logo-upload">
+            <div className="logo-preview" style={{width:72,height:72,minHeight:72}}>
+              {company.faviconUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={company.faviconUrl} alt="Favicon del sistema" style={{width:40,height:40,objectFit:"contain"}} />
+              ) : (
+                <span className="logo-placeholder">Sin favicon</span>
+              )}
+            </div>
+            <div className="logo-upload-meta">
+              <p className="section-note" style={{margin:0}}>Favicon del navegador. Subí ICO, PNG o SVG de hasta 1 MB.</p>
+              {company.faviconUrl?<p className="muted" style={{margin:"0.35rem 0 0",wordBreak:"break-all"}}>URL: {company.faviconUrl}</p>:null}
+              <div className="form-actions" style={{marginTop:"0.75rem"}}>
+                <label className="btn-ghost" style={{cursor:faviconBusy?"wait":"pointer"}}>
+                  {faviconBusy?"Subiendo…":"Subir favicon"}
+                  <input type="file" accept="image/x-icon,image/vnd.microsoft.icon,image/png,image/svg+xml,.ico" hidden disabled={faviconBusy} onChange={event=>{const file=event.target.files?.[0]??null;event.target.value="";void uploadFavicon(file)}}/>
+                </label>
+                {company.faviconUrl?<button type="button" className="btn-danger btn-sm" disabled={faviconBusy} onClick={()=>void clearFavicon()}>Quitar favicon</button>:null}
               </div>
             </div>
           </div>

@@ -72,6 +72,7 @@ export type PcLine = {
 export type CompanySettings = {
   id: "singleton";
   logoUrl: string | null;
+  faviconUrl: string | null;
   name: string;
   taxCondition: string;
   cuit: string;
@@ -90,6 +91,7 @@ export type CompanySettings = {
 export type Branding = {
   name: string;
   logoUrl: string | null;
+  faviconUrl: string | null;
   primaryColor: string;
   accentColor: string;
 };

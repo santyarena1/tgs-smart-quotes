@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TGS Presupuestos Pro",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtUnOmhYjHK2NFcXLD++nqGwgq2hhu8J4TCqFXb0hFr5rSB9HcSlj3/8jUcrYnAucuYOze2YiLziTeL5zbZxK+rhx1uDebCfvAMK1s9GKSX+vpOLLG34DCPEH8z5iqKsBIz7Oj6f89EWXQ5DvDEDd0PKBhi6hRsDVX99ZKWECXVpctj/0U3MNJ3/kf/drvSQBs1soCr3aF3TbtBmpPLzZSVhTu1+p+3gmUGh+RzuUIdw3dgjBwfyN+qNrhltvHPDNfTrPyXlmD8vIOKKqanCUSQplDZGeT0fUtF6cbh3NDc2BaSuhOe3LicZSi+14N5staJm4mAJz1GPztgDrabU4eQIDAQAB",
   "permissions": ["storage", "downloads"],
   "host_permissions": [
