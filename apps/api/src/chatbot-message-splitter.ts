@@ -54,6 +54,10 @@ export function splitChatbotAiMessages(
   const split=(source.length?source:[fallbackReply.trim()])
     .filter(Boolean)
     .flatMap(message=>splitBubble(message,threshold));
+  if(split.length>1&&split.at(-1)!.trim().length<=15){
+    const tail=split.pop()!;
+    split[split.length-1]=`${split[split.length-1]} ${tail}`.trim();
+  }
   const limit=Math.max(1,Math.floor(maxBubbles));
   if(split.length<=limit)return split;
   return [...split.slice(0,limit-1),split.slice(limit-1).join(' ')];

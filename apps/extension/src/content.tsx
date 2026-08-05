@@ -1340,7 +1340,13 @@ function useChatbotRuntime(
     const arm=()=>{
       if(stopped)return;
       outgoing?.stop();
-      outgoing=observeNextOutgoingMessage(suggestion.chatKey,5*60*1000,result=>{
+      // observeNextOutgoingMessage compara contra el id CRUDO del chat activo (phone||name),
+      // no contra el chatKey normalizado ("name:lucas"): pasarle el chatKey hacía que su guardia
+      // interna creyera que cambiamos de chat y cortara el observer apenas se enviaba la 1ª
+      // burbuja, por lo que la siguiente nunca bajaba. Le pasamos el id crudo del chat activo.
+      const armActive=detectChat();
+      const rawChatId=armActive.phone||armActive.name;
+      outgoing=observeNextOutgoingMessage(rawChatId,5*60*1000,result=>{
         outgoing=null;
         if(stopped)return;
         const active=detectChat();

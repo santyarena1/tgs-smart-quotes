@@ -29,4 +29,14 @@ describe('splitChatbotAiMessages',()=>{
     expect(result.some(item=>item.includes(price))).toBe(true);
     expect(result.join(' ')).toBe(input);
   });
+
+  it('fusiona una última burbuja mínima con la anterior',()=>{
+    const result=splitChatbotAiMessages(
+      ['Dale, cualquier cosa te ayudo','😊'],
+      '',
+      3,
+    );
+    expect(result).toEqual(['Dale, cualquier cosa te ayudo 😊']);
+    expect(result).not.toContain('😊');
+  });
 });
