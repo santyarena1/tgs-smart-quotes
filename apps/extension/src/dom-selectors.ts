@@ -331,6 +331,37 @@ export function switchToChat(chatKey: string): InsertResult {
   return {ok: false, error: `No se encontró el chat "${chatKey}" en la lista (${SELECTOR_VERSION}).`};
 }
 
+/** Deja una búsqueda en la lista lateral cuando el chat todavía no está renderizado. */
+export function searchChatList(query:string):InsertResult {
+  const value=query.trim();
+  if(!value)return{ok:false,error:"No hay un nombre o teléfono para buscar."};
+  const candidates=Array.from(document.querySelectorAll<HTMLElement>(
+    "#pane-side [contenteditable='true'], #side [contenteditable='true'], #pane-side input, #side input",
+  ));
+  const visible=candidates.filter(element=>element.offsetParent!==null);
+  const search=visible.find(element=>{
+    const hint=[element.getAttribute("aria-label"),element.getAttribute("aria-placeholder"),element.getAttribute("placeholder"),element.getAttribute("data-tab")].filter(Boolean).join(" ");
+    return /buscar|search/i.test(hint);
+  })??visible[0];
+  if(!search)return{ok:false,error:`No se encontró el buscador de chats (${SELECTOR_VERSION}).`};
+  search.focus();
+  if(search instanceof HTMLInputElement||search instanceof HTMLTextAreaElement){
+    const prototype=search instanceof HTMLInputElement?HTMLInputElement.prototype:HTMLTextAreaElement.prototype;
+    const setter=Object.getOwnPropertyDescriptor(prototype,"value")?.set;
+    setter?.call(search,value);
+  }else{
+    const selection=window.getSelection();
+    const range=document.createRange();
+    range.selectNodeContents(search);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.execCommand("insertText",false,value);
+  }
+  search.dispatchEvent(new InputEvent("input",{bubbles:true,inputType:"insertText",data:value}));
+  search.dispatchEvent(new Event("change",{bubbles:true}));
+  return{ok:true};
+}
+
 function normalizeIdentityPart(value:string):string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLocaleLowerCase("es-AR").replace(/\s+/g," ");
 }

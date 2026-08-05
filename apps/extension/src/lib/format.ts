@@ -16,6 +16,17 @@ export function formatArs(cents: string | number | bigint | null | undefined): s
   return `${negative ? "-" : ""}$ ${wholeFmt},${fracFmt}`;
 }
 
+/** Precio comercial sin centavos, redondeado al peso y con miles argentinos. */
+export function formatArsWhole(cents:string|number|bigint|null|undefined):string{
+  if(cents===null||cents===undefined||cents==="")return"—";
+  try{
+    const value=typeof cents==="bigint"?cents:BigInt(String(cents).trim());
+    const negative=value<0n,absolute=negative?-value:value;
+    const pesos=(absolute+50n)/100n;
+    return`${negative?"-":""}$ ${pesos.toString().replace(/\B(?=(\d{3})+(?!\d))/g,".")}`;
+  }catch{return"—"}
+}
+
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;

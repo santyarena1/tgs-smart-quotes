@@ -702,6 +702,7 @@ model ChatbotSettings {
   outsideHoursBehavior      Json
   responseStyle             Json
   multiMessage              Json        @default("{\"enabled\":true,\"splitMode\":\"AI_NATURAL\",\"maxBubbles\":3,\"openingMessage\":\"\",\"closingMessage\":\"\",\"quoteFollowup\":{\"enabled\":true,\"message\":\"Decime si querés cambiar algo o sumar/sacar componentes 👍\"},\"draftMode\":\"QUEUE\",\"betweenDelayMinSeconds\":2,\"betweenDelayMaxSeconds\":6}")
+  productMessageIntro       String      @default("Este sería el producto 👇")
   /// Campo legacy leído durante una versión para fusionar reglas antiguas en `responses[]`.
   customRules               Json
   ignoredAutoMessages       Json        @default("[\"¡Hola! ¿Cómo podemos ayudarte\"]")

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
-import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertAttachmentCaption, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, observeToolbarHost, readComposerText, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
+import { applyNativeChatStatuses, attachFileToComposer, clearComposerIfMatches, detectChat, detectChatList, findLastIncomingMessage, findLastIncomingMessageText, findRecentMessageSnippets, hideMessageQueue, insertMessageIntoComposer, insertMessageIntoEmptyComposer, lastOpenMessageDirection, observeActiveChat, observeNextOutgoingMessage, observeOutgoingMessage, observeToolbarHost, readComposerText, searchChatList, sendAttachedFileAutomatically, sendMessageAutomatically, setAutomaticSimulationGuard, showMessageQueue, switchToChat, updateMessageQueue, waitForActiveChat, type ChatDetection, type NativeChatStatus } from "./dom-selectors";
 import {
   changeQuoteState,
   createQuickRequest,
@@ -50,7 +50,7 @@ import {
   acustockProductImagePath,
   getStoreSearchUrl,
 } from "./lib/api";
-import { formatArs, formatDateTime } from "./lib/format";
+import { formatArs, formatArsWhole, formatDateTime } from "./lib/format";
 import type {
   Collection,
   NotificationRow,
@@ -133,7 +133,12 @@ function ChatDetectionCard({detection,onRetry,phone,name,onPhoneChange,onNameCha
   </div>;
 }
 function relativeTime(value:string){const minutes=Math.max(0,Math.round((Date.now()-new Date(value).getTime())/60000));if(minutes<1)return "ahora";if(minutes<60)return `hace ${minutes} min`;const hours=Math.round(minutes/60);if(hours<24)return `hace ${hours} h`;return `hace ${Math.round(hours/24)} d`}
-function NotificationsBell({notifications,open,onToggle,onMark,error,loading}:{notifications:NotificationRow[];open:boolean;onToggle:()=>void;onMark:(id:string,body:{read?:boolean;acted?:boolean})=>void;error:string|null;loading:boolean}){const unread=notifications.filter(n=>!n.readAt).length;const icon=(type:string)=>type.includes("ERROR")?"⚠":type.includes("ACEPT")?"✓":"●";return <div style={{position:"relative"}}><button className="tgs-btn ghost sm" onClick={onToggle} aria-label="Notificaciones">🔔{unread?<span className="tgs-badge-dot">{unread}</span>:null}</button>{open?<aside className="tgs-notifications"><div className="tgs-notifications-header">Notificaciones</div><div className="tgs-notifications-body">{error?<Alert tone="bad">{error}</Alert>:loading?<Skeleton rows={4}/>:notifications.length?<>{notifications.map(n=><div className="tgs-notification" key={n.id} onClick={()=>onMark(n.id,{read:true})}><Pill tone={n.readAt?"neutral":"info"}>{icon(n.type)}</Pill><div><b>{n.title}</b><div className="tgs-muted">{n.body}</div><div className="tgs-muted">{relativeTime(n.createdAt)}</div></div></div>)}</>:<EmptyState icon="🔔" text="No hay notificaciones nuevas."/>}</div>{unread?<div className="tgs-notifications-footer"><button className="tgs-btn ghost sm" onClick={()=>notifications.filter(n=>!n.readAt).forEach(n=>onMark(n.id,{read:true}))}>Marcar todas como leídas</button></div>:null}</aside>:null}</div>}
+function notificationChatLabel(notification:NotificationRow):string {
+  const metadata=notification.metadata??{};
+  const name=[metadata.chatName,metadata.displayName,metadata.customerName].find(value=>typeof value==="string"&&value.trim()) as string|undefined;
+  return [name?.trim(),notification.chatPhone?.trim()].filter(Boolean).join(" · ")||"Chat no identificado";
+}
+function NotificationsBell({notifications,open,onToggle,onOpen,onMark,error,loading}:{notifications:NotificationRow[];open:boolean;onToggle:()=>void;onOpen:(notification:NotificationRow)=>void;onMark:(id:string,body:{read?:boolean;acted?:boolean})=>void;error:string|null;loading:boolean}){const unread=notifications.filter(n=>!n.readAt).length;const icon=(type:string)=>type.includes("ERROR")?"⚠":type.includes("ACEPT")?"✓":"●";return <div style={{position:"relative"}}><button className="tgs-btn ghost sm" onClick={onToggle} aria-label="Notificaciones">🔔{unread?<span className="tgs-badge-dot">{unread}</span>:null}</button>{open?<aside className="tgs-notifications"><div className="tgs-notifications-header">Notificaciones</div><div className="tgs-notifications-body">{error?<Alert tone="bad">{error}</Alert>:loading?<Skeleton rows={4}/>:notifications.length?<>{notifications.map(n=><button type="button" className="tgs-notification" style={{width:"100%",border:0,background:"transparent",color:"inherit",textAlign:"left"}} key={n.id} onClick={()=>onOpen(n)}><Pill tone={n.readAt?"neutral":"info"}>{icon(n.type)}</Pill><div><b>{n.title}</b><div className="tgs-strong">Chat: {notificationChatLabel(n)}</div><div className="tgs-muted">{n.body}</div><div className="tgs-muted">{relativeTime(n.createdAt)}</div></div></button>)}</>:<EmptyState icon="🔔" text="No hay notificaciones nuevas."/>}</div>{unread?<div className="tgs-notifications-footer"><button className="tgs-btn ghost sm" onClick={()=>notifications.filter(n=>!n.readAt).forEach(n=>onMark(n.id,{read:true}))}>Marcar todas como leídas</button></div>:null}</aside>:null}</div>}
 function QuoteSummaryCard({ quote }: { quote: Quote }) {
   const v = quote.version;
   return (
@@ -1006,12 +1011,36 @@ function useChatbotRuntime(
   const simulationRunIdRef=useRef(`run-${Date.now().toString(36)}`);
   const displayNameRef=useRef(name);
   const autoSuggestRunRef=useRef(0);
+  const [incomingRevision,setIncomingRevision]=useState(0);
   const currentKey=chatIdentity(phone,name);
   const ignoredAutoMessagesKey=JSON.stringify(settings?.ignoredAutoMessages??[]);
 
   useEffect(()=>{currentSuggestionRef.current=currentSuggestion},[currentSuggestion]);
   useEffect(()=>{settingsRef.current=settings},[settings]);
   useEffect(()=>{displayNameRef.current=name},[name]);
+
+  useEffect(()=>{
+    if(!currentKey||simulationMode||!autoSuggestions||!settings?.enabled||conversation?.effectiveMode!=="SUGGEST")return;
+    let stopped=false,timer=0;
+    let previous=findLastIncomingMessage(true,settings.ignoredAutoMessages)?.fingerprintSeed??null;
+    const inspect=()=>{
+      window.clearTimeout(timer);
+      timer=window.setTimeout(()=>{
+        if(stopped)return;
+        const active=detectChat();
+        if(!sameChatIdentity(currentKey,active.phone,active.name))return;
+        const incoming=findLastIncomingMessage(true,settingsRef.current?.ignoredAutoMessages??[]);
+        if(!incoming||incoming.fingerprintSeed===previous)return;
+        previous=incoming.fingerprintSeed;
+        botDebug("new inbound observed",{chatKey:currentKey,fingerprintSeed:incoming.fingerprintSeed});
+        setIncomingRevision(value=>value+1);
+      },450);
+    };
+    const target=document.querySelector("#main")??document.body;
+    const observer=new MutationObserver(inspect);
+    observer.observe(target,{childList:true,subtree:true,characterData:true});
+    return()=>{stopped=true;observer.disconnect();window.clearTimeout(timer)};
+  },[currentKey,simulationMode,autoSuggestions,settings?.enabled,ignoredAutoMessagesKey,conversation?.effectiveMode]);
 
   const setAutoSuggestions=(enabled:boolean)=>{
     setAutoSuggestionsState(enabled);
@@ -1624,6 +1653,7 @@ function useChatbotRuntime(
     settings?.enabled,
     ignoredAutoMessagesKey,
     settings?.maxRecentSnippets,
+    incomingRevision,
   ]);
 
   useEffect(()=>{
@@ -2138,6 +2168,7 @@ export function Panel() {
   const[toolbarHost,setToolbarHost]=useState<HTMLElement|null>(null);
   const[activeModal,setActiveModal]=useState<"request"|"search"|"product"|"webSearch"|"settings"|"history"|"edit"|"send"|null>(null);
   const[toolbarNotice,setToolbarNotice]=useState<string|null>(null);
+  const productQueueCleanupRef=useRef<(()=>void)|null>(null);
   const [open, setOpen] = useState(true);
   const panelRef=useRef<HTMLDivElement>(null);
   const [position,setPosition]=useState<{left:number;top:number}|null>(()=>{
@@ -2167,6 +2198,7 @@ export function Panel() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifError, setNotifError] = useState<string | null>(null);
   const [notifLoading, setNotifLoading] = useState(true);
+  const clearedEscalationsRef=useRef(new Set<string>());
 
   const [connection, setConnection] = useState<ExtensionConnection | null>(null);
   const [connectionBusy, setConnectionBusy] = useState(false);
@@ -2175,6 +2207,7 @@ export function Panel() {
     const subscription=observeToolbarHost(setToolbarHost);
     return()=>subscription.stop();
   },[]);
+  useEffect(()=>()=>productQueueCleanupRef.current?.(),[]);
 
   const loadCustomers = useCallback(async () => { setCustomerLoading(true); try { setCustomers(await listCustomers()); } catch { setCustomers([]); } finally { setCustomerLoading(false); } }, []);
   useEffect(() => { void loadCustomers(); }, [loadCustomers]);
@@ -2225,6 +2258,8 @@ export function Panel() {
     setActiveModal(null);
     setNotifOpen(false);
     setToolbarNotice(null);
+    productQueueCleanupRef.current?.();
+    productQueueCleanupRef.current=null;
     if (previousKey) chatSelectionsRef.current.set(previousKey, { selectedQuoteId });
     activeChatKeyRef.current = nextKey;
     setQuoteError(null);
@@ -2291,14 +2326,43 @@ export function Panel() {
           const [list,rows]=[detectChatList(settingsRefForStatus()),await listChatbotConversations()];
           if(stopped||list.confidence===0)return;
           const byKey=new Map(rows.map(row=>[row.chatKey,row]));
+          const clearEscalations:string[]=[];
           const statuses:NativeChatStatus[]=list.chats.map(chat=>{
             const row=byKey.get(chat.chatKey);
+            if(!row?.escalatedAt||chat.lastDirection!=="OUTGOING"){
+              // Una conversación no escalada, o un nuevo mensaje entrante que
+              // volvió a escalarla, habilita una futura limpieza.
+              clearedEscalationsRef.current.delete(chat.chatKey);
+            }
+            if(row?.escalatedAt&&chat.lastDirection==="OUTGOING"){
+              if(!clearedEscalationsRef.current.has(chat.chatKey)){
+                clearedEscalationsRef.current.add(chat.chatKey);
+                clearEscalations.push(chat.chatKey);
+              }
+              return{chatKey:chat.chatKey,displayName:chat.name,status:"RESPONDED",label:"Respondido"};
+            }
             if(row?.nativeStatus)return{chatKey:chat.chatKey,displayName:chat.name,status:row.nativeStatus.status,label:row.nativeStatus.label};
             return chat.lastDirection==="OUTGOING"
               ?{chatKey:chat.chatKey,displayName:chat.name,status:"RESPONDED",label:"Respondido"}
               :{chatKey:chat.chatKey,displayName:chat.name,status:"NEEDS_REPLY",label:"Pendiente respuesta"};
           });
           applyNativeChatStatuses(statuses);
+          if(clearEscalations.length){
+            const results=await Promise.all(clearEscalations.map(async chatKey=>{
+              try{
+                await updateChatbotConversation(chatKey,{clearEscalation:true});
+                return{chatKey,ok:true};
+              }catch(error){
+                console.debug("[tgs-toolbar] no se pudo limpiar la escalación",{chatKey,error});
+                return{chatKey,ok:false};
+              }
+            }));
+            if(stopped)return;
+            for(const result of results)if(!result.ok)clearedEscalationsRef.current.delete(result.chatKey);
+            if(results.some(result=>result.ok&&sameChatIdentity(result.chatKey,detection.phone,detection.name))){
+              await chatbotRuntime.refresh();
+            }
+          }
         }catch(error){console.debug("[tgs-toolbar] no se pudieron refrescar etiquetas",error)}
       })()},450);
     };
@@ -2310,7 +2374,7 @@ export function Panel() {
     observer.observe(document.body,{childList:true,subtree:true,characterData:true});
     refreshStatuses();
     return()=>{stopped=true;observer.disconnect();window.clearTimeout(timer)};
-  },[chatbotRuntime.settings?.ignoredAutoMessages]);
+  },[chatbotRuntime.settings?.ignoredAutoMessages,detection.phone,detection.name,chatbotRuntime.refresh]);
 
   async function selectQuote(id: string) {
     setSelectedQuoteId(id);
@@ -2350,6 +2414,29 @@ export function Panel() {
     }
   }
 
+  async function handleOpenNotification(notification:NotificationRow) {
+    setNotifOpen(false);
+    if(!notification.readAt)void handleMarkNotification(notification.id,{read:true});
+    const metadata=notification.metadata??{};
+    const name=[metadata.chatName,metadata.displayName,metadata.customerName].find(value=>typeof value==="string"&&value.trim()) as string|undefined;
+    const phone=notification.chatPhone?.replace(/\D/g,"")??"";
+    const listed=detectChatList(chatbotRuntime.settings?.ignoredAutoMessages??[]).chats.find(chat=>{
+      const listedPhone=chat.chatKey.startsWith("tel:")?chat.chatKey.slice(4):"";
+      return Boolean(phone&&listedPhone&&(phone.endsWith(listedPhone)||listedPhone.endsWith(phone)))
+        ||Boolean(name&&chat.name.localeCompare(name,"es-AR",{sensitivity:"base"})===0);
+    });
+    const key=listed?.chatKey??(phone?`tel:${phone}`:name?chatIdentity("",name):"");
+    const switched=key?switchToChat(key):{ok:false};
+    if(switched.ok){
+      setToolbarNotice(`Abriendo ${name?.trim()||notification.chatPhone||"el chat"}…`);
+      return;
+    }
+    const searched=searchChatList(notification.chatPhone||name||"");
+    setToolbarNotice(searched.ok
+      ?`No estaba visible en la lista: dejamos la búsqueda de ${name?.trim()||notification.chatPhone}.`
+      :searched.error??"No pudimos localizar el chat de esta notificación.");
+  }
+
   const connectionTone: Tone = !connection
     ? "neutral"
     : connection.ok
@@ -2375,10 +2462,16 @@ export function Panel() {
     const extension=blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg";
     const filename=`${product.mpn.replace(/[^\w.-]+/g,"-")}.${extension}`;
     if(!await attachFileToComposer(new File([blob],filename,{type:blob.type})))throw new Error("WhatsApp no pudo abrir la foto en el preview de adjuntos.");
-    const caption=`${product.title}\n${formatArs(product.salePriceCents??product.priceCents)}\n${product.productUrl}`;
-    const inserted=await insertAttachmentCaption(caption);
-    if(!inserted.ok)throw new Error(`${inserted.error??"No se pudo insertar el texto del producto"} La foto quedó abierta para que puedas completar el caption manualmente.`);
-    setToolbarNotice("Producto listo: revisá la foto y tocá Enviar cuando quieras.");
+    const intro=chatbotRuntime.settings?.productMessageIntro.trim()||"Este sería el producto 👇";
+    const text=[intro,product.title,formatArsWhole(product.salePriceCents??product.priceCents),product.productUrl].filter(Boolean).join("\n");
+    productQueueCleanupRef.current?.();
+    let stopped=false;let outgoing:{stop():void}|null=null;
+    const cleanup=()=>{if(stopped)return;stopped=true;outgoing?.stop();hideMessageQueue();if(productQueueCleanupRef.current===cleanup)productQueueCleanupRef.current=null};
+    const arm=()=>{if(stopped)return;outgoing?.stop();outgoing=observeNextOutgoingMessage(expectedChat,5*60*1000,result=>{outgoing=null;if(stopped)return;const current=detectChat();if(!sameChatIdentity(expectedChat,current.phone,current.name)){cleanup();return}if(result.timedOut||result.confidence<70){arm();return}void(async()=>{const inserted=await insertMessageIntoEmptyComposer(text);if(inserted.ok){cleanup();setToolbarNotice("Foto enviada. El texto del producto quedó listo para que lo envíes.")}else{setToolbarNotice("Hay texto en el composer; conservamos la cola del producto hasta el próximo envío.");arm()}})().catch(error=>{setToolbarNotice(errorMessage(error));arm()})})};
+    productQueueCleanupRef.current=cleanup;
+    showMessageQueue([text],()=>{cleanup();setToolbarNotice("Cola del producto cancelada; la foto sigue abierta.")});
+    arm();
+    setToolbarNotice("Foto lista. Cuando la envíes, va a bajar el texto del producto al composer.");
   }
 
   if(!toolbarHost)return null;
@@ -2392,7 +2485,7 @@ export function Panel() {
         <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("search")}>🔍 Buscar presupuesto</button>
         <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("product")}>🛒 Producto</button>
         <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("webSearch")}>🔎 Buscar web</button>
-        <NotificationsBell notifications={notifications} open={notifOpen} onToggle={()=>setNotifOpen(value=>!value)} onMark={(id,body)=>void handleMarkNotification(id,body)} error={notifError} loading={notifLoading}/>
+        <NotificationsBell notifications={notifications} open={notifOpen} onToggle={()=>setNotifOpen(value=>!value)} onOpen={notification=>void handleOpenNotification(notification)} onMark={(id,body)=>void handleMarkNotification(id,body)} error={notifError} loading={notifLoading}/>
         <button className="tgs-toolbar-btn icon" title="Configuración" onClick={()=>setActiveModal("settings")}>⚙️</button>
         <span className={`tgs-toolbar-status ${connection?.ok?"ok":"warn"}`}>{connectionLabel}{chatbotRuntime.simulationMode?" · PRUEBA":chatbotRuntime.autoRunning?" · AUTO":""}</span>
       </div>
@@ -2411,11 +2504,11 @@ export function Panel() {
   ,toolbarHost)}
   {createPortal(<>
     {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
-    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onSelect={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("send")}}/>:null}
+    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onView={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setToolbarNotice(`${selected.visibleNumber} seleccionado.`);setActiveModal(null)}} onEdit={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("edit")}} onSend={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("send")}}/>:null}
     {activeModal==="product"?<ProductSearchModal onClose={()=>setActiveModal(null)} onPrepare={prepareProductForChat}/>:null}
     {activeModal==="webSearch"?<WebSearchModal onClose={()=>setActiveModal(null)} onInsert={async query=>{const{url}=await getStoreSearchUrl(query);const inserted=await insertMessageIntoEmptyComposer(url);if(!inserted.ok)throw new Error(inserted.error??"No se pudo insertar el enlace en WhatsApp");setToolbarNotice("Enlace de búsqueda listo para enviar.")}}/>:null}
     {activeModal==="edit"&&toolbarQuote?<QuickEditModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onSaved={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride))}}/>:null}
-    {activeModal==="send"&&toolbarQuote?<SendQuoteModal quote={toolbarQuote} phone={phoneOverride} name={nameOverride} confidence={detection.confidence} onClose={()=>setActiveModal(null)} onUpdated={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride));await loadNotifications()}}/>:null}
+    {activeModal==="send"&&toolbarQuote?<SendQuoteModal quote={toolbarQuote} phone={phoneOverride} name={nameOverride} confidence={detection.confidence} onClose={()=>setActiveModal(null)} onEdit={()=>setActiveModal("edit")} onUpdated={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride));await loadNotifications()}}/>:null}
     {activeModal==="history"&&toolbarQuote?<TimelineModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onVersion={version=>{if(window.confirm(`¿Crear una nueva versión restaurando V${version}?`))void createQuoteVersion(toolbarQuote.id,`Restaurada desde V${version}`,version).then(()=>reloadQuote(toolbarQuote.id))}}/>:null}
     {activeModal==="settings"&&chatbotRuntime.settings?<BotSettingsModal initial={chatbotRuntime.settings} currentMode={chatbotRuntime.conversation?.modeOverride??null} simulationMode={chatbotRuntime.simulationMode} autoRunning={chatbotRuntime.autoRunning} onMode={mode=>void chatbotRuntime.setMode(mode)} onSimulation={chatbotRuntime.setSimulationMode} onAutoRunning={chatbotRuntime.setAutoRunning} onSaved={()=>void chatbotRuntime.refresh()} onClose={()=>setActiveModal(null)}/>:null}
   </>,modalRoot)}</>;
@@ -2433,6 +2526,7 @@ export function Panel() {
               notifications={notifications}
               open={notifOpen}
               onToggle={() => setNotifOpen((v) => !v)}
+              onOpen={(notification) => void handleOpenNotification(notification)}
               onMark={(id, body) => void handleMarkNotification(id, body)}
               error={notifError}
               loading={notifLoading}

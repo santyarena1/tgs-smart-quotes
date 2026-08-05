@@ -113,6 +113,7 @@ function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; updated
     multiMessage: row.multiMessage&&typeof row.multiMessage==='object'
       ? {...defaultMultiMessage,...row.multiMessage,quoteFollowup:{...defaultMultiMessage.quoteFollowup,...row.multiMessage.quoteFollowup}}
       : defaultMultiMessage,
+    productMessageIntro:typeof row.productMessageIntro==='string'?row.productMessageIntro:'Este sería el producto 👇',
     ignoredAutoMessages: Array.isArray(row.ignoredAutoMessages)
       ? row.ignoredAutoMessages
       : ['¡Hola! ¿Cómo podemos ayudarte'],

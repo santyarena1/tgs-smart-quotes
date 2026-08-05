@@ -502,6 +502,7 @@ export const chatbotSettingsInputSchema = z
       quoteFollowup:{enabled:true,message:'Decime si querés cambiar algo o sumar/sacar componentes 👍'},
       draftMode:'QUEUE',betweenDelayMinSeconds:2,betweenDelayMaxSeconds:6,
     }),
+    productMessageIntro: z.string().trim().max(500).default('Este sería el producto 👇'),
     ignoredAutoMessages: z.array(z.string().trim().min(1).max(2000)).max(100),
     autoDelayMaxSeconds: z.number().int().min(0).max(120),
     reuseSimilarityThreshold: z.number().int().min(0).max(100),
