@@ -1,9 +1,12 @@
 const COMPOSER_SEL = "#main div[contenteditable='true'][role='textbox']";
 const CAPTION_SELECTORS=[
-  "[data-testid='media-caption-input-container'] div[contenteditable='true']",
-  "[role='dialog'] div[contenteditable='true'][role='textbox']",
-  "div[contenteditable='true'][aria-label*='comentario' i]",
+  "div[contenteditable='true'][aria-label*='coment' i]",
+  "div[contenteditable='true'][aria-placeholder*='coment' i]",
   "div[contenteditable='true'][aria-label*='caption' i]",
+  "div[contenteditable='true'][aria-placeholder*='caption' i]",
+  "div[contenteditable='true'][aria-label*='pie de foto' i]",
+  "div[contenteditable='true'][aria-placeholder*='pie de foto' i]",
+  "div[contenteditable='true']",
 ];
 const EMPTY_STATE = '{"root":{"children":[{"children":[],"direction":null,"format":"","indent":0,"type":"paragraph","version":1}],"direction":null,"format":"","indent":0,"type":"root","version":1}}';
 
@@ -27,9 +30,10 @@ function tgsComposer(): LexicalComposer | null {
 }
 
 function tgsCaptionComposer():LexicalComposer|null{
+  const normal=tgsComposer();
   for(const selector of CAPTION_SELECTORS){
-    const nodes=[...document.querySelectorAll<LexicalComposer>(selector)];
-    const visible=nodes.find(node=>node.offsetParent!==null&&node.__lexicalEditor);
+    const nodes=[...document.querySelectorAll<LexicalComposer>(selector)].reverse();
+    const visible=nodes.find(node=>node!==normal&&node.offsetParent!==null&&!node.closest("#main footer")&&node.__lexicalEditor);
     if(visible)return visible;
   }
   return null;

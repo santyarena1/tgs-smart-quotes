@@ -1,6 +1,7 @@
-import React,{useEffect,useMemo,useState}from"react";
-import {createCustomer,createCustomerQuick,createQuickRequest,errorMessage,getTimeline,queueChatbotRecontact,searchAcustockProducts,searchQuotes,updateChatbotSettings,updateRequest}from"../lib/api";
-import type{AcustockProduct,ChatbotMode,ChatbotResponseEntry,ChatbotSettings,Customer,Quote,QuoteTimeline}from"../lib/types";
+import React,{useEffect,useMemo,useRef,useState}from"react";
+import {createCustomer,createCustomerQuick,createQuickRequest,createSendAttempt,errorMessage,fetchBlob,generatePdf,getTimeline,pdfDownloadPath,queueChatbotRecontact,resolveSendAttempt,searchAcustockProducts,searchQuotes,updateChatbotSettings,updateRequest}from"../lib/api";
+import type{AcustockProduct,ChatbotMode,ChatbotResponseEntry,ChatbotSettings,Customer,PdfKind,Quote,QuoteTimeline}from"../lib/types";
+import{attachFileToComposer,insertMessageIntoComposer,observeOutgoingMessage}from"../dom-selectors";
 import{formatArs,formatDateTime}from"../lib/format";
 import{Alert,EmptyState,Field,ModalShell,Pill,Skeleton,Tabs}from"./ui";
 
@@ -44,6 +45,27 @@ export function WebSearchModal({onClose,onInsert}:{onClose:()=>void;onInsert:(qu
 export function TimelineModal({quote,onClose,onVersion}:{quote:Quote;onClose:()=>void;onVersion:(version:number)=>void}){
   const[data,setData]=useState<QuoteTimeline|null>(null);const[error,setError]=useState<string|null>(null);useEffect(()=>{void getTimeline(quote.id).then(setData).catch(reason=>setError(errorMessage(reason)))},[quote.id]);
   return <ModalShell title={`Historial · ${quote.visibleNumber}`} subtitle={`Versión activa V${quote.activeVersion}`} wide onClose={onClose} footer={<button className="tgs-btn ghost" onClick={onClose}>Cerrar</button>}><div className="tgs-stack">{error?<Alert tone="bad">{error}</Alert>:null}{!data?<Skeleton rows={7}/>:<div className="tgs-list">{data.events.slice().reverse().map(event=><button key={event.id} className="tgs-timeline-item" disabled={!event.versionNumber} onClick={()=>event.versionNumber&&onVersion(event.versionNumber)}><b>{event.description??event.type.replaceAll("_"," ")}</b><div className="tgs-muted">{formatDateTime(event.createdAt)}{event.versionNumber?` · V${event.versionNumber}`:""}</div></button>)}</div>}</div></ModalShell>;
+}
+
+export function SendQuoteModal({quote,phone,name,confidence,onClose,onUpdated}:{quote:Quote;phone:string;name:string;confidence:number;onClose:()=>void;onUpdated:()=>Promise<void>}){
+  const[kind,setKind]=useState<PdfKind>("SIMPLE");const[message,setMessage]=useState(quote.version?.sentMessage??`Hola! Te comparto el presupuesto ${quote.visibleNumber} por un total de ${formatArs(quote.version?.totalSaleCents)}. Cualquier consulta quedo a disposición.`);const[note,setNote]=useState("");const[ready,setReady]=useState<Partial<Record<PdfKind,boolean>>>({});const[busy,setBusy]=useState(false);const[error,setError]=useState<string|null>(null);const[notice,setNotice]=useState<string|null>(null);const[review,setReview]=useState<{attemptId:string}|null>(null);const observation=useRef<{stop():void}|null>(null);
+  useEffect(()=>()=>observation.current?.stop(),[]);
+  async function preparePdf(){setBusy(true);setError(null);try{const result=await generatePdf(quote.id,kind);setReady(current=>({...current,[kind]:true}));setNotice(result.reused?"PDF reutilizado y listo.":"PDF generado y listo.")}catch(reason){setError(errorMessage(reason));throw reason}finally{setBusy(false)}}
+  async function prepareAndAttach(){if(!message.trim())return setError("El mensaje no puede estar vacío.");setBusy(true);setError(null);setNotice(null);setReview(null);try{
+    if(!ready[kind])await generatePdf(quote.id,kind);
+    const inserted=await insertMessageIntoComposer(message.trim());if(!inserted.ok)throw new Error(inserted.error??"No se pudo insertar el mensaje en WhatsApp.");
+    const filename=`${quote.visibleNumber}-V${quote.version?.version??quote.activeVersion}-${kind}.pdf`;const blob=await fetchBlob(pdfDownloadPath(quote.id,kind));
+    if(!await attachFileToComposer(new File([blob],filename,{type:"application/pdf"})))throw new Error("WhatsApp no pudo abrir el PDF. El mensaje quedó en el composer y no se envió.");
+    const attempt=await createSendAttempt(quote.id,{chatPhone:phone||null,chatName:name||null,message:message.trim(),pdfKind:kind,pdfName:filename,confidence,internalNote:note.trim()||null});
+    setNotice("Mensaje y PDF listos. Revisalos y tocá Enviar en WhatsApp.");
+    observation.current?.stop();observation.current=observeOutgoingMessage(phone||name,message.trim().slice(0,180),45_000,result=>{observation.current=null;void(async()=>{
+      if(result.confidence>=70){await resolveSendAttempt(quote.id,attempt.id,{status:"CONFIRMADO_AUTO",confidence:result.confidence});setNotice("Envío detectado y confirmado.");setReview(null)}
+      else{if(result.confidence>0)await resolveSendAttempt(quote.id,attempt.id,{status:"AMBIGUO",confidence:result.confidence,createDelivery:false});setReview({attemptId:attempt.id})}
+      await onUpdated();
+    })().catch(reason=>setError(errorMessage(reason)))},filename);
+  }catch(reason){setError(errorMessage(reason))}finally{setBusy(false)}}
+  async function resolve(sent:boolean){if(!review)return;setBusy(true);try{await resolveSendAttempt(quote.id,review.attemptId,{status:sent?"CONFIRMADO_MANUAL":"NO_ENVIADO",createDelivery:sent});setReview(null);setNotice(sent?"Envío confirmado manualmente.":"Intento marcado como no enviado.");await onUpdated()}catch(reason){setError(errorMessage(reason))}finally{setBusy(false)}}
+  return <ModalShell title="Enviar presupuesto" subtitle={`${quote.visibleNumber} · V${quote.version?.version??quote.activeVersion}`} wide onClose={onClose} footer={<><button className="tgs-btn ghost" onClick={onClose}>Cerrar</button><button className="tgs-btn" disabled={busy} onClick={()=>void prepareAndAttach()}>{busy?"Preparando…":"Preparar mensaje y PDF"}</button></>}><div className="tgs-stack">{error?<Alert tone="bad">{error}</Alert>:null}{notice?<Alert tone="ok">{notice}</Alert>:null}<div className="tgs-grid-3"><Field label="Plantilla PDF"><select className="tgs-input" value={kind} onChange={event=>setKind(event.target.value as PdfKind)}><option value="SIMPLE">Simple</option><option value="DETALLADO">Detallado</option></select></Field><div className="tgs-row" style={{alignItems:"end"}}><button className="tgs-btn ghost" disabled={busy} onClick={()=>void preparePdf()}>{ready[kind]?"Regenerar PDF":"Generar PDF"}</button></div><Field label="Nota interna"><input className="tgs-input" value={note} onChange={event=>setNote(event.target.value)} placeholder="Opcional"/></Field></div><Field label="Mensaje para el cliente"><textarea className="tgs-input" rows={5} value={message} onChange={event=>setMessage(event.target.value)}/></Field><Alert tone="info">La extensión prepara el mensaje y adjunta el PDF. El botón Enviar siempre lo tocás vos.</Alert>{review?<Alert tone="warn">No pudimos confirmar el envío automáticamente.<div className="tgs-row" style={{marginTop:8}}><button className="tgs-btn sm" disabled={busy} onClick={()=>void resolve(true)}>Sí, se envió</button><button className="tgs-btn ghost sm" disabled={busy} onClick={()=>void resolve(false)}>No se envió</button></div></Alert>:null}</div></ModalShell>;
 }
 
 type ConfigTab="general"|"style"|"multi"|"responses"|"escalation"|"hours"|"recontact"|"advanced";

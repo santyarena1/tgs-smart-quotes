@@ -7,7 +7,7 @@
  * detección: si nada matchea, `detectChat()` devuelve confianza 0 y un `warning` explícito.
  */
 
-export const SELECTOR_VERSION = "2026-08-toolbar-v10";
+export const SELECTOR_VERSION = "2026-08-toolbar-v2";
 
 export interface SelectorSet {
   id: string;
@@ -203,6 +203,28 @@ function rowChatKey(row: Element, name: string): string {
 }
 
 /** Detecta la lista lateral y sus no leídos. Un fallo siempre devuelve confianza 0 + warning. */
+/**
+ * ¿El último mensaje visible de la fila es NUESTRO (saliente)?
+ * WhatsApp dejó de usar `data-icon='msg-check'`: el estado de envío ahora es un
+ * `<svg><title>wds-ic-check|wds-ic-dblcheck|wds-ic-read</title>` dentro de
+ * `[data-testid='last-msg-status']`. Esos títulos SOLO aparecen en mensajes salientes
+ * (enviado/entregado/leído), así que son la señal fiable. Otros títulos como
+ * `wds-ic-sticker` o `ic-description` son tipo de contenido y no cuentan.
+ * Sin esto, el selector viejo no matcheaba nada y TODA la lista quedaba "Pendiente respuesta".
+ */
+function rowLastMessageOutgoing(row: Element): boolean {
+  const titles = row.querySelectorAll(
+    "[data-testid='last-msg-status'] svg title, [data-testid='last-msg-status'] title",
+  );
+  for (const title of titles) {
+    if (/wds-ic-(check|dblcheck|read)/i.test(title.textContent || "")) return true;
+  }
+  // Fallback legacy por si WhatsApp reintroduce los data-icon clásicos.
+  return Boolean(
+    row.querySelector("span[data-icon='msg-check'], span[data-icon='msg-dblcheck'], span[data-icon='msg-time']"),
+  );
+}
+
 export function detectChatList(ignoredAutoMessages: string[] = []): ChatListDetection {
   for (const strategy of CHAT_LIST_STRATEGIES) {
     const container = document.querySelector(strategy.container);
@@ -221,7 +243,7 @@ export function detectChatList(ignoredAutoMessages: string[] = []): ChatListDete
       const preview = [...row.querySelectorAll(strategy.preview)]
         .map(node=>node.textContent?.trim()??"")
         .find(Boolean)??"";
-      const lastDirection = row.querySelector(strategy.outgoing)
+      const lastDirection = rowLastMessageOutgoing(row)
         ? "OUTGOING" as const
         : preview
           ? "INCOMING" as const
@@ -497,7 +519,7 @@ function renderNativeChatStatuses(){
       const key=rowChatKey(row,name);
       const status=map.get(key)??map.get(`name:${normalizeIdentityPart(name)}`);
       const existingBadge=row.querySelector<HTMLElement>(".tgs-native-status");
-      const fallbackNeedsReply=!row.querySelector(strategy.outgoing)&&Boolean(row.querySelector(strategy.preview)?.textContent?.trim());
+      const fallbackNeedsReply=!rowLastMessageOutgoing(row)&&Boolean(row.querySelector(strategy.preview)?.textContent?.trim());
       const effective=status??(fallbackNeedsReply?{chatKey:key,status:"NEEDS_REPLY" as const,label:"Pendiente respuesta"}:null);
       const host=title?.parentElement??title;
       if(effective&&host){
@@ -595,12 +617,28 @@ export async function insertMessageIntoComposer(text:string):Promise<InsertResul
 
 /** Escribe el caption del preview de un adjunto. Nunca pulsa Enviar. */
 export async function insertAttachmentCaption(text:string):Promise<InsertResult>{
-  for(let attempt=0;attempt<20;attempt++){
-    const visible=[...document.querySelectorAll<HTMLElement>("[data-testid='media-caption-input-container'] div[contenteditable='true'], [role='dialog'] div[contenteditable='true'][role='textbox'], div[contenteditable='true'][aria-label*='comentario' i], div[contenteditable='true'][aria-label*='caption' i]")].find(node=>node.offsetParent!==null);
-    if(visible){const result=await requestComposerBridge("insertCaption",text);if(result.ok)return result}
+  const captionEditor=()=>[...document.querySelectorAll<HTMLElement>("div[contenteditable='true']")].find(node=>{
+    if(node.offsetParent===null||node.closest("#main footer"))return false;
+    const hint=`${node.getAttribute("aria-label")??""} ${node.getAttribute("aria-placeholder")??""}`.toLocaleLowerCase("es-AR");
+    return /coment|caption|pie de foto/.test(hint);
+  })??[...document.querySelectorAll<HTMLElement>("div[contenteditable='true']")].reverse().find(node=>node.offsetParent!==null&&!node.closest("#main footer"));
+  const normalized=(value:string)=>value.replace(/\s+/g," ").trim();
+  const deadline=Date.now()+5_000;
+  while(Date.now()<deadline){
+    const editor=captionEditor();
+    if(editor){
+      const result=await requestComposerBridge("insertCaption",text);
+      if(!result.ok)return result;
+      while(Date.now()<deadline){
+        const current=captionEditor();
+        if(current&&normalized(current.innerText||current.textContent||"").includes(normalized(text)))return{ok:true};
+        await wait(100);
+      }
+      return{ok:false,error:"WhatsApp abrió el caption, pero no confirmó que el texto haya quedado insertado. La foto sigue abierta."};
+    }
     await wait(150);
   }
-  return{ok:false,error:"No se encontró el cuadro de texto del preview del adjunto."};
+  return{ok:false,error:"No se encontró el editor visible del caption después de esperar 5 segundos. La foto sigue abierta."};
 }
 
 export function readComposerText():string|null {

@@ -73,7 +73,7 @@ import type {
 } from "./lib/types";
 import { Alert, ConfidenceBar, ConfirmModal, EmptyState, Field, ModalShell, Pill, Section, Skeleton, Tabs, Tone, injectPanelStyles } from "./panel/ui";
 import { CustomerModal, QuickEditModal } from "./panel/modals";
-import {BotSettingsModal,ProductSearchModal,QuickRequestModal,QuoteSearchModal,TimelineModal,WebSearchModal} from "./panel/toolbar-modals";
+import {BotSettingsModal,ProductSearchModal,QuickRequestModal,QuoteSearchModal,SendQuoteModal,TimelineModal,WebSearchModal} from "./panel/toolbar-modals";
 
 const STATE_LABEL: Record<QuoteState, string> = {
   BORRADOR: "Borrador",
@@ -2136,7 +2136,7 @@ export function Panel() {
   }, []);
 
   const[toolbarHost,setToolbarHost]=useState<HTMLElement|null>(null);
-  const[activeModal,setActiveModal]=useState<"request"|"search"|"product"|"webSearch"|"settings"|"history"|"edit"|null>(null);
+  const[activeModal,setActiveModal]=useState<"request"|"search"|"product"|"webSearch"|"settings"|"history"|"edit"|"send"|null>(null);
   const[toolbarNotice,setToolbarNotice]=useState<string|null>(null);
   const [open, setOpen] = useState(true);
   const panelRef=useRef<HTMLDivElement>(null);
@@ -2382,8 +2382,9 @@ export function Panel() {
   }
 
   if(!toolbarHost)return null;
-  const toolbarQuote=latestSent?.quote??quote;
-  return createPortal(<>
+  const toolbarQuote=quote??latestSent?.quote;
+  const modalRoot=document.getElementById("tgs-modal-root")??document.body;
+  return <>{createPortal(
     <div className="tgs-toolbar-main">
       <div className="tgs-toolbar-actions">
         <button className="tgs-toolbar-btn primary" disabled={!chatIdentity(phoneOverride,nameOverride)||chatbotRuntime.suggestionBusy} onClick={()=>void chatbotRuntime.suggestNow()}>{chatbotRuntime.suggestionBusy?"⏳ Generando…":"✨ Sugerir"}</button>
@@ -2400,20 +2401,24 @@ export function Panel() {
         <div className="tgs-toolbar-quote-meta"><b>{latestSent.quote.visibleNumber} · V{latestSent.quote.version.version}</b><span>{formatArs(latestSent.quote.version.totalSaleCents)}</span><Pill tone={STATE_TONE[latestSent.quote.version.state]}>{STATE_LABEL[latestSent.quote.version.state]}</Pill></div>
         <div className="tgs-toolbar-actions compact">
           <button className="tgs-toolbar-btn" disabled={latestSent.quote.version.state==="ACEPTADO"} onClick={()=>void changeQuoteState(latestSent.quote.id,"ACEPTADO").then(()=>getLatestSentQuote(phoneOverride)).then(setLatestSent)}>✓ Aprobar</button>
+          <button className="tgs-toolbar-btn primary" onClick={()=>{setQuote(latestSent.quote);setActiveModal("send")}}>📤 Enviar</button>
           <button className="tgs-toolbar-btn" onClick={()=>setActiveModal("request")}>🔄 Solicitar otro</button>
           <button className="tgs-toolbar-btn" onClick={()=>{setQuote(latestSent.quote);setActiveModal("edit")}}>✏️ Nueva versión</button>
           <button className="tgs-toolbar-btn" onClick={()=>{setQuote(latestSent.quote);setActiveModal("history")}}>🕘 Historial</button>
         </div>
       </div>:null}
     </div>
+  ,toolbarHost)}
+  {createPortal(<>
     {activeModal==="request"?<QuickRequestModal phone={phoneOverride} name={nameOverride} chatKey={chatIdentity(phoneOverride,nameOverride)} customer={matchedCustomer} onClose={()=>setActiveModal(null)} onCreated={()=>{void loadCustomers();void chatbotRuntime.refresh()}}/>:null}
-    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onSelect={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("edit")}}/>:null}
+    {activeModal==="search"?<QuoteSearchModal phone={phoneOverride} customerId={matchedCustomer?.id} onClose={()=>setActiveModal(null)} onSelect={selected=>{setQuote(selected);setSelectedQuoteId(selected.id);setActiveModal("send")}}/>:null}
     {activeModal==="product"?<ProductSearchModal onClose={()=>setActiveModal(null)} onPrepare={prepareProductForChat}/>:null}
     {activeModal==="webSearch"?<WebSearchModal onClose={()=>setActiveModal(null)} onInsert={async query=>{const{url}=await getStoreSearchUrl(query);const inserted=await insertMessageIntoEmptyComposer(url);if(!inserted.ok)throw new Error(inserted.error??"No se pudo insertar el enlace en WhatsApp");setToolbarNotice("Enlace de búsqueda listo para enviar.")}}/>:null}
     {activeModal==="edit"&&toolbarQuote?<QuickEditModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onSaved={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride))}}/>:null}
+    {activeModal==="send"&&toolbarQuote?<SendQuoteModal quote={toolbarQuote} phone={phoneOverride} name={nameOverride} confidence={detection.confidence} onClose={()=>setActiveModal(null)} onUpdated={async()=>{await reloadQuote(toolbarQuote.id);if(phoneOverride)setLatestSent(await getLatestSentQuote(phoneOverride));await loadNotifications()}}/>:null}
     {activeModal==="history"&&toolbarQuote?<TimelineModal quote={toolbarQuote} onClose={()=>setActiveModal(null)} onVersion={version=>{if(window.confirm(`¿Crear una nueva versión restaurando V${version}?`))void createQuoteVersion(toolbarQuote.id,`Restaurada desde V${version}`,version).then(()=>reloadQuote(toolbarQuote.id))}}/>:null}
     {activeModal==="settings"&&chatbotRuntime.settings?<BotSettingsModal initial={chatbotRuntime.settings} currentMode={chatbotRuntime.conversation?.modeOverride??null} simulationMode={chatbotRuntime.simulationMode} autoRunning={chatbotRuntime.autoRunning} onMode={mode=>void chatbotRuntime.setMode(mode)} onSimulation={chatbotRuntime.setSimulationMode} onAutoRunning={chatbotRuntime.setAutoRunning} onSaved={()=>void chatbotRuntime.refresh()} onClose={()=>setActiveModal(null)}/>:null}
-  </>,toolbarHost);
+  </>,modalRoot)}</>;
 
   /* Panel lateral retirado: la barra y sus modales son la UI principal.
   return (
@@ -2509,4 +2514,10 @@ document.documentElement.appendChild(pageScript);
 const root = document.createElement("div");
 root.id = "tgs-panel-root";
 document.body.appendChild(root);
+// Los modales se portalizan acá (nivel body) para que su backdrop position:fixed
+// cubra la pantalla y quede por encima de WhatsApp; dentro de #tgs-toolbar (que vive
+// en el #main de WhatsApp, con transform/contain) el fixed se rompía y perdían el fondo.
+const modalRootEl = document.createElement("div");
+modalRootEl.id = "tgs-modal-root";
+document.body.appendChild(modalRootEl);
 createRoot(root).render(<Panel />);
