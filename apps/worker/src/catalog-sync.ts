@@ -1,6 +1,9 @@
 import { syncAcustockCatalog } from "@tgs/database";
 
-export const ACUSTOCK_SYNC_INTERVAL_MS = 4 * 60 * 60 * 1_000;
+// Intervalo de sincronización automática del catálogo AcuStock.
+// Default 15 minutos; se puede ajustar con la env ACUSTOCK_SYNC_INTERVAL_MINUTES.
+export const ACUSTOCK_SYNC_INTERVAL_MS =
+  Math.max(1, Number(process.env.ACUSTOCK_SYNC_INTERVAL_MINUTES ?? 15)) * 60 * 1_000;
 
 export async function runAcustockSyncLoop() {
   const once = process.argv.includes("--once");
