@@ -156,6 +156,32 @@ function QuoteSummaryCard({ quote }: { quote: Quote }) {
   );
 }
 
+/** Convierte una imagen a JPEG con fondo blanco. WhatsApp trata los PNG con transparencia
+ *  como STICKER; con JPEG opaco los adjunta como FOTO normal (con caption). Si algo falla,
+ *  devuelve el blob original para no romper el envío. */
+async function imageBlobToJpeg(blob:Blob):Promise<Blob>{
+  const url=URL.createObjectURL(blob);
+  try{
+    const img=await new Promise<HTMLImageElement>((resolve,reject)=>{
+      const image=new Image();
+      image.onload=()=>resolve(image);
+      image.onerror=()=>reject(new Error("No se pudo procesar la imagen del producto."));
+      image.src=url;
+    });
+    const width=img.naturalWidth||img.width||600;
+    const height=img.naturalHeight||img.height||600;
+    const canvas=document.createElement("canvas");
+    canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext("2d");
+    if(!ctx)return blob;
+    ctx.fillStyle="#ffffff";
+    ctx.fillRect(0,0,width,height);
+    ctx.drawImage(img,0,0,width,height);
+    return await new Promise<Blob>(resolve=>canvas.toBlob(result=>resolve(result??blob),"image/jpeg",0.92));
+  }catch{return blob}
+  finally{URL.revokeObjectURL(url)}
+}
+
 function VersionEditModal({initialMessage,onCancel,onConfirm,busy}:{initialMessage:string;onCancel:()=>void;onConfirm:(message:string,note:string)=>void;busy:boolean}){const[message,setMessage]=useState(initialMessage),[note,setNote]=useState("");return <ModalShell title="Crear nueva versión" subtitle="La versión anterior permanece congelada" onClose={onCancel} footer={<><button className="tgs-btn ghost" onClick={onCancel} disabled={busy}>Cancelar</button><button className="tgs-btn" disabled={busy} onClick={()=>onConfirm(message,note.trim())}>{busy?"Creando…":"Crear nueva versión"}</button></>}><div className="tgs-stack"><Alert tone="warn">Se creará una versión nueva en borrador con los mismos ítems.</Alert><Field label="Mensaje nuevo"><textarea className="tgs-input" value={message} onChange={e=>setMessage(e.target.value)}/></Field><Field label="Nombre de este cambio (opcional)"><input className="tgs-input" value={note} onChange={e=>setNote(e.target.value)} placeholder="Ej: Ajuste de precio por cliente"/></Field></div></ModalShell>}
 function VersionHistory({quote,onReload}:{quote:Quote;onReload:(id:string)=>Promise<void>}) {
   const [preview,setPreview]=useState<Quote["versions"][number]|null>(null);
@@ -2497,9 +2523,11 @@ export function Panel() {
     if(!blob.type.startsWith("image/"))throw new Error("AcuStock no devolvió una imagen válida para este producto.");
     const active=detectChat();
     if(!sameChatIdentity(expectedChat,active.phone,active.name))throw new Error("El chat activo cambió mientras se descargaba la imagen. Volvé a elegir el producto.");
-    const extension=blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg";
-    const filename=`${product.mpn.replace(/[^\w.-]+/g,"-")}.${extension}`;
-    if(!await attachFileToComposer(new File([blob],filename,{type:blob.type})))throw new Error("WhatsApp no pudo abrir la foto en el preview de adjuntos.");
+    // WhatsApp manda los PNG con transparencia como STICKER. Convertimos a JPEG con fondo
+    // blanco para forzar que se adjunte como FOTO normal (con caption).
+    const jpeg=await imageBlobToJpeg(blob);
+    const filename=`${product.mpn.replace(/[^\w.-]+/g,"-")}.jpg`;
+    if(!await attachFileToComposer(new File([jpeg],filename,{type:"image/jpeg"})))throw new Error("WhatsApp no pudo abrir la foto en el preview de adjuntos.");
     const intro=chatbotRuntime.settings?.productMessageIntro.trim()||"Este sería el producto 👇";
     const text=[intro,product.title,formatArsWhole(product.salePriceCents??product.priceCents),product.productUrl].filter(Boolean).join("\n");
     productQueueCleanupRef.current?.();
