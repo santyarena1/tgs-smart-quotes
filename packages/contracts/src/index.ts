@@ -323,6 +323,14 @@ export type PdfLayoutSettings = z.infer<typeof pdfLayoutSettingsSchema>;
 export type PdfLayoutPreviewInput = z.infer<typeof pdfLayoutPreviewInputSchema>;
 export type AiSettingsInput = z.infer<typeof aiSettingsInputSchema>;
 export type OperationsSettingsInput = z.infer<typeof operationsSettingsInputSchema>;
+
+export const externalModuleToggleSchema = z
+  .object({
+    enabled: z.boolean(),
+    key: z.string().min(1),
+  })
+  .strict();
+export type ExternalModuleToggleInput = z.infer<typeof externalModuleToggleSchema>;
 export type FinancingInput = z.infer<typeof financingInputSchema>;
 
 export const productCreateSchema = z

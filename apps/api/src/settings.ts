@@ -21,6 +21,7 @@ import {
   financingInputSchema,
   financingUpdateSchema,
   idSchema,
+  externalModuleToggleSchema,
   operationsSettingsInputSchema,
   pdfLayoutConfigSchema,
   pdfLayoutPreviewInputSchema,
@@ -28,6 +29,7 @@ import {
   type AiSettingsInput,
   type CompanySettingsInput,
   type FinancingInput,
+  type ExternalModuleToggleInput,
   type OperationsSettingsInput,
   type PdfLayoutConfig,
   type PdfLayoutPreviewInput,
@@ -395,6 +397,33 @@ export class SettingsController {
       const next = await tx.operationsSettings.update({where: {id: 'singleton'}, data: body});
       await audit(tx, u.id, 'OperationsSettings', 'singleton', 'UPDATE', old, next);
       return next;
+    });
+  }
+
+  @Get('external-module')
+  async externalModule() {
+    const row = await db.externalModuleSettings.findUnique({where: {id: 'singleton'}});
+    return row ?? {id: 'singleton', enabled: false, updatedAt: new Date()};
+  }
+
+  @Put('external-module')
+  async putExternalModule(
+    @Body(new ZodPipe(externalModuleToggleSchema)) body: ExternalModuleToggleInput,
+    @CurrentUser() u: RequestUser,
+  ) {
+    const expected = process.env.EXTERNAL_MODULE_KEY?.trim() || 'santy123';
+    if (body.key !== expected) {
+      throw new BadRequestException('Clave incorrecta');
+    }
+    return db.$transaction(async (tx) => {
+      const old = await tx.externalModuleSettings.findUnique({where: {id: 'singleton'}});
+      const next = await tx.externalModuleSettings.upsert({
+        where: {id: 'singleton'},
+        update: {enabled: body.enabled},
+        create: {id: 'singleton', enabled: body.enabled},
+      });
+      await audit(tx, u.id, 'ExternalModuleSettings', 'singleton', 'UPDATE', old, next);
+      return {id: next.id, enabled: next.enabled, updatedAt: next.updatedAt};
     });
   }
 }

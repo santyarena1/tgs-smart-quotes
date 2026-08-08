@@ -384,7 +384,14 @@ export type NavId =
   | "recontactos"
   | "editor-pdf"
   | "usuarios"
+  | "modulo-externo"
   | "configuracion";
+
+export type ExternalModuleSettings = {
+  id: string;
+  enabled: boolean;
+  updatedAt: string;
+};
 
 /** Semilla para abrir el editor de presupuesto desde una solicitud. */
 export type QuoteFromRequestSeed = {

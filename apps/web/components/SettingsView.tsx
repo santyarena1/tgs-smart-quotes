@@ -9,7 +9,7 @@ import {
   type ExtensionPingResult,
 } from "../lib/api";
 import { bpsToPct, formatArs, parseArsToCents, pctToBps } from "../lib/money";
-import type { AiSettings, CompanySettings, FinancingPlan, PdfSettings } from "../lib/types";
+import type { AiSettings, CompanySettings, ExternalModuleSettings, FinancingPlan, PdfSettings } from "../lib/types";
 import {
   Alert,
   Checkbox,
@@ -24,7 +24,7 @@ import {
 } from "./shared";
 import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
 
-type Tab = "empresa" | "pdf" | "ia" | "chatbot" | "financiacion" | "extension";
+type Tab = "empresa" | "pdf" | "ia" | "chatbot" | "financiacion" | "extension" | "modulo-externo";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
@@ -33,6 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "chatbot", label: "Chatbot" },
   { id: "financiacion", label: "Financiación" },
   { id: "extension", label: "Extensión Chrome" },
+  { id: "modulo-externo", label: "MÓDULO EXTERNO" },
 ];
 
 type ExtensionInfo = {
@@ -126,18 +127,26 @@ export function SettingsView() {
   const [extPluginTest, setExtPluginTest] = useState<ExtensionPingResult | null>(null);
   const [extBusy, setExtBusy] = useState(false);
 
+  const [externalEnabled, setExternalEnabled] = useState(false);
+  const [externalBusy, setExternalBusy] = useState(false);
+  const [externalError, setExternalError] = useState<string | null>(null);
+  const [keyModalOpen, setKeyModalOpen] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [c, p, a, f, info, instructions] = await Promise.all([
+      const [c, p, a, f, info, instructions, ext] = await Promise.all([
         api<CompanySettings>("/settings/company"),
         api<PdfSettings>("/settings/pdf"),
         api<AiSettings>("/settings/ai"),
         api<FinancingPlan[]>("/financing"),
         api<ExtensionInfo>("/settings/extension/info").catch(() => null),
         api<ExtensionInstructions>("/settings/extension/instructions").catch(() => null),
+        api<ExternalModuleSettings>("/settings/external-module").catch(() => null),
       ]);
+      setExternalEnabled(ext?.enabled ?? false);
       setCompany(c);
       setPdf(p);
       const budget =
@@ -448,6 +457,36 @@ export function SettingsView() {
       });
     } finally {
       setExtBusy(false);
+    }
+  }
+
+  function openKeyModal() {
+    setKeyInput("");
+    setExternalError(null);
+    setKeyModalOpen(true);
+  }
+
+  async function confirmToggleExternal(e: FormEvent) {
+    e.preventDefault();
+    const target = !externalEnabled;
+    setExternalBusy(true);
+    setExternalError(null);
+    try {
+      const next = await api<ExternalModuleSettings>("/settings/external-module", {
+        method: "PUT",
+        body: { enabled: target, key: keyInput },
+      });
+      setExternalEnabled(next.enabled);
+      window.dispatchEvent(
+        new CustomEvent<boolean>("tgs-external-module-changed", { detail: next.enabled }),
+      );
+      setNotice(next.enabled ? "Módulo Externo activado." : "Módulo Externo desactivado.");
+      setKeyModalOpen(false);
+      setKeyInput("");
+    } catch (err) {
+      setExternalError(errorMessage(err));
+    } finally {
+      setExternalBusy(false);
     }
   }
 
@@ -1031,6 +1070,70 @@ export function SettingsView() {
           </div>
         </div>
       ) : null}
+
+      {!loading && tab === "modulo-externo" ? (
+        <div className="card card-pad" style={{ maxWidth: 820 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <h3 className="panel-title" style={{ margin: 0 }}>
+              Módulo Externo
+            </h3>
+            <Pill tone={externalEnabled ? "ok" : "neutral"}>
+              {externalEnabled ? "Activado" : "Desactivado"}
+            </Pill>
+          </div>
+          <p className="section-note">
+            Módulo oculto: cuando está activado aparece en el menú lateral. Activar o desactivar
+            requiere la clave.
+          </p>
+          <div className="form-actions" style={{ marginTop: "0.75rem" }}>
+            <button
+              type="button"
+              className={externalEnabled ? "btn-ghost" : "btn-dark"}
+              onClick={openKeyModal}
+            >
+              {externalEnabled ? "Desactivar módulo" : "Activar módulo"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <Modal
+        open={keyModalOpen}
+        title={externalEnabled ? "Desactivar Módulo Externo" : "Activar Módulo Externo"}
+        onClose={() => {
+          if (!externalBusy) setKeyModalOpen(false);
+        }}
+      >
+        <form className="form-grid" onSubmit={confirmToggleExternal}>
+          <p className="section-note" style={{ margin: 0 }}>
+            Ingresá la clave para {externalEnabled ? "desactivar" : "activar"} el módulo.
+          </p>
+          <Field label="Clave" htmlFor="external-module-key">
+            <input
+              id="external-module-key"
+              type="password"
+              autoFocus
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              autoComplete="off"
+            />
+          </Field>
+          {externalError ? <Alert>{externalError}</Alert> : null}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setKeyModalOpen(false)}
+              disabled={externalBusy}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn-dark" disabled={externalBusy || !keyInput}>
+              {externalBusy ? "Guardando…" : externalEnabled ? "Desactivar" : "Activar"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

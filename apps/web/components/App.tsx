@@ -10,6 +10,7 @@ import { CustomersView } from "./CustomersView";
 import { DashboardView } from "./DashboardView";
 import { AcustockCatalogView } from "./AcustockCatalogView";
 import { LoginView } from "./LoginView";
+import { ModuloExternoView } from "./ModuloExternoView";
 import { NotificationsView } from "./NotificationsView";
 import { RecontactsView } from "./RecontactsView";
 import { PcLinesView } from "./PcLinesView";
@@ -48,6 +49,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
       { id: "recontactos", label: "Recontactos", icon: "↻" },
       { id: "editor-pdf", label: "Editor de PDF", icon: "▧" },
       { id: "usuarios", label: "Usuarios", icon: "♟" },
+      { id: "modulo-externo", label: "Módulo Externo", icon: "◈" },
       { id: "configuracion", label: "Configuración", icon: "⚙" },
     ],
   },
@@ -62,6 +64,7 @@ export function App() {
   const [branding, setBranding] = useState<Branding | null>(null);
   const [quoteSeed, setQuoteSeed] = useState<QuoteFromRequestSeed | null>(null);
   const [initialSelectedQuoteId, setInitialSelectedQuoteId] = useState<string | null>(null);
+  const [externalEnabled, setExternalEnabled] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const changelogRef = useRef<HTMLDivElement>(null);
   const consumeQuoteSeed = useCallback(() => setQuoteSeed(null), []);
@@ -103,6 +106,21 @@ export function App() {
       .then(setBranding)
       .catch(() => setBranding(null));
   }, [user, nav]);
+
+  useEffect(() => {
+    if (!user) return;
+    void api<{ enabled: boolean }>("/settings/external-module")
+      .then((res) => setExternalEnabled(res.enabled))
+      .catch(() => setExternalEnabled(false));
+    const changed = (event: Event) =>
+      setExternalEnabled((event as CustomEvent<boolean>).detail);
+    window.addEventListener("tgs-external-module-changed", changed);
+    return () => window.removeEventListener("tgs-external-module-changed", changed);
+  }, [user]);
+
+  useEffect(() => {
+    if (nav === "modulo-externo" && !externalEnabled) setNav("dashboard");
+  }, [nav, externalEnabled]);
 
   useEffect(()=>{
     const apply=(url:string|null|undefined)=>{
@@ -192,7 +210,10 @@ export function App() {
             <div className="nav-group" key={group.label}>
               <p className="nav-group-label">{group.label}</p>
               <div className="nav-group-links">
-                {group.items.filter((item) => item.id !== "usuarios" || user.role === "ADMIN").map((item) => (
+                {group.items
+                  .filter((item) => item.id !== "usuarios" || user.role === "ADMIN")
+                  .filter((item) => item.id !== "modulo-externo" || externalEnabled)
+                  .map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -283,6 +304,7 @@ export function App() {
         {nav === "recontactos" ? <RecontactsView /> : null}
         {nav === "editor-pdf" ? <PdfLayoutEditorView /> : null}
         {nav === "usuarios" && user.role === "ADMIN" ? <UsersView /> : null}
+        {nav === "modulo-externo" && externalEnabled ? <ModuloExternoView /> : null}
         {nav === "configuracion" ? <SettingsView /> : null}
       </main>
     </div>

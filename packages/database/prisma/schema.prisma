@@ -808,6 +808,13 @@ model OperationsSettings {
   updatedAt              DateTime @default(now()) @updatedAt
 }
 
+/// Interruptor del Módulo Externo (oculto por defecto, se activa con clave).
+model ExternalModuleSettings {
+  id        String   @id @default("singleton")
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 model AiRequest {
   id           String        @id @default(uuid())
   task         AiTaskType
