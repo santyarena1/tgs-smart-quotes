@@ -8,6 +8,8 @@ RUN pnpm install --frozen-lockfile \
   && pnpm --filter @tgs/database build \
   && pnpm --filter @tgs/contracts build \
   && pnpm --filter @tgs/config build \
+  && pnpm --filter @tgs/storage build \
+  && pnpm --filter @tgs/providers build \
   && pnpm --filter @tgs/pricing build \
   && pnpm --filter @tgs/validation build \
   && pnpm --filter @tgs/pdf build \

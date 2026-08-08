@@ -1120,8 +1120,8 @@
     "semantic_hash": ""
   },
   "packages/database/prisma/migrations/20260808010000_external_module_foundations/migration.sql": {
-    "mtime": 1786201246.2555134,
-    "ast_hash": "f29bb0d997af151b92eb0e9876a9a993",
+    "mtime": 1786204648.1983025,
+    "ast_hash": "f112840e44492a03a46b534907945712",
     "semantic_hash": ""
   },
   "packages/database/src/jobs.ts": {
