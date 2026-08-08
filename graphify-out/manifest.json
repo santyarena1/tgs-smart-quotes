@@ -1098,5 +1098,10 @@
     "mtime": 1786144284.0424557,
     "ast_hash": "d3c81692b32dd387d5beb90962615b6f",
     "semantic_hash": ""
+  },
+  "docs/modulo-externo/PLAN.md": {
+    "mtime": 1786168848.5126553,
+    "ast_hash": "855e2c3ae8f6ef51472603e551bdc3b1",
+    "semantic_hash": ""
   }
 }

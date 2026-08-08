@@ -11,7 +11,7 @@
    - Modelo 3D / spin → asociado al **producto-gabinete**.
    - Se generan una vez y se reusan en todos los presupuestos que los usen.
 3. **Nada de datos inventados en claims de dinero/rendimiento.** Potencia = cálculo determinístico; FPS = buckets estimados con disclaimer; el LLM solo redacta.
-4. **Imágenes con copyright**: priorizar oficiales/propias; web (Serper) solo como sugerencia con aprobación manual.
+4. **Imágenes**: sin restricción de copyright (decisión del usuario); Serper libre.
 5. Idioma español, ARS, dinero en centavos (nunca float). Zona America/Argentina/Buenos_Aires.
 
 ## 1. Arquitectura
@@ -27,7 +27,7 @@
  [Plugin WordPress] --> crea/actualiza Producto Woo (solo links + meta) --> Landing block-based
 ```
 
-- **Storage**: Cloudflare R2 (S3-compatible) reutilizando el driver S3 existente (`PDF_STORAGE_DRIVER=s3`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
+- **Storage**: Cloudflare R2 (S3-compatible). Credenciales **desde `ModuleConfig`** (tab Conexiones), no por env var. Se puede reutilizar la lógica del driver S3 existente pero alimentada por la config del módulo.
 - **Jobs async**: procesos largos (bg removal, 3D, miniatura, IA) corren en `apps/worker` con estado (`PENDING/RUNNING/DONE/FAILED`) y reintentos.
 - **Config del módulo**: keys cifradas (patrón `encryptSecret`/`SETTINGS_ENC_KEY`), plantillas, layout.
 
@@ -39,7 +39,7 @@
 | `CaseModel3D` | por producto-gabinete | sourcePhotos[4], glbUrl, spinUrl, status, tripoJobId, meshStats |
 | `ThumbnailTemplate` | config módulo | nombre, plantillaUrl, tipografías, reglas (tamaño, safe areas, posición producto, tokens de color) |
 | `WebPublication` | por `QuoteVersion` | wpProductId, url, estado (DRAFT/PUBLISHED/UNPUBLISHED), payloadSnapshot, thumbnailUrl, publishedAt |
-| `ModuleConfig` | singleton | keys cifradas (Photoroom/Tripo/Higgsfield/Serper/R2), wpBaseUrl, wpHmacSecret, landingLayout (JSON), pricePolicy |
+| `ModuleConfig` | singleton | keys cifradas (Photoroom/Tripo/Higgsfield/Serper/R2), wpBaseUrl, wpHmacSecret, landingLayout (JSON), autoRepublish=true |
 
 ## 3. Superficie de configuración interna del módulo (tabs dentro de la vista)
 
@@ -120,13 +120,16 @@
 - Republicar al cambiar precio/datos; despublicar/borrar; versión; estado en el editor.
 - Auditoría, costo por presupuesto, reintentos, observabilidad de jobs.
 
-## 6. Decisiones abiertas / lo que se necesita del usuario
+## 6. Decisiones tomadas
 
-1. **WordPress**: ¿ya es WooCommerce? URL prod, versión WP/PHP, tema (¿Impreza?), ¿checkout/pago ya funciona (Mercado Pago)?
-2. **API keys que ya existen vs a sacar**: Photoroom, Tripo, Higgsfield (¿API en el plan?), Serper, R2.
-3. **Precio en Woo**: snapshot fijo al publicar vs republicar en cambios. ARS confirmado.
-4. **Copyright imágenes**: solo oficiales/propias, o web (Serper) con aprobación manual.
-5. **Plantillas de miniatura**: ¿existen ya (plantilla + tipografías) o se diseñan?
+1. **Config de credenciales**: TODAS las keys/logins (Photoroom, Tripo, Higgsfield, Serper, R2, WordPress) se cargan y cifran desde la tab *Conexiones* del módulo. Nada por env var.
+2. **Tienda**: `www.thegamershop.com.ar` (WooCommerce). Zip del plugin base lo provee el usuario (Fase 5).
+3. **Precio**: se **auto-republica** cuando se edita ese presupuesto en el sistema (sync automática vía `WebPublication`).
+4. **Copyright**: sin restricción; Serper libre.
+5. **Plantillas de miniatura**: cargables como configuración (plantilla + tipografías + reglas), igual que el resto.
+
+### Pendiente de recibir
+- Zip del plugin/tema base de WordPress (para Fase 5).
 
 ## 7. Riesgos conocidos
 
