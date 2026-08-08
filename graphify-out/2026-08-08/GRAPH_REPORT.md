@@ -1,16 +1,16 @@
 # Graph Report - tgs-smart-quotes  (2026-08-08)
 
 ## Corpus Check
-- 215 files · ~126,219 words
+- 216 files · ~126,935 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1729 nodes · 2789 edges · 138 communities (92 shown, 46 thin omitted)
+- 1739 nodes · 2798 edges · 139 communities (93 shown, 46 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 11 edges (avg confidence: 0.75)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5fa88a5e`
+- Built from commit: `e0e6b327`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -146,6 +146,7 @@
 - Put
 - Req
 - 5. Fases
+- BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones)
 
 ## God Nodes (most connected - your core abstractions)
 1. `jsonSafe()` - 47 edges
@@ -174,7 +175,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (138 total, 46 thin omitted)
+## Communities (139 total, 46 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
@@ -514,24 +515,28 @@ Nodes (8): COLUMNS, Draft, empty(), NEXT_STATE, RequestsView(), Customer, QuoteR
 
 ### Community 137 - "5. Fases"
 Cohesion: 0.11
-Nodes (17): 0. Principios (no negociables), 1. Arquitectura, 2. Entidades nuevas (nuestra DB), 3. Superficie de configuración interna del módulo (tabs dentro de la vista), 4. Contrato de datos (platform → WordPress), 5. Fases, 6. Decisiones abiertas / lo que se necesita del usuario, 7. Riesgos conocidos (+9 more)
+Nodes (18): 0. Principios (no negociables), 1. Arquitectura, 2. Entidades nuevas (nuestra DB), 3. Superficie de configuración interna del módulo (tabs dentro de la vista), 4. Contrato de datos (platform → WordPress), 5. Fases, 6. Decisiones tomadas, 7. Riesgos conocidos (+10 more)
+
+### Community 138 - "BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones)"
+Cohesion: 0.22
+Nodes (8): 1. Modelo `ExternalModuleConfig`, 2. Contracts (`packages/contracts/src/index.ts`), 3. API (`apps/api/src/settings.ts`, dentro de `SettingsController`), 4. Frontend (`apps/web/components/ModuloExternoView.tsx`), Alcance (SOLO esto en este bloque), BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones), Patrones a mirrorear (leer antes de construir), Verificación (obligatoria antes de terminar)
 
 ## Knowledge Gaps
-- **797 isolated node(s):** `0. Principios (no negociables)`, `1. Arquitectura`, `2. Entidades nuevas (nuestra DB)`, `3. Superficie de configuración interna del módulo (tabs dentro de la vista)`, `4. Contrato de datos (platform → WordPress)` (+792 more)
+- **804 isolated node(s):** `Alcance (SOLO esto en este bloque)`, `Patrones a mirrorear (leer antes de construir)`, `1. Modelo `ExternalModuleConfig``, `2. Contracts (`packages/contracts/src/index.ts`)`, `3. API (`apps/api/src/settings.ts`, dentro de `SettingsController`)` (+799 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **46 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `jsonSafe()` connect `layout.tsx` to `.login`, `SpanishExceptionFilter`, `extension/manifest.json`, `branding-storage.ts`, `module.ts`, `similarity.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Why does `Query` connect `similarity.ts` to `branding-storage.ts`, `src/lib/api.ts`, `extension/manifest.json`, `testing/src/index.ts`?**
   _High betweenness centrality (0.036) - this node is a cross-community bridge._
-- **Why does `ProductsView()` connect `QuotesView.tsx` to `extension/manifest.json`, `errorMessage`?**
+- **Why does `jsonSafe()` connect `layout.tsx` to `.login`, `SpanishExceptionFilter`, `extension/manifest.json`, `branding-storage.ts`, `module.ts`, `similarity.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
   _High betweenness centrality (0.033) - this node is a cross-community bridge._
-- **What connects `0. Principios (no negociables)`, `1. Arquitectura`, `2. Entidades nuevas (nuestra DB)` to the rest of the system?**
-  _797 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `ProductsView()` connect `QuotesView.tsx` to `extension/manifest.json`, `errorMessage`?**
+  _High betweenness centrality (0.026) - this node is a cross-community bridge._
+- **What connects `Alcance (SOLO esto en este bloque)`, `Patrones a mirrorear (leer antes de construir)`, `1. Modelo `ExternalModuleConfig`` to the rest of the system?**
+  _804 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tasks` be split into smaller, more focused modules?**
   _Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**

@@ -1,16 +1,16 @@
 # Graph Report - tgs-smart-quotes  (2026-08-08)
 
 ## Corpus Check
-- 216 files · ~126,935 words
+- 217 files · ~127,294 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1739 nodes · 2798 edges · 139 communities (93 shown, 46 thin omitted)
+- 1754 nodes · 2826 edges · 140 communities (94 shown, 46 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 11 edges (avg confidence: 0.75)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e0e6b327`
+- Built from commit: `984a3877`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -147,12 +147,13 @@
 - Req
 - 5. Fases
 - BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones)
+- ModuloExternoView.tsx
 
 ## God Nodes (most connected - your core abstractions)
 1. `jsonSafe()` - 47 edges
 2. `RequestUser` - 44 edges
 3. `CurrentUser` - 44 edges
-4. `SettingsController` - 26 edges
+4. `SettingsController` - 31 edges
 5. `statusEvent()` - 24 edges
 6. `audit()` - 22 edges
 7. `QuotesController` - 21 edges
@@ -169,13 +170,13 @@
   apps/extension/src/content.tsx → apps/extension/src/dom-selectors.ts
 - `Panel()` --calls--> `errorMessage()`  [EXTRACTED]
   apps/extension/src/content.tsx → apps/extension/src/lib/api.ts
-- `CustomersView()` --calls--> `errorMessage()`  [EXTRACTED]
-  apps/web/components/CustomersView.tsx → apps/web/components/shared.tsx
+- `CollectionsView()` --calls--> `errorMessage()`  [EXTRACTED]
+  apps/web/components/CollectionsView.tsx → apps/web/components/shared.tsx
 
 ## Import Cycles
 - None detected.
 
-## Communities (139 total, 46 thin omitted)
+## Communities (140 total, 46 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
@@ -359,19 +360,19 @@ Nodes (14): activityAt(), closeAsNoConcretado(), jsonSafe(), loadSettings(), mar
 
 ### Community 71 - "contracts/src/index.ts"
 Cohesion: 0.01
-Nodes (159): AiAnalyzeRequestInput, aiAnalyzeRequestSchema, AiCompatibilityInput, aiCompatibilitySchema, AiIntentInput, aiIntentSchema, AiSettingsInput, aiSettingsInputSchema (+151 more)
+Nodes (162): AiAnalyzeRequestInput, aiAnalyzeRequestSchema, AiCompatibilityInput, aiCompatibilitySchema, AiIntentInput, aiIntentSchema, AiSettingsInput, aiSettingsInputSchema (+154 more)
 
 ### Community 72 - "CurrentUser"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (14): audit(), FinancingController, isChatCompletionModel(), SettingsController, Body, Controller, CurrentUser, Delete (+6 more)
 
 ### Community 73 - "shared.tsx"
-Cohesion: 0.14
-Nodes (16): CustomersView(), Draft, empty(), DashboardView(), msToHuman(), RankBlock, Summary, Drawer() (+8 more)
+Cohesion: 0.12
+Nodes (27): CustomersView(), Draft, empty(), DashboardView(), msToHuman(), RankBlock, Summary, NotificationRow (+19 more)
 
 ### Community 74 - "QuotesView.tsx"
-Cohesion: 0.17
-Nodes (15): Draft, emptyDraft(), ProductsView(), Pill(), centsFieldFromArs(), centsToInput(), displayArs(), formatArs() (+7 more)
+Cohesion: 0.19
+Nodes (14): Draft, emptyDraft(), ProductsView(), centsFieldFromArs(), centsToInput(), displayArs(), formatArs(), formatBps() (+6 more)
 
 ### Community 75 - "src/lib/api.ts"
 Cohesion: 0.16
@@ -379,11 +380,11 @@ Nodes (19): api(), ApiError, ApiOptions, BackgroundApiResponse, BackgroundDownlo
 
 ### Community 76 - "web/lib/types.ts"
 Cohesion: 0.06
-Nodes (43): App(), NAV_GROUPS, ModuloExternoView(), AiModelOption, centsToInput(), efficiencyHint(), emptyFin(), ExtensionInfo (+35 more)
+Nodes (42): App(), NAV_GROUPS, AiModelOption, centsToInput(), efficiencyHint(), emptyFin(), ExtensionInfo, ExtensionInstructions (+34 more)
 
 ### Community 77 - "SettingsView.tsx"
-Cohesion: 0.28
-Nodes (6): ApiError, ApiOptions, apiUpload(), buildUrl(), downloadAuthenticated(), ExtensionPingResult
+Cohesion: 0.21
+Nodes (10): LoginView(), Field(), api(), apiBaseUrl(), ApiError, ApiOptions, apiUpload(), buildUrl() (+2 more)
 
 ### Community 78 - "branding-storage.ts"
 Cohesion: 0.09
@@ -446,8 +447,8 @@ Cohesion: 0.13
 Nodes (14): compilerOptions, declaration, declarationMap, outDir, sourceMap, types, exclude, extends (+6 more)
 
 ### Community 93 - "errorMessage"
-Cohesion: 0.15
-Nodes (21): CollectionsView(), Draft, empty(), LoginView(), NotificationRow, NotificationsView(), CONCEPT_LABEL, Draft (+13 more)
+Cohesion: 0.29
+Nodes (7): CollectionsView(), Draft, empty(), Checkbox(), Pill(), Collection, Quote
 
 ### Community 94 - "1. Invariantes NO NEGOCIABLES (todo el código las respeta)"
 Cohesion: 0.14
@@ -511,7 +512,7 @@ Nodes (13): blankItem(), buildPcSlots(), emptyLineSlot(), filledItems(), isSlotE
 
 ### Community 127 - "RequestsView.tsx"
 Cohesion: 0.24
-Nodes (8): COLUMNS, Draft, empty(), NEXT_STATE, RequestsView(), Customer, QuoteRequest, RequestState
+Nodes (8): COLUMNS, Draft, empty(), NEXT_STATE, RequestsView(), Tone, QuoteRequest, RequestState
 
 ### Community 137 - "5. Fases"
 Cohesion: 0.11
@@ -521,22 +522,26 @@ Nodes (18): 0. Principios (no negociables), 1. Arquitectura, 2. Entidades nuevas
 Cohesion: 0.22
 Nodes (8): 1. Modelo `ExternalModuleConfig`, 2. Contracts (`packages/contracts/src/index.ts`), 3. API (`apps/api/src/settings.ts`, dentro de `SettingsController`), 4. Frontend (`apps/web/components/ModuloExternoView.tsx`), Alcance (SOLO esto en este bloque), BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones), Patrones a mirrorear (leer antes de construir), Verificación (obligatoria antes de terminar)
 
+### Community 139 - "ModuloExternoView.tsx"
+Cohesion: 0.22
+Nodes (8): Draft, empty, ModuloExternoView(), Provider, Secret, Tab, tabs, View
+
 ## Knowledge Gaps
-- **804 isolated node(s):** `Alcance (SOLO esto en este bloque)`, `Patrones a mirrorear (leer antes de construir)`, `1. Modelo `ExternalModuleConfig``, `2. Contracts (`packages/contracts/src/index.ts`)`, `3. API (`apps/api/src/settings.ts`, dentro de `SettingsController`)` (+799 more)
+- **814 isolated node(s):** `Tab`, `Provider`, `View`, `Draft`, `Secret` (+809 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **46 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Query` connect `similarity.ts` to `branding-storage.ts`, `src/lib/api.ts`, `extension/manifest.json`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Why does `jsonSafe()` connect `layout.tsx` to `.login`, `SpanishExceptionFilter`, `extension/manifest.json`, `branding-storage.ts`, `module.ts`, `similarity.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
-- **Why does `ProductsView()` connect `QuotesView.tsx` to `extension/manifest.json`, `errorMessage`?**
-  _High betweenness centrality (0.026) - this node is a cross-community bridge._
-- **What connects `Alcance (SOLO esto en este bloque)`, `Patrones a mirrorear (leer antes de construir)`, `1. Modelo `ExternalModuleConfig`` to the rest of the system?**
-  _804 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **Why does `Query` connect `similarity.ts` to `branding-storage.ts`, `src/lib/api.ts`, `extension/manifest.json`, `testing/src/index.ts`?**
+  _High betweenness centrality (0.040) - this node is a cross-community bridge._
+- **Why does `ProductsView()` connect `QuotesView.tsx` to `shared.tsx`, `extension/manifest.json`, `SettingsView.tsx`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **What connects `Tab`, `Provider`, `View` to the rest of the system?**
+  _814 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tasks` be split into smaller, more focused modules?**
   _Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**

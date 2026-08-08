@@ -1,5 +1,6 @@
 import { db } from "@tgs/database";
 import { runAcustockSyncLoop } from "./catalog-sync.js";
+import { processPendingJobs } from "./jobs.js";
 
 const MS_DAY = 86_400_000;
 
@@ -211,4 +212,22 @@ async function runLoop() {
   } while (true);
 }
 
-if (process.env.NODE_ENV !== "test") void Promise.all([runLoop(), runAcustockSyncLoop()]);
+/** Loop dedicado a los jobs del pipeline: poll corto para respuesta casi inmediata. */
+async function runJobsLoop() {
+  const once = process.argv.includes("--once");
+  const POLL_MS = 3_000;
+  do {
+    try {
+      const result = await processPendingJobs();
+      if (result.claimed > 0) {
+        console.log(JSON.stringify({ level: "info", task: "processing-jobs", ...result }));
+      }
+    } catch (error) {
+      console.error(JSON.stringify({ level: "error", task: "processing-jobs", error: String(error) }));
+    }
+    if (once) break;
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+  } while (true);
+}
+
+if (process.env.NODE_ENV !== "test") void Promise.all([runLoop(), runJobsLoop(), runAcustockSyncLoop()]);

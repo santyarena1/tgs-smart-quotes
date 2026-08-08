@@ -60,6 +60,34 @@ enum AiTaskType {
   CHATBOT_RESPONSE
 }
 
+enum ProcessingStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  FAILED
+}
+
+enum Model3DStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum AssetOrigin {
+  UPLOAD
+  SERPER
+  OFFICIAL
+  PLATFORM
+}
+
 enum ChatbotMode {
   OFF
   SUGGEST
@@ -222,6 +250,8 @@ model Product {
   history           ProductPriceHistory[]
   items             QuoteItem[]
   comboItems        ComboItem[]
+  assets            ProductAsset[]
+  caseModel3D       CaseModel3D?
 
   @@index([normalizedName])
   @@index([active])
@@ -359,21 +389,21 @@ model QuoteRequest {
 }
 
 model QuoteFamily {
-  id             String             @id @default(uuid())
-  visibleNumber  String             @unique
-  internalName   String
-  requestId      String?
-  request        QuoteRequest?      @relation(fields: [requestId], references: [id])
-  customerId     String?
-  customer       Customer?          @relation(fields: [customerId], references: [id])
-  isBuiltPc      Boolean            @default(false)
-  activeVersion  Int                @default(1)
-  lastActivityAt DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  versions       QuoteVersion[]
-  collections    CollectionQuote[]
-  events         QuoteStatusEvent[]
+  id                   String                @id @default(uuid())
+  visibleNumber        String                @unique
+  internalName         String
+  requestId            String?
+  request              QuoteRequest?         @relation(fields: [requestId], references: [id])
+  customerId           String?
+  customer             Customer?             @relation(fields: [customerId], references: [id])
+  isBuiltPc            Boolean               @default(false)
+  activeVersion        Int                   @default(1)
+  lastActivityAt       DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  versions             QuoteVersion[]
+  collections          CollectionQuote[]
+  events               QuoteStatusEvent[]
   chatbotConversations ChatbotConversation[]
 
   @@index([internalName])
@@ -417,6 +447,7 @@ model QuoteVersion {
   deliveries         QuoteDelivery[]
   events             QuoteStatusEvent[]
   replies            QuoteReply[]
+  webPublication     WebPublication?
 
   @@unique([familyId, version])
   @@index([state, sentAt])
@@ -737,7 +768,7 @@ model ChatbotConversation {
   activeRequest          QuoteRequest?       @relation(fields: [activeRequestId], references: [id], onDelete: SetNull)
   lastQuoteFamilyId      String?
   lastQuoteVersion       Int?
-  lastQuoteFamily        QuoteFamily?         @relation(fields: [lastQuoteFamilyId], references: [id], onDelete: SetNull)
+  lastQuoteFamily        QuoteFamily?        @relation(fields: [lastQuoteFamilyId], references: [id], onDelete: SetNull)
   lastInboundFingerprint String?
   lastInboundText        String?
   lastInboundAt          DateTime?
@@ -831,6 +862,86 @@ model ExternalModuleConfig {
   wpBaseUrl            String   @default("https://www.thegamershop.com.ar")
   autoRepublish        Boolean  @default(true)
   updatedAt            DateTime @default(now()) @updatedAt
+}
+
+model ProductAsset {
+  id         String      @id @default(uuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  origin     AssetOrigin
+  sourceUrl  String?
+  url        String?
+  storageKey String?
+  isPrimary  Boolean     @default(false)
+  approved   Boolean     @default(false)
+  status     String      @default("READY")
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([productId])
+}
+
+model CaseModel3D {
+  id           String        @id @default(uuid())
+  productId    String        @unique
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourcePhotos String[]      @default([])
+  glbUrl       String?
+  spinUrl      String?
+  glbKey       String?
+  status       Model3DStatus @default(PENDING)
+  tripoJobId   String?
+  meshStats    Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ThumbnailTemplate {
+  id               String   @id @default(uuid())
+  name             String
+  templateImageUrl String?
+  templateKey      String?
+  fontsJson        Json     @default("[]")
+  rulesJson        Json     @default("{}")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model WebPublication {
+  id              String            @id @default(uuid())
+  quoteVersionId  String            @unique
+  quoteVersion    QuoteVersion      @relation(fields: [quoteVersionId], references: [id], onDelete: Cascade)
+  status          PublicationStatus @default(DRAFT)
+  wpProductId     String?
+  url             String?
+  thumbnailUrl    String?
+  payloadSnapshot Json?
+  lastError       String?
+  publishedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model ProcessingJob {
+  id          String           @id @default(uuid())
+  type        String
+  status      ProcessingStatus @default(PENDING)
+  payload     Json             @default("{}")
+  result      Json?
+  error       String?
+  attempts    Int              @default(0)
+  maxAttempts Int              @default(3)
+  entityType  String?
+  entityId    String?
+  runAfter    DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status, runAfter])
+  @@index([type])
 }
 
 model AiRequest {

@@ -1100,8 +1100,13 @@
     "semantic_hash": ""
   },
   "docs/modulo-externo/PLAN.md": {
-    "mtime": 1786168848.5126553,
-    "ast_hash": "855e2c3ae8f6ef51472603e551bdc3b1",
+    "mtime": 1786169184.4822922,
+    "ast_hash": "a95bdffa16275ca631ae791ac42c602b",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-0.md": {
+    "mtime": 1786169253.1651733,
+    "ast_hash": "25764b7ac1ce83d5e9fbb77101549552",
     "semantic_hash": ""
   }
 }
