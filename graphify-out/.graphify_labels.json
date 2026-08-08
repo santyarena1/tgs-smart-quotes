@@ -119,6 +119,8 @@
   "117": "@tgs/database",
   "118": "@tgs/pdf",
   "119": "@tgs/pricing",
+  "120": "ProductsView.tsx",
+  "121": "worker/src/jobs.ts",
   "122": "database/src/index.ts",
   "123": "vitest.setup.ts",
   "124": "playwright.config.ts",
@@ -136,5 +138,13 @@
   "136": "Req",
   "137": "5. Fases",
   "138": "BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones)",
-  "139": "ModuloExternoView.tsx"
+  "139": "ModuloExternoView.tsx",
+  "140": "reflect-metadata",
+  "141": "rxjs",
+  "142": "@tgs/ai",
+  "143": "@tgs/contracts",
+  "144": "@tgs/database",
+  "145": "@tgs/storage",
+  "146": "@tgs/validation",
+  "147": "zod"
 }

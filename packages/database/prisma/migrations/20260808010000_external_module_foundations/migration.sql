@@ -23,11 +23,6 @@ CREATE UNIQUE INDEX "CaseModel3D_productId_key" ON "CaseModel3D"("productId");
 CREATE UNIQUE INDEX "WebPublication_quoteVersionId_key" ON "WebPublication"("quoteVersionId");
 CREATE INDEX "ProcessingJob_status_runAfter_idx" ON "ProcessingJob"("status", "runAfter");
 CREATE INDEX "ProcessingJob_type_idx" ON "ProcessingJob"("type");
-CREATE INDEX "ProductAsset_productId_idx" ON "ProductAsset"("productId");
-CREATE UNIQUE INDEX "CaseModel3D_productId_key" ON "CaseModel3D"("productId");
-CREATE UNIQUE INDEX "WebPublication_quoteVersionId_key" ON "WebPublication"("quoteVersionId");
-CREATE INDEX "ProcessingJob_status_runAfter_idx" ON "ProcessingJob"("status", "runAfter");
-CREATE INDEX "ProcessingJob_type_idx" ON "ProcessingJob"("type");
 
 ALTER TABLE "ProductAsset" ADD CONSTRAINT "ProductAsset_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CaseModel3D" ADD CONSTRAINT "CaseModel3D_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;

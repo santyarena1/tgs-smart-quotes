@@ -119,8 +119,6 @@
   "117": "@tgs/database",
   "118": "@tgs/pdf",
   "119": "@tgs/pricing",
-  "120": "@tgs/validation",
-  "121": "zod",
   "122": "database/src/index.ts",
   "123": "vitest.setup.ts",
   "124": "playwright.config.ts",
