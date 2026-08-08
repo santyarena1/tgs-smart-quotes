@@ -13,6 +13,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import OpenAI from 'openai';
+import {createHmac} from 'node:crypto';
 import {db} from '@tgs/database';
 import {
   aiSettingsInputSchema,
@@ -22,6 +23,7 @@ import {
   financingUpdateSchema,
   idSchema,
   externalModuleToggleSchema,
+  externalModuleConfigInputSchema,
   operationsSettingsInputSchema,
   pdfLayoutConfigSchema,
   pdfLayoutPreviewInputSchema,
@@ -30,6 +32,8 @@ import {
   type CompanySettingsInput,
   type FinancingInput,
   type ExternalModuleToggleInput,
+  type ExternalModuleConfigInput,
+  type ExternalModuleConfigView,
   type OperationsSettingsInput,
   type PdfLayoutConfig,
   type PdfLayoutPreviewInput,
@@ -404,6 +408,78 @@ export class SettingsController {
   async externalModule() {
     const row = await db.externalModuleSettings.findUnique({where: {id: 'singleton'}});
     return row ?? {id: 'singleton', enabled: false, updatedAt: new Date()};
+  }
+
+  private externalConfigView(row: Awaited<ReturnType<typeof db.externalModuleConfig.upsert>>): ExternalModuleConfigView {
+    return {
+      id: 'singleton',
+      photoroomKeySet: Boolean(row.photoroomKeyEnc), tripoKeySet: Boolean(row.tripoKeyEnc),
+      higgsfieldKeySet: Boolean(row.higgsfieldKeyEnc), higgsfieldSecretSet: Boolean(row.higgsfieldSecretEnc),
+      serperKeySet: Boolean(row.serperKeyEnc), r2SecretAccessKeySet: Boolean(row.r2SecretAccessKeyEnc),
+      wpHmacSecretSet: Boolean(row.wpHmacSecretEnc), r2Endpoint: row.r2Endpoint,
+      r2Bucket: row.r2Bucket, r2AccessKeyId: row.r2AccessKeyId, r2PublicBaseUrl: row.r2PublicBaseUrl,
+      wpBaseUrl: row.wpBaseUrl, autoRepublish: row.autoRepublish, updatedAt: row.updatedAt,
+    };
+  }
+
+  private externalConfig() {
+    return db.externalModuleConfig.upsert({where:{id:'singleton'},update:{},create:{id:'singleton'}});
+  }
+
+  @Get('external-module/config')
+  async getExternalModuleConfig() {
+    return this.externalConfigView(await this.externalConfig());
+  }
+
+  @Put('external-module/config')
+  async putExternalModuleConfig(
+    @Body(new ZodPipe(externalModuleConfigInputSchema)) body: ExternalModuleConfigInput,
+    @CurrentUser() u: RequestUser,
+  ) {
+    await db.$transaction(async tx=>{
+      const old=await tx.externalModuleConfig.findUnique({where:{id:'singleton'}});
+      const secret=(clear:boolean|undefined,value:string|undefined)=>clear?null:value?.trim()?encryptSecret(value.trim()):undefined;
+      const next=await tx.externalModuleConfig.upsert({where:{id:'singleton'},create:{
+        id:'singleton',r2Endpoint:body.r2Endpoint,r2Bucket:body.r2Bucket,r2AccessKeyId:body.r2AccessKeyId,
+        r2PublicBaseUrl:body.r2PublicBaseUrl,wpBaseUrl:body.wpBaseUrl,autoRepublish:body.autoRepublish,
+        photoroomKeyEnc:secret(body.clearPhotoroomKey,body.photoroomKey),tripoKeyEnc:secret(body.clearTripoKey,body.tripoKey),
+        higgsfieldKeyEnc:secret(body.clearHiggsfieldKey,body.higgsfieldKey),higgsfieldSecretEnc:secret(body.clearHiggsfieldSecret,body.higgsfieldSecret),
+        serperKeyEnc:secret(body.clearSerperKey,body.serperKey),r2SecretAccessKeyEnc:secret(body.clearR2SecretAccessKey,body.r2SecretAccessKey),
+        wpHmacSecretEnc:secret(body.clearWpHmacSecret,body.wpHmacSecret),
+      },update:{
+        r2Endpoint:body.r2Endpoint,r2Bucket:body.r2Bucket,r2AccessKeyId:body.r2AccessKeyId,r2PublicBaseUrl:body.r2PublicBaseUrl,
+        wpBaseUrl:body.wpBaseUrl,autoRepublish:body.autoRepublish,
+        photoroomKeyEnc:secret(body.clearPhotoroomKey,body.photoroomKey),tripoKeyEnc:secret(body.clearTripoKey,body.tripoKey),
+        higgsfieldKeyEnc:secret(body.clearHiggsfieldKey,body.higgsfieldKey),higgsfieldSecretEnc:secret(body.clearHiggsfieldSecret,body.higgsfieldSecret),
+        serperKeyEnc:secret(body.clearSerperKey,body.serperKey),r2SecretAccessKeyEnc:secret(body.clearR2SecretAccessKey,body.r2SecretAccessKey),
+        wpHmacSecretEnc:secret(body.clearWpHmacSecret,body.wpHmacSecret),
+      }});
+      const redact=(v:typeof next|null)=>v&&({...v,photoroomKeyEnc:v.photoroomKeyEnc?'[CIFRADA]':null,tripoKeyEnc:v.tripoKeyEnc?'[CIFRADA]':null,higgsfieldKeyEnc:v.higgsfieldKeyEnc?'[CIFRADA]':null,higgsfieldSecretEnc:v.higgsfieldSecretEnc?'[CIFRADA]':null,serperKeyEnc:v.serperKeyEnc?'[CIFRADA]':null,r2SecretAccessKeyEnc:v.r2SecretAccessKeyEnc?'[CIFRADA]':null,wpHmacSecretEnc:v.wpHmacSecretEnc?'[CIFRADA]':null});
+      await audit(tx,u.id,'ExternalModuleConfig','singleton','UPDATE',redact(old),redact(next));
+    });
+    return this.externalConfigView(await this.externalConfig());
+  }
+
+  @Post('external-module/config/test/:provider')
+  async testExternalModuleConfig(@Param('provider') provider:string) {
+    if(!['photoroom','tripo','higgsfield','serper','r2','wordpress'].includes(provider))throw new BadRequestException('Proveedor inválido');
+    if(['tripo','higgsfield','r2'].includes(provider))return {ok:false,detail:'Test no implementado aún'};
+    const row=await this.externalConfig();
+    const request=async(url:string,init?:RequestInit)=>{
+      try{const response=await fetch(url,{...init,signal:AbortSignal.timeout(10000)});return response.ok?{ok:true}:{ok:false,detail:`HTTP ${response.status}`};}
+      catch(error){return {ok:false,detail:error instanceof Error?error.message:'Error de conexión'};}
+    };
+    if(provider==='serper'){
+      if(!row.serperKeyEnc)return {ok:false,detail:'No hay una credencial guardada'};
+      return request('https://google.serper.dev/search',{method:'POST',headers:{'X-API-KEY':decryptSecret(row.serperKeyEnc),'Content-Type':'application/json'},body:JSON.stringify({q:'The Gamer Shop',num:1})});
+    }
+    if(provider==='photoroom'){
+      if(!row.photoroomKeyEnc)return {ok:false,detail:'No hay una credencial guardada'};
+      return request('https://image-api.photoroom.com/v2/account',{headers:{'x-api-key':decryptSecret(row.photoroomKeyEnc)}});
+    }
+    if(!row.wpHmacSecretEnc)return {ok:false,detail:'No hay un secreto HMAC guardado'};
+    const timestamp=String(Date.now()),signature=createHmac('sha256',decryptSecret(row.wpHmacSecretEnc)).update(timestamp).digest('hex');
+    return request(`${row.wpBaseUrl.replace(/\/$/,'')}/wp-json`,{headers:{'X-TGS-Timestamp':timestamp,'X-TGS-Signature':signature}});
   }
 
   @Put('external-module')

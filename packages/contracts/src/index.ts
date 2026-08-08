@@ -331,6 +331,19 @@ export const externalModuleToggleSchema = z
   })
   .strict();
 export type ExternalModuleToggleInput = z.infer<typeof externalModuleToggleSchema>;
+export const externalModuleConfigInputSchema = z.object({
+  photoroomKey:z.string().optional(),clearPhotoroomKey:z.boolean().optional(),
+  tripoKey:z.string().optional(),clearTripoKey:z.boolean().optional(),
+  higgsfieldKey:z.string().optional(),clearHiggsfieldKey:z.boolean().optional(),
+  higgsfieldSecret:z.string().optional(),clearHiggsfieldSecret:z.boolean().optional(),
+  serperKey:z.string().optional(),clearSerperKey:z.boolean().optional(),
+  r2SecretAccessKey:z.string().optional(),clearR2SecretAccessKey:z.boolean().optional(),
+  wpHmacSecret:z.string().optional(),clearWpHmacSecret:z.boolean().optional(),
+  r2Endpoint:z.string().optional(),r2Bucket:z.string().optional(),r2AccessKeyId:z.string().optional(),
+  r2PublicBaseUrl:z.string().optional(),wpBaseUrl:z.string().url().optional(),autoRepublish:z.boolean().optional(),
+}).strict();
+export type ExternalModuleConfigInput=z.infer<typeof externalModuleConfigInputSchema>;
+export type ExternalModuleConfigView={id:'singleton';photoroomKeySet:boolean;tripoKeySet:boolean;higgsfieldKeySet:boolean;higgsfieldSecretSet:boolean;serperKeySet:boolean;r2SecretAccessKeySet:boolean;wpHmacSecretSet:boolean;r2Endpoint:string|null;r2Bucket:string|null;r2AccessKeyId:string|null;r2PublicBaseUrl:string|null;wpBaseUrl:string;autoRepublish:boolean;updatedAt:Date};
 export type FinancingInput = z.infer<typeof financingInputSchema>;
 
 export const productCreateSchema = z

@@ -4,6 +4,105 @@
   "graph": {},
   "nodes": [
     {
+      "label": "modulo-externo/BLOCK-0.md",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "modulo-externo/block-0.md"
+    },
+    {
+      "label": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "block-0 \u2014 fundacion de configuracion del modulo externo (conexiones)"
+    },
+    {
+      "label": "Alcance (SOLO esto en este bloque)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_alcance_solo_esto_en_este_bloque",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "alcance (solo esto en este bloque)"
+    },
+    {
+      "label": "Patrones a mirrorear (leer antes de construir)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_patrones_a_mirrorear_leer_antes_de_construir",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "patrones a mirrorear (leer antes de construir)"
+    },
+    {
+      "label": "1. Modelo `ExternalModuleConfig`",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_1_modelo_externalmoduleconfig",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "1. modelo `externalmoduleconfig`"
+    },
+    {
+      "label": "2. Contracts (`packages/contracts/src/index.ts`)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_2_contracts_packages_contracts_src_index_ts",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "2. contracts (`packages/contracts/src/index.ts`)"
+    },
+    {
+      "label": "3. API (`apps/api/src/settings.ts`, dentro de `SettingsController`)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_3_api_apps_api_src_settings_ts_dentro_de_settingscontroller",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "3. api (`apps/api/src/settings.ts`, dentro de `settingscontroller`)"
+    },
+    {
+      "label": "4. Frontend (`apps/web/components/ModuloExternoView.tsx`)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_4_frontend_apps_web_components_moduloexternoview_tsx",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "4. frontend (`apps/web/components/moduloexternoview.tsx`)"
+    },
+    {
+      "label": "Verificaci\u00f3n (obligatoria antes de terminar)",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L70",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_block_0_verificaci\u00f3n_obligatoria_antes_de_terminar",
+      "community": 138,
+      "community_name": "BLOCK-0 \u2014 Fundaci\u00f3n de configuraci\u00f3n del M\u00f3dulo Externo (Conexiones)",
+      "norm_label": "verificacion (obligatoria antes de terminar)"
+    },
+    {
       "label": "PLAN.md",
       "file_type": "document",
       "source_file": "docs/modulo-externo/PLAN.md",
@@ -180,21 +279,32 @@
       "norm_label": "fase 7 \u2014 operacion"
     },
     {
-      "label": "6. Decisiones abiertas / lo que se necesita del usuario",
+      "label": "6. Decisiones tomadas",
       "file_type": "document",
       "source_file": "docs/modulo-externo/PLAN.md",
       "source_location": "L123",
       "_origin": "ast",
-      "id": "docs_modulo_externo_plan_6_decisiones_abiertas_lo_que_se_necesita_del_usuario",
+      "id": "docs_modulo_externo_plan_6_decisiones_tomadas",
       "community": 137,
       "community_name": "5. Fases",
-      "norm_label": "6. decisiones abiertas / lo que se necesita del usuario"
+      "norm_label": "6. decisiones tomadas"
+    },
+    {
+      "label": "Pendiente de recibir",
+      "file_type": "document",
+      "source_file": "docs/modulo-externo/PLAN.md",
+      "source_location": "L131",
+      "_origin": "ast",
+      "id": "docs_modulo_externo_plan_pendiente_de_recibir",
+      "community": 137,
+      "community_name": "5. Fases",
+      "norm_label": "pendiente de recibir"
     },
     {
       "label": "7. Riesgos conocidos",
       "file_type": "document",
       "source_file": "docs/modulo-externo/PLAN.md",
-      "source_location": "L131",
+      "source_location": "L134",
       "_origin": "ast",
       "id": "docs_modulo_externo_plan_7_riesgos_conocidos",
       "community": 137,
@@ -18306,14 +18416,14 @@
       "id": "docs_qa_checklist_qa"
     },
     {
-      "label": "BLOCK-0.md",
+      "label": "specs/BLOCK-0.md",
       "file_type": "document",
       "source_file": "docs/specs/BLOCK-0.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 82,
       "community_name": "BLOCK-0 \u2014 Fundaciones (spec autoritativa para Codex)",
-      "norm_label": "block-0.md",
+      "norm_label": "specs/block-0.md",
       "id": "docs_specs_block_0"
     },
     {
@@ -19036,6 +19146,94 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0",
+      "target": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_1_modelo_externalmoduleconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_2_contracts_packages_contracts_src_index_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_3_api_apps_api_src_settings_ts_dentro_de_settingscontroller",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L63",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_4_frontend_apps_web_components_moduloexternoview_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_alcance_solo_esto_en_este_bloque",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_patrones_a_mirrorear_leer_antes_de_construir",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/BLOCK-0.md",
+      "source_location": "L70",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_block_0_block_0_fundaci\u00f3n_de_configuraci\u00f3n_del_m\u00f3dulo_externo_conexiones",
+      "target": "docs_modulo_externo_block_0_verificaci\u00f3n_obligatoria_antes_de_terminar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "docs/modulo-externo/PLAN.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -19118,14 +19316,14 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_modulo_externo_plan_m\u00f3dulo_externo_plan_maestro",
-      "target": "docs_modulo_externo_plan_6_decisiones_abiertas_lo_que_se_necesita_del_usuario",
+      "target": "docs_modulo_externo_plan_6_decisiones_tomadas",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/modulo-externo/PLAN.md",
-      "source_location": "L131",
+      "source_location": "L134",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_modulo_externo_plan_m\u00f3dulo_externo_plan_maestro",
@@ -19218,6 +19416,17 @@
       "_origin": "ast",
       "source": "docs_modulo_externo_plan_5_fases",
       "target": "docs_modulo_externo_plan_fase_7_operaci\u00f3n",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/modulo-externo/PLAN.md",
+      "source_location": "L131",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_modulo_externo_plan_6_decisiones_tomadas",
+      "target": "docs_modulo_externo_plan_pendiente_de_recibir",
       "confidence_score": 1.0
     },
     {
@@ -51161,5 +51370,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "5fa88a5e34b64aeaabc6cf6fc95d58b1195d05e5"
+  "built_at_commit": "e0e6b3274461d22ada155d2bba37bb4d3299c72d"
 }

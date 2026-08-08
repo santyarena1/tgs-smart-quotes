@@ -815,6 +815,24 @@ model ExternalModuleSettings {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
+model ExternalModuleConfig {
+  id                   String   @id @default("singleton")
+  photoroomKeyEnc      String?
+  tripoKeyEnc          String?
+  higgsfieldKeyEnc     String?
+  higgsfieldSecretEnc  String?
+  serperKeyEnc         String?
+  r2SecretAccessKeyEnc String?
+  wpHmacSecretEnc      String?
+  r2Endpoint           String?
+  r2Bucket             String?
+  r2AccessKeyId        String?
+  r2PublicBaseUrl      String?
+  wpBaseUrl            String   @default("https://www.thegamershop.com.ar")
+  autoRepublish        Boolean  @default(true)
+  updatedAt            DateTime @default(now()) @updatedAt
+}
+
 model AiRequest {
   id           String        @id @default(uuid())
   task         AiTaskType
