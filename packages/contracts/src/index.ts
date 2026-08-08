@@ -350,6 +350,15 @@ export const assetUpdateSchema=z.object({isPrimary:z.boolean().optional(),approv
 export type AssetModeInput=z.infer<typeof assetModeSchema>;
 export type AssetFromUrlInput=z.infer<typeof assetFromUrlSchema>;
 export type AssetUpdateInput=z.infer<typeof assetUpdateSchema>;
+export const thumbnailTextRuleSchema=z.object({source:z.enum(['title','literal']),value:z.string().max(500).optional(),x:z.number().int().min(0),y:z.number().int().min(0),fontSize:z.number().int().min(1).max(500),color:z.string().trim().min(1).max(100),fontFamily:z.string().trim().min(1).max(200).optional(),align:z.enum(['left','center','right']).optional()}).strict();
+export const thumbnailRulesSchema=z.object({width:z.number().int().min(64).max(4096),height:z.number().int().min(64).max(4096),background:z.object({type:z.enum(['template','color']),color:z.string().trim().min(1).max(100).optional()}).strict(),product:z.object({x:z.number().int().min(0),y:z.number().int().min(0),w:z.number().int().min(1),h:z.number().int().min(1)}).strict(),texts:z.array(thumbnailTextRuleSchema).max(20)}).strict().superRefine((v,ctx)=>{if(v.product.x+v.product.w>v.width||v.product.y+v.product.h>v.height)ctx.addIssue({code:z.ZodIssueCode.custom,message:'La caja del producto debe quedar dentro del lienzo',path:['product']});});
+export const thumbnailTemplateCreateSchema=z.object({name:z.string().trim().min(1).max(200),rules:thumbnailRulesSchema}).strict();
+export const thumbnailTemplateUpdateSchema=z.object({name:z.string().trim().min(1).max(200).optional(),rules:thumbnailRulesSchema.optional(),active:z.boolean().optional(),fonts:z.array(z.string().trim().min(1).max(500)).max(20).optional()}).strict().refine(v=>Object.keys(v).length>0,'Se requiere al menos un campo');
+export const thumbnailGenerateSchema=z.object({templateId:idSchema,title:z.string().trim().max(500).optional(),useHiggsfield:z.boolean().optional(),higgsfieldPrompt:z.string().trim().max(2000).optional()}).strict();
+export type ThumbnailRules=z.infer<typeof thumbnailRulesSchema>;
+export type ThumbnailTemplateCreateInput=z.infer<typeof thumbnailTemplateCreateSchema>;
+export type ThumbnailTemplateUpdateInput=z.infer<typeof thumbnailTemplateUpdateSchema>;
+export type ThumbnailGenerateInput=z.infer<typeof thumbnailGenerateSchema>;
 export type FinancingInput = z.infer<typeof financingInputSchema>;
 
 export const productCreateSchema = z

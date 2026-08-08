@@ -3,4 +3,4 @@ async function loadKey(field:'photoroomKeyEnc'|'serperKeyEnc'|'tripoKeyEnc',prov
 export const getPhotoroomKey=()=>loadKey('photoroomKeyEnc','Photoroom');
 export const getSerperKey=()=>loadKey('serperKeyEnc','Serper');
 export const getTripoKey=()=>loadKey('tripoKeyEnc','Tripo');
-export*from'./photoroom.js';export*from'./serper.js';export*from'./tripo.js';
+export*from'./photoroom.js';export*from'./serper.js';export*from'./tripo.js';export*from'./higgsfield.js';

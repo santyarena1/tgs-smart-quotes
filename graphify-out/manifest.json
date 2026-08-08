@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "packages/ai/src/index.ts": {
-    "mtime": 1786144284.0164523,
-    "ast_hash": "0213d1598a52207f9c00c2cf9870347a",
+    "mtime": 1786208175.1902363,
+    "ast_hash": "9f3265c7ee876f708245a912c4563d5a",
     "semantic_hash": ""
   },
   "packages/config/package.json": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786201987.1335275,
-    "ast_hash": "8c902d3957101a00e70d80d9cf5d8fa1",
+    "mtime": 1786208480.8993893,
+    "ast_hash": "052476f1e3e6481bfb86dd57c03fa2d5",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -660,8 +660,8 @@
     "semantic_hash": ""
   },
   "packages/ai/src/schemas.ts": {
-    "mtime": 1786144284.0174596,
-    "ast_hash": "7bd788ae4877a18a237153f2aeed7637",
+    "mtime": 1786208144.1491482,
+    "ast_hash": "9b68f8774214dab88801a43591fd3ebc",
     "semantic_hash": ""
   },
   "packages/ai/src/services/compatibility-feedback.ts": {
@@ -690,8 +690,8 @@
     "semantic_hash": ""
   },
   "packages/ai/src/types.ts": {
-    "mtime": 1786144284.0204518,
-    "ast_hash": "afd4a020a00d5927f5b9db82fcdb6c95",
+    "mtime": 1786208144.1491482,
+    "ast_hash": "0eddea6041770ec6cb1700a6f7b1dc67",
     "semantic_hash": ""
   },
   "packages/ai/tsconfig.json": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786207191.3865473,
-    "ast_hash": "e7aac31c2aacdd6263c647debabe9cbb",
+    "mtime": 1786208412.9252677,
+    "ast_hash": "ebac0c3a294b948a7ebb3a4fec62f34c",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/external-module.ts": {
-    "mtime": 1786207134.0570655,
-    "ast_hash": "ac378aef263bd508c9e76260486cd564",
+    "mtime": 1786208358.82961,
+    "ast_hash": "587e613ec1451108e626169a7faa8b5b",
     "semantic_hash": ""
   },
   "apps/worker/src/handlers/product-asset.ts": {
@@ -1217,6 +1217,26 @@
   "docs/modulo-externo/BLOCK-3.md": {
     "mtime": 1786206664.5121052,
     "ast_hash": "514b049d6e1253714431c3fe237e0788",
+    "semantic_hash": ""
+  },
+  "apps/api/src/quote-power.ts": {
+    "mtime": 1786208175.1912363,
+    "ast_hash": "e836576a173be3dae6c0e794a9f3c0d4",
+    "semantic_hash": ""
+  },
+  "packages/ai/src/services/quote-enrichment.ts": {
+    "mtime": 1786208175.1902363,
+    "ast_hash": "1b633c0e723c8d8745e9fb7b1907c749",
+    "semantic_hash": ""
+  },
+  "packages/database/prisma/migrations/20260808030000_quote_enrichment/migration.sql": {
+    "mtime": 1786208144.1491482,
+    "ast_hash": "2b0521609cf45ccf0d1740696c110b96",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-4.md": {
+    "mtime": 1786207820.285956,
+    "ast_hash": "7db5561342c1c64e0d8b6536eb78e34e",
     "semantic_hash": ""
   }
 }

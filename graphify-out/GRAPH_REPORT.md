@@ -1,16 +1,16 @@
 # Graph Report - tgs-smart-quotes  (2026-08-08)
 
 ## Corpus Check
-- 238 files · ~132,456 words
+- 242 files · ~133,758 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1941 nodes · 3043 edges · 162 communities (110 shown, 52 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.73)
+- 1989 nodes · 3114 edges · 165 communities (113 shown, 52 thin omitted)
+- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 13 edges (avg confidence: 0.71)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `89fcda6b`
+- Built from commit: `78ec4bf0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -168,6 +168,9 @@
 - model-viewer-module.d.ts
 - Controller
 - Get
+- infrastructure.ts
+- branding-storage.ts
+- BLOCK-4 — Fase 4: Enriquecimiento del presupuesto
 
 ## God Nodes (most connected - your core abstractions)
 1. `jsonSafe()` - 47 edges
@@ -177,9 +180,9 @@
 5. `statusEvent()` - 24 edges
 6. `audit()` - 22 edges
 7. `QuotesController` - 20 edges
-8. `api()` - 17 edges
-9. `loadFamily()` - 16 edges
-10. `errorMessage()` - 16 edges
+8. `ExternalModuleController` - 19 edges
+9. `api()` - 17 edges
+10. `loadFamily()` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `buildRenderInput()` --calls--> `resolveLogoForPdf()`  [EXTRACTED]
@@ -196,7 +199,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (162 total, 52 thin omitted)
+## Communities (165 total, 52 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
@@ -247,8 +250,8 @@ Cohesion: 0.22
 Nodes (8): name, private, scripts, build, dev, lint, typecheck, version
 
 ### Community 12 - "extension/manifest.json"
-Cohesion: 0.08
-Nodes (22): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, jsonSafe() (+14 more)
+Cohesion: 0.11
+Nodes (20): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, jsonSafe() (+12 more)
 
 ### Community 13 - "public/manifest.json"
 Cohesion: 0.11
@@ -291,8 +294,8 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, outDir, extends, include, src, ../../tsconfig.json
 
 ### Community 23 - "ai/src/index.ts"
-Cohesion: 0.08
-Nodes (62): AiClientConfig, client(), createAiClient(), COMPONENT_PATTERNS, extractBudgetCents(), fallbackCompatibilityFeedback(), fallbackIntentClassification(), fallbackRequestAnalysis() (+54 more)
+Cohesion: 0.06
+Nodes (73): AiClientConfig, client(), createAiClient(), COMPONENT_PATTERNS, extractBudgetCents(), fallbackCompatibilityFeedback(), fallbackIntentClassification(), fallbackRequestAnalysis() (+65 more)
 
 ### Community 24 - "database/tsconfig.json"
 Cohesion: 0.12
@@ -343,8 +346,8 @@ Cohesion: 0.50
 Nodes (3): name, private, version
 
 ### Community 36 - "layout.tsx"
-Cohesion: 0.21
-Nodes (24): activeVersion(), assertDraftMutable(), audit(), buildItemRows(), eventTypeForState(), formatVisibleNumber(), jsonField(), loadFamily() (+16 more)
+Cohesion: 0.20
+Nodes (25): activeVersion(), assertDraftMutable(), audit(), buildItemRows(), eventTypeForState(), formatVisibleNumber(), jsonField(), loadFamily() (+17 more)
 
 ### Community 37 - "page.tsx"
 Cohesion: 0.27
@@ -367,7 +370,7 @@ Cohesion: 0.12
 Nodes (27): applyCoefficient(), buildFinancing(), buildItemsRows(), createLocalPdfStorage(), createPdfStorageFromEnv(), createS3PdfStorage(), escapeHtml(), formatArsFromCents() (+19 more)
 
 ### Community 62 - "testing/src/index.ts"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (24): Get, CurrentUser, RequestUser, Get, addPriceHistory(), audit(), createProduct(), CustomerController (+16 more)
 
 ### Community 64 - "background.ts"
@@ -380,11 +383,11 @@ Nodes (15): generateCaseModelWithTripo(), activityAt(), closeAsNoConcretado(), j
 
 ### Community 71 - "contracts/src/index.ts"
 Cohesion: 0.01
-Nodes (168): AiAnalyzeRequestInput, aiAnalyzeRequestSchema, AiCompatibilityInput, aiCompatibilitySchema, AiIntentInput, aiIntentSchema, AiSettingsInput, aiSettingsInputSchema (+160 more)
+Nodes (172): AiAnalyzeRequestInput, aiAnalyzeRequestSchema, AiCompatibilityInput, aiCompatibilitySchema, AiIntentInput, aiIntentSchema, AiSettingsInput, aiSettingsInputSchema (+164 more)
 
 ### Community 72 - "CurrentUser"
-Cohesion: 0.07
-Nodes (29): audit(), createAsset(), ext(), ExternalModuleController, modelExt(), ownStorageKey(), requireProduct(), serperQuerySchema (+21 more)
+Cohesion: 0.06
+Nodes (38): aiCache, audit(), createAsset(), enrichmentData(), enrichmentService(), ext(), ExternalModuleController, installmentTotal() (+30 more)
 
 ### Community 73 - "shared.tsx"
 Cohesion: 0.13
@@ -407,8 +410,8 @@ Cohesion: 0.28
 Nodes (6): ApiError, ApiOptions, apiUpload(), buildUrl(), downloadAuthenticated(), ExtensionPingResult
 
 ### Community 78 - "branding-storage.ts"
-Cohesion: 0.21
-Nodes (10): buildRenderInput(), PdfController, pdfStorage, storageKeyFor(), Body, Controller, Get, Param (+2 more)
+Cohesion: 0.43
+Nodes (5): PdfController, Controller, Get, Param, Res
 
 ### Community 79 - "module.ts"
 Cohesion: 0.09
@@ -431,8 +434,8 @@ Cohesion: 0.12
 Nodes (16): BLOCK-3 — PDF, trazabilidad, precios, búsqueda, envíos, respuestas, notificaciones e IA, Búsqueda (`apps/api/src/search.ts`), Configuración operativa (`apps/api/src/settings.ts`), Dependencias y configuración, Endpoints entregados, Envíos (`apps/api/src/quotes.ts`), IA (`apps/api/src/ai.ts`, opcional/mejor esfuerzo), Integridad y convenciones respetadas (+8 more)
 
 ### Community 84 - "infrastructure.ts"
-Cohesion: 0.06
-Nodes (36): AuthController, fakeUser, Body, Controller, Post, Req, Res, assertSafeBrandingFilename() (+28 more)
+Cohesion: 0.11
+Nodes (15): AuthController, fakeUser, Body, Controller, Post, Req, Res, AuthGuard (+7 more)
 
 ### Community 85 - "compilerOptions"
 Cohesion: 0.12
@@ -527,7 +530,7 @@ Cohesion: 0.50
 Nodes (3): Contrato de aceptación, Evidencia de comandos (2026-07-26), Regla de cierre
 
 ### Community 113 - "openai"
-Cohesion: 0.24
+Cohesion: 0.22
 Nodes (4): CollectionsController, RequestsController, Controller, Get
 
 ### Community 114 - "reflect-metadata"
@@ -567,8 +570,8 @@ Cohesion: 0.22
 Nodes (8): 1. Modelo `ExternalModuleConfig`, 2. Contracts (`packages/contracts/src/index.ts`), 3. API (`apps/api/src/settings.ts`, dentro de `SettingsController`), 4. Frontend (`apps/web/components/ModuloExternoView.tsx`), Alcance (SOLO esto en este bloque), BLOCK-0 — Fundación de configuración del Módulo Externo (Conexiones), Patrones a mirrorear (leer antes de construir), Verificación (obligatoria antes de terminar)
 
 ### Community 139 - "ModuloExternoView.tsx"
-Cohesion: 0.13
-Nodes (12): Asset, CaseModel, Draft, empty, Mode, Product, Provider, SearchImage (+4 more)
+Cohesion: 0.11
+Nodes (16): ars(), Asset, CaseModel, Draft, empty, Enrichment, Mode, Product (+8 more)
 
 ### Community 148 - "RequestsView.tsx"
 Cohesion: 0.24
@@ -602,22 +605,34 @@ Nodes (5): devDependencies, @types/node, typescript, @types/node, typescript
 Cohesion: 0.50
 Nodes (3): IntrinsicElements, JSX, react
 
+### Community 162 - "infrastructure.ts"
+Cohesion: 0.14
+Nodes (11): ExtensionSettingsController, resolveExtensionZip(), Controller, Get, Public(), ZodPipe, buildRenderInput(), pdfStorage (+3 more)
+
+### Community 163 - "branding-storage.ts"
+Cohesion: 0.17
+Nodes (16): assertSafeBrandingFilename(), BRANDING_DIR, brandingFilePath(), EXT_TO_MIME, filenameFromLogoUrl(), logoPublicUrl(), MIME_TO_EXT, mimeForBrandingFilename() (+8 more)
+
+### Community 164 - "BLOCK-4 — Fase 4: Enriquecimiento del presupuesto"
+Cohesion: 0.17
+Nodes (11): 1. Modelo `QuoteEnrichment`, 2. Serialización del presupuesto, 3. IA (service nuevo en `@tgs/ai`), 4. Potencia (determinística), 5. Endpoints (`ExternalModuleController`), 6. Contracts, 7. UI: tab "Presupuesto", Alcance (+3 more)
+
 ## Knowledge Gaps
-- **897 isolated node(s):** `serperQuerySchema`, `Tab`, `Provider`, `View`, `Draft` (+892 more)
+- **918 isolated node(s):** `serperQuerySchema`, `aiCache`, `PowerItem`, `CPU`, `GPU` (+913 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **52 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `jsonSafe()` connect `extension/manifest.json` to `layout.tsx`, `SpanishExceptionFilter`, `branding-storage.ts`, `similarity.ts`, `openai`, `infrastructure.ts`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.041) - this node is a cross-community bridge._
+- **Why does `jsonSafe()` connect `extension/manifest.json` to `infrastructure.ts`, `layout.tsx`, `SpanishExceptionFilter`, `branding-storage.ts`, `similarity.ts`, `openai`, `testing/src/index.ts`?**
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **Why does `ProductsView()` connect `QuotesView.tsx` to `shared.tsx`, `extension/manifest.json`?**
-  _High betweenness centrality (0.025) - this node is a cross-community bridge._
-- **Why does `SettingsController` connect `CurrentUser` to `extension/manifest.json`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **What connects `serperQuerySchema`, `Tab`, `Provider` to the rest of the system?**
-  _897 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
+- **Why does `Query` connect `similarity.ts` to `src/lib/api.ts`, `extension/manifest.json`, `testing/src/index.ts`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **What connects `serperQuerySchema`, `aiCache`, `PowerItem` to the rest of the system?**
+  _918 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tasks` be split into smaller, more focused modules?**
   _Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**
