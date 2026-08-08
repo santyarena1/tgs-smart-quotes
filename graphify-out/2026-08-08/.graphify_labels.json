@@ -128,12 +128,5 @@
   "126": "QuotesView.tsx",
   "127": "RequestsView.tsx",
   "128": "PcLinesView.tsx",
-  "129": "changelog.ts",
-  "130": "Controller",
-  "131": "Delete",
-  "132": "Get",
-  "133": "Param",
-  "134": "Post",
-  "135": "Put",
-  "136": "Req"
+  "129": "changelog.ts"
 }
