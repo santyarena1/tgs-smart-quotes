@@ -58,6 +58,7 @@ enum AiTaskType {
   RESPONSE_SUGGESTION
   SEMANTIC_SIMILARITY
   CHATBOT_RESPONSE
+  QUOTE_ENRICHMENT
 }
 
 enum ProcessingStatus {
@@ -454,11 +455,27 @@ model QuoteVersion {
   events             QuoteStatusEvent[]
   replies            QuoteReply[]
   webPublication     WebPublication?
+  enrichment         QuoteEnrichment?
 
   @@unique([familyId, version])
   @@index([state, sentAt])
   @@index([state, lastActivityAt])
   @@index([reviewPending])
+}
+
+model QuoteEnrichment {
+  id String @id @default(uuid())
+  quoteVersionId String @unique
+  quoteVersion QuoteVersion @relation(fields: [quoteVersionId], references: [id], onDelete: Cascade)
+  descriptionHtml String?
+  powerWatts Int?
+  recommendedPsuWatts Int?
+  powerNote String?
+  gamesJson Json @default("[]")
+  programsJson Json @default("[]")
+  compatibilityJson Json @default("[]")
+  updatedAt DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now())
 }
 
 model QuoteItem {

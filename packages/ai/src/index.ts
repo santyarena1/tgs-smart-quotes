@@ -23,6 +23,8 @@ export {
   replyIntentSchema,
   chatbotResponseInputSchema,
   chatbotResponseOutputSchema,
+  quoteEnrichmentInputSchema,
+  quoteEnrichmentOutputSchema,
 } from "./schemas.js";
 export type {
   CompatibilityFeedbackInput,
@@ -37,6 +39,8 @@ export type {
   SemanticSimilarityOutput,
   ChatbotResponseInput,
   ChatbotResponseOutput,
+  QuoteEnrichmentInput,
+  QuoteEnrichmentOutput,
 } from "./schemas.js";
 export {
   AiTask,
@@ -58,6 +62,7 @@ export { ResponseSuggestionService } from "./services/response-suggestion.js";
 export { IntentClassificationService } from "./services/intent-classification.js";
 export { SemanticSimilarityService } from "./services/semantic-similarity.js";
 export { ChatbotResponseService } from "./services/chatbot-response.js";
+export { QuoteEnrichmentService } from "./services/quote-enrichment.js";
 
 import { CompatibilityFeedbackService } from "./services/compatibility-feedback.js";
 import { IntentClassificationService } from "./services/intent-classification.js";

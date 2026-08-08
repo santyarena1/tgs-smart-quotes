@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const quoteEnrichmentInputSchema=z.object({items:z.array(z.object({name:z.string().min(1),quantity:z.number().int().positive()}).strict()).min(1)}).strict();
+export const quoteEnrichmentOutputSchema=z.object({descriptionHtml:z.string(),games:z.array(z.object({name:z.string(),tier:z.string()}).strict()),programs:z.array(z.object({name:z.string(),note:z.string()}).strict()),compatibility:z.array(z.string())}).strict();
+export type QuoteEnrichmentInput=z.infer<typeof quoteEnrichmentInputSchema>;
+export type QuoteEnrichmentOutput=z.infer<typeof quoteEnrichmentOutputSchema>;
+
 export const requestAnalysisOutputSchema = z
   .object({
     usage: z.string().nullable(),

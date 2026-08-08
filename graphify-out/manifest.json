@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "apps/web/package.json": {
-    "mtime": 1785080304.0013027,
-    "ast_hash": "ee7c87bb391fa0c989f0bbcd49dc26f8",
+    "mtime": 1786207049.482767,
+    "ast_hash": "4d522d978f4fec1ab3094b24d6750afa",
     "semantic_hash": ""
   },
   "apps/web/tsconfig.json": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "apps/worker/src/index.ts": {
-    "mtime": 1786202000.6744075,
-    "ast_hash": "7cedd7d29e4d8adf777edfa1820f4cfb",
+    "mtime": 1786207049.482767,
+    "ast_hash": "7ae91dd3d4eccab037ab14ba5b1160f5",
     "semantic_hash": ""
   },
   "apps/worker/tsconfig.json": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786202486.667858,
-    "ast_hash": "904daacaa12884a483c7d5c3b8bec0dc",
+    "mtime": 1786207191.3865473,
+    "ast_hash": "e7aac31c2aacdd6263c647debabe9cbb",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/external-module.ts": {
-    "mtime": 1786202610.170139,
-    "ast_hash": "12eaf2cd8e77740ea7d635e04c9305e0",
+    "mtime": 1786207134.0570655,
+    "ast_hash": "ac378aef263bd508c9e76260486cd564",
     "semantic_hash": ""
   },
   "apps/worker/src/handlers/product-asset.ts": {
@@ -1165,8 +1165,8 @@
     "semantic_hash": ""
   },
   "packages/providers/src/index.ts": {
-    "mtime": 1786201973.369462,
-    "ast_hash": "7dbf4e9bc394a25d567e6d2022503425",
+    "mtime": 1786206994.539575,
+    "ast_hash": "d1ba22099fdc44c5b39a5b541a46067e",
     "semantic_hash": ""
   },
   "packages/providers/src/photoroom.ts": {
@@ -1187,6 +1187,36 @@
   "docs/modulo-externo/BLOCK-2.md": {
     "mtime": 1786201769.7087803,
     "ast_hash": "1b50c4347cf0f924130ba02351bf6ac3",
+    "semantic_hash": ""
+  },
+  "apps/web/model-viewer-module.d.ts": {
+    "mtime": 1786207251.0419884,
+    "ast_hash": "4e7ff07d7ead81116ab7978223807750",
+    "semantic_hash": ""
+  },
+  "apps/web/model-viewer.d.ts": {
+    "mtime": 1786207251.0419884,
+    "ast_hash": "a6178bd20052c47e78bc7e67eb47344f",
+    "semantic_hash": ""
+  },
+  "apps/worker/src/handlers/case-model.ts": {
+    "mtime": 1786207090.7245014,
+    "ast_hash": "2150b664102440eaff8229f6ed99133c",
+    "semantic_hash": ""
+  },
+  "packages/database/prisma/migrations/20260808020000_case_model_source/migration.sql": {
+    "mtime": 1786207049.482767,
+    "ast_hash": "c07439e385f3e38a812663128649340c",
+    "semantic_hash": ""
+  },
+  "packages/providers/src/tripo.ts": {
+    "mtime": 1786207090.7245014,
+    "ast_hash": "9e75da038c803ed1d8648788c9369e83",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-3.md": {
+    "mtime": 1786206664.5121052,
+    "ast_hash": "514b049d6e1253714431c3fe237e0788",
     "semantic_hash": ""
   }
 }

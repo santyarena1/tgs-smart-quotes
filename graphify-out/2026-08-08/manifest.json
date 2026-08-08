@@ -20,8 +20,8 @@
     "semantic_hash": "d6452cb7ea505486403acd0ae0703f59"
   },
   "apps/api/package.json": {
-    "mtime": 1785104913.4371676,
-    "ast_hash": "b70e1e32d08b5441ea1c5e3de2bf4463",
+    "mtime": 1786201987.2358255,
+    "ast_hash": "bfc420ae9fecaf4466d44a6a32d968aa",
     "semantic_hash": ""
   },
   "apps/api/src/main.ts": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/module.ts": {
-    "mtime": 1786144283.9574564,
-    "ast_hash": "e53c58329fb27af2c7bd9aea099d6bb7",
+    "mtime": 1786202041.2831306,
+    "ast_hash": "9be0826c69a6d145fd063b2050d11fd0",
     "semantic_hash": ""
   },
   "apps/api/tsconfig.json": {
@@ -100,8 +100,8 @@
     "semantic_hash": "2d6c139ac6386920dc5c2cb51c894251"
   },
   "apps/worker/package.json": {
-    "mtime": 1786144284.001455,
-    "ast_hash": "81f5974d3a329aad198b171b00edb058",
+    "mtime": 1786201987.2199676,
+    "ast_hash": "de958e5d8ee99db63a8fa8e0080470e3",
     "semantic_hash": ""
   },
   "apps/worker/src/index.test.ts": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "apps/worker/src/index.ts": {
-    "mtime": 1786201308.7821124,
-    "ast_hash": "39b1bc3be655074671e905aa4c8d4d2c",
+    "mtime": 1786202000.6744075,
+    "ast_hash": "7cedd7d29e4d8adf777edfa1820f4cfb",
     "semantic_hash": ""
   },
   "apps/worker/tsconfig.json": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786197936.10317,
-    "ast_hash": "8e285094dc81d18e3b8bb0f8dec09311",
+    "mtime": 1786201987.1335275,
+    "ast_hash": "8c902d3957101a00e70d80d9cf5d8fa1",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786198390.6319559,
-    "ast_hash": "b3aac52e3259ae22e379fa4e3664a9b2",
+    "mtime": 1786202486.667858,
+    "ast_hash": "904daacaa12884a483c7d5c3b8bec0dc",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1100,8 +1100,8 @@
     "semantic_hash": ""
   },
   "docs/modulo-externo/PLAN.md": {
-    "mtime": 1786169184.4822922,
-    "ast_hash": "a95bdffa16275ca631ae791ac42c602b",
+    "mtime": 1786202662.4805026,
+    "ast_hash": "ac0ffbc02609e2e5d1cad428c7c38c4c",
     "semantic_hash": ""
   },
   "docs/modulo-externo/BLOCK-0.md": {
@@ -1120,8 +1120,8 @@
     "semantic_hash": ""
   },
   "packages/database/prisma/migrations/20260808010000_external_module_foundations/migration.sql": {
-    "mtime": 1786201246.2555134,
-    "ast_hash": "f29bb0d997af151b92eb0e9876a9a993",
+    "mtime": 1786204648.1983025,
+    "ast_hash": "f112840e44492a03a46b534907945712",
     "semantic_hash": ""
   },
   "packages/database/src/jobs.ts": {
@@ -1135,8 +1135,8 @@
     "semantic_hash": ""
   },
   "packages/storage/src/index.ts": {
-    "mtime": 1786201019.581577,
-    "ast_hash": "bf897d3bbc63ebe2fb7ff26471603186",
+    "mtime": 1786202120.4021783,
+    "ast_hash": "1e2b0558ee6cbed10d9d454c4d7413e3",
     "semantic_hash": ""
   },
   "packages/storage/tsconfig.json": {
@@ -1147,6 +1147,46 @@
   "docs/modulo-externo/BLOCK-1.md": {
     "mtime": 1786200594.2730067,
     "ast_hash": "3363b29deb979e5d554ec684c149673b",
+    "semantic_hash": ""
+  },
+  "apps/api/src/external-module.ts": {
+    "mtime": 1786202610.170139,
+    "ast_hash": "12eaf2cd8e77740ea7d635e04c9305e0",
+    "semantic_hash": ""
+  },
+  "apps/worker/src/handlers/product-asset.ts": {
+    "mtime": 1786202610.2176754,
+    "ast_hash": "fb008acb4b44db21f88eb1448ee147ac",
+    "semantic_hash": ""
+  },
+  "packages/providers/package.json": {
+    "mtime": 1786201973.369462,
+    "ast_hash": "9f6bfc683e019c433b633fbbbe37c895",
+    "semantic_hash": ""
+  },
+  "packages/providers/src/index.ts": {
+    "mtime": 1786201973.369462,
+    "ast_hash": "7dbf4e9bc394a25d567e6d2022503425",
+    "semantic_hash": ""
+  },
+  "packages/providers/src/photoroom.ts": {
+    "mtime": 1786202548.0470974,
+    "ast_hash": "b9c6c63517e6fbc09fb59d8baaf81a34",
+    "semantic_hash": ""
+  },
+  "packages/providers/src/serper.ts": {
+    "mtime": 1786202556.1042523,
+    "ast_hash": "b0cc68be5d7c65e74ee92576d26b22cd",
+    "semantic_hash": ""
+  },
+  "packages/providers/tsconfig.json": {
+    "mtime": 1786201973.369462,
+    "ast_hash": "79620117d09244dc83f4c8c7c44dcbf3",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-2.md": {
+    "mtime": 1786201769.7087803,
+    "ast_hash": "1b50c4347cf0f924130ba02351bf6ac3",
     "semantic_hash": ""
   }
 }

@@ -901,6 +901,10 @@ export const aiIntentSchema = z
   })
   .strict();
 
+export const quoteEnrichmentGameSchema=z.object({name:z.string().trim().min(1).max(200),tier:z.string().trim().min(1).max(300)}).strict();
+export const quoteEnrichmentProgramSchema=z.object({name:z.string().trim().min(1).max(200),note:z.string().trim().min(1).max(500)}).strict();
+export const quoteEnrichmentUpdateSchema=z.object({descriptionHtml:z.string().max(20000).nullable().optional(),powerWatts:z.number().int().min(0).max(10000).nullable().optional(),recommendedPsuWatts:z.number().int().min(0).max(10000).nullable().optional(),powerNote:z.string().trim().max(2000).nullable().optional(),games:z.array(quoteEnrichmentGameSchema).max(50).optional(),programs:z.array(quoteEnrichmentProgramSchema).max(50).optional(),compatibility:z.array(z.string().trim().min(1).max(500)).max(100).optional()}).strict();
+
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductImportInput = z.infer<typeof productImportSchema>;
@@ -940,6 +944,7 @@ export type AiAnalyzeRequestInput = z.infer<typeof aiAnalyzeRequestSchema>;
 export type AiSuggestResponseInput = z.infer<typeof aiSuggestResponseSchema>;
 export type AiCompatibilityInput = z.infer<typeof aiCompatibilitySchema>;
 export type AiIntentInput = z.infer<typeof aiIntentSchema>;
+export type QuoteEnrichmentUpdateInput=z.infer<typeof quoteEnrichmentUpdateSchema>;
 export type UserCreateInput = z.infer<typeof userCreateSchema>;
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
 export type BranchCreateInput = z.infer<typeof branchCreateSchema>;

@@ -146,5 +146,19 @@
   "144": "@tgs/database",
   "145": "@tgs/storage",
   "146": "@tgs/validation",
-  "147": "zod"
+  "147": "zod",
+  "148": "RequestsView.tsx",
+  "149": "devDependencies",
+  "150": "BLOCK-3 — Fase 2 (parte 1): Modelo 3D del gabinete — subir GLB + Tripo + preview",
+  "151": "dependencies",
+  "152": "dependencies",
+  "153": "dependencies",
+  "154": "devDependencies",
+  "155": "model-viewer.d.ts",
+  "156": "serper.ts",
+  "157": "model-viewer-module.d.ts",
+  "158": "product-asset.ts",
+  "159": "photoroom.ts",
+  "160": "Controller",
+  "161": "Get"
 }
