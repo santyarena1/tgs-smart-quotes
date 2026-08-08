@@ -85,7 +85,7 @@
     "semantic_hash": "90426577ad8f38459f3e566411c85589"
   },
   "apps/web/next.config.ts": {
-    "mtime": 1785109720.44659,
+    "mtime": 1786198236.844779,
     "ast_hash": "e07ae78cc1dd47b0392c5578c086bebe",
     "semantic_hash": ""
   },
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786144765.9509802,
-    "ast_hash": "5c5c3aa36ae6e52797475b1b18ace081",
+    "mtime": 1786197936.10317,
+    "ast_hash": "8e285094dc81d18e3b8bb0f8dec09311",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "packages/database/prisma/seed.ts": {
-    "mtime": 1786144759.023825,
-    "ast_hash": "4187b82154b5c6b611bd2b95f976feae",
+    "mtime": 1786197936.1041558,
+    "ast_hash": "e1aa658070289a025574732019776439",
     "semantic_hash": ""
   },
   "packages/database/src/index.ts": {
@@ -490,8 +490,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/settings.ts": {
-    "mtime": 1786144787.8958642,
-    "ast_hash": "3c908c8cce030f432b79547fc8f19b59",
+    "mtime": 1786198036.7731369,
+    "ast_hash": "70f48be2357b9fd032f2a7bddb429573",
     "semantic_hash": ""
   },
   "apps/api/src/similarity.test.ts": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786144802.936853,
-    "ast_hash": "4831fa3a2d0ff7d08214b68bc56e17fe",
+    "mtime": 1786198390.6319559,
+    "ast_hash": "b3aac52e3259ae22e379fa4e3664a9b2",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1107,6 +1107,11 @@
   "docs/modulo-externo/BLOCK-0.md": {
     "mtime": 1786169253.1651733,
     "ast_hash": "25764b7ac1ce83d5e9fbb77101549552",
+    "semantic_hash": ""
+  },
+  "packages/database/prisma/migrations/20260808000000_external_module_config/migration.sql": {
+    "mtime": 1786198454.6345332,
+    "ast_hash": "8aea72738b19c62d07f684dec9640b6a",
     "semantic_hash": ""
   }
 }

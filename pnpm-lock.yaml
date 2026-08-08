@@ -65,6 +65,12 @@ importers:
       '@tgs/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
+      '@tgs/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@tgs/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@tgs/validation':
         specifier: workspace:*
         version: link:../../packages/validation
@@ -152,6 +158,12 @@ importers:
       '@tgs/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@tgs/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@tgs/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
     devDependencies:
       '@tgs/testing':
         specifier: workspace:*
@@ -253,6 +265,22 @@ importers:
 
   packages/pricing:
     devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/providers:
+    dependencies:
+      '@tgs/config':
+        specifier: workspace:*
+        version: link:../config
+      '@tgs/database':
+        specifier: workspace:*
+        version: link:../database
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

@@ -85,11 +85,14 @@
 - Guardar en R2, asociar a `Product` (reutilizable).
 - **Bloqueadores**: key Photoroom, key Serper, postura copyright.
 
-### Fase 2 — Pipeline 3D del gabinete
-- Subir 4 fotos → Photoroom (limpieza) → **Tripo Multiview** → GLB.
-- Optimizar (glTF-Transform + Meshoptimizer) → R2.
+### Fase 2 — Pipeline 3D del gabinete (fuente elegible por gabinete)
+El 3D no depende de una sola fuente. `CaseModel3D` gana un campo `source` y soporta 3 caminos, todos terminan en un `glbUrl` en R2 que muestra `<model-viewer>`:
+1. **Subir GLB propio** (cubre oficiales / GrabCAD / CGTrader convertidos) — control total.
+2. **Importar de Sketchfab** (búsqueda + importar GLB descargable a R2; respetar licencia: filtrar `downloadable` + licencia apta comercial).
+3. **Generar con Tripo** desde 4 fotos (Photoroom limpia → Tripo Multiview → glTF-Transform/Meshopt) — *fallback* para gabinetes sin modelo existente.
 - Asociar a `CaseModel3D` (por gabinete, reutilizable). Preview con `<model-viewer>`; estado del job; re-generar.
-- **Bloqueadores**: key Tripo.
+- **BuildCores**: investigar aparte; probablemente quede como enlace a su visor (no da los `.glb` a hospedar), licencia comercial incierta. No es base.
+- **Bloqueadores**: key Tripo (solo para el camino 3) / key Sketchfab (camino 2).
 
 ### Fase 3 — Miniatura (plantillas + reglas + Higgsfield)
 - Config de plantillas: subir ejemplos, tipografías, reglas (cuadrada, safe areas, posición producto, tokens).

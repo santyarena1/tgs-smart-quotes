@@ -344,6 +344,12 @@ export const externalModuleConfigInputSchema = z.object({
 }).strict();
 export type ExternalModuleConfigInput=z.infer<typeof externalModuleConfigInputSchema>;
 export type ExternalModuleConfigView={id:'singleton';photoroomKeySet:boolean;tripoKeySet:boolean;higgsfieldKeySet:boolean;higgsfieldSecretSet:boolean;serperKeySet:boolean;r2SecretAccessKeySet:boolean;wpHmacSecretSet:boolean;r2Endpoint:string|null;r2Bucket:string|null;r2AccessKeyId:string|null;r2PublicBaseUrl:string|null;wpBaseUrl:string;autoRepublish:boolean;updatedAt:Date};
+export const assetModeSchema=z.object({mode:z.enum(['remove-bg','as-is'])}).strict();
+export const assetFromUrlSchema=z.object({url:z.string().url(),origin:z.enum(['SERPER','OFFICIAL','UPLOAD']).optional(),mode:z.enum(['remove-bg','as-is'])}).strict();
+export const assetUpdateSchema=z.object({isPrimary:z.boolean().optional(),approved:z.boolean().optional()}).strict().refine(v=>Object.keys(v).length>0,'Se requiere al menos un campo');
+export type AssetModeInput=z.infer<typeof assetModeSchema>;
+export type AssetFromUrlInput=z.infer<typeof assetFromUrlSchema>;
+export type AssetUpdateInput=z.infer<typeof assetUpdateSchema>;
 export type FinancingInput = z.infer<typeof financingInputSchema>;
 
 export const productCreateSchema = z
@@ -938,3 +944,4 @@ export type UserCreateInput = z.infer<typeof userCreateSchema>;
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
 export type BranchCreateInput = z.infer<typeof branchCreateSchema>;
 export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;
+

@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "apps/worker/src/index.ts": {
-    "mtime": 1786144284.0024588,
-    "ast_hash": "34dacf8334291b8149b3479324a7e876",
+    "mtime": 1786201308.7821124,
+    "ast_hash": "39b1bc3be655074671e905aa4c8d4d2c",
     "semantic_hash": ""
   },
   "apps/worker/tsconfig.json": {
@@ -180,8 +180,8 @@
     "semantic_hash": ""
   },
   "packages/database/src/index.ts": {
-    "mtime": 1786144284.0434504,
-    "ast_hash": "2242f3d3c18441113458a4333864bb52",
+    "mtime": 1786200842.7683198,
+    "ast_hash": "cd45de933ca6fd6846d16bc140de1047",
     "semantic_hash": ""
   },
   "packages/database/tsconfig.json": {
@@ -1112,6 +1112,41 @@
   "packages/database/prisma/migrations/20260808000000_external_module_config/migration.sql": {
     "mtime": 1786198454.6345332,
     "ast_hash": "8aea72738b19c62d07f684dec9640b6a",
+    "semantic_hash": ""
+  },
+  "apps/worker/src/jobs.ts": {
+    "mtime": 1786201046.8735178,
+    "ast_hash": "bfbbc25038806859b6fdd48706b98625",
+    "semantic_hash": ""
+  },
+  "packages/database/prisma/migrations/20260808010000_external_module_foundations/migration.sql": {
+    "mtime": 1786201246.2555134,
+    "ast_hash": "f29bb0d997af151b92eb0e9876a9a993",
+    "semantic_hash": ""
+  },
+  "packages/database/src/jobs.ts": {
+    "mtime": 1786200974.2418258,
+    "ast_hash": "d8ea3e7c2206bfe12140e8cfcaafd367",
+    "semantic_hash": ""
+  },
+  "packages/storage/package.json": {
+    "mtime": 1786201019.5659342,
+    "ast_hash": "579917aaca6239908bacc8937d18bc3c",
+    "semantic_hash": ""
+  },
+  "packages/storage/src/index.ts": {
+    "mtime": 1786201019.581577,
+    "ast_hash": "bf897d3bbc63ebe2fb7ff26471603186",
+    "semantic_hash": ""
+  },
+  "packages/storage/tsconfig.json": {
+    "mtime": 1786201019.5659342,
+    "ast_hash": "60ba8ca44388a4d33646665dc17b5ddc",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-1.md": {
+    "mtime": 1786200594.2730067,
+    "ast_hash": "3363b29deb979e5d554ec684c149673b",
     "semantic_hash": ""
   }
 }

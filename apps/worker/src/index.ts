@@ -1,6 +1,9 @@
 import { db } from "@tgs/database";
 import { runAcustockSyncLoop } from "./catalog-sync.js";
-import { processPendingJobs } from "./jobs.js";
+import { processPendingJobs, handlers } from "./jobs.js";
+import {removeProductAssetBackground} from "./handlers/product-asset.js";
+
+handlers["product-asset:remove-bg"] = removeProductAssetBackground;
 
 const MS_DAY = 86_400_000;
 
@@ -231,3 +234,4 @@ async function runJobsLoop() {
 }
 
 if (process.env.NODE_ENV !== "test") void Promise.all([runLoop(), runJobsLoop(), runAcustockSyncLoop()]);
+
