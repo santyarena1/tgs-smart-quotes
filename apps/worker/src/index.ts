@@ -1,9 +1,12 @@
+import {generateCaseModelWithTripo} from './handlers/case-model.js';
 import { db } from "@tgs/database";
 import { runAcustockSyncLoop } from "./catalog-sync.js";
 import { processPendingJobs, handlers } from "./jobs.js";
 import {removeProductAssetBackground} from "./handlers/product-asset.js";
 
 handlers["product-asset:remove-bg"] = removeProductAssetBackground;
+
+handlers['case-model:tripo'] = generateCaseModelWithTripo;
 
 const MS_DAY = 86_400_000;
 

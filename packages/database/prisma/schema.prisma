@@ -81,6 +81,12 @@ enum Model3DStatus {
   FAILED
 }
 
+enum Model3DSource {
+  UPLOAD
+  TRIPO
+  SKETCHFAB
+}
+
 enum AssetOrigin {
   UPLOAD
   SERPER
@@ -889,6 +895,7 @@ model CaseModel3D {
   glbUrl       String?
   spinUrl      String?
   glbKey       String?
+  source       Model3DSource @default(UPLOAD)
   status       Model3DStatus @default(PENDING)
   tripoJobId   String?
   meshStats    Json?
