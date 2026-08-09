@@ -16,7 +16,8 @@ RUN pnpm install --frozen-lockfile \
   && pnpm --filter @tgs/ai build \
   && pnpm --filter @tgs/api build \
   && pnpm --filter @tgs/extension build \
-  && pnpm --filter @tgs/extension zip
+  && pnpm --filter @tgs/extension zip \
+  && node infrastructure/scripts/zip-wp-plugin.mjs
 
 FROM node:22-bookworm-slim
 # Dependencias de sistema para Chromium (Playwright) usadas por @tgs/pdf

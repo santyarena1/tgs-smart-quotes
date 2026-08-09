@@ -20,8 +20,8 @@
     "semantic_hash": "d6452cb7ea505486403acd0ae0703f59"
   },
   "apps/api/package.json": {
-    "mtime": 1786201987.2358255,
-    "ast_hash": "bfc420ae9fecaf4466d44a6a32d968aa",
+    "mtime": 1786209297.1891463,
+    "ast_hash": "06a8560332877af4ce5ddf0c0cfafa1c",
     "semantic_hash": ""
   },
   "apps/api/src/main.ts": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786208480.8993893,
-    "ast_hash": "052476f1e3e6481bfb86dd57c03fa2d5",
+    "mtime": 1786209220.867333,
+    "ast_hash": "6e60f5ce9ca91fe3890004a72f8464d0",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786208412.9252677,
-    "ast_hash": "ebac0c3a294b948a7ebb3a4fec62f34c",
+    "mtime": 1786209475.167595,
+    "ast_hash": "68e4b1caaac5de5f1848ca9ba06f7488",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/external-module.ts": {
-    "mtime": 1786208358.82961,
-    "ast_hash": "587e613ec1451108e626169a7faa8b5b",
+    "mtime": 1786209554.4371157,
+    "ast_hash": "1d3de87565cc2cc9b312da40a5fadf90",
     "semantic_hash": ""
   },
   "apps/worker/src/handlers/product-asset.ts": {
@@ -1165,8 +1165,8 @@
     "semantic_hash": ""
   },
   "packages/providers/src/index.ts": {
-    "mtime": 1786206994.539575,
-    "ast_hash": "d1ba22099fdc44c5b39a5b541a46067e",
+    "mtime": 1786209200.0119731,
+    "ast_hash": "f359c4e9d43f346ba434faaf781cc3f2",
     "semantic_hash": ""
   },
   "packages/providers/src/photoroom.ts": {
@@ -1237,6 +1237,21 @@
   "docs/modulo-externo/BLOCK-4.md": {
     "mtime": 1786207820.285956,
     "ast_hash": "7db5561342c1c64e0d8b6536eb78e34e",
+    "semantic_hash": ""
+  },
+  "apps/api/src/thumbnail-render.ts": {
+    "mtime": 1786209475.167595,
+    "ast_hash": "56a561461a9c6fcd234e7bc9b3937933",
+    "semantic_hash": ""
+  },
+  "packages/providers/src/higgsfield.ts": {
+    "mtime": 1786209261.775175,
+    "ast_hash": "126ee69a56bcc88b46d8a9ad5ac3c842",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-5.md": {
+    "mtime": 1786209001.7174735,
+    "ast_hash": "c9c70ed3d1c2c48ab41b39d1b9a81d69",
     "semantic_hash": ""
   }
 }

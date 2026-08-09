@@ -1,0 +1,1 @@
+(()=>{const bar=document.querySelector('.tgs-sticky');const form=document.querySelector('.tgs-summary form.cart');if(!bar||!form)return;const observer=new IntersectionObserver(([entry])=>{bar.classList.toggle('is-visible',!entry.isIntersecting);bar.setAttribute('aria-hidden',String(entry.isIntersecting));});observer.observe(form);})();
