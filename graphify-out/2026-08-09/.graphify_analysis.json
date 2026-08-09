@@ -1,0 +1,881 @@
+{
+  "communities": {
+    "0": [
+      "apps_api_src_routes_corecontroller",
+      "apps_api_src_routes_corecontroller_ai",
+      "apps_api_src_routes_corecontroller_attempt",
+      "apps_api_src_routes_corecontroller_collection",
+      "apps_api_src_routes_corecontroller_collections",
+      "apps_api_src_routes_corecontroller_constructor",
+      "apps_api_src_routes_corecontroller_customer",
+      "apps_api_src_routes_corecontroller_customers",
+      "apps_api_src_routes_corecontroller_dashboard",
+      "apps_api_src_routes_corecontroller_health",
+      "apps_api_src_routes_corecontroller_import",
+      "apps_api_src_routes_corecontroller_login",
+      "apps_api_src_routes_corecontroller_logout",
+      "apps_api_src_routes_corecontroller_notifications",
+      "apps_api_src_routes_corecontroller_pdf",
+      "apps_api_src_routes_corecontroller_product",
+      "apps_api_src_routes_corecontroller_products",
+      "apps_api_src_routes_corecontroller_quote",
+      "apps_api_src_routes_corecontroller_quotes",
+      "apps_api_src_routes_corecontroller_request",
+      "apps_api_src_routes_corecontroller_requests",
+      "apps_api_src_routes_corecontroller_resolve",
+      "apps_api_src_routes_corecontroller_send",
+      "apps_api_src_routes_corecontroller_status",
+      "apps_api_src_routes_corecontroller_version",
+      "apps_api_src_service_coreservice",
+      "apps_api_src_service_coreservice_actor",
+      "apps_api_src_service_coreservice_ai",
+      "apps_api_src_service_coreservice_attempt",
+      "apps_api_src_service_coreservice_collection",
+      "apps_api_src_service_coreservice_collections",
+      "apps_api_src_service_coreservice_createcustomer",
+      "apps_api_src_service_coreservice_createproduct",
+      "apps_api_src_service_coreservice_createquote",
+      "apps_api_src_service_coreservice_createrequest",
+      "apps_api_src_service_coreservice_customers",
+      "apps_api_src_service_coreservice_dashboard",
+      "apps_api_src_service_coreservice_importproducts",
+      "apps_api_src_service_coreservice_login",
+      "apps_api_src_service_coreservice_notifications",
+      "apps_api_src_service_coreservice_pdf",
+      "apps_api_src_service_coreservice_products",
+      "apps_api_src_service_coreservice_quotes",
+      "apps_api_src_service_coreservice_requests",
+      "apps_api_src_service_coreservice_resolveattempt",
+      "apps_api_src_service_coreservice_send",
+      "apps_api_src_service_coreservice_status",
+      "apps_api_src_service_coreservice_version",
+      "apps_api_src_service_json",
+      "body",
+      "controller",
+      "get",
+      "injectable",
+      "packages_validation_src_index",
+      "packages_validation_src_index_normalizephone",
+      "packages_validation_src_index_normalizetext",
+      "param",
+      "post",
+      "put",
+      "query"
+    ],
+    "1": [
+      "apps_extension_package",
+      "apps_extension_package_dependencies",
+      "apps_extension_package_dependencies_react",
+      "apps_extension_package_dependencies_react_dom",
+      "apps_extension_package_dependencies_vite",
+      "apps_extension_package_dependencies_vitejs_plugin_react",
+      "apps_extension_package_devdependencies",
+      "apps_extension_package_devdependencies_types_chrome",
+      "apps_extension_package_devdependencies_types_react",
+      "apps_extension_package_devdependencies_types_react_dom",
+      "apps_extension_package_devdependencies_typescript",
+      "apps_extension_package_json_react",
+      "apps_extension_package_json_react_dom",
+      "apps_extension_package_json_types_react",
+      "apps_extension_package_json_typescript",
+      "apps_extension_package_name",
+      "apps_extension_package_private",
+      "apps_extension_package_scripts",
+      "apps_extension_package_scripts_build",
+      "apps_extension_package_scripts_dev",
+      "apps_extension_package_scripts_lint",
+      "apps_extension_package_scripts_typecheck",
+      "apps_extension_package_scripts_zip",
+      "apps_extension_package_version",
+      "types_chrome",
+      "types_react_dom",
+      "vite",
+      "vitejs_plugin_react"
+    ],
+    "2": [
+      "apps_api_package_dependencies",
+      "apps_api_package_dependencies_argon2",
+      "apps_api_package_dependencies_nestjs_common",
+      "apps_api_package_dependencies_nestjs_core",
+      "apps_api_package_dependencies_nestjs_platform_fastify",
+      "apps_api_package_dependencies_nestjs_swagger",
+      "apps_api_package_dependencies_openai",
+      "apps_api_package_dependencies_playwright",
+      "apps_api_package_dependencies_reflect_metadata",
+      "apps_api_package_dependencies_rxjs",
+      "apps_api_package_dependencies_tgs_contracts",
+      "apps_api_package_dependencies_tgs_database",
+      "apps_api_package_dependencies_tgs_pricing",
+      "apps_api_package_dependencies_tgs_validation",
+      "apps_api_package_json_argon2",
+      "apps_api_package_json_openai",
+      "apps_api_package_json_tgs_database",
+      "nestjs_common",
+      "nestjs_core",
+      "nestjs_platform_fastify",
+      "nestjs_swagger",
+      "playwright",
+      "reflect_metadata",
+      "rxjs",
+      "tgs_contracts",
+      "tgs_pricing",
+      "tgs_validation"
+    ],
+    "3": [
+      "apps_api_src_main",
+      "apps_api_src_main_bootstrap",
+      "apps_api_src_module",
+      "apps_api_src_module_appmodule",
+      "apps_api_src_routes",
+      "apps_api_src_service",
+      "apps_worker_src_index",
+      "apps_worker_src_index_markstale",
+      "apps_worker_src_index_run",
+      "module",
+      "packages_contracts_src_index",
+      "packages_contracts_src_index_productinput",
+      "packages_contracts_src_index_quoteinput",
+      "packages_contracts_src_index_quoteiteminput",
+      "packages_contracts_src_index_quotestate",
+      "packages_contracts_src_index_requeststate",
+      "packages_contracts_src_index_visibility",
+      "packages_database_src_index",
+      "packages_database_src_index_g",
+      "packages_pricing_src_index",
+      "packages_pricing_src_index_adjusttotargettotal",
+      "packages_pricing_src_index_markupfromprices",
+      "packages_pricing_src_index_moneyitem",
+      "packages_pricing_src_index_resolvevisibility",
+      "packages_pricing_src_index_salefromcost",
+      "packages_pricing_src_index_totals",
+      "packages_pricing_src_pricing_test"
+    ],
+    "4": [
+      "claude_skills_graphify_skill",
+      "claude_skills_graphify_skill_for_graphify_add_and_watch",
+      "claude_skills_graphify_skill_for_graphify_query",
+      "claude_skills_graphify_skill_for_the_commit_hook_and_native_claude_md_integration",
+      "claude_skills_graphify_skill_for_update_and_cluster_only",
+      "claude_skills_graphify_skill_graphify",
+      "claude_skills_graphify_skill_honesty_rules",
+      "claude_skills_graphify_skill_interpreter_guard_for_subcommands",
+      "claude_skills_graphify_skill_part_a_structural_extraction_for_code_files",
+      "claude_skills_graphify_skill_part_b_semantic_extraction_parallel_subagents",
+      "claude_skills_graphify_skill_part_c_merge_ast_semantic_into_final_extraction",
+      "claude_skills_graphify_skill_powershell_5_1_vertical_scrolling_stops_working",
+      "claude_skills_graphify_skill_step_0_github_repos_and_multi_path_merge_only_if_a_url_or_several_paths",
+      "claude_skills_graphify_skill_step_1_ensure_graphify_is_installed",
+      "claude_skills_graphify_skill_step_2_5_video_and_audio_only_if_video_files_detected",
+      "claude_skills_graphify_skill_step_2_detect_files",
+      "claude_skills_graphify_skill_step_3_extract_entities_and_relationships",
+      "claude_skills_graphify_skill_step_4_5_graph_health_check_read_only_integrity_gate",
+      "claude_skills_graphify_skill_step_4_build_graph_cluster_analyze_generate_outputs",
+      "claude_skills_graphify_skill_step_5_label_communities",
+      "claude_skills_graphify_skill_step_6_generate_obsidian_vault_opt_in_html",
+      "claude_skills_graphify_skill_step_9_save_manifest_update_cost_tracker_clean_up_and_report",
+      "claude_skills_graphify_skill_steps_6b_8_wiki_neo4j_falkordb_svg_graphml_mcp_benchmark_only_on_their_flags",
+      "claude_skills_graphify_skill_troubleshooting",
+      "claude_skills_graphify_skill_usage",
+      "claude_skills_graphify_skill_what_graphify_is_for",
+      "claude_skills_graphify_skill_what_you_must_do_when_invoked"
+    ],
+    "5": [
+      "package",
+      "package_devdependencies",
+      "package_devdependencies_playwright_test",
+      "package_devdependencies_prettier",
+      "package_devdependencies_turbo",
+      "package_devdependencies_typescript",
+      "package_devdependencies_vitest",
+      "package_engines",
+      "package_engines_node",
+      "package_json_turbo",
+      "package_json_typescript",
+      "package_name",
+      "package_packagemanager",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_db_generate",
+      "package_scripts_db_migrate",
+      "package_scripts_db_seed",
+      "package_scripts_dev",
+      "package_scripts_extension_zip",
+      "package_scripts_lint",
+      "package_scripts_test",
+      "package_scripts_typecheck",
+      "playwright_test",
+      "prettier",
+      "vitest"
+    ],
+    "6": [
+      "packages_database_package",
+      "packages_database_package_dependencies",
+      "packages_database_package_dependencies_argon2",
+      "packages_database_package_dependencies_prisma_client",
+      "packages_database_package_devdependencies",
+      "packages_database_package_devdependencies_prisma",
+      "packages_database_package_devdependencies_tsx",
+      "packages_database_package_devdependencies_types_node",
+      "packages_database_package_devdependencies_typescript",
+      "packages_database_package_exports",
+      "packages_database_package_json_argon2",
+      "packages_database_package_json_tsx",
+      "packages_database_package_json_types_node",
+      "packages_database_package_json_typescript",
+      "packages_database_package_name",
+      "packages_database_package_private",
+      "packages_database_package_scripts",
+      "packages_database_package_scripts_build",
+      "packages_database_package_scripts_generate",
+      "packages_database_package_scripts_migrate",
+      "packages_database_package_scripts_seed",
+      "packages_database_package_scripts_typecheck",
+      "packages_database_package_type",
+      "packages_database_package_version",
+      "prisma",
+      "prisma_client"
+    ],
+    "7": [
+      "apps_web_package",
+      "apps_web_package_dependencies",
+      "apps_web_package_dependencies_next",
+      "apps_web_package_dependencies_react",
+      "apps_web_package_dependencies_react_dom",
+      "apps_web_package_devdependencies",
+      "apps_web_package_devdependencies_types_node",
+      "apps_web_package_devdependencies_types_react",
+      "apps_web_package_devdependencies_typescript",
+      "apps_web_package_json_react",
+      "apps_web_package_json_react_dom",
+      "apps_web_package_json_types_node",
+      "apps_web_package_json_types_react",
+      "apps_web_package_json_typescript",
+      "apps_web_package_name",
+      "apps_web_package_private",
+      "apps_web_package_scripts",
+      "apps_web_package_scripts_build",
+      "apps_web_package_scripts_dev",
+      "apps_web_package_scripts_lint",
+      "apps_web_package_scripts_start",
+      "apps_web_package_scripts_typecheck",
+      "apps_web_package_version",
+      "next"
+    ],
+    "8": [
+      "apps_web_tsconfig",
+      "apps_web_tsconfig_compileroptions",
+      "apps_web_tsconfig_compileroptions_allowjs",
+      "apps_web_tsconfig_compileroptions_incremental",
+      "apps_web_tsconfig_compileroptions_isolatedmodules",
+      "apps_web_tsconfig_compileroptions_jsx",
+      "apps_web_tsconfig_compileroptions_lib",
+      "apps_web_tsconfig_compileroptions_module",
+      "apps_web_tsconfig_compileroptions_moduleresolution",
+      "apps_web_tsconfig_compileroptions_noemit",
+      "apps_web_tsconfig_compileroptions_plugins",
+      "apps_web_tsconfig_exclude",
+      "apps_web_tsconfig_extends",
+      "apps_web_tsconfig_include",
+      "apps_web_tsconfig_json_ref_tsconfig_json",
+      "ref_dom",
+      "ref_dom_iterable",
+      "ref_esnext",
+      "ref_next_env_d_ts",
+      "ref_next_types_ts",
+      "ref_node_modules",
+      "ref_ts",
+      "ref_tsx"
+    ],
+    "9": [
+      "apps_web_next_config",
+      "apps_web_next_config_config",
+      "ref_build",
+      "ref_dist",
+      "ref_next",
+      "turbo_build_dependson",
+      "turbo_build_outputs",
+      "turbo_dev_cache",
+      "turbo_dev_persistent",
+      "turbo_json_turbo",
+      "turbo_schema",
+      "turbo_tasks",
+      "turbo_tasks_build",
+      "turbo_tasks_dev",
+      "turbo_tasks_lint",
+      "turbo_tasks_typecheck",
+      "turbo_typecheck_dependson"
+    ],
+    "10": [
+      "apps_worker_package",
+      "apps_worker_package_dependencies",
+      "apps_worker_package_dependencies_tgs_database",
+      "apps_worker_package_devdependencies",
+      "apps_worker_package_devdependencies_tsx",
+      "apps_worker_package_devdependencies_typescript",
+      "apps_worker_package_json_tgs_database",
+      "apps_worker_package_json_tsx",
+      "apps_worker_package_json_typescript",
+      "apps_worker_package_name",
+      "apps_worker_package_private",
+      "apps_worker_package_scripts",
+      "apps_worker_package_scripts_build",
+      "apps_worker_package_scripts_dev",
+      "apps_worker_package_scripts_lint",
+      "apps_worker_package_scripts_typecheck",
+      "apps_worker_package_version"
+    ],
+    "11": [
+      "apps_api_package",
+      "apps_api_package_devdependencies",
+      "apps_api_package_devdependencies_tsx",
+      "apps_api_package_devdependencies_typescript",
+      "apps_api_package_json_tsx",
+      "apps_api_package_json_typescript",
+      "apps_api_package_name",
+      "apps_api_package_private",
+      "apps_api_package_scripts",
+      "apps_api_package_scripts_build",
+      "apps_api_package_scripts_dev",
+      "apps_api_package_scripts_lint",
+      "apps_api_package_scripts_typecheck",
+      "apps_api_package_version"
+    ],
+    "12": [
+      "apps_extension_manifest",
+      "apps_extension_manifest_background",
+      "apps_extension_manifest_background_service_worker",
+      "apps_extension_manifest_background_type",
+      "apps_extension_manifest_content_scripts",
+      "apps_extension_manifest_host_permissions",
+      "apps_extension_manifest_json_ref_downloads",
+      "apps_extension_manifest_json_ref_http_localhost_3001",
+      "apps_extension_manifest_json_ref_https_web_whatsapp_com",
+      "apps_extension_manifest_json_ref_storage",
+      "apps_extension_manifest_manifest_version",
+      "apps_extension_manifest_name",
+      "apps_extension_manifest_permissions",
+      "apps_extension_manifest_version"
+    ],
+    "13": [
+      "apps_extension_public_manifest",
+      "apps_extension_public_manifest_background",
+      "apps_extension_public_manifest_background_service_worker",
+      "apps_extension_public_manifest_background_type",
+      "apps_extension_public_manifest_content_scripts",
+      "apps_extension_public_manifest_host_permissions",
+      "apps_extension_public_manifest_json_ref_downloads",
+      "apps_extension_public_manifest_json_ref_http_localhost_3001",
+      "apps_extension_public_manifest_json_ref_https_web_whatsapp_com",
+      "apps_extension_public_manifest_json_ref_storage",
+      "apps_extension_public_manifest_manifest_version",
+      "apps_extension_public_manifest_name",
+      "apps_extension_public_manifest_permissions",
+      "apps_extension_public_manifest_version"
+    ],
+    "14": [
+      "apps_extension_tsconfig",
+      "apps_extension_tsconfig_compileroptions",
+      "apps_extension_tsconfig_compileroptions_jsx",
+      "apps_extension_tsconfig_compileroptions_module",
+      "apps_extension_tsconfig_compileroptions_moduleresolution",
+      "apps_extension_tsconfig_compileroptions_noemit",
+      "apps_extension_tsconfig_compileroptions_types",
+      "apps_extension_tsconfig_extends",
+      "apps_extension_tsconfig_include",
+      "apps_extension_tsconfig_json_ref_src",
+      "apps_extension_tsconfig_json_ref_tsconfig_json",
+      "ref_chrome"
+    ],
+    "15": [
+      "packages_ai_package",
+      "packages_ai_package_dependencies",
+      "packages_ai_package_dependencies_openai",
+      "packages_ai_package_dependencies_zod",
+      "packages_ai_package_exports",
+      "packages_ai_package_json_openai",
+      "packages_ai_package_json_zod",
+      "packages_ai_package_name",
+      "packages_ai_package_private",
+      "packages_ai_package_type",
+      "packages_ai_package_version"
+    ],
+    "16": [
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_esmoduleinterop",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_nouncheckedindexedaccess",
+      "tsconfig_compileroptions_resolvejsonmodule",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target"
+    ],
+    "17": [
+      "apps_api_tsconfig",
+      "apps_api_tsconfig_compileroptions",
+      "apps_api_tsconfig_compileroptions_emitdecoratormetadata",
+      "apps_api_tsconfig_compileroptions_experimentaldecorators",
+      "apps_api_tsconfig_compileroptions_outdir",
+      "apps_api_tsconfig_extends",
+      "apps_api_tsconfig_include",
+      "apps_api_tsconfig_json_ref_src",
+      "apps_api_tsconfig_json_ref_tsconfig_json"
+    ],
+    "18": [
+      "claude_skills_graphify_references_exports",
+      "claude_skills_graphify_references_exports_graphify_reference_extra_exports_and_benchmark",
+      "claude_skills_graphify_references_exports_step_6b_wiki_only_if_wiki_flag",
+      "claude_skills_graphify_references_exports_step_7_neo4j_export_only_if_neo4j_or_neo4j_push_flag",
+      "claude_skills_graphify_references_exports_step_7a_falkordb_export_only_if_falkordb_or_falkordb_push_flag",
+      "claude_skills_graphify_references_exports_step_7b_svg_export_only_if_svg_flag",
+      "claude_skills_graphify_references_exports_step_7c_graphml_export_only_if_graphml_flag",
+      "claude_skills_graphify_references_exports_step_7d_mcp_server_only_if_mcp_flag",
+      "claude_skills_graphify_references_exports_step_8_token_reduction_benchmark_only_if_total_words_5000"
+    ],
+    "19": [
+      "packages_config_package",
+      "packages_config_package_dependencies",
+      "packages_config_package_dependencies_zod",
+      "packages_config_package_exports",
+      "packages_config_package_json_zod",
+      "packages_config_package_name",
+      "packages_config_package_private",
+      "packages_config_package_type",
+      "packages_config_package_version"
+    ],
+    "20": [
+      "packages_contracts_package",
+      "packages_contracts_package_dependencies",
+      "packages_contracts_package_dependencies_zod",
+      "packages_contracts_package_exports",
+      "packages_contracts_package_json_zod",
+      "packages_contracts_package_name",
+      "packages_contracts_package_private",
+      "packages_contracts_package_type",
+      "packages_contracts_package_version"
+    ],
+    "21": [
+      "packages_ui_package",
+      "packages_ui_package_exports",
+      "packages_ui_package_json_react",
+      "packages_ui_package_name",
+      "packages_ui_package_peerdependencies",
+      "packages_ui_package_peerdependencies_react",
+      "packages_ui_package_private",
+      "packages_ui_package_type",
+      "packages_ui_package_version"
+    ],
+    "22": [
+      "apps_worker_tsconfig",
+      "apps_worker_tsconfig_compileroptions",
+      "apps_worker_tsconfig_compileroptions_outdir",
+      "apps_worker_tsconfig_extends",
+      "apps_worker_tsconfig_include",
+      "apps_worker_tsconfig_json_ref_src",
+      "apps_worker_tsconfig_json_ref_tsconfig_json"
+    ],
+    "23": [
+      "packages_ai_src_index",
+      "packages_ai_src_index_client",
+      "packages_ai_src_index_compatibilityfeedbackservice",
+      "packages_ai_src_index_inputhash",
+      "packages_ai_src_index_requestanalysisservice",
+      "packages_ai_src_index_responsesuggestionservice",
+      "packages_ai_src_index_semanticsimilarityservice"
+    ],
+    "24": [
+      "packages_database_tsconfig",
+      "packages_database_tsconfig_compileroptions",
+      "packages_database_tsconfig_compileroptions_noemit",
+      "packages_database_tsconfig_extends",
+      "packages_database_tsconfig_include",
+      "packages_database_tsconfig_json_ref_src",
+      "packages_database_tsconfig_json_ref_tsconfig_json"
+    ],
+    "25": [
+      "claude_skills_graphify_references_query",
+      "claude_skills_graphify_references_query_for_graphify_explain",
+      "claude_skills_graphify_references_query_for_graphify_path",
+      "claude_skills_graphify_references_query_graphify_reference_query_path_explain",
+      "claude_skills_graphify_references_query_step_0_constrained_query_expansion_required_before_traversal",
+      "claude_skills_graphify_references_query_step_1_traversal"
+    ],
+    "26": [
+      "packages_eslint_config_package",
+      "packages_eslint_config_package_exports",
+      "packages_eslint_config_package_name",
+      "packages_eslint_config_package_private",
+      "packages_eslint_config_package_type",
+      "packages_eslint_config_package_version"
+    ],
+    "27": [
+      "packages_pdf_package",
+      "packages_pdf_package_exports",
+      "packages_pdf_package_name",
+      "packages_pdf_package_private",
+      "packages_pdf_package_type",
+      "packages_pdf_package_version"
+    ],
+    "28": [
+      "packages_pricing_package",
+      "packages_pricing_package_exports",
+      "packages_pricing_package_name",
+      "packages_pricing_package_private",
+      "packages_pricing_package_type",
+      "packages_pricing_package_version"
+    ],
+    "29": [
+      "packages_testing_package",
+      "packages_testing_package_exports",
+      "packages_testing_package_name",
+      "packages_testing_package_private",
+      "packages_testing_package_type",
+      "packages_testing_package_version"
+    ],
+    "30": [
+      "packages_validation_package",
+      "packages_validation_package_exports",
+      "packages_validation_package_name",
+      "packages_validation_package_private",
+      "packages_validation_package_type",
+      "packages_validation_package_version"
+    ],
+    "31": [
+      "apps_extension_src_content",
+      "apps_extension_src_content_chat",
+      "apps_extension_src_content_panel",
+      "apps_extension_src_content_root",
+      "apps_extension_src_content_selectors"
+    ],
+    "32": [
+      "claude_skills_graphify_references_add_watch",
+      "claude_skills_graphify_references_add_watch_for_graphify_add",
+      "claude_skills_graphify_references_add_watch_for_watch",
+      "claude_skills_graphify_references_add_watch_graphify_reference_add_a_url_and_watch_a_folder"
+    ],
+    "33": [
+      "claude_skills_graphify_references_hooks",
+      "claude_skills_graphify_references_hooks_for_git_commit_hook",
+      "claude_skills_graphify_references_hooks_for_native_claude_md_integration",
+      "claude_skills_graphify_references_hooks_graphify_reference_commit_hook_and_native_claude_md_integration"
+    ],
+    "34": [
+      "claude_skills_graphify_references_update",
+      "claude_skills_graphify_references_update_for_cluster_only",
+      "claude_skills_graphify_references_update_for_update_incremental_re_extraction",
+      "claude_skills_graphify_references_update_graphify_reference_incremental_update_and_cluster_only"
+    ],
+    "35": [
+      "packages_typescript_config_package",
+      "packages_typescript_config_package_name",
+      "packages_typescript_config_package_private",
+      "packages_typescript_config_package_version"
+    ],
+    "36": [
+      "apps_web_app_layout",
+      "apps_web_app_layout_layout",
+      "apps_web_app_layout_metadata"
+    ],
+    "37": [
+      "apps_web_app_page",
+      "apps_web_app_page_page",
+      "apps_web_app_page_sections"
+    ],
+    "38": [
+      "claude",
+      "claude_graphify",
+      "claude_tgs_smart_quotes"
+    ],
+    "39": [
+      "claude_skills_graphify_references_github_and_merge",
+      "claude_skills_graphify_references_github_and_merge_graphify_reference_github_clone_and_cross_repo_merge",
+      "claude_skills_graphify_references_github_and_merge_step_0_clone_github_repo_s_only_if_a_github_url_was_given"
+    ],
+    "40": [
+      "claude_skills_graphify_references_transcribe",
+      "claude_skills_graphify_references_transcribe_graphify_reference_transcribe_video_and_audio",
+      "claude_skills_graphify_references_transcribe_step_2_5_transcribe_video_audio_files_only_if_video_files_detected"
+    ],
+    "41": [
+      "mcp",
+      "mcp_command_graphify_mcp",
+      "mcp_mcp_server_graphify"
+    ],
+    "42": [
+      "packages_typescript_config_base",
+      "packages_typescript_config_base_extends",
+      "packages_typescript_config_base_json_ref_tsconfig_json"
+    ],
+    "43": [
+      "readme",
+      "readme_inicio",
+      "readme_tgs_smart_quotes"
+    ],
+    "44": [
+      "apps_web_next_env_d",
+      "apps_web_next_env_d_rationale_5"
+    ],
+    "45": [
+      "claude_claude",
+      "claude_claude_graphify"
+    ],
+    "46": [
+      "claude_skills_graphify_references_extraction_spec",
+      "claude_skills_graphify_references_extraction_spec_graphify_reference_extraction_subagent_prompt"
+    ],
+    "47": [
+      "docs_ai",
+      "docs_ai_ia"
+    ],
+    "48": [
+      "docs_api",
+      "docs_api_api"
+    ],
+    "49": [
+      "docs_architecture",
+      "docs_architecture_arquitectura"
+    ],
+    "50": [
+      "docs_backup_restore",
+      "docs_backup_restore_backup_y_restauracion"
+    ],
+    "51": [
+      "docs_business_rules",
+      "docs_business_rules_reglas_comerciales"
+    ],
+    "52": [
+      "docs_database",
+      "docs_database_base_de_datos"
+    ],
+    "53": [
+      "docs_decisions",
+      "docs_decisions_decisiones"
+    ],
+    "54": [
+      "docs_deployment",
+      "docs_deployment_despliegue"
+    ],
+    "55": [
+      "docs_extension",
+      "docs_extension_extension"
+    ],
+    "56": [
+      "docs_graphify",
+      "docs_graphify_graphify"
+    ],
+    "57": [
+      "docs_pdf",
+      "docs_pdf_pdf"
+    ],
+    "58": [
+      "docs_qa_checklist",
+      "docs_qa_checklist_qa"
+    ],
+    "59": [
+      "packages_config_src_index",
+      "packages_config_src_index_envschema"
+    ],
+    "60": [
+      "packages_database_prisma_seed",
+      "packages_database_prisma_seed_db"
+    ],
+    "61": [
+      "packages_pdf_src_index",
+      "packages_pdf_src_index_pdffilename"
+    ],
+    "62": [
+      "packages_testing_src_index",
+      "packages_testing_src_index_fixtureuser"
+    ],
+    "63": [
+      "packages_ui_src_index",
+      "packages_ui_src_index_designtokens"
+    ],
+    "64": [
+      "apps_extension_src_background"
+    ],
+    "65": [
+      "apps_extension_vite_config"
+    ],
+    "66": [
+      "apps_worker_src_index_test"
+    ],
+    "67": [
+      "infrastructure_scripts_backup"
+    ],
+    "68": [
+      "infrastructure_scripts_restore"
+    ],
+    "69": [
+      "infrastructure_scripts_zip_extension"
+    ],
+    "70": [
+      "packages_eslint_config_index"
+    ]
+  },
+  "cohesion": {
+    "0": 0.07966101694915254,
+    "1": 0.07142857142857142,
+    "2": 0.07407407407407407,
+    "3": 0.11396011396011396,
+    "4": 0.07407407407407407,
+    "5": 0.07407407407407407,
+    "6": 0.07692307692307693,
+    "7": 0.08333333333333333,
+    "8": 0.08695652173913043,
+    "9": 0.125,
+    "10": 0.11764705882352941,
+    "11": 0.14285714285714285,
+    "12": 0.14285714285714285,
+    "13": 0.14285714285714285,
+    "14": 0.16666666666666666,
+    "15": 0.18181818181818182,
+    "16": 0.2,
+    "17": 0.2222222222222222,
+    "18": 0.2222222222222222,
+    "19": 0.2222222222222222,
+    "20": 0.2222222222222222,
+    "21": 0.2222222222222222,
+    "22": 0.2857142857142857,
+    "23": 0.2857142857142857,
+    "24": 0.2857142857142857,
+    "25": 0.3333333333333333,
+    "26": 0.3333333333333333,
+    "27": 0.3333333333333333,
+    "28": 0.3333333333333333,
+    "29": 0.3333333333333333,
+    "30": 0.3333333333333333,
+    "31": 0.5,
+    "32": 0.5,
+    "33": 0.5,
+    "34": 0.5,
+    "35": 0.5,
+    "36": 0.6666666666666666,
+    "37": 0.6666666666666666,
+    "38": 0.6666666666666666,
+    "39": 0.6666666666666666,
+    "40": 0.6666666666666666,
+    "41": 0.6666666666666666,
+    "42": 0.6666666666666666,
+    "43": 0.6666666666666666,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0
+  },
+  "gods": [
+    {
+      "id": "apps_api_src_routes_corecontroller",
+      "label": "CoreController",
+      "degree": 27
+    },
+    {
+      "id": "apps_api_src_service_coreservice",
+      "label": "CoreService",
+      "degree": 27
+    },
+    {
+      "id": "claude_skills_graphify_skill_what_you_must_do_when_invoked",
+      "label": "What You Must Do When Invoked",
+      "degree": 12
+    },
+    {
+      "id": "claude_skills_graphify_skill_graphify",
+      "label": "/graphify",
+      "degree": 11
+    },
+    {
+      "id": "apps_api_src_service_json",
+      "label": "json()",
+      "degree": 10
+    },
+    {
+      "id": "apps_web_tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 10
+    },
+    {
+      "id": "package_scripts",
+      "label": "scripts",
+      "degree": 10
+    },
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 9
+    },
+    {
+      "id": "claude_skills_graphify_references_exports_graphify_reference_extra_exports_and_benchmark",
+      "label": "graphify reference: extra exports and benchmark",
+      "degree": 8
+    },
+    {
+      "id": "packages_validation_src_index_normalizetext",
+      "label": "normalizeText()",
+      "degree": 7
+    }
+  ],
+  "surprises": [],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `CoreService` connect `scripts` to `extension/package.json`?",
+      "why": "High betweenness centrality (0.007) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `CoreController` connect `scripts` to `extension/package.json`?",
+      "why": "High betweenness centrality (0.007) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `dependencies` connect `CoreController` to `api/package.json`?",
+      "why": "High betweenness centrality (0.004) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `graphify`, `Usage`, `What graphify is for` to the rest of the system?",
+      "why": "301 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `scripts` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07966101694915254 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `tasks` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `CoreController` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

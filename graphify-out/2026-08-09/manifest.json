@@ -5,8 +5,8 @@
     "semantic_hash": "71a77fa0871926fba28ead968941bba9"
   },
   "package.json": {
-    "mtime": 1786305924.2253442,
-    "ast_hash": "4699513bba98516779a02b701b18edba",
+    "mtime": 1786144284.0044525,
+    "ast_hash": "1044b5b1e925635625cbe606dd486dde",
     "semantic_hash": ""
   },
   "turbo.json": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786305924.2475357,
-    "ast_hash": "992109f552a675f9c35f66cd87c41740",
+    "mtime": 1786209220.867333,
+    "ast_hash": "6e60f5ce9ca91fe3890004a72f8464d0",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786306035.0269516,
-    "ast_hash": "a2db81898281403dfbdc5fe7484b8c61",
+    "mtime": 1786209475.167595,
+    "ast_hash": "68e4b1caaac5de5f1848ca9ba06f7488",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/external-module.ts": {
-    "mtime": 1786305978.190438,
-    "ast_hash": "d137239796fe800804dda09acbe33017",
+    "mtime": 1786209554.4371157,
+    "ast_hash": "1d3de87565cc2cc9b312da40a5fadf90",
     "semantic_hash": ""
   },
   "apps/worker/src/handlers/product-asset.ts": {
@@ -1252,46 +1252,6 @@
   "docs/modulo-externo/BLOCK-5.md": {
     "mtime": 1786209001.7174735,
     "ast_hash": "c9c70ed3d1c2c48ab41b39d1b9a81d69",
-    "semantic_hash": ""
-  },
-  "infrastructure/scripts/zip-wp-plugin.mjs": {
-    "mtime": 1786306099.45049,
-    "ast_hash": "59481a882c9e762855c7408ad3c000f7",
-    "semantic_hash": ""
-  },
-  "wordpress-plugin/tgs-smart-quotes/assets/model-viewer.min.js": {
-    "mtime": 1786306099.4464903,
-    "ast_hash": "01d5ad6b406a45cd6881f2f4c48a0968",
-    "semantic_hash": ""
-  },
-  "wordpress-plugin/tgs-smart-quotes/assets/tgs-landing.js": {
-    "mtime": 1786306099.4474876,
-    "ast_hash": "ede09d70581a29cbadcd2fd76998e1f3",
-    "semantic_hash": ""
-  },
-  "wordpress-plugin/tgs-smart-quotes/includes/render.php": {
-    "mtime": 1786306099.4484904,
-    "ast_hash": "e5fba722a6f96459c655838ac471fd48",
-    "semantic_hash": ""
-  },
-  "wordpress-plugin/tgs-smart-quotes/includes/rest.php": {
-    "mtime": 1786306099.4484904,
-    "ast_hash": "fa0fb21269e8dbb22cdfd7506dc18349",
-    "semantic_hash": ""
-  },
-  "wordpress-plugin/tgs-smart-quotes/templates/single-landing.php": {
-    "mtime": 1786306099.4494925,
-    "ast_hash": "743292acedf24d121a70898d188896c1",
-    "semantic_hash": ""
-  },
-  "wordpress-plugin/tgs-smart-quotes/tgs-smart-quotes.php": {
-    "mtime": 1786306099.4454932,
-    "ast_hash": "0bc6f7d0bf4ab7614fcaa81f46ee5b89",
-    "semantic_hash": ""
-  },
-  "docs/modulo-externo/BLOCK-6.md": {
-    "mtime": 1786305332.7247195,
-    "ast_hash": "0d9204ea686a6e1391b014ca2678a57e",
     "semantic_hash": ""
   }
 }

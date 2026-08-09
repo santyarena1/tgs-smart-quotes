@@ -884,6 +884,7 @@ model ExternalModuleConfig {
   r2PublicBaseUrl      String?
   wpBaseUrl            String   @default("https://www.thegamershop.com.ar")
   autoRepublish        Boolean  @default(true)
+  landingLayoutJson    Json?
   updatedAt            DateTime @default(now()) @updatedAt
 }
 

@@ -344,6 +344,10 @@ export const externalModuleConfigInputSchema = z.object({
 }).strict();
 export type ExternalModuleConfigInput=z.infer<typeof externalModuleConfigInputSchema>;
 export type ExternalModuleConfigView={id:'singleton';photoroomKeySet:boolean;tripoKeySet:boolean;higgsfieldKeySet:boolean;higgsfieldSecretSet:boolean;serperKeySet:boolean;r2SecretAccessKeySet:boolean;wpHmacSecretSet:boolean;r2Endpoint:string|null;r2Bucket:string|null;r2AccessKeyId:string|null;r2PublicBaseUrl:string|null;wpBaseUrl:string;autoRepublish:boolean;updatedAt:Date};
+export const landingLayoutBlockTypeSchema=z.enum(['hero3d','gallery','priceBox','addToCartSticky','specs','description','power','games','compatibility']);
+export const landingLayoutSchema=z.object({version:z.literal(1),tokens:z.object({accent:z.string(),bg:z.string(),text:z.string(),radius:z.number(),font:z.string().optional()}).strict(),blocks:z.array(z.object({type:landingLayoutBlockTypeSchema,visible:z.boolean()}).strict())}).strict();
+export type LandingLayout=z.infer<typeof landingLayoutSchema>;
+export const DEFAULT_LANDING_LAYOUT:LandingLayout={version:1,tokens:{accent:'#E31B23',bg:'#080B12',text:'#F8FAFC',radius:24,font:'Inter, system-ui, sans-serif'},blocks:[{type:'hero3d',visible:true},{type:'priceBox',visible:true},{type:'addToCartSticky',visible:true},{type:'gallery',visible:true},{type:'specs',visible:true},{type:'description',visible:true},{type:'power',visible:true},{type:'games',visible:true},{type:'compatibility',visible:true}]};
 export const assetModeSchema=z.object({mode:z.enum(['remove-bg','as-is'])}).strict();
 export const assetFromUrlSchema=z.object({url:z.string().url(),origin:z.enum(['SERPER','OFFICIAL','UPLOAD']).optional(),mode:z.enum(['remove-bg','as-is'])}).strict();
 export const assetUpdateSchema=z.object({isPrimary:z.boolean().optional(),approved:z.boolean().optional()}).strict().refine(v=>Object.keys(v).length>0,'Se requiere al menos un campo');
@@ -961,4 +965,3 @@ export type UserCreateInput = z.infer<typeof userCreateSchema>;
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
 export type BranchCreateInput = z.infer<typeof branchCreateSchema>;
 export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;
-
