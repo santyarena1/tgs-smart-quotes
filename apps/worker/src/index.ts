@@ -3,6 +3,7 @@ import { db } from "@tgs/database";
 import { runAcustockSyncLoop } from "./catalog-sync.js";
 import { processPendingJobs, handlers } from "./jobs.js";
 import {removeProductAssetBackground} from "./handlers/product-asset.js";
+import {resyncStalePublications} from "./publications.js";
 
 handlers["product-asset:remove-bg"] = removeProductAssetBackground;
 
@@ -212,6 +213,12 @@ async function runLoop() {
       console.log(JSON.stringify({ level: "info", task: "stale-quotes", ...result }));
     } catch (error) {
       console.error(JSON.stringify({ level: "error", task: "stale-quotes", error: String(error) }));
+    }
+    try {
+      const result = await resyncStalePublications();
+      console.log(JSON.stringify({ level: "info", task: "resync-publications", ...result }));
+    } catch (error) {
+      console.error(JSON.stringify({ level: "error", task: "resync-publications", error: String(error) }));
     }
     if (once) break;
     await new Promise((resolve) => setTimeout(resolve, 3_600_000));

@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786305924.2475357,
-    "ast_hash": "992109f552a675f9c35f66cd87c41740",
+    "mtime": 1786307338.6527474,
+    "ast_hash": "4de792e897eced4a6cafde55968fdb1f",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/ModuloExternoView.tsx": {
-    "mtime": 1786306035.0269516,
-    "ast_hash": "a2db81898281403dfbdc5fe7484b8c61",
+    "mtime": 1786308010.5696626,
+    "ast_hash": "926dd6f2afadbf9d319ac8f1cb1dc2db",
     "semantic_hash": ""
   },
   "apps/web/components/PdfLayoutEditorView.tsx": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/external-module.ts": {
-    "mtime": 1786305978.190438,
-    "ast_hash": "d137239796fe800804dda09acbe33017",
+    "mtime": 1786308052.5879934,
+    "ast_hash": "a44f49d91b84c2443bc65daaf9ee0544",
     "semantic_hash": ""
   },
   "apps/worker/src/handlers/product-asset.ts": {
@@ -1270,18 +1270,18 @@
     "semantic_hash": ""
   },
   "wordpress-plugin/tgs-smart-quotes/includes/render.php": {
-    "mtime": 1786306099.4484904,
-    "ast_hash": "e5fba722a6f96459c655838ac471fd48",
+    "mtime": 1786308251.335261,
+    "ast_hash": "431e0aadca39a0e8d4a7786d8ec71385",
     "semantic_hash": ""
   },
   "wordpress-plugin/tgs-smart-quotes/includes/rest.php": {
-    "mtime": 1786306099.4484904,
-    "ast_hash": "fa0fb21269e8dbb22cdfd7506dc18349",
+    "mtime": 1786307498.5863848,
+    "ast_hash": "eb5f91175ea18db0194b703abd9b1f50",
     "semantic_hash": ""
   },
   "wordpress-plugin/tgs-smart-quotes/templates/single-landing.php": {
-    "mtime": 1786306099.4494925,
-    "ast_hash": "743292acedf24d121a70898d188896c1",
+    "mtime": 1786308125.0588284,
+    "ast_hash": "b009fdc6a20caaecb3da81e79c674eb2",
     "semantic_hash": ""
   },
   "wordpress-plugin/tgs-smart-quotes/tgs-smart-quotes.php": {
@@ -1292,6 +1292,16 @@
   "docs/modulo-externo/BLOCK-6.md": {
     "mtime": 1786305332.7247195,
     "ast_hash": "0d9204ea686a6e1391b014ca2678a57e",
+    "semantic_hash": ""
+  },
+  "packages/database/prisma/migrations/20260809010000_landing_layout/migration.sql": {
+    "mtime": 1786308092.2370436,
+    "ast_hash": "b51dde1d932a61405e6f2b71860b254b",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-7.md": {
+    "mtime": 1786307119.76673,
+    "ast_hash": "696697af82420740e3f00901b260354c",
     "semantic_hash": ""
   }
 }
