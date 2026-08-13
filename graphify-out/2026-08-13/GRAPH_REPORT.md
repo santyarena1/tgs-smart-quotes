@@ -1,16 +1,16 @@
 # Graph Report - tgs-smart-quotes  (2026-08-13)
 
 ## Corpus Check
-- 269 files · ~148,009 words
+- 269 files · ~148,186 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2348 nodes · 3739 edges · 179 communities (137 shown, 42 thin omitted)
+- 2349 nodes · 3740 edges · 178 communities (136 shown, 42 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 14 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f07c6d13`
+- Built from commit: `94acf01e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -178,7 +178,6 @@
 - @tgs/ai
 - @tgs/pdf
 - @tgs/pricing
-- branding-storage.ts
 - testing/src/index.ts
 
 ## God Nodes (most connected - your core abstractions)
@@ -208,7 +207,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (179 total, 42 thin omitted)
+## Communities (178 total, 42 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
@@ -216,7 +215,7 @@ Nodes (8): extractNumbersModels(), normalizePhone(), normalizeText(), productSim
 
 ### Community 1 - "tasks"
 Cohesion: 0.07
-Nodes (27): dependencies, react, react-dom, vite, @vitejs/plugin-react, devDependencies, @types/chrome, @types/react (+19 more)
+Nodes (28): dependencies, react, react-dom, vite, @vitejs/plugin-react, devDependencies, @types/chrome, @types/react (+20 more)
 
 ### Community 2 - "CoreController"
 Cohesion: 0.05
@@ -355,8 +354,8 @@ Cohesion: 0.50
 Nodes (3): name, private, version
 
 ### Community 36 - "layout.tsx"
-Cohesion: 0.26
-Nodes (20): jsonSafe(), activeVersion(), assertDraftMutable(), audit(), buildItemRows(), jsonField(), loadFamily(), masterPrices() (+12 more)
+Cohesion: 0.30
+Nodes (17): jsonSafe(), activeVersion(), assertDraftMutable(), audit(), jsonField(), loadFamily(), pricingError(), pricingTotals() (+9 more)
 
 ### Community 37 - "page.tsx"
 Cohesion: 0.20
@@ -379,8 +378,8 @@ Cohesion: 0.12
 Nodes (27): applyCoefficient(), buildFinancing(), buildItemsRows(), createLocalPdfStorage(), createPdfStorageFromEnv(), createS3PdfStorage(), escapeHtml(), formatArsFromCents() (+19 more)
 
 ### Community 62 - "testing/src/index.ts"
-Cohesion: 0.12
-Nodes (25): Get, CurrentUser, RequestUser, Get, addPriceHistory(), audit(), createProduct(), CustomerController (+17 more)
+Cohesion: 0.18
+Nodes (22): Get, CurrentUser, RequestUser, addPriceHistory(), audit(), createProduct(), CustomerController, customerData() (+14 more)
 
 ### Community 64 - "background.ts"
 Cohesion: 0.33
@@ -443,8 +442,8 @@ Cohesion: 0.12
 Nodes (16): BLOCK-3 — PDF, trazabilidad, precios, búsqueda, envíos, respuestas, notificaciones e IA, Búsqueda (`apps/api/src/search.ts`), Configuración operativa (`apps/api/src/settings.ts`), Dependencias y configuración, Endpoints entregados, Envíos (`apps/api/src/quotes.ts`), IA (`apps/api/src/ai.ts`, opcional/mejor esfuerzo), Integridad y convenciones respetadas (+8 more)
 
 ### Community 84 - "infrastructure.ts"
-Cohesion: 0.08
-Nodes (23): AuthController, fakeUser, Body, Controller, Post, Req, Res, ExtensionSettingsController (+15 more)
+Cohesion: 0.06
+Nodes (35): AuthController, fakeUser, Body, Controller, Post, Req, Res, assertSafeBrandingFilename() (+27 more)
 
 ### Community 85 - "compilerOptions"
 Cohesion: 0.12
@@ -635,8 +634,8 @@ Cohesion: 0.23
 Nodes (7): currentSalary(), EmployeesController, periodDates(), audit(), requireEmployee(), Param, Roles
 
 ### Community 152 - "onlyBuiltDependencies"
-Cohesion: 0.33
-Nodes (5): NotificationsController, Body, Controller, Param, Post
+Cohesion: 0.12
+Nodes (9): NotificationsController, Body, Controller, Get, Param, Post, Get, Get (+1 more)
 
 ### Community 154 - "devDependencies"
 Cohesion: 0.24
@@ -655,7 +654,7 @@ Cohesion: 0.17
 Nodes (11): 1. Modelo `QuoteEnrichment`, 2. Serialización del presupuesto, 3. IA (service nuevo en `@tgs/ai`), 4. Potencia (determinística), 5. Endpoints (`ExternalModuleController`), 6. Contracts, 7. UI: tab "Presupuesto", Alcance (+3 more)
 
 ### Community 165 - "onlyBuiltDependencies"
-Cohesion: 0.23
+Cohesion: 0.22
 Nodes (8): App(), NAV_GROUPS, defaults(), effective(), NavPreferences, PersonalizableSidebarNav(), Props, SidebarNavGroup
 
 ### Community 166 - "package.json"
@@ -675,8 +674,8 @@ Cohesion: 0.33
 Nodes (6): CONCEPT_LABEL, Draft, empty(), PcLinesView(), Checkbox(), PcLine
 
 ### Community 171 - "reflect-metadata"
-Cohesion: 0.13
-Nodes (17): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, activeBundle() (+9 more)
+Cohesion: 0.09
+Nodes (22): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, ZodPipe (+14 more)
 
 ### Community 173 - "sharp"
 Cohesion: 0.15
@@ -694,30 +693,26 @@ Nodes (6): FinancingController, isChatCompletionModel(), SettingsController, Con
 Cohesion: 0.21
 Nodes (11): balanceText(), date(), EmployeePortalView(), label(), labels, Movement, Obligation, Payment (+3 more)
 
-### Community 177 - "branding-storage.ts"
-Cohesion: 0.18
-Nodes (15): assertSafeBrandingFilename(), BRANDING_DIR, brandingFilePath(), EXT_TO_MIME, filenameFromLogoUrl(), logoPublicUrl(), MIME_TO_EXT, mimeForBrandingFilename() (+7 more)
-
 ### Community 182 - "testing/src/index.ts"
 Cohesion: 0.27
 Nodes (10): actorFrom(), Baseline, BaselineOptions, createTestDb(), fixtureUser, hasTestDatabase(), resetDatabase(), seedBaseline() (+2 more)
 
 ## Knowledge Gaps
-- **1084 isolated node(s):** `NavPreferences`, `Props`, `NAV_GROUPS`, `name`, `version` (+1079 more)
+- **1083 isolated node(s):** `NavPreferences`, `Props`, `name`, `version`, `private` (+1078 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **42 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `argon2` connect `service.ts` to `devDependencies`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Why does `jsonSafe()` connect `layout.tsx` to `package.json`, `SpanishExceptionFilter`, `reflect-metadata`, `branding-storage.ts`, `similarity.ts`, `infrastructure.ts`, `onlyBuiltDependencies`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
-- **What connects `NavPreferences`, `Props`, `NAV_GROUPS` to the rest of the system?**
-  _1084 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
+- **Why does `argon2` connect `service.ts` to `devDependencies`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **What connects `NavPreferences`, `Props`, `name` to the rest of the system?**
+  _1083 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tasks` be split into smaller, more focused modules?**
-  _Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06896551724137931 - nodes in this community are weakly interconnected._
 - **Should `CoreController` be split into smaller, more focused modules?**
   _Cohesion score 0.05405405405405406 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**

@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "apps/web/package.json": {
-    "mtime": 1786640435.361199,
-    "ast_hash": "34b2088a82d4c554c2c1f6c26be6e1a2",
+    "mtime": 1786642760.85015,
+    "ast_hash": "781a97a0b1639d5962ff99f4e59f9246",
     "semantic_hash": ""
   },
   "apps/web/tsconfig.json": {
@@ -1365,8 +1365,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/PersonalizableSidebarNav.tsx": {
-    "mtime": 1786642151.2170238,
-    "ast_hash": "6ef9ad0eaa2e0d21e2b9271c87a587d5",
+    "mtime": 1786642640.5556808,
+    "ast_hash": "2f69ec3fcd3d4bb96af8358c99fb6f71",
     "semantic_hash": ""
   },
   "packages/database/prisma/migrations/20260813010000_user_nav_preferences/migration.sql": {
