@@ -535,8 +535,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/App.tsx": {
-    "mtime": 1786144845.1351187,
-    "ast_hash": "89780b6ca68a99a50a906bc509f0f001",
+    "mtime": 1786638048.1380248,
+    "ast_hash": "6da46fbd38a3d1236127779043c6fd7c",
     "semantic_hash": ""
   },
   "apps/web/components/CollectionsView.tsx": {
@@ -605,8 +605,8 @@
     "semantic_hash": ""
   },
   "apps/web/lib/types.ts": {
-    "mtime": 1786144794.546322,
-    "ast_hash": "f8f7973b9395accdf5abc57fa1ce7c3d",
+    "mtime": 1786638048.1380248,
+    "ast_hash": "5ddcbcae07b75ad0f0b1291bbdda4562",
     "semantic_hash": ""
   },
   "apps/web/scripts/build.mjs": {
@@ -1342,6 +1342,11 @@
   "apps/api/src/employees.ts": {
     "mtime": 1786637881.995066,
     "ast_hash": "eb4fb101778b2951d4d770f64c9620bd",
+    "semantic_hash": ""
+  },
+  "apps/web/components/EmployeesView.tsx": {
+    "mtime": 1786638394.641077,
+    "ast_hash": "b2bdc9f117ad4984b90afcad75002ead",
     "semantic_hash": ""
   }
 }

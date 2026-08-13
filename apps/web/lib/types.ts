@@ -385,6 +385,7 @@ export type NavId =
   | "editor-pdf"
   | "usuarios"
   | "empleados"
+  | "mi-cuenta"
   | "modulo-externo"
   | "configuracion";
 

@@ -79,6 +79,11 @@ const installmentsSchema=z.object({count:z.number().int().min(1).max(120),firstP
 export const obligationCreateSchema=z.object({kind:z.enum(['MERCHANDISE','CARD_CONSUMPTION','ADVANCE','OTHER']),originalAmountCents:positiveCentsSchema,description:optionalEmployeeText,productId:idSchema.nullable().optional(),installments:installmentsSchema.optional()}).strict();
 export const paymentCreateSchema=z.object({amountCents:positiveCentsSchema,method:z.enum(['EFECTIVO','TRANSFERENCIA','MERCADO_PAGO','TARJETA','OTRO']),paidAt:z.coerce.date().optional(),reference:z.string().trim().max(300).optional(),allocations:z.array(z.object({targetType:z.enum(['OBLIGATION','INSTALLMENT','PERIOD','GENERAL']),targetId:idSchema.optional(),amountCents:positiveCentsSchema}).strict()).optional()}).strict();
 export const employeeRequestsQuerySchema=z.object({status:z.enum(['PENDING_APPROVAL','APPROVED','REJECTED']).optional()}).strict();
+export const employeePortalRequestCreateSchema=z.object({
+  kind:movementKindSchema.refine(kind=>kind!=='ADJUSTMENT','Las solicitudes de ajuste no están permitidas'),
+  amountCents:positiveCentsSchema,
+  description:optionalEmployeeText,
+}).strict();
 export const periodParamSchema=z.string().regex(/^\d{6}$/,'El período debe tener formato YYYYMM');
 export const periodConfirmSchema=z.object({applied:z.array(z.object({movementId:idSchema}).strict()).default([])}).strict();
 
@@ -87,6 +92,7 @@ export type EmployeeLinkUserInput=z.infer<typeof employeeLinkUserSchema>; export
 export type MovementCreateInput=z.infer<typeof movementCreateSchema>; export type MovementUpdateInput=z.infer<typeof movementUpdateSchema>; export type MovementsQuery=z.infer<typeof movementsQuerySchema>;
 export type SalaryUpdateInput=z.infer<typeof salaryUpdateSchema>; export type SalaryBulkPreviewInput=z.infer<typeof salaryBulkPreviewSchema>; export type SalaryBulkApplyInput=z.infer<typeof salaryBulkApplySchema>;
 export type ObligationCreateInput=z.infer<typeof obligationCreateSchema>; export type PaymentCreateInput=z.infer<typeof paymentCreateSchema>; export type PeriodConfirmInput=z.infer<typeof periodConfirmSchema>;
+export type EmployeePortalRequestCreateInput=z.infer<typeof employeePortalRequestCreateSchema>;
 
 export const companySettingsInputSchema = z
   .object({

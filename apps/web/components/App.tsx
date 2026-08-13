@@ -21,6 +21,7 @@ import { SettingsView } from "./SettingsView";
 import { PdfLayoutEditorView } from "./PdfLayoutEditorView";
 import { UsersView } from "./UsersView";
 import { EmployeesView } from "./EmployeesView";
+import { EmployeePortalView } from "./EmployeePortalView";
 import { Alert, Loading, initials } from "./shared";
 
 const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: string }[] }[] = [
@@ -31,6 +32,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
       { id: "solicitudes", label: "Solicitudes", icon: "☑" },
       { id: "presupuestos", label: "Presupuestos", icon: "▤" },
       { id: "colecciones", label: "Colecciones", icon: "◆" },
+      { id: "mi-cuenta", label: "Mi cuenta", icon: "●" },
     ],
   },
   {
@@ -67,6 +69,7 @@ export function App() {
   const [quoteSeed, setQuoteSeed] = useState<QuoteFromRequestSeed | null>(null);
   const [initialSelectedQuoteId, setInitialSelectedQuoteId] = useState<string | null>(null);
   const [externalEnabled, setExternalEnabled] = useState(false);
+  const [employeePortalAvailable, setEmployeePortalAvailable] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const changelogRef = useRef<HTMLDivElement>(null);
   const consumeQuoteSeed = useCallback(() => setQuoteSeed(null), []);
@@ -119,6 +122,17 @@ export function App() {
     window.addEventListener("tgs-external-module-changed", changed);
     return () => window.removeEventListener("tgs-external-module-changed", changed);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) { setEmployeePortalAvailable(false); return; }
+    void api<{enabled:boolean;hasEmployee:boolean}>("/me/employee/access")
+      .then((res)=>setEmployeePortalAvailable(res.enabled&&res.hasEmployee))
+      .catch(()=>setEmployeePortalAvailable(false));
+  }, [user]);
+
+  useEffect(() => {
+    if (nav === "mi-cuenta" && !employeePortalAvailable) setNav("dashboard");
+  }, [nav, employeePortalAvailable]);
 
   useEffect(() => {
     if (nav === "modulo-externo" && !externalEnabled) setNav("dashboard");
@@ -214,6 +228,7 @@ export function App() {
               <div className="nav-group-links">
                 {group.items
                   .filter((item) => !["usuarios", "empleados"].includes(item.id) || user.role === "ADMIN")
+                  .filter((item) => item.id !== "mi-cuenta" || employeePortalAvailable)
                   .filter((item) => item.id !== "modulo-externo" || externalEnabled)
                   .map((item) => (
                   <button
@@ -307,6 +322,7 @@ export function App() {
         {nav === "editor-pdf" ? <PdfLayoutEditorView /> : null}
         {nav === "usuarios" && user.role === "ADMIN" ? <UsersView /> : null}
         {nav === "empleados" && user.role === "ADMIN" ? <EmployeesView /> : null}
+        {nav === "mi-cuenta" && employeePortalAvailable ? <EmployeePortalView /> : null}
         {nav === "modulo-externo" && externalEnabled ? <ModuloExternoView /> : null}
         {nav === "configuracion" ? <SettingsView /> : null}
       </main>

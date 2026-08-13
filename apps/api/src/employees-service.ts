@@ -22,6 +22,14 @@ export async function employeeBalance(employeeId:string, tx:any=db) {
   return balanceFrom(rows);
 }
 
+export const isEmployeePortalEnabled=()=>process.env.EMPLOYEE_PORTAL_ENABLED==='true';
+
+export async function requireEmployeeForUser(userId:string,tx:any=db){
+  const employee=await tx.employee.findUnique({where:{userId}});
+  if(!employee)throw new NotFoundException('No tenés una cuenta de empleado asociada');
+  return employee;
+}
+
 // División entera redondeada half-up, válida también para ajustes negativos.
 export function salaryWithBps(oldCents:bigint,bps:number,roundingStepPesos=0) {
   const numerator=oldCents*BigInt(10000+bps);
