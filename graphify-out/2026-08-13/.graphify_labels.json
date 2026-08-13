@@ -186,5 +186,13 @@
   "184": "@tgs/pricing",
   "185": "@tgs/providers",
   "186": "@tgs/storage",
-  "187": "zod"
+  "187": "zod",
+  "188": "package.json",
+  "189": "auth.test.ts",
+  "190": "Body",
+  "191": "Controller",
+  "192": "Get",
+  "193": "Post",
+  "194": "Req",
+  "195": "Res"
 }

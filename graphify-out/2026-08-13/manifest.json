@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth.ts": {
-    "mtime": 1786144283.9494584,
-    "ast_hash": "a82858fd82e083dc2c5852381d9ca1bf",
+    "mtime": 1786645457.004078,
+    "ast_hash": "8ca0867a29def280f47fc5e2342c16ab",
     "semantic_hash": ""
   },
   "apps/api/src/block3.test.ts": {
