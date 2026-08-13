@@ -181,5 +181,11 @@
   "179": "argon2",
   "180": "@tgs/storage",
   "181": "zod",
-  "182": "testing/src/index.ts"
+  "182": "testing/src/index.ts",
+  "183": "@nestjs/platform-fastify",
+  "184": "reflect-metadata",
+  "185": "sharp",
+  "186": "@tgs/contracts",
+  "187": "@tgs/pdf",
+  "188": "@tgs/pricing"
 }

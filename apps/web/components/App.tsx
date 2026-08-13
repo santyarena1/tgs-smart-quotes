@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { CHANGELOG, currentAppVersion } from "../lib/changelog";
 import type { AuthUser, Branding, NavId, QuoteFromRequestSeed } from "../lib/types";
@@ -23,9 +23,11 @@ import { UsersView } from "./UsersView";
 import { EmployeesView } from "./EmployeesView";
 import { EmployeePortalView } from "./EmployeePortalView";
 import { Alert, Loading, initials } from "./shared";
+import { PersonalizableSidebarNav, type SidebarNavGroup } from "./PersonalizableSidebarNav";
 
-const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: string }[] }[] = [
+const NAV_GROUPS: SidebarNavGroup[] = [
   {
+    id: "operacion",
     label: "Operación",
     items: [
       { id: "dashboard", label: "Dashboard", icon: "▣" },
@@ -36,6 +38,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
     ],
   },
   {
+    id: "catalogo",
     label: "Catálogo",
     items: [
       { id: "clientes", label: "Clientes", icon: "☺" },
@@ -46,6 +49,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
     ],
   },
   {
+    id: "sistema",
     label: "Sistema",
     items: [
       { id: "notificaciones", label: "Notificaciones", icon: "◉" },
@@ -73,6 +77,13 @@ export function App() {
   const [changelogOpen, setChangelogOpen] = useState(false);
   const changelogRef = useRef<HTMLDivElement>(null);
   const consumeQuoteSeed = useCallback(() => setQuoteSeed(null), []);
+  const allowedNavGroups = useMemo(() => NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items
+      .filter((item) => !["usuarios", "empleados"].includes(item.id) || user?.role === "ADMIN")
+      .filter((item) => item.id !== "mi-cuenta" || employeePortalAvailable)
+      .filter((item) => item.id !== "modulo-externo" || externalEnabled),
+  })), [employeePortalAvailable, externalEnabled, user?.role]);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -222,33 +233,12 @@ export function App() {
           </div>
         </div>
         <nav aria-label="Principal">
-          {NAV_GROUPS.map((group) => (
-            <div className="nav-group" key={group.label}>
-              <p className="nav-group-label">{group.label}</p>
-              <div className="nav-group-links">
-                {group.items
-                  .filter((item) => !["usuarios", "empleados"].includes(item.id) || user.role === "ADMIN")
-                  .filter((item) => item.id !== "mi-cuenta" || employeePortalAvailable)
-                  .filter((item) => item.id !== "modulo-externo" || externalEnabled)
-                  .map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={nav === item.id ? "nav-link active" : "nav-link"}
-                    onClick={() => {
-                      setNav(item.id);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <span className="ico" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+          <PersonalizableSidebarNav
+            userId={user.id}
+            groups={allowedNavGroups}
+            active={nav}
+            onNavigate={(item) => {setNav(item); setMenuOpen(false);}}
+          />
         </nav>
         <div className="side-foot">
           <div className="side-changelog" ref={changelogRef}>

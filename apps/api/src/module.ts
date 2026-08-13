@@ -20,6 +20,7 @@ import {BranchesController, UsersController} from './users.js';
 import {ExternalModuleController} from './external-module.js';
 import {EmployeesController} from './employees.js';
 import {EmployeePortalController} from './employee-portal.js';
+import {MePreferencesController} from './me-preferences.js';
 
 @Controller()
 class HealthController {
@@ -59,6 +60,7 @@ class HealthController {
     BranchesController,
     EmployeesController,
     EmployeePortalController,
+    MePreferencesController,
   ],
   providers: [
     {provide: APP_GUARD, useClass: RateLimitGuard},

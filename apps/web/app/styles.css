@@ -414,6 +414,59 @@ code {
   font-weight: 600;
 }
 
+.nav-group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nav-personalize-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.nav-customizer {
+  display: grid;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.nav-customizer-title,
+.nav-customizer-actions,
+.nav-customizer-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-customizer-actions { justify-content: flex-end; }
+.nav-customizer-group { display: grid; gap: 7px; }
+.nav-customizer-group > input,
+.nav-customizer-controls select {
+  min-width: 0;
+  width: 100%;
+  padding: 6px 7px;
+  font-size: 12px;
+}
+
+.nav-customizer-item {
+  display: grid;
+  gap: 5px;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 8px;
+}
+
+.nav-customizer-item label { display: flex; align-items: center; gap: 5px; }
+.nav-customizer-controls select { flex: 1; }
+.nav-customizer-error { color: #fca5a5; display: block; margin: 5px 0; }
+
 .nav-group-links {
   display: flex;
   flex-direction: column;

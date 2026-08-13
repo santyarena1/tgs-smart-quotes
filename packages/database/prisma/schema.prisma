@@ -255,6 +255,7 @@ model User {
   active        Boolean               @default(true)
   createdAt     DateTime              @default(now())
   lastAccessAt  DateTime?
+  navPrefsJson  Json?
   sessions      Session[]
   products      Product[]
   combos        Combo[]

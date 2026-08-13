@@ -1001,3 +1001,41 @@ export type UserCreateInput = z.infer<typeof userCreateSchema>;
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
 export type BranchCreateInput = z.infer<typeof branchCreateSchema>;
 export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;
+
+export const navItemIdSchema = z.enum([
+  'dashboard', 'solicitudes', 'presupuestos', 'colecciones', 'mi-cuenta',
+  'clientes', 'productos', 'catalogo-acustock', 'combos', 'lineas',
+  'notificaciones', 'recontactos', 'editor-pdf', 'usuarios', 'empleados',
+  'modulo-externo', 'configuracion',
+]);
+
+export const navPreferencesSchema = z
+  .object({
+    version: z.literal(1),
+    groups: z.array(z.object({
+      id: z.string().trim().min(1).max(100),
+      label: z.string().trim().min(1).max(100),
+      collapsed: z.boolean(),
+    }).strict()).max(50),
+    items: z.array(z.object({
+      id: navItemIdSchema,
+      groupId: z.string().trim().min(1).max(100),
+      order: z.number().int().min(0),
+      hidden: z.boolean(),
+    }).strict()).max(200),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const groupIds = new Set<string>();
+    value.groups.forEach((group, index) => {
+      if (groupIds.has(group.id)) ctx.addIssue({code: z.ZodIssueCode.custom, path: ['groups', index, 'id'], message: 'ID de grupo duplicado'});
+      groupIds.add(group.id);
+    });
+    const itemIds = new Set<string>();
+    value.items.forEach((item, index) => {
+      if (itemIds.has(item.id)) ctx.addIssue({code: z.ZodIssueCode.custom, path: ['items', index, 'id'], message: 'ID de ítem duplicado'});
+      if (!groupIds.has(item.groupId)) ctx.addIssue({code: z.ZodIssueCode.custom, path: ['items', index, 'groupId'], message: 'El grupo no existe'});
+      itemIds.add(item.id);
+    });
+  });
+export type NavPreferences = z.infer<typeof navPreferencesSchema>;
