@@ -18,6 +18,7 @@ import {CatalogController} from './catalog.js';
 import {ChatbotController} from './chatbot.js';
 import {BranchesController, UsersController} from './users.js';
 import {ExternalModuleController} from './external-module.js';
+import {EmployeesController} from './employees.js';
 
 @Controller()
 class HealthController {
@@ -55,6 +56,7 @@ class HealthController {
     ChatbotController,
     UsersController,
     BranchesController,
+    EmployeesController,
   ],
   providers: [
     {provide: APP_GUARD, useClass: RateLimitGuard},

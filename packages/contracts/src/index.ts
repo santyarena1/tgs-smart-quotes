@@ -58,6 +58,36 @@ export const userUpdateSchema = z.object({
   active: z.boolean().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, 'Se requiere al menos un campo');
 
+// Empleados / cuenta corriente. Los montos viajan como strings decimales para
+// conservar BigInt de punta a punta también en JSON.
+export const movementKindSchema = z.enum(['SALARY_ACCRUAL','SALARY_PAYMENT','ADVANCE','MERCHANDISE','CARD_CONSUMPTION','DEBT','REPAYMENT','REIMBURSEMENT','INSTALLMENT','ADJUSTMENT']);
+export const movementDirectionSchema = z.enum(['EMPLOYEE_OWES','COMPANY_OWES']);
+export const movementStatusSchema = z.enum(['PENDING','APPLIED','CANCELLED']);
+const positiveCentsSchema = moneyCentsSchema.refine(v => BigInt(v) > 0n, 'El importe debe ser mayor que cero');
+const optionalEmployeeText = z.string().trim().max(1000).nullable().optional();
+export const employeeCreateSchema = z.object({fullName:z.string().trim().min(1).max(200),docId:z.string().trim().max(50).nullable().optional(),branchId:nullableIdSchema,position:z.string().trim().max(150).nullable().optional(),active:z.boolean().optional(),notes:optionalEmployeeText}).strict();
+export const employeeUpdateSchema = employeeCreateSchema.partial().strict().refine(v=>Object.keys(v).length>0,'Se requiere al menos un campo');
+export const employeeLinkUserSchema = z.object({userId:idSchema}).strict();
+export const employeeCreateUserSchema = z.object({username:z.string().trim().min(3).max(100).regex(/^[a-zA-Z0-9._-]+$/,'El usuario contiene caracteres inválidos'),password:z.string().min(8).max(1024),displayName:z.string().trim().min(1).max(150).nullable().optional(),role:userRoleSchema.optional()}).strict();
+export const movementCreateSchema = z.object({kind:movementKindSchema,amountCents:positiveCentsSchema,direction:movementDirectionSchema.optional(),occurredAt:z.coerce.date().optional(),status:z.enum(['PENDING','APPLIED']).optional(),description:optionalEmployeeText}).strict().superRefine((v,c)=>{if(v.kind==='ADJUSTMENT'&&!v.direction)c.addIssue({code:z.ZodIssueCode.custom,path:['direction'],message:'Los ajustes requieren dirección'});});
+export const movementUpdateSchema = z.object({kind:movementKindSchema.optional(),amountCents:positiveCentsSchema.optional(),direction:movementDirectionSchema.optional(),occurredAt:z.coerce.date().optional(),description:optionalEmployeeText}).strict().refine(v=>Object.keys(v).length>0,'Se requiere al menos un campo').superRefine((v,c)=>{if(v.kind==='ADJUSTMENT'&&!v.direction)c.addIssue({code:z.ZodIssueCode.custom,path:['direction'],message:'Los ajustes requieren dirección'});});
+export const movementsQuerySchema = z.object({period:z.string().regex(/^\d{6}$/,'El período debe tener formato YYYYMM').optional(),status:movementStatusSchema.optional(),kind:movementKindSchema.optional(),direction:movementDirectionSchema.optional()}).strict();
+export const salaryUpdateSchema = z.object({amountCents:positiveCentsSchema,reason:z.string().trim().max(500).optional()}).strict();
+export const salaryBulkPreviewSchema = z.object({employeeIds:z.array(idSchema).min(1).optional(),bps:z.number().int().min(-9999).max(100000),roundingStepPesos:z.number().int().min(0).max(100000000).optional()}).strict();
+export const salaryBulkApplySchema = z.object({items:z.array(z.object({employeeId:idSchema,newCents:positiveCentsSchema}).strict()).min(1),bps:z.number().int().min(-9999).max(100000)}).strict();
+const installmentsSchema=z.object({count:z.number().int().min(1).max(120),firstPeriod:z.string().regex(/^\d{6}$/,'El período debe tener formato YYYYMM'),amountsCents:z.array(positiveCentsSchema).optional()}).strict().superRefine((v,c)=>{if(v.amountsCents&&v.amountsCents.length!==v.count)c.addIssue({code:z.ZodIssueCode.custom,path:['amountsCents'],message:'La cantidad de importes debe coincidir con count'});});
+export const obligationCreateSchema=z.object({kind:z.enum(['MERCHANDISE','CARD_CONSUMPTION','ADVANCE','OTHER']),originalAmountCents:positiveCentsSchema,description:optionalEmployeeText,productId:idSchema.nullable().optional(),installments:installmentsSchema.optional()}).strict();
+export const paymentCreateSchema=z.object({amountCents:positiveCentsSchema,method:z.enum(['EFECTIVO','TRANSFERENCIA','MERCADO_PAGO','TARJETA','OTRO']),paidAt:z.coerce.date().optional(),reference:z.string().trim().max(300).optional(),allocations:z.array(z.object({targetType:z.enum(['OBLIGATION','INSTALLMENT','PERIOD','GENERAL']),targetId:idSchema.optional(),amountCents:positiveCentsSchema}).strict()).optional()}).strict();
+export const employeeRequestsQuerySchema=z.object({status:z.enum(['PENDING_APPROVAL','APPROVED','REJECTED']).optional()}).strict();
+export const periodParamSchema=z.string().regex(/^\d{6}$/,'El período debe tener formato YYYYMM');
+export const periodConfirmSchema=z.object({applied:z.array(z.object({movementId:idSchema}).strict()).default([])}).strict();
+
+export type EmployeeCreateInput=z.infer<typeof employeeCreateSchema>; export type EmployeeUpdateInput=z.infer<typeof employeeUpdateSchema>;
+export type EmployeeLinkUserInput=z.infer<typeof employeeLinkUserSchema>; export type EmployeeCreateUserInput=z.infer<typeof employeeCreateUserSchema>;
+export type MovementCreateInput=z.infer<typeof movementCreateSchema>; export type MovementUpdateInput=z.infer<typeof movementUpdateSchema>; export type MovementsQuery=z.infer<typeof movementsQuerySchema>;
+export type SalaryUpdateInput=z.infer<typeof salaryUpdateSchema>; export type SalaryBulkPreviewInput=z.infer<typeof salaryBulkPreviewSchema>; export type SalaryBulkApplyInput=z.infer<typeof salaryBulkApplySchema>;
+export type ObligationCreateInput=z.infer<typeof obligationCreateSchema>; export type PaymentCreateInput=z.infer<typeof paymentCreateSchema>; export type PeriodConfirmInput=z.infer<typeof periodConfirmSchema>;
+
 export const companySettingsInputSchema = z
   .object({
     logoUrl: z

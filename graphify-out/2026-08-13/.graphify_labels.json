@@ -162,20 +162,5 @@
   "160": "Controller",
   "161": "Get",
   "162": "infrastructure.ts",
-  "163": "dependencies",
-  "164": "BLOCK-4 — Fase 4: Enriquecimiento del presupuesto",
-  "165": "onlyBuiltDependencies",
-  "166": "package.json",
-  "167": "@nestjs/common",
-  "168": "@nestjs/core",
-  "169": "@nestjs/swagger",
-  "170": "openai",
-  "171": "reflect-metadata",
-  "172": "rxjs",
-  "173": "sharp",
-  "174": "@tgs/ai",
-  "175": "@tgs/pdf",
-  "176": "@tgs/pricing",
-  "177": "@tgs/providers",
-  "178": "@tgs/validation"
+  "164": "BLOCK-4 — Fase 4: Enriquecimiento del presupuesto"
 }

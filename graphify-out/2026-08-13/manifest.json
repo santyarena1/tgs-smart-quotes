@@ -1318,20 +1318,5 @@
     "mtime": 1786308500.47681,
     "ast_hash": "90863cb5961b1903196260fbd626653e",
     "semantic_hash": ""
-  },
-  "packages/database/prisma/migrations/20260810010000_employees/migration.sql": {
-    "mtime": 1786637042.6539528,
-    "ast_hash": "712283c7a82a19ffad2fd7071d500bc8",
-    "semantic_hash": ""
-  },
-  "docs/SYSTEM_OVERVIEW.md": {
-    "mtime": 1786632997.2760117,
-    "ast_hash": "613bdf45d927594ba3398e3d598af486",
-    "semantic_hash": ""
-  },
-  "docs/empleados/AUDITORIA_Y_DISENO.md": {
-    "mtime": 1786636556.8793876,
-    "ast_hash": "01c90243a14966557716afacf8e04ca8",
-    "semantic_hash": ""
   }
 }
