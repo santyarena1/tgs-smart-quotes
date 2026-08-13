@@ -162,16 +162,5 @@
   "160": "Controller",
   "161": "Get",
   "162": "infrastructure.ts",
-  "163": "branding-storage.ts",
-  "164": "BLOCK-4 — Fase 4: Enriquecimiento del presupuesto",
-  "165": "@nestjs/swagger",
-  "166": "openai",
-  "167": "reflect-metadata",
-  "168": "rxjs",
-  "169": "sharp",
-  "170": "@tgs/ai",
-  "171": "@tgs/pdf",
-  "172": "@tgs/pricing",
-  "173": "@tgs/providers",
-  "174": "@tgs/validation"
+  "164": "BLOCK-4 — Fase 4: Enriquecimiento del presupuesto"
 }

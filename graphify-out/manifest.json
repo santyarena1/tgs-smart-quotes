@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "apps/worker/src/index.ts": {
-    "mtime": 1786207049.482767,
-    "ast_hash": "7ae91dd3d4eccab037ab14ba5b1160f5",
+    "mtime": 1786308997.600075,
+    "ast_hash": "4736658a316346edfc87bcf3a842d2a3",
     "semantic_hash": ""
   },
   "apps/worker/tsconfig.json": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/external-module.ts": {
-    "mtime": 1786308052.5879934,
-    "ast_hash": "a44f49d91b84c2443bc65daaf9ee0544",
+    "mtime": 1786309018.433109,
+    "ast_hash": "3d059e98f10c7bf181def2cf988581e6",
     "semantic_hash": ""
   },
   "apps/worker/src/handlers/product-asset.ts": {
@@ -1165,8 +1165,8 @@
     "semantic_hash": ""
   },
   "packages/providers/src/index.ts": {
-    "mtime": 1786209200.0119731,
-    "ast_hash": "f359c4e9d43f346ba434faaf781cc3f2",
+    "mtime": 1786308997.6010761,
+    "ast_hash": "a81f80c2ecbda00488a2d24bb2595408",
     "semantic_hash": ""
   },
   "packages/providers/src/photoroom.ts": {
@@ -1302,6 +1302,21 @@
   "docs/modulo-externo/BLOCK-7.md": {
     "mtime": 1786307119.76673,
     "ast_hash": "696697af82420740e3f00901b260354c",
+    "semantic_hash": ""
+  },
+  "apps/worker/src/publications.ts": {
+    "mtime": 1786308997.6010761,
+    "ast_hash": "eb408c365b3f00da6ce08fe54e2380ce",
+    "semantic_hash": ""
+  },
+  "packages/providers/src/wordpress.ts": {
+    "mtime": 1786308997.602075,
+    "ast_hash": "fe263c95a082e3843500a6a5ee6d6ce4",
+    "semantic_hash": ""
+  },
+  "docs/modulo-externo/BLOCK-8.md": {
+    "mtime": 1786308500.47681,
+    "ast_hash": "90863cb5961b1903196260fbd626653e",
     "semantic_hash": ""
   }
 }

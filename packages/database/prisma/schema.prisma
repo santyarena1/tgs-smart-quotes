@@ -135,6 +135,76 @@ enum UserRole {
   VENDEDOR
 }
 
+enum MovementKind {
+  SALARY_ACCRUAL
+  SALARY_PAYMENT
+  ADVANCE
+  MERCHANDISE
+  CARD_CONSUMPTION
+  DEBT
+  REPAYMENT
+  REIMBURSEMENT
+  INSTALLMENT
+  ADJUSTMENT
+}
+
+enum MovementDirection {
+  EMPLOYEE_OWES
+  COMPANY_OWES
+}
+
+enum MovementStatus {
+  PENDING
+  APPLIED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  MERCADO_PAGO
+  TARJETA
+  OTRO
+}
+
+enum ObligationKind {
+  MERCHANDISE
+  CARD_CONSUMPTION
+  ADVANCE
+  OTHER
+}
+
+enum ObligationStatus {
+  OPEN
+  SETTLED
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+enum AllocationTarget {
+  OBLIGATION
+  INSTALLMENT
+  PERIOD
+  GENERAL
+}
+
+enum RequestStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum PeriodStatus {
+  DRAFT
+  CONFIRMED
+}
+
 enum StatusEventType {
   SOLICITUD_CREADA
   SOLICITUD_ASIGNADA
@@ -198,18 +268,31 @@ model User {
   requests      QuoteRequest[]        @relation("RequestCreator")
   assignments   QuoteRequest[]        @relation("RequestAssignee")
 
+  employeesCreated         Employee[]        @relation("EmployeeCreatedBy")
+  employee                 Employee?         @relation("EmployeeUser")
+  salaryRecordsCreated     SalaryRecord[]    @relation("SalaryRecordCreatedBy")
+  movementsCreated         Movement[]        @relation("MovementCreatedBy")
+  movementsApplied         Movement[]        @relation("MovementAppliedBy")
+  movementsCancelled       Movement[]        @relation("MovementCancelledBy")
+  obligationsCreated       Obligation[]      @relation("ObligationCreatedBy")
+  paymentsCreated          Payment[]         @relation("PaymentCreatedBy")
+  employeeRequestsCreated  EmployeeRequest[] @relation("EmployeeRequestCreatedBy")
+  employeeRequestsReviewed EmployeeRequest[] @relation("EmployeeRequestReviewedBy")
+  employeePeriodsConfirmed EmployeePeriod[]  @relation("EmployeePeriodConfirmedBy")
+
   @@index([branchId])
   @@index([role, active])
 }
 
 model Branch {
-  id        String   @id @default(uuid())
-  name      String   @unique
+  id        String     @id @default(uuid())
+  name      String     @unique
   address   String?
   phones    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   users     User[]
+  employees Employee[]
 }
 
 model Session {
@@ -258,6 +341,7 @@ model Product {
   items             QuoteItem[]
   comboItems        ComboItem[]
   assets            ProductAsset[]
+  obligations       Obligation[]
   caseModel3D       CaseModel3D?
 
   @@index([normalizedName])
@@ -1040,6 +1124,197 @@ model Notification {
   @@index([chatPhone, createdAt])
   @@index([entityType, entityId])
   @@index([readAt, createdAt])
+}
+
+model Employee {
+  id            String            @id @default(uuid())
+  fullName      String
+  docId         String?
+  branchId      String?
+  branch        Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  userId        String?           @unique
+  user          User?             @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
+  position      String?
+  active        Boolean           @default(true)
+  notes         String?
+  createdById   String
+  createdBy     User              @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  salaryRecords SalaryRecord[]
+  movements     Movement[]
+  obligations   Obligation[]
+  payments      Payment[]
+  requests      EmployeeRequest[]
+  periods       EmployeePeriod[]
+
+  @@index([branchId])
+  @@index([userId])
+}
+
+model SalaryRecord {
+  id                  String   @id @default(uuid())
+  employeeId          String
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amountCents         BigInt
+  effectiveFrom       DateTime
+  previousAmountCents BigInt?
+  changeBps           Int?
+  reason              String?
+  createdById         String
+  createdBy           User     @relation("SalaryRecordCreatedBy", fields: [createdById], references: [id])
+  createdAt           DateTime @default(now())
+
+  @@index([employeeId, effectiveFrom])
+}
+
+model Movement {
+  id                String            @id @default(uuid())
+  employeeId        String
+  employee          Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  kind              MovementKind
+  direction         MovementDirection
+  amountCents       BigInt
+  status            MovementStatus    @default(PENDING)
+  occurredAt        DateTime
+  description       String?
+  obligationId      String?
+  obligation        Obligation?       @relation(fields: [obligationId], references: [id])
+  installmentId     String?
+  installment       Installment?      @relation(fields: [installmentId], references: [id])
+  paymentId         String?
+  payment           Payment?          @relation(fields: [paymentId], references: [id])
+  requestId         String?
+  request           EmployeeRequest?  @relation("MovementRequest", fields: [requestId], references: [id])
+  resultingRequests EmployeeRequest[] @relation("RequestResultingMovement")
+  createdById       String
+  createdBy         User              @relation("MovementCreatedBy", fields: [createdById], references: [id])
+  appliedById       String?
+  appliedBy         User?             @relation("MovementAppliedBy", fields: [appliedById], references: [id])
+  appliedAt         DateTime?
+  cancelledById     String?
+  cancelledBy       User?             @relation("MovementCancelledBy", fields: [cancelledById], references: [id])
+  cancelledAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([employeeId, status])
+  @@index([employeeId, occurredAt])
+}
+
+model Obligation {
+  id                  String           @id @default(uuid())
+  employeeId          String
+  employee            Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  kind                ObligationKind
+  originalAmountCents BigInt
+  description         String?
+  productId           String?
+  product             Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  status              ObligationStatus @default(OPEN)
+  createdById         String
+  createdBy           User             @relation("ObligationCreatedBy", fields: [createdById], references: [id])
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  plan                InstallmentPlan?
+  installments        Installment[]
+  movements           Movement[]
+
+  @@index([employeeId])
+}
+
+model InstallmentPlan {
+  id           String     @id @default(uuid())
+  obligationId String     @unique
+  obligation   Obligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+  count        Int
+  firstPeriod  String
+  createdAt    DateTime   @default(now())
+}
+
+model Installment {
+  id           String            @id @default(uuid())
+  obligationId String
+  obligation   Obligation        @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+  number       Int
+  amountCents  BigInt
+  period       String
+  status       InstallmentStatus @default(PENDING)
+  paidCents    BigInt            @default(0)
+  createdAt    DateTime          @default(now())
+  movements    Movement[]
+
+  @@unique([obligationId, number])
+  @@index([obligationId])
+}
+
+model Payment {
+  id          String              @id @default(uuid())
+  employeeId  String
+  employee    Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amountCents BigInt
+  method      PaymentMethod
+  paidAt      DateTime
+  reference   String?
+  createdById String
+  createdBy   User                @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime            @default(now())
+  allocations PaymentAllocation[]
+  movements   Movement[]
+
+  @@index([employeeId])
+}
+
+model PaymentAllocation {
+  id          String           @id @default(uuid())
+  paymentId   String
+  payment     Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  targetType  AllocationTarget
+  targetId    String?
+  amountCents BigInt
+  createdAt   DateTime         @default(now())
+
+  @@index([paymentId])
+}
+
+model EmployeeRequest {
+  id                  String        @id @default(uuid())
+  employeeId          String
+  employee            Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  kind                MovementKind
+  amountCents         BigInt
+  description         String?
+  status              RequestStatus @default(PENDING_APPROVAL)
+  createdByUserId     String
+  createdByUser       User          @relation("EmployeeRequestCreatedBy", fields: [createdByUserId], references: [id])
+  reviewedById        String?
+  reviewedBy          User?         @relation("EmployeeRequestReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt          DateTime?
+  resultingMovementId String?
+  resultingMovement   Movement?     @relation("RequestResultingMovement", fields: [resultingMovementId], references: [id])
+  movements           Movement[]    @relation("MovementRequest")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([employeeId, status])
+}
+
+model EmployeePeriod {
+  id              String       @id @default(uuid())
+  employeeId      String
+  employee        Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  period          String
+  baseSalaryCents BigInt
+  linesJson       Json         @default("[]")
+  netCents        BigInt
+  status          PeriodStatus @default(DRAFT)
+  confirmedById   String?
+  confirmedBy     User?        @relation("EmployeePeriodConfirmedBy", fields: [confirmedById], references: [id])
+  confirmedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([employeeId, period])
 }
 
 model AuditLog {
