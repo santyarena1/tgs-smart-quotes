@@ -1482,15 +1482,10 @@ export function QuotesView({
     setError(null);
     setNotice(null);
     try {
-      const reason = window.prompt(
-        "Nombre de este cambio (opcional)",
-        "",
-      );
-      if (reason === null) return;
       await api(`/quotes/${selectedId}`, {
         method: "PUT",
         body: {
-          reason: reason.trim() || null,
+          reason: null,
           internalName: internalName.trim(),
           customerId: customerId || null,
           requestId: requestId || null,
@@ -1510,6 +1505,17 @@ export function QuotesView({
       setDraftRecovered(false);
       await reloadDetail(selectedId, false);
       await loadList();
+      // Al guardar, generar y abrir el PDF directamente para descargarlo.
+      try {
+        await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind: "SIMPLE", force: true } });
+        await downloadAuthenticated(
+          `/quotes/${selectedId}/pdf/SIMPLE`,
+          `${detail?.visibleNumber ?? "presupuesto"}-SIMPLE.pdf`,
+        );
+        setNotice("Cambios guardados. Descargando PDF…");
+      } catch {
+        /* el guardado ya fue exitoso; si el PDF falla se puede regenerar desde el botón de PDF */
+      }
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -1888,7 +1894,7 @@ export function QuotesView({
             ) : null}
             {detail && isDraft ? (
               <button type="submit" form="quote-form" disabled={busy}>
-                {busy ? "Guardando…" : "Guardar borrador"}
+                {busy ? "Guardando…" : "Guardar y descargar PDF"}
               </button>
             ) : null}
             <span className="quote-foot-total">
@@ -1941,7 +1947,7 @@ export function QuotesView({
         >
           <h3 className="panel-title">Datos generales</h3>
           <div className="grid-2">
-            <Field label="Nombre interno" htmlFor="q-name">
+            <Field label="Nombre interno" hint="Solo para vos: es como aparece el presupuesto en la lista. No sale en el PDF ni lo ve el cliente." htmlFor="q-name">
               <input
                 id="q-name"
                 value={internalName}
