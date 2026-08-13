@@ -4,15 +4,367 @@
   "graph": {},
   "nodes": [
     {
+      "label": "EmployeesView.tsx",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "employeesview.tsx"
+    },
+    {
+      "label": "Tab",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_tab",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "tab"
+    },
+    {
+      "label": "DetailTab",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_detailtab",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "detailtab"
+    },
+    {
+      "label": "Direction",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_direction",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "direction"
+    },
+    {
+      "label": "MovementStatus",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_movementstatus",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "movementstatus"
+    },
+    {
+      "label": "MovementKind",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_movementkind",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "movementkind"
+    },
+    {
+      "label": "Employee",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_employee",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "employee"
+    },
+    {
+      "label": "Salary",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_salary",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "salary"
+    },
+    {
+      "label": "Detail",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_detail",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "detail"
+    },
+    {
+      "label": "Movement",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_movement",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "movement"
+    },
+    {
+      "label": "Summary",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_summary",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "summary"
+    },
+    {
+      "label": "RequestRow",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_requestrow",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "requestrow"
+    },
+    {
+      "label": "Obligation",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_obligation",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "obligation"
+    },
+    {
+      "label": "Preview",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_preview",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "preview"
+    },
+    {
+      "label": "kinds",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_kinds",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "kinds"
+    },
+    {
+      "label": "kindLabel()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_kindlabel",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "kindlabel()"
+    },
+    {
+      "label": "today()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_today",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "today()"
+    },
+    {
+      "label": "month()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_month",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "month()"
+    },
+    {
+      "label": "errorText()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_errortext",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "errortext()"
+    },
+    {
+      "label": "abs()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_abs",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "abs()"
+    },
+    {
+      "label": "Balance()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_balance",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "balance()"
+    },
+    {
+      "label": "Status()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_status",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "status()"
+    },
+    {
+      "label": "EmployeesView()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_employeesview",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "employeesview()"
+    },
+    {
+      "label": "EmployeeModal()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_employeemodal",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "employeemodal()"
+    },
+    {
+      "label": "EmployeeDetail()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L58",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_employeedetail",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "employeedetail()"
+    },
+    {
+      "label": "MovementTable()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_movementtable",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "movementtable()"
+    },
+    {
+      "label": "MovementModal()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L79",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_movementmodal",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "movementmodal()"
+    },
+    {
+      "label": "SalaryModal()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_salarymodal",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "salarymodal()"
+    },
+    {
+      "label": "Obligations()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L83",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_obligations",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "obligations()"
+    },
+    {
+      "label": "ObligationModal()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L85",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_obligationmodal",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "obligationmodal()"
+    },
+    {
+      "label": "PaymentModal()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L87",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_paymentmodal",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "paymentmodal()"
+    },
+    {
+      "label": "BulkSalary()",
+      "file_type": "code",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "apps_web_components_employeesview_bulksalary",
+      "community": 93,
+      "community_name": "errorMessage",
+      "norm_label": "bulksalary()"
+    },
+    {
       "label": "auth.ts",
       "file_type": "code",
       "source_file": "apps/api/src/auth.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "apps_api_src_auth",
       "community": 152,
       "community_name": "onlyBuiltDependencies",
-      "norm_label": "auth.ts"
+      "norm_label": "auth.ts",
+      "id": "apps_api_src_auth"
     },
     {
       "label": "AuthController",
@@ -20,10 +372,10 @@
       "source_file": "apps/api/src/auth.ts",
       "source_location": "L2",
       "_origin": "ast",
-      "id": "apps_api_src_auth_authcontroller",
       "community": 72,
       "community_name": "CurrentUser",
-      "norm_label": "authcontroller"
+      "norm_label": "authcontroller",
+      "id": "apps_api_src_auth_authcontroller"
     },
     {
       "label": "Controller",
@@ -31,10 +383,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "controller",
       "community": 72,
       "community_name": "CurrentUser",
-      "norm_label": "controller"
+      "norm_label": "controller",
+      "id": "controller"
     },
     {
       "label": "Public",
@@ -42,10 +394,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "public",
       "community": 175,
       "community_name": "@tgs/pdf",
-      "norm_label": "public"
+      "norm_label": "public",
+      "id": "public"
     },
     {
       "label": "Post",
@@ -53,10 +405,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "post",
       "community": 151,
       "community_name": ".mark",
-      "norm_label": "post"
+      "norm_label": "post",
+      "id": "post"
     },
     {
       "label": "Body",
@@ -64,10 +416,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "body",
       "community": 151,
       "community_name": ".mark",
-      "norm_label": "body"
+      "norm_label": "body",
+      "id": "body"
     },
     {
       "label": "Req",
@@ -75,10 +427,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "req",
       "community": 7,
       "community_name": "database/package.json",
-      "norm_label": "req"
+      "norm_label": "req",
+      "id": "req"
     },
     {
       "label": "Res",
@@ -86,10 +438,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "res",
       "community": 72,
       "community_name": "CurrentUser",
-      "norm_label": "res"
+      "norm_label": "res",
+      "id": "res"
     },
     {
       "label": "CurrentUser",
@@ -97,10 +449,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "currentuser",
       "community": 72,
       "community_name": "CurrentUser",
-      "norm_label": "currentuser"
+      "norm_label": "currentuser",
+      "id": "currentuser"
     },
     {
       "label": "Get",
@@ -108,10 +460,10 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "get",
       "community": 175,
       "community_name": "@tgs/pdf",
-      "norm_label": "get"
+      "norm_label": "get",
+      "id": "get"
     },
     {
       "label": ".login()",
@@ -119,10 +471,10 @@
       "source_file": "apps/api/src/auth.ts",
       "source_location": "L2",
       "_origin": "ast",
-      "id": "apps_api_src_auth_authcontroller_login",
       "community": 151,
       "community_name": ".mark",
-      "norm_label": ".login()"
+      "norm_label": ".login()",
+      "id": "apps_api_src_auth_authcontroller_login"
     },
     {
       "label": ".logout()",
@@ -130,10 +482,10 @@
       "source_file": "apps/api/src/auth.ts",
       "source_location": "L2",
       "_origin": "ast",
-      "id": "apps_api_src_auth_authcontroller_logout",
       "community": 72,
       "community_name": "CurrentUser",
-      "norm_label": ".logout()"
+      "norm_label": ".logout()",
+      "id": "apps_api_src_auth_authcontroller_logout"
     },
     {
       "label": ".me()",
@@ -141,10 +493,10 @@
       "source_file": "apps/api/src/auth.ts",
       "source_location": "L2",
       "_origin": "ast",
-      "id": "apps_api_src_auth_authcontroller_me",
       "community": 72,
       "community_name": "CurrentUser",
-      "norm_label": ".me()"
+      "norm_label": ".me()",
+      "id": "apps_api_src_auth_authcontroller_me"
     },
     {
       "label": "seed.ts",
@@ -581,8 +933,8 @@
       "source_file": "apps/web/package.json",
       "source_location": "L23",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/react-dom",
       "id": "apps_web_package_devdependencies_types_react_dom"
     },
@@ -592,8 +944,8 @@
       "source_file": "apps/web/package.json",
       "source_location": "L23",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/react-dom",
       "id": "types_react_dom"
     },
@@ -3452,8 +3804,8 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "injectable",
       "id": "injectable"
     },
@@ -4710,358 +5062,6 @@
       "community_name": ".mark",
       "norm_label": ".confirmperiod()",
       "id": "apps_api_src_employees_employeescontroller_confirmperiod"
-    },
-    {
-      "label": "EmployeesView.tsx",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "employeesview.tsx",
-      "id": "apps_web_components_employeesview"
-    },
-    {
-      "label": "Tab",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L8",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "tab",
-      "id": "apps_web_components_employeesview_tab"
-    },
-    {
-      "label": "DetailTab",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L9",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "detailtab",
-      "id": "apps_web_components_employeesview_detailtab"
-    },
-    {
-      "label": "Direction",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L10",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "direction",
-      "id": "apps_web_components_employeesview_direction"
-    },
-    {
-      "label": "MovementStatus",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L11",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "movementstatus",
-      "id": "apps_web_components_employeesview_movementstatus"
-    },
-    {
-      "label": "MovementKind",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L12",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "movementkind",
-      "id": "apps_web_components_employeesview_movementkind"
-    },
-    {
-      "label": "Employee",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L14",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "employee",
-      "id": "apps_web_components_employeesview_employee"
-    },
-    {
-      "label": "Salary",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L15",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "salary",
-      "id": "apps_web_components_employeesview_salary"
-    },
-    {
-      "label": "Detail",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L16",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "detail",
-      "id": "apps_web_components_employeesview_detail"
-    },
-    {
-      "label": "Movement",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L17",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "movement",
-      "id": "apps_web_components_employeesview_movement"
-    },
-    {
-      "label": "Summary",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L18",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "summary",
-      "id": "apps_web_components_employeesview_summary"
-    },
-    {
-      "label": "RequestRow",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L19",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "requestrow",
-      "id": "apps_web_components_employeesview_requestrow"
-    },
-    {
-      "label": "Obligation",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L20",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "obligation",
-      "id": "apps_web_components_employeesview_obligation"
-    },
-    {
-      "label": "Preview",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L21",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "preview",
-      "id": "apps_web_components_employeesview_preview"
-    },
-    {
-      "label": "kinds",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L23",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "kinds",
-      "id": "apps_web_components_employeesview_kinds"
-    },
-    {
-      "label": "kindLabel()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L24",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "kindlabel()",
-      "id": "apps_web_components_employeesview_kindlabel"
-    },
-    {
-      "label": "today()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L25",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "today()",
-      "id": "apps_web_components_employeesview_today"
-    },
-    {
-      "label": "month()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L26",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "month()",
-      "id": "apps_web_components_employeesview_month"
-    },
-    {
-      "label": "errorText()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L27",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "errortext()",
-      "id": "apps_web_components_employeesview_errortext"
-    },
-    {
-      "label": "abs()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L28",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "abs()",
-      "id": "apps_web_components_employeesview_abs"
-    },
-    {
-      "label": "Balance()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L30",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "balance()",
-      "id": "apps_web_components_employeesview_balance"
-    },
-    {
-      "label": "Status()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L31",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "status()",
-      "id": "apps_web_components_employeesview_status"
-    },
-    {
-      "label": "EmployeesView()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L33",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "employeesview()",
-      "id": "apps_web_components_employeesview_employeesview"
-    },
-    {
-      "label": "EmployeeModal()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L55",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "employeemodal()",
-      "id": "apps_web_components_employeesview_employeemodal"
-    },
-    {
-      "label": "EmployeeDetail()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L57",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "employeedetail()",
-      "id": "apps_web_components_employeesview_employeedetail"
-    },
-    {
-      "label": "MovementTable()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L76",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "movementtable()",
-      "id": "apps_web_components_employeesview_movementtable"
-    },
-    {
-      "label": "MovementModal()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L78",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "movementmodal()",
-      "id": "apps_web_components_employeesview_movementmodal"
-    },
-    {
-      "label": "SalaryModal()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L80",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "salarymodal()",
-      "id": "apps_web_components_employeesview_salarymodal"
-    },
-    {
-      "label": "Obligations()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L82",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "obligations()",
-      "id": "apps_web_components_employeesview_obligations"
-    },
-    {
-      "label": "ObligationModal()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L84",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "obligationmodal()",
-      "id": "apps_web_components_employeesview_obligationmodal"
-    },
-    {
-      "label": "PaymentModal()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L86",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "paymentmodal()",
-      "id": "apps_web_components_employeesview_paymentmodal"
-    },
-    {
-      "label": "BulkSalary()",
-      "file_type": "code",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L88",
-      "_origin": "ast",
-      "community": 93,
-      "community_name": "errorMessage",
-      "norm_label": "bulksalary()",
-      "id": "apps_web_components_employeesview_bulksalary"
     },
     {
       "label": "Controller",
@@ -8083,8 +8083,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 120,
+      "community_name": "ProductsView.tsx",
       "norm_label": "@fastify/multipart",
       "id": "apps_api_package_dependencies_fastify_multipart"
     },
@@ -8094,8 +8094,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 120,
+      "community_name": "ProductsView.tsx",
       "norm_label": "@fastify/multipart",
       "id": "fastify_multipart"
     },
@@ -8105,8 +8105,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 181,
-      "community_name": "@fastify/static",
+      "community": 2,
+      "community_name": "CoreController",
       "norm_label": "@fastify/static",
       "id": "apps_api_package_dependencies_fastify_static"
     },
@@ -8116,8 +8116,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 181,
-      "community_name": "@fastify/static",
+      "community": 2,
+      "community_name": "CoreController",
       "norm_label": "@fastify/static",
       "id": "fastify_static"
     },
@@ -8127,8 +8127,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 166,
+      "community_name": "package.json",
       "norm_label": "@nestjs/common",
       "id": "apps_api_package_dependencies_nestjs_common"
     },
@@ -8138,8 +8138,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 166,
+      "community_name": "package.json",
       "norm_label": "@nestjs/common",
       "id": "nestjs_common"
     },
@@ -8215,8 +8215,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 181,
+      "community_name": "@fastify/static",
       "norm_label": "@tgs/ai",
       "id": "apps_api_package_dependencies_tgs_ai"
     },
@@ -8226,8 +8226,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 181,
+      "community_name": "@fastify/static",
       "norm_label": "@tgs/ai",
       "id": "tgs_ai"
     },
@@ -8314,8 +8314,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 184,
-      "community_name": "@tgs/pricing",
+      "community": 2,
+      "community_name": "CoreController",
       "norm_label": "@tgs/pricing",
       "id": "apps_api_package_dependencies_tgs_pricing"
     },
@@ -8325,8 +8325,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 184,
-      "community_name": "@tgs/pricing",
+      "community": 2,
+      "community_name": "CoreController",
       "norm_label": "@tgs/pricing",
       "id": "tgs_pricing"
     },
@@ -8358,8 +8358,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 186,
-      "community_name": "@tgs/storage",
+      "community": 2,
+      "community_name": "CoreController",
       "norm_label": "@tgs/storage",
       "id": "apps_api_package_dependencies_tgs_storage"
     },
@@ -8369,8 +8369,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 186,
-      "community_name": "@tgs/storage",
+      "community": 2,
+      "community_name": "CoreController",
       "norm_label": "@tgs/storage",
       "id": "tgs_storage"
     },
@@ -8380,8 +8380,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 184,
+      "community_name": "@tgs/pricing",
       "norm_label": "@tgs/validation",
       "id": "apps_api_package_dependencies_tgs_validation"
     },
@@ -8391,8 +8391,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 184,
+      "community_name": "@tgs/pricing",
       "norm_label": "@tgs/validation",
       "id": "tgs_validation"
     },
@@ -8424,8 +8424,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 174,
+      "community_name": "@tgs/ai",
       "norm_label": "openai",
       "id": "apps_api_package_dependencies_openai"
     },
@@ -8435,8 +8435,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 174,
+      "community_name": "@tgs/ai",
       "norm_label": "openai",
       "id": "openai"
     },
@@ -8446,8 +8446,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 177,
+      "community_name": "devDependencies",
       "norm_label": "reflect-metadata",
       "id": "apps_api_package_dependencies_reflect_metadata"
     },
@@ -8457,8 +8457,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 177,
+      "community_name": "devDependencies",
       "norm_label": "reflect-metadata",
       "id": "reflect_metadata"
     },
@@ -8468,8 +8468,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 178,
+      "community_name": "dependencies",
       "norm_label": "rxjs",
       "id": "apps_api_package_dependencies_rxjs"
     },
@@ -8479,8 +8479,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 178,
+      "community_name": "dependencies",
       "norm_label": "rxjs",
       "id": "rxjs"
     },
@@ -8490,8 +8490,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 180,
+      "community_name": "devDependencies",
       "norm_label": "sharp",
       "id": "apps_api_package_dependencies_sharp"
     },
@@ -8501,8 +8501,8 @@
       "source_file": "apps/api/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
-      "community_name": "CoreController",
+      "community": 180,
+      "community_name": "devDependencies",
       "norm_label": "sharp",
       "id": "sharp"
     },
@@ -10448,8 +10448,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "providers/package.json",
       "id": "packages_providers_package"
     },
@@ -10459,8 +10459,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "name",
       "id": "packages_providers_package_name"
     },
@@ -10470,8 +10470,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "version",
       "id": "packages_providers_package_version"
     },
@@ -10481,8 +10481,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "private",
       "id": "packages_providers_package_private"
     },
@@ -10492,8 +10492,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "type",
       "id": "packages_providers_package_type"
     },
@@ -10503,8 +10503,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "main",
       "id": "packages_providers_package_main"
     },
@@ -10514,8 +10514,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "types",
       "id": "packages_providers_package_types"
     },
@@ -10525,8 +10525,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "exports",
       "id": "packages_providers_package_exports"
     },
@@ -10558,8 +10558,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "scripts",
       "id": "packages_providers_package_scripts"
     },
@@ -10569,8 +10569,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "build",
       "id": "packages_providers_package_scripts_build"
     },
@@ -10580,8 +10580,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 120,
-      "community_name": "ProductsView.tsx",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "typecheck",
       "id": "packages_providers_package_scripts_typecheck"
     },
@@ -10591,8 +10591,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 174,
-      "community_name": "@tgs/ai",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "dependencies",
       "id": "packages_providers_package_dependencies"
     },
@@ -10602,8 +10602,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 174,
-      "community_name": "@tgs/ai",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "@tgs/config",
       "id": "packages_providers_package_dependencies_tgs_config"
     },
@@ -10613,8 +10613,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 174,
-      "community_name": "@tgs/ai",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "@tgs/config",
       "id": "packages_providers_package_json_tgs_config"
     },
@@ -10624,8 +10624,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 174,
-      "community_name": "@tgs/ai",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "@tgs/database",
       "id": "packages_providers_package_dependencies_tgs_database"
     },
@@ -10635,8 +10635,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 174,
-      "community_name": "@tgs/ai",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "@tgs/database",
       "id": "packages_providers_package_json_tgs_database"
     },
@@ -10646,8 +10646,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 180,
-      "community_name": "devDependencies",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "devdependencies",
       "id": "packages_providers_package_devdependencies"
     },
@@ -10657,8 +10657,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 180,
-      "community_name": "devDependencies",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "@types/node",
       "id": "packages_providers_package_devdependencies_types_node"
     },
@@ -10668,8 +10668,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 180,
-      "community_name": "devDependencies",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "@types/node",
       "id": "packages_providers_package_json_types_node"
     },
@@ -10679,8 +10679,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 180,
-      "community_name": "devDependencies",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "typescript",
       "id": "packages_providers_package_devdependencies_typescript"
     },
@@ -10690,8 +10690,8 @@
       "source_file": "packages/providers/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 180,
-      "community_name": "devDependencies",
+      "community": 168,
+      "community_name": "@nestjs/core",
       "norm_label": "typescript",
       "id": "packages_providers_package_json_typescript"
     },
@@ -12514,8 +12514,8 @@
       "source_file": "apps/api/src/auth.test.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 189,
-      "community_name": "auth.test.ts",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "auth.test.ts",
       "id": "apps_api_src_auth_test"
     },
@@ -12525,8 +12525,8 @@
       "source_file": "apps/api/src/auth.test.ts",
       "source_location": "L22",
       "_origin": "ast",
-      "community": 189,
-      "community_name": "auth.test.ts",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "fakeuser",
       "id": "apps_api_src_auth_test_fakeuser"
     },
@@ -12536,8 +12536,8 @@
       "source_file": "apps/api/src/auth.test.ts",
       "source_location": "L30",
       "_origin": "ast",
-      "community": 189,
-      "community_name": "auth.test.ts",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "mockres()",
       "id": "apps_api_src_auth_test_mockres"
     },
@@ -12547,8 +12547,8 @@
       "source_file": "apps/api/src/auth.test.ts",
       "source_location": "L38",
       "_origin": "ast",
-      "community": 189,
-      "community_name": "auth.test.ts",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "httpctx()",
       "id": "apps_api_src_auth_test_httpctx"
     },
@@ -13020,8 +13020,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 189,
-      "community_name": "auth.test.ts",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "securecookies()",
       "id": "apps_api_src_infrastructure_securecookies"
     },
@@ -13031,8 +13031,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 189,
-      "community_name": "auth.test.ts",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "buildsessioncookie()",
       "id": "apps_api_src_infrastructure_buildsessioncookie"
     },
@@ -13108,8 +13108,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L11",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "authguard",
       "id": "apps_api_src_infrastructure_authguard"
     },
@@ -13119,8 +13119,8 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "inject",
       "id": "inject"
     },
@@ -13130,8 +13130,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L11",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": ".constructor()",
       "id": "apps_api_src_infrastructure_authguard_constructor"
     },
@@ -13141,8 +13141,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L11",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": ".canactivate()",
       "id": "apps_api_src_infrastructure_authguard_canactivate"
     },
@@ -13152,8 +13152,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "spanishexceptionfilter",
       "id": "apps_api_src_infrastructure_spanishexceptionfilter"
     },
@@ -13163,8 +13163,8 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "catch",
       "id": "catch"
     },
@@ -13174,8 +13174,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": ".catch()",
       "id": "apps_api_src_infrastructure_spanishexceptionfilter_catch"
     },
@@ -13196,8 +13196,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L15",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": "ratelimitguard",
       "id": "apps_api_src_infrastructure_ratelimitguard"
     },
@@ -13207,8 +13207,8 @@
       "source_file": "apps/api/src/infrastructure.ts",
       "source_location": "L15",
       "_origin": "ast",
-      "community": 166,
-      "community_name": "package.json",
+      "community": 152,
+      "community_name": "onlyBuiltDependencies",
       "norm_label": ".canactivate()",
       "id": "apps_api_src_infrastructure_ratelimitguard_canactivate"
     },
@@ -15143,8 +15143,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "dependencies",
       "id": "apps_extension_package_dependencies"
     },
@@ -15154,8 +15154,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@vitejs/plugin-react",
       "id": "apps_extension_package_dependencies_vitejs_plugin_react"
     },
@@ -15165,8 +15165,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@vitejs/plugin-react",
       "id": "vitejs_plugin_react"
     },
@@ -15176,8 +15176,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "react",
       "id": "apps_extension_package_dependencies_react"
     },
@@ -15187,8 +15187,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "react",
       "id": "apps_extension_package_json_react"
     },
@@ -15198,8 +15198,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "react-dom",
       "id": "apps_extension_package_dependencies_react_dom"
     },
@@ -15209,8 +15209,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "react-dom",
       "id": "apps_extension_package_json_react_dom"
     },
@@ -15220,8 +15220,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "vite",
       "id": "apps_extension_package_dependencies_vite"
     },
@@ -15231,8 +15231,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 178,
-      "community_name": "dependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "vite",
       "id": "vite"
     },
@@ -15242,8 +15242,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "devdependencies",
       "id": "apps_extension_package_devdependencies"
     },
@@ -15253,8 +15253,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/chrome",
       "id": "apps_extension_package_devdependencies_types_chrome"
     },
@@ -15264,8 +15264,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/chrome",
       "id": "types_chrome"
     },
@@ -15275,8 +15275,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/react",
       "id": "apps_extension_package_devdependencies_types_react"
     },
@@ -15286,8 +15286,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/react",
       "id": "apps_extension_package_json_types_react"
     },
@@ -15297,8 +15297,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "@types/react-dom",
       "id": "apps_extension_package_devdependencies_types_react_dom"
     },
@@ -15308,8 +15308,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "typescript",
       "id": "apps_extension_package_devdependencies_typescript"
     },
@@ -15319,8 +15319,8 @@
       "source_file": "apps/extension/package.json",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 177,
-      "community_name": "devDependencies",
+      "community": 1,
+      "community_name": "tasks",
       "norm_label": "typescript",
       "id": "apps_extension_package_json_typescript"
     },
@@ -25867,13 +25867,438 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_abs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L30",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_balance",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L89",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_bulksalary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_detail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_detailtab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_direction",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_employee",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L58",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_employeedetail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L56",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_employeemodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_employeesview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_errortext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_kindlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_kinds",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_month",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_movement",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_movementkind",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L79",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_movementmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_movementstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_movementtable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_obligation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L85",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_obligationmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_obligations",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L87",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_paymentmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_preview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_requestrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_salary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L81",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_salarymodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_status",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_summary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_tab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview",
+      "target": "apps_web_components_employeesview_today",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L50",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_employeesview",
+      "target": "apps_web_components_employeesview_kindlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_movementtable",
+      "target": "apps_web_components_employeesview_kindlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_obligations",
+      "target": "apps_web_components_employeesview_kindlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L87",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_paymentmodal",
+      "target": "apps_web_components_employeesview_kindlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L79",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_movementmodal",
+      "target": "apps_web_components_employeesview_today",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L61",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_employeedetail",
+      "target": "apps_web_components_employeesview_errortext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/web/components/EmployeesView.tsx",
+      "source_location": "L37",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_web_components_employeesview_employeesview",
+      "target": "apps_web_components_employeesview_errortext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "apps/api/src/auth.ts",
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth",
-      "target": "apps_api_src_auth_authcontroller",
-      "confidence_score": 1.0
+      "target": "apps_api_src_auth_authcontroller"
     },
     {
       "relation": "imports_from",
@@ -25883,9 +26308,9 @@
       "source_location": "L1",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth",
-      "target": "ref_argon2",
-      "confidence_score": 1.0
+      "target": "ref_argon2"
     },
     {
       "relation": "imports_from",
@@ -25906,9 +26331,9 @@
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller",
-      "target": "apps_api_src_auth_authcontroller_login",
-      "confidence_score": 1.0
+      "target": "apps_api_src_auth_authcontroller_login"
     },
     {
       "relation": "method",
@@ -25917,9 +26342,9 @@
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller",
-      "target": "apps_api_src_auth_authcontroller_logout",
-      "confidence_score": 1.0
+      "target": "apps_api_src_auth_authcontroller_logout"
     },
     {
       "relation": "method",
@@ -25928,9 +26353,9 @@
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller",
-      "target": "apps_api_src_auth_authcontroller_me",
-      "confidence_score": 1.0
+      "target": "apps_api_src_auth_authcontroller_me"
     },
     {
       "relation": "references",
@@ -25940,9 +26365,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller",
-      "target": "controller",
-      "confidence_score": 1.0
+      "target": "controller"
     },
     {
       "relation": "imports",
@@ -26012,9 +26437,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_login",
-      "target": "public",
-      "confidence_score": 1.0
+      "target": "public"
     },
     {
       "relation": "references",
@@ -26048,9 +26473,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_login",
-      "target": "post",
-      "confidence_score": 1.0
+      "target": "post"
     },
     {
       "relation": "references",
@@ -26060,9 +26485,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_logout",
-      "target": "post",
-      "confidence_score": 1.0
+      "target": "post"
     },
     {
       "relation": "references",
@@ -26468,9 +26893,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_login",
-      "target": "body",
-      "confidence_score": 1.0
+      "target": "body"
     },
     {
       "relation": "references",
@@ -26864,9 +27289,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_login",
-      "target": "req",
-      "confidence_score": 1.0
+      "target": "req"
     },
     {
       "relation": "references",
@@ -26876,9 +27301,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_logout",
-      "target": "req",
-      "confidence_score": 1.0
+      "target": "req"
     },
     {
       "relation": "references",
@@ -26960,9 +27385,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_login",
-      "target": "res",
-      "confidence_score": 1.0
+      "target": "res"
     },
     {
       "relation": "references",
@@ -26972,9 +27397,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_logout",
-      "target": "res",
-      "confidence_score": 1.0
+      "target": "res"
     },
     {
       "relation": "references",
@@ -26984,9 +27409,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_logout",
-      "target": "currentuser",
-      "confidence_score": 1.0
+      "target": "currentuser"
     },
     {
       "relation": "references",
@@ -26996,9 +27421,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_me",
-      "target": "currentuser",
-      "confidence_score": 1.0
+      "target": "currentuser"
     },
     {
       "relation": "references",
@@ -27704,9 +28129,9 @@
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
+      "confidence_score": 1.0,
       "source": "apps_api_src_auth_authcontroller_me",
-      "target": "get",
-      "confidence_score": 1.0
+      "target": "get"
     },
     {
       "relation": "references",
@@ -35378,443 +35803,6 @@
       "confidence_score": 0.5,
       "source": "apps_api_src_employees_employeescontroller_obligations",
       "target": "apps_api_src_employees_employeescontroller_obligation"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L28",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_abs"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L30",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_balance"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L88",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_bulksalary"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L16",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_detail"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L9",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_detailtab"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L10",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_direction"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L14",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_employee"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L57",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_employeedetail"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L55",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_employeemodal"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L33",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_employeesview"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L27",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_errortext"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L24",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_kindlabel"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L23",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_kinds"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L26",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_month"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_movement"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L12",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_movementkind"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L78",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_movementmodal"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L11",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_movementstatus"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L76",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_movementtable"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L20",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_obligation"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L84",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_obligationmodal"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L82",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_obligations"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L86",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_paymentmodal"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L21",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_preview"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L19",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_requestrow"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L15",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_salary"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L80",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_salarymodal"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L31",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_status"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L18",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_summary"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L8",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_tab"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L25",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview",
-      "target": "apps_web_components_employeesview_today"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L50",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_employeesview",
-      "target": "apps_web_components_employeesview_kindlabel"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L76",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_movementtable",
-      "target": "apps_web_components_employeesview_kindlabel"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L82",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_obligations",
-      "target": "apps_web_components_employeesview_kindlabel"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L86",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_paymentmodal",
-      "target": "apps_web_components_employeesview_kindlabel"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L78",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_movementmodal",
-      "target": "apps_web_components_employeesview_today"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L84",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_obligationmodal",
-      "target": "apps_web_components_employeesview_month"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L60",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_employeedetail",
-      "target": "apps_web_components_employeesview_errortext"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/web/components/EmployeesView.tsx",
-      "source_location": "L37",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "apps_web_components_employeesview_employeesview",
-      "target": "apps_web_components_employeesview_errortext"
     },
     {
       "relation": "contains",
@@ -68783,5 +68771,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "94a7ff1df590d3e62dda87a538e5bfbef3d95df9"
+  "built_at_commit": "0cf28ac84bc322e7ab44dbbe8c496d25f232a5ae"
 }

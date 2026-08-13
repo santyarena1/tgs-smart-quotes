@@ -2694,7 +2694,7 @@ export function QuotesView({
                       {detail.versions.map((version) => (
                         <li key={version.id}>
                           <div>
-                            <strong>v{version.version} · {STATE_LABEL[version.state]}</strong>
+                            <strong>v{version.version} · {STATE_LABEL[version.state]}{version.version === detail.activeVersion ? " · Actual" : ""}</strong>
                             <span className="cell-sub">
                               {version.items.length} componentes · {formatArs(version.totalSaleCents)}
                             </span>
@@ -2711,28 +2711,6 @@ export function QuotesView({
                         </li>
                       ))}
                     </ul>
-                  )}
-                </div>
-                <div>
-                  <h4 className="ops-subtitle">Timeline</h4>
-                  {!timeline.length ? (
-                    <p className="muted">Sin eventos todavía.</p>
-                  ) : (
-                    <ol className="timeline">
-                      {[...timeline].reverse().map((event) => (
-                        <li key={event.id} onClick={() => {
-                          const version = detail.versions?.find(item => item.version === event.versionNumber);
-                          if (version && window.confirm("¿Restaurar el presupuesto a este punto?")) void restoreVersion(version);
-                        }}>
-                          <strong>{event.description || event.type.replaceAll("_", " ")}</strong>
-                          {event.descriptions?.map((description) => <span className="cell-sub" key={description}>{description}</span>)}
-                          <span className="cell-sub">
-                            {new Date(event.createdAt).toLocaleString("es-AR")}
-                            {event.creator ? ` · ${event.creator.displayName || event.creator.username}` : ""}
-                          </span>
-                        </li>
-                      ))}
-                    </ol>
                   )}
                 </div>
               </div>

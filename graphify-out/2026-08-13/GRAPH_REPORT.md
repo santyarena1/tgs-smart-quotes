@@ -5,12 +5,12 @@
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2350 nodes · 3733 edges · 196 communities (143 shown, 53 thin omitted)
+- 2350 nodes · 3732 edges · 194 communities (136 shown, 58 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 14 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `94a7ff1d`
+- Built from commit: `0cf28ac8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -187,10 +187,8 @@
 - @nestjs/swagger
 - @tgs/pricing
 - @tgs/providers
-- @tgs/storage
 - zod
 - package.json
-- auth.test.ts
 - Body
 - Controller
 - Get
@@ -225,19 +223,19 @@
 ## Import Cycles
 - None detected.
 
-## Communities (196 total, 53 thin omitted)
+## Communities (194 total, 58 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
 Nodes (8): extractNumbersModels(), normalizePhone(), normalizeText(), productSimilarity(), sameMultiset(), trigrams(), trigramSimilarity(), wordOverlap()
 
 ### Community 1 - "tasks"
-Cohesion: 0.20
-Nodes (9): name, private, scripts, build, dev, lint, typecheck, zip (+1 more)
+Cohesion: 0.07
+Nodes (28): dependencies, react, react-dom, vite, @vitejs/plugin-react, devDependencies, @types/chrome, @types/react (+20 more)
 
 ### Community 2 - "CoreController"
-Cohesion: 0.08
-Nodes (25): dependencies, argon2, @fastify/multipart, @nestjs/common, @nestjs/core, @nestjs/platform-fastify, openai, reflect-metadata (+17 more)
+Cohesion: 0.13
+Nodes (15): dependencies, argon2, @fastify/static, @nestjs/core, @nestjs/platform-fastify, @tgs/pdf, @tgs/pricing, @tgs/storage (+7 more)
 
 ### Community 3 - "extension/package.json"
 Cohesion: 0.25
@@ -501,7 +499,7 @@ Nodes (14): compilerOptions, declaration, declarationMap, outDir, sourceMap, typ
 
 ### Community 93 - "errorMessage"
 Cohesion: 0.08
-Nodes (25): Detail, DetailTab, Direction, Employee, EmployeeDetail(), EmployeesView(), errorText(), kindLabel() (+17 more)
+Nodes (23): Detail, DetailTab, Direction, Employee, EmployeeDetail(), EmployeesView(), errorText(), kindLabel() (+15 more)
 
 ### Community 94 - "1. Invariantes NO NEGOCIABLES (todo el código las respeta)"
 Cohesion: 0.14
@@ -595,10 +593,6 @@ Nodes (6): createMultiviewTask(), generateModelFromImages(), getTask(), TripoEnv
 Cohesion: 0.14
 Nodes (4): tgs_sq_default_layout(), tgs_sq_image_html(), tgs_sq_layout(), tgs_sq_managed()
 
-### Community 120 - "ProductsView.tsx"
-Cohesion: 0.18
-Nodes (10): exports, main, name, private, scripts, build, typecheck, type (+2 more)
-
 ### Community 121 - "worker/src/jobs.ts"
 Cohesion: 0.43
 Nodes (6): claimNextJob(), handlers, JobHandler, jsonResult(), processJob(), processPendingJobs()
@@ -656,8 +650,8 @@ Cohesion: 0.22
 Nodes (7): currentSalary(), EmployeesController, audit(), requireEmployee(), Body, Post, Roles
 
 ### Community 152 - "onlyBuiltDependencies"
-Cohesion: 0.18
-Nodes (9): onlyBuiltDependencies, db, argon2, esbuild, prisma, @prisma/client, @prisma/engines, @scarf/scarf (+1 more)
+Cohesion: 0.08
+Nodes (18): fakeUser, AuthGuard, buildSessionCookie(), RateLimitGuard, secureCookies(), SpanishExceptionFilter, Catch, Inject (+10 more)
 
 ### Community 154 - "devDependencies"
 Cohesion: 0.18
@@ -679,13 +673,9 @@ Nodes (11): 1. Modelo `QuoteEnrichment`, 2. Serialización del presupuesto, 3. I
 Cohesion: 0.22
 Nodes (8): App(), NAV_GROUPS, defaults(), effective(), NavPreferences, PersonalizableSidebarNav(), Props, SidebarNavGroup
 
-### Community 166 - "package.json"
-Cohesion: 0.20
-Nodes (6): AuthGuard, RateLimitGuard, SpanishExceptionFilter, Catch, Inject, Injectable
-
 ### Community 168 - "@nestjs/core"
-Cohesion: 0.14
-Nodes (13): files, exports, files, main, name, private, scripts, build (+5 more)
+Cohesion: 0.06
+Nodes (33): dependencies, @tgs/config, @tgs/database, devDependencies, @types/node, typescript, exports, files (+25 more)
 
 ### Community 169 - "@nestjs/swagger"
 Cohesion: 0.33
@@ -703,10 +693,6 @@ Nodes (14): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts
 Cohesion: 0.15
 Nodes (8): MePreferencesController, Controller, Get, AppModule, HealthController, Controller, Get, Module
 
-### Community 174 - "@tgs/ai"
-Cohesion: 0.40
-Nodes (5): dependencies, @tgs/config, @tgs/database, @tgs/config, @tgs/database
-
 ### Community 175 - "@tgs/pdf"
 Cohesion: 0.12
 Nodes (4): periodDates(), Get, Public, Query
@@ -715,21 +701,9 @@ Nodes (4): periodDates(), Get, Public, Query
 Cohesion: 0.21
 Nodes (11): balanceText(), date(), EmployeePortalView(), label(), labels, Movement, Obligation, Payment (+3 more)
 
-### Community 177 - "devDependencies"
-Cohesion: 0.20
-Nodes (10): devDependencies, @types/chrome, @types/react, @types/react-dom, typescript, @types/react, typescript, @types/react-dom (+2 more)
-
-### Community 178 - "dependencies"
-Cohesion: 0.22
-Nodes (9): dependencies, react, react-dom, vite, @vitejs/plugin-react, react, react-dom, vite (+1 more)
-
 ### Community 179 - "devDependencies"
 Cohesion: 0.33
 Nodes (6): devDependencies, @tgs/testing, tsx, typescript, @tgs/testing, tsx
-
-### Community 180 - "devDependencies"
-Cohesion: 0.40
-Nodes (5): devDependencies, @types/node, typescript, @types/node, typescript
 
 ### Community 182 - "testing/src/index.ts"
 Cohesion: 0.27
@@ -739,14 +713,10 @@ Nodes (10): actorFrom(), Baseline, BaselineOptions, createTestDb(), fixtureUser,
 Cohesion: 0.29
 Nodes (6): engines, node, name, packageManager, pnpm, private
 
-### Community 189 - "auth.test.ts"
-Cohesion: 0.40
-Nodes (3): fakeUser, buildSessionCookie(), secureCookies()
-
 ## Knowledge Gaps
-- **1082 isolated node(s):** `db`, `NavPreferences`, `Props`, `name`, `version` (+1077 more)
+- **1082 isolated node(s):** `Tab`, `DetailTab`, `Direction`, `MovementStatus`, `MovementKind` (+1077 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **53 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **58 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -754,14 +724,14 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `jsonSafe()` connect `reflect-metadata` to `layout.tsx`, `SpanishExceptionFilter`, `branding-storage.ts`, `similarity.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
   _High betweenness centrality (0.053) - this node is a cross-community bridge._
 - **Why does `argon2` connect `onlyBuiltDependencies` to `extension/manifest.json`?**
-  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+  _High betweenness centrality (0.037) - this node is a cross-community bridge._
 - **Why does `onlyBuiltDependencies` connect `onlyBuiltDependencies` to `package.json`?**
-  _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **What connects `db`, `NavPreferences`, `Props` to the rest of the system?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
+- **What connects `Tab`, `DetailTab`, `Direction` to the rest of the system?**
   _1082 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `tasks` be split into smaller, more focused modules?**
+  _Cohesion score 0.06896551724137931 - nodes in this community are weakly interconnected._
 - **Should `CoreController` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
-- **Should `What You Must Do When Invoked` be split into smaller, more focused modules?**
-  _Cohesion score 0.06666666666666667 - nodes in this community are weakly interconnected._

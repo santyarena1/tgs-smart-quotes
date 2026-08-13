@@ -1,16 +1,16 @@
 # Graph Report - tgs-smart-quotes  (2026-08-13)
 
 ## Corpus Check
-- 269 files · ~148,186 words
+- 269 files · ~148,252 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2350 nodes · 3732 edges · 194 communities (136 shown, 58 thin omitted)
+- 2358 nodes · 3743 edges · 186 communities (139 shown, 47 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 14 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0cf28ac8`
+- Built from commit: `ccc92166`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -179,15 +179,7 @@
 - @tgs/pdf
 - @tgs/pricing
 - devDependencies
-- dependencies
-- devDependencies
-- devDependencies
-- @fastify/static
 - testing/src/index.ts
-- @nestjs/swagger
-- @tgs/pricing
-- @tgs/providers
-- zod
 - package.json
 - Body
 - Controller
@@ -223,19 +215,19 @@
 ## Import Cycles
 - None detected.
 
-## Communities (194 total, 58 thin omitted)
+## Communities (186 total, 47 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.51
 Nodes (8): extractNumbersModels(), normalizePhone(), normalizeText(), productSimilarity(), sameMultiset(), trigrams(), trigramSimilarity(), wordOverlap()
 
 ### Community 1 - "tasks"
-Cohesion: 0.07
-Nodes (28): dependencies, react, react-dom, vite, @vitejs/plugin-react, devDependencies, @types/chrome, @types/react (+20 more)
+Cohesion: 0.08
+Nodes (25): dependencies, react, react-dom, vite, @vitejs/plugin-react, devDependencies, @types/chrome, @types/react (+17 more)
 
 ### Community 2 - "CoreController"
-Cohesion: 0.13
-Nodes (15): dependencies, argon2, @fastify/static, @nestjs/core, @nestjs/platform-fastify, @tgs/pdf, @tgs/pricing, @tgs/storage (+7 more)
+Cohesion: 0.05
+Nodes (37): dependencies, argon2, @fastify/multipart, @fastify/static, @nestjs/common, @nestjs/core, @nestjs/platform-fastify, @nestjs/swagger (+29 more)
 
 ### Community 3 - "extension/package.json"
 Cohesion: 0.25
@@ -254,7 +246,7 @@ Cohesion: 0.07
 Nodes (29): dependencies, argon2, @prisma/client, devDependencies, prisma, tsx, @types/node, typescript (+21 more)
 
 ### Community 7 - "database/package.json"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (21): aiCache, audit(), createAsset(), downloadBytes(), enrichmentData(), enrichmentService(), ext(), ExternalModuleController (+13 more)
 
 ### Community 8 - "web/package.json"
@@ -270,11 +262,11 @@ Cohesion: 0.08
 Nodes (24): dependencies, @tgs/database, @tgs/providers, @tgs/storage, devDependencies, @tgs/testing, tsx, @types/node (+16 more)
 
 ### Community 11 - "api/package.json"
-Cohesion: 0.20
-Nodes (11): devDependencies, @types/node, @types/react, typescript, typescript, devDependencies, @types/node, typescript (+3 more)
+Cohesion: 0.15
+Nodes (14): @types/react-dom, devDependencies, @types/node, @types/react, @types/react-dom, typescript, typescript, devDependencies (+6 more)
 
 ### Community 12 - "extension/manifest.json"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (19): currentSalary(), EmployeePortalController, EmployeePortalEnabledGuard, periodDates(), Controller, Get, addMonths(), balanceFrom() (+11 more)
 
 ### Community 13 - "public/manifest.json"
@@ -319,7 +311,7 @@ Nodes (6): compilerOptions, outDir, extends, include, src, ../../tsconfig.json
 
 ### Community 23 - "ai/src/index.ts"
 Cohesion: 0.06
-Nodes (73): AiClientConfig, client(), createAiClient(), COMPONENT_PATTERNS, extractBudgetCents(), fallbackCompatibilityFeedback(), fallbackIntentClassification(), fallbackRequestAnalysis() (+65 more)
+Nodes (72): AiClientConfig, client(), createAiClient(), COMPONENT_PATTERNS, extractBudgetCents(), fallbackCompatibilityFeedback(), fallbackIntentClassification(), fallbackRequestAnalysis() (+64 more)
 
 ### Community 24 - "database/tsconfig.json"
 Cohesion: 0.12
@@ -370,8 +362,8 @@ Cohesion: 0.50
 Nodes (3): name, private, version
 
 ### Community 36 - "layout.tsx"
-Cohesion: 0.17
-Nodes (28): activeVersion(), assertDraftMutable(), audit(), buildItemRows(), CollectionsController, eventTypeForState(), formatVisibleNumber(), jsonField() (+20 more)
+Cohesion: 0.20
+Nodes (25): activeVersion(), assertDraftMutable(), audit(), buildItemRows(), eventTypeForState(), formatVisibleNumber(), jsonField(), loadFamily() (+17 more)
 
 ### Community 37 - "page.tsx"
 Cohesion: 0.20
@@ -398,8 +390,8 @@ Cohesion: 0.12
 Nodes (27): applyCoefficient(), buildFinancing(), buildItemsRows(), createLocalPdfStorage(), createPdfStorageFromEnv(), createS3PdfStorage(), escapeHtml(), formatArsFromCents() (+19 more)
 
 ### Community 62 - "testing/src/index.ts"
-Cohesion: 0.15
-Nodes (23): CurrentUser, RequestUser, Get, addPriceHistory(), audit(), createProduct(), CustomerController, customerData() (+15 more)
+Cohesion: 0.21
+Nodes (21): CurrentUser, RequestUser, addPriceHistory(), audit(), createProduct(), CustomerController, customerData(), generalMarkupBps() (+13 more)
 
 ### Community 64 - "background.ts"
 Cohesion: 0.33
@@ -414,8 +406,8 @@ Cohesion: 0.01
 Nodes (227): AiAnalyzeRequestInput, aiAnalyzeRequestSchema, AiCompatibilityInput, aiCompatibilitySchema, AiIntentInput, aiIntentSchema, AiSettingsInput, aiSettingsInputSchema (+219 more)
 
 ### Community 72 - "CurrentUser"
-Cohesion: 0.16
-Nodes (9): AuthController, audit(), FinancingController, isChatCompletionModel(), SettingsController, Controller, CurrentUser, Put (+1 more)
+Cohesion: 0.18
+Nodes (6): audit(), FinancingController, isChatCompletionModel(), SettingsController, CurrentUser, Put
 
 ### Community 73 - "shared.tsx"
 Cohesion: 0.14
@@ -438,16 +430,16 @@ Cohesion: 0.17
 Nodes (12): LoginView(), Field(), api(), apiBaseUrl(), ApiError, ApiOptions, apiUpload(), buildUrl() (+4 more)
 
 ### Community 78 - "branding-storage.ts"
-Cohesion: 0.09
-Nodes (19): resolveLogoForPdf(), ZodPipe, NotificationListQuery, notificationListQuerySchema, NotificationsController, Body, Controller, Param (+11 more)
+Cohesion: 0.20
+Nodes (11): resolveLogoForPdf(), buildRenderInput(), PdfController, pdfStorage, storageKeyFor(), Body, Controller, Get (+3 more)
 
 ### Community 79 - "module.ts"
 Cohesion: 0.09
 Nodes (21): compilerOptions, declaration, declarationMap, outDir, sourceMap, types, extends, include (+13 more)
 
 ### Community 80 - "similarity.ts"
-Cohesion: 0.17
-Nodes (15): ActiveItem, bucketByConcept(), ConceptItems, ConceptKey, conceptOf(), CONCEPTS, conceptScore(), emptyConceptItems() (+7 more)
+Cohesion: 0.08
+Nodes (27): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, jsonSafe() (+19 more)
 
 ### Community 81 - "src/lib/types.ts"
 Cohesion: 0.11
@@ -462,8 +454,8 @@ Cohesion: 0.12
 Nodes (16): BLOCK-3 — PDF, trazabilidad, precios, búsqueda, envíos, respuestas, notificaciones e IA, Búsqueda (`apps/api/src/search.ts`), Configuración operativa (`apps/api/src/settings.ts`), Dependencias y configuración, Endpoints entregados, Envíos (`apps/api/src/quotes.ts`), IA (`apps/api/src/ai.ts`, opcional/mejor esfuerzo), Integridad y convenciones respetadas (+8 more)
 
 ### Community 84 - "infrastructure.ts"
-Cohesion: 0.31
-Nodes (5): ExtensionSettingsController, resolveExtensionZip(), Controller, Get, Public()
+Cohesion: 0.10
+Nodes (16): ExtensionSettingsController, resolveExtensionZip(), Controller, Get, Public(), ZodPipe, NotificationListQuery, notificationListQuerySchema (+8 more)
 
 ### Community 85 - "compilerOptions"
 Cohesion: 0.12
@@ -546,8 +538,8 @@ Cohesion: 0.40
 Nodes (5): Panel(), listNotifications(), probeExtensionConnection(), sendToBackground(), injectPanelStyles()
 
 ### Community 105 - "SpanishExceptionFilter"
-Cohesion: 0.31
-Nodes (9): buildCacheRepo(), PERSISTABLE_TASKS, QuoteAiController, RequestAiController, resolveAiDeps(), Body, Controller, Param (+1 more)
+Cohesion: 0.29
+Nodes (10): buildCacheRepo(), PERSISTABLE_TASKS, QuoteAiController, RequestAiController, resolveAiDeps(), Body, Controller, Param (+2 more)
 
 ### Community 106 - "build.mjs"
 Cohesion: 0.50
@@ -593,13 +585,17 @@ Nodes (6): createMultiviewTask(), generateModelFromImages(), getTask(), TripoEnv
 Cohesion: 0.14
 Nodes (4): tgs_sq_default_layout(), tgs_sq_image_html(), tgs_sq_layout(), tgs_sq_managed()
 
+### Community 120 - "ProductsView.tsx"
+Cohesion: 0.18
+Nodes (10): exports, main, name, private, scripts, build, typecheck, type (+2 more)
+
 ### Community 121 - "worker/src/jobs.ts"
 Cohesion: 0.43
 Nodes (6): claimNextJob(), handlers, JobHandler, jsonResult(), processJob(), processPendingJobs()
 
 ### Community 126 - "QuotesView.tsx"
-Cohesion: 0.26
-Nodes (13): blankItem(), buildPcSlots(), emptyLineSlot(), filledItems(), isSlotEmpty(), ItemDraft, itemFromProduct(), itemsToPayload() (+5 more)
+Cohesion: 0.15
+Nodes (20): blankItem(), buildPcSlots(), CatalogPickerItem, CatalogPickerResponse, emptyLineSlot(), filledItems(), isSlotEmpty(), ItemDraft (+12 more)
 
 ### Community 137 - "5. Fases"
 Cohesion: 0.11
@@ -622,8 +618,8 @@ Cohesion: 0.20
 Nodes (9): name, private, scripts, build, dev, lint, start, typecheck (+1 more)
 
 ### Community 145 - "api/package.json"
-Cohesion: 0.22
-Nodes (8): name, private, scripts, build, dev, lint, typecheck, version
+Cohesion: 0.13
+Nodes (14): devDependencies, @tgs/testing, tsx, typescript, name, private, scripts, build (+6 more)
 
 ### Community 146 - "dependencies"
 Cohesion: 0.10
@@ -646,12 +642,12 @@ Cohesion: 0.20
 Nodes (9): 1. Schema (schema.prisma + migración), 2. Tripo (`packages/providers/src/tripo.ts` + export en index), 3. Job handler `case-model:tripo` (apps/worker/src/handlers), 4. API (`ExternalModuleController`), 5. UI: tab "Modelo 3D" en `ModuloExternoView`, Alcance, BLOCK-3 — Fase 2 (parte 1): Modelo 3D del gabinete — subir GLB + Tripo + preview, LECCIONES DEL INCIDENTE (obligatorias) (+1 more)
 
 ### Community 151 - ".mark"
-Cohesion: 0.22
-Nodes (7): currentSalary(), EmployeesController, audit(), requireEmployee(), Body, Post, Roles
+Cohesion: 0.26
+Nodes (6): currentSalary(), EmployeesController, audit(), requireEmployee(), Body, Roles
 
 ### Community 152 - "onlyBuiltDependencies"
-Cohesion: 0.08
-Nodes (18): fakeUser, AuthGuard, buildSessionCookie(), RateLimitGuard, secureCookies(), SpanishExceptionFilter, Catch, Inject (+10 more)
+Cohesion: 0.18
+Nodes (9): onlyBuiltDependencies, db, argon2, esbuild, prisma, @prisma/client, @prisma/engines, @scarf/scarf (+1 more)
 
 ### Community 154 - "devDependencies"
 Cohesion: 0.18
@@ -673,9 +669,13 @@ Nodes (11): 1. Modelo `QuoteEnrichment`, 2. Serialización del presupuesto, 3. I
 Cohesion: 0.22
 Nodes (8): App(), NAV_GROUPS, defaults(), effective(), NavPreferences, PersonalizableSidebarNav(), Props, SidebarNavGroup
 
+### Community 166 - "package.json"
+Cohesion: 0.20
+Nodes (6): AuthGuard, RateLimitGuard, SpanishExceptionFilter, Catch, Inject, Injectable
+
 ### Community 168 - "@nestjs/core"
-Cohesion: 0.06
-Nodes (33): dependencies, @tgs/config, @tgs/database, devDependencies, @types/node, typescript, exports, files (+25 more)
+Cohesion: 0.08
+Nodes (23): dependencies, @tgs/config, @tgs/database, devDependencies, @types/node, typescript, exports, files (+15 more)
 
 ### Community 169 - "@nestjs/swagger"
 Cohesion: 0.33
@@ -686,24 +686,28 @@ Cohesion: 0.33
 Nodes (6): CONCEPT_LABEL, Draft, empty(), PcLinesView(), Checkbox(), PcLine
 
 ### Community 171 - "reflect-metadata"
-Cohesion: 0.14
-Nodes (14): avgBigInt(), avgMs(), DashboardController, ProductRank, rankProducts(), Controller, Get, jsonSafe() (+6 more)
+Cohesion: 0.24
+Nodes (4): CollectionsController, RequestsController, Controller, Get
 
 ### Community 173 - "sharp"
-Cohesion: 0.15
+Cohesion: 0.16
 Nodes (8): MePreferencesController, Controller, Get, AppModule, HealthController, Controller, Get, Module
+
+### Community 174 - "@tgs/ai"
+Cohesion: 0.29
+Nodes (4): AuthController, Controller, Public, Res
 
 ### Community 175 - "@tgs/pdf"
 Cohesion: 0.12
-Nodes (4): periodDates(), Get, Public, Query
+Nodes (4): periodDates(), resolveWpPluginZip(), Get, Query
 
 ### Community 176 - "@tgs/pricing"
 Cohesion: 0.21
 Nodes (11): balanceText(), date(), EmployeePortalView(), label(), labels, Movement, Obligation, Payment (+3 more)
 
-### Community 179 - "devDependencies"
-Cohesion: 0.33
-Nodes (6): devDependencies, @tgs/testing, tsx, typescript, @tgs/testing, tsx
+### Community 177 - "devDependencies"
+Cohesion: 0.40
+Nodes (3): fakeUser, buildSessionCookie(), secureCookies()
 
 ### Community 182 - "testing/src/index.ts"
 Cohesion: 0.27
@@ -714,24 +718,24 @@ Cohesion: 0.29
 Nodes (6): engines, node, name, packageManager, pnpm, private
 
 ## Knowledge Gaps
-- **1082 isolated node(s):** `Tab`, `DetailTab`, `Direction`, `MovementStatus`, `MovementKind` (+1077 more)
+- **1086 isolated node(s):** `ItemDraft`, `CatalogPickerItem`, `CatalogPickerResponse`, `QuoteLocalDraft`, `QuoteSort` (+1081 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **58 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `jsonSafe()` connect `reflect-metadata` to `layout.tsx`, `SpanishExceptionFilter`, `branding-storage.ts`, `similarity.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
-  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+- **Why does `jsonSafe()` connect `similarity.ts` to `layout.tsx`, `SpanishExceptionFilter`, `reflect-metadata`, `branding-storage.ts`, `infrastructure.ts`, `testing/src/index.ts`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Why does `argon2` connect `onlyBuiltDependencies` to `extension/manifest.json`?**
-  _High betweenness centrality (0.037) - this node is a cross-community bridge._
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Why does `onlyBuiltDependencies` connect `onlyBuiltDependencies` to `package.json`?**
-  _High betweenness centrality (0.036) - this node is a cross-community bridge._
-- **What connects `Tab`, `DetailTab`, `Direction` to the rest of the system?**
-  _1082 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **What connects `ItemDraft`, `CatalogPickerItem`, `CatalogPickerResponse` to the rest of the system?**
+  _1086 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tasks` be split into smaller, more focused modules?**
-  _Cohesion score 0.06896551724137931 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07692307692307693 - nodes in this community are weakly interconnected._
 - **Should `CoreController` be split into smaller, more focused modules?**
-  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05405405405405406 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._

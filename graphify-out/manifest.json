@@ -575,8 +575,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/QuotesView.tsx": {
-    "mtime": 1786144283.9934556,
-    "ast_hash": "b13fa82326efe311ee3180f7a9a2e2ef",
+    "mtime": 1786646887.889757,
+    "ast_hash": "819b089b001074594ceaefee0d7ee398",
     "semantic_hash": ""
   },
   "apps/web/components/RequestsView.tsx": {
