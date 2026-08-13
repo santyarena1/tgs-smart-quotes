@@ -428,44 +428,28 @@ code {
 .nav-personalize-row {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 8px;
+  margin-top: auto;
+  padding-top: 0.35rem;
 }
 
-.nav-customizer {
-  display: grid;
-  gap: 10px;
-  font-size: 12px;
-}
+.nav-editor { display: grid; gap: 1.5rem; }
+.nav-editor-section { display: grid; gap: 0.8rem; }
+.nav-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.nav-editor-heading h3 { margin: 0; }
+.nav-editor-heading p { margin: 0.2rem 0 0; color: var(--muted); }
+.nav-editor-items, .nav-editor-groups { display: grid; gap: 0.55rem; }
+.nav-editor-item, .nav-editor-group { display: grid; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.nav-editor-item { grid-template-columns: minmax(12rem, 1fr) auto; }
+.nav-editor-item-actions { display: flex; align-items: center; gap: 0.4rem; }
+.nav-editor-item-actions select { min-width: 11rem; }
+.nav-editor-group { grid-template-columns: minmax(14rem, 1fr) auto auto; }
+.nav-editor-group .field { margin: 0; }
 
-.nav-customizer-title,
-.nav-customizer-actions,
-.nav-customizer-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+@media (max-width: 640px) {
+  .nav-editor-item, .nav-editor-group { grid-template-columns: 1fr; }
+  .nav-editor-item-actions { flex-wrap: wrap; }
+  .nav-editor-item-actions select { flex: 1; }
 }
-
-.nav-customizer-actions { justify-content: flex-end; }
-.nav-customizer-group { display: grid; gap: 7px; }
-.nav-customizer-group > input,
-.nav-customizer-controls select {
-  min-width: 0;
-  width: 100%;
-  padding: 6px 7px;
-  font-size: 12px;
-}
-
-.nav-customizer-item {
-  display: grid;
-  gap: 5px;
-  padding: 7px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 8px;
-}
-
-.nav-customizer-item label { display: flex; align-items: center; gap: 5px; }
-.nav-customizer-controls select { flex: 1; }
-.nav-customizer-error { color: #fca5a5; display: block; margin: 5px 0; }
 
 .nav-group-links {
   display: flex;

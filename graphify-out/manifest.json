@@ -1365,8 +1365,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/PersonalizableSidebarNav.tsx": {
-    "mtime": 1786640497.4080577,
-    "ast_hash": "51a451deb345d64ad14a859a764f8e07",
+    "mtime": 1786641387.786378,
+    "ast_hash": "1dc0493e0479f51de28d8821eb79c737",
     "semantic_hash": ""
   },
   "packages/database/prisma/migrations/20260813010000_user_nav_preferences/migration.sql": {

@@ -176,16 +176,5 @@
   "174": "@tgs/ai",
   "175": "@tgs/pdf",
   "176": "@tgs/pricing",
-  "177": "@tgs/providers",
-  "178": "@tgs/validation",
-  "179": "argon2",
-  "180": "@tgs/storage",
-  "181": "zod",
-  "182": "testing/src/index.ts",
-  "183": "@nestjs/platform-fastify",
-  "184": "reflect-metadata",
-  "185": "sharp",
-  "186": "@tgs/contracts",
-  "187": "@tgs/pdf",
-  "188": "@tgs/pricing"
+  "182": "testing/src/index.ts"
 }
