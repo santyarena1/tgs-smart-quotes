@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect, useMemo, useState} from "react";
+import {createPortal} from "react-dom";
 import {api} from "../lib/api";
 import type {NavId} from "../lib/types";
 import {Alert, Checkbox, Field, Modal} from "./shared";
@@ -16,113 +17,250 @@ export type SidebarNavGroup = {id: string; label: string; items: {id: NavId; lab
 type Props = {userId: string; groups: SidebarNavGroup[]; active: NavId; onNavigate: (id: NavId) => void};
 
 function defaults(groups: SidebarNavGroup[]): NavPreferences {
-  return {version: 1, groups: groups.map((group) => ({id: group.id, label: group.label, collapsed: true})), items: groups.flatMap((group) => group.items.map((item, order) => ({id: item.id, groupId: group.id, order, hidden: false})))};
+  return {
+    version: 1,
+    groups: groups.map((g) => ({id: g.id, label: g.label, collapsed: true})),
+    items: groups.flatMap((g) => g.items.map((it, order) => ({id: it.id, groupId: g.id, order, hidden: false}))),
+  };
 }
 
+/** Combina los grupos permitidos (post-gating) con las preferencias guardadas del usuario. */
 function effective(groups: SidebarNavGroup[], stored: NavPreferences | null): NavPreferences {
   const base = defaults(groups);
   if (!stored || stored.version !== 1) return base;
-  const allowed = new Set(base.items.map((item) => item.id));
-  const resultGroups = stored.groups.map((group) => ({...group}));
-  const groupIds = new Set(resultGroups.map((group) => group.id));
-  for (const group of base.groups) if (!groupIds.has(group.id)) { resultGroups.push(group); groupIds.add(group.id); }
+  const allowed = new Set(base.items.map((i) => i.id));
+  const resultGroups = stored.groups.map((g) => ({...g}));
+  const groupIds = new Set(resultGroups.map((g) => g.id));
+  for (const g of base.groups) if (!groupIds.has(g.id)) {resultGroups.push(g); groupIds.add(g.id);}
   const seen = new Set<string>();
-  const resultItems = stored.items.filter((item) => allowed.has(item.id) && groupIds.has(item.groupId) && !seen.has(item.id) && seen.add(item.id)).map((item) => ({...item}));
-  for (const item of base.items) if (!seen.has(item.id)) resultItems.push(item);
+  const resultItems = stored.items
+    .filter((i) => allowed.has(i.id) && groupIds.has(i.groupId) && !seen.has(i.id) && (seen.add(i.id), true))
+    .map((i) => ({...i}));
+  for (const i of base.items) if (!seen.has(i.id)) resultItems.push({...i});
   return {version: 1, groups: resultGroups, items: resultItems};
 }
 
-function normalizeOrders(prefs: NavPreferences): NavPreferences {
-  return {...prefs, items: prefs.items.map((item) => ({...item, order: prefs.items.filter((other) => other.groupId === item.groupId).sort((a, b) => a.order - b.order).findIndex((other) => other.id === item.id)}))};
+/** Reindexa el `order` dentro de cada grupo a 0..n. */
+function normalize(prefs: NavPreferences): NavPreferences {
+  const byGroup = new Map<string, typeof prefs.items>();
+  for (const it of [...prefs.items].sort((a, b) => a.order - b.order)) {
+    const arr = byGroup.get(it.groupId) ?? [];
+    arr.push(it);
+    byGroup.set(it.groupId, arr);
+  }
+  const items = prefs.items.map((it) => ({
+    ...it,
+    order: (byGroup.get(it.groupId) ?? []).findIndex((o) => o.id === it.id),
+  }));
+  return {...prefs, items};
 }
 
 export function PersonalizableSidebarNav({userId, groups, active, onNavigate}: Props) {
-  const [prefs, setPrefs] = useState<NavPreferences>(() => defaults(groups));
-  const [storedPrefs, setStoredPrefs] = useState<NavPreferences | null>(null);
+  const [stored, setStored] = useState<NavPreferences | null>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(null); // acordeón: un solo grupo abierto
   const [draft, setDraft] = useState<NavPreferences | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const itemInfo = useMemo(() => new Map(groups.flatMap((group) => group.items.map((item) => [item.id, item]))), [groups]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    let activeRequest = true;
-    setPrefs(defaults(groups)); setDraft(null); setError(null);
-    void api<NavPreferences | null>("/me/nav-preferences").then((stored) => { if (activeRequest) { setStoredPrefs(stored); setPrefs(effective(groups, stored)); } }).catch(() => { if (activeRequest) setError("No se pudieron cargar tus preferencias."); });
-    return () => { activeRequest = false; };
+    let active = true;
+    api<NavPreferences | null>("/me/nav-preferences")
+      .then((v) => {if (active) setStored(v && v.version === 1 ? v : null);})
+      .catch(() => {/* si falla, se usan los defaults */});
+    return () => {active = false;};
   }, [userId]);
 
-  useEffect(() => {
-    setPrefs((current) => effective(groups, storedPrefs ?? current));
-    setDraft((current) => current ? effective(groups, current) : null);
-  }, [groups, storedPrefs]);
+  const prefs = useMemo(() => effective(groups, stored), [groups, stored]);
+  const info = useMemo(() => new Map(groups.flatMap((g) => g.items.map((it) => [it.id, it] as const))), [groups]);
 
-  async function persist(next: NavPreferences) {
-    setSaving(true); setError(null);
+  const shownGroups = useMemo(
+    () =>
+      prefs.groups
+        .map((g) => ({
+          ...g,
+          items: prefs.items.filter((i) => i.groupId === g.id && !i.hidden).sort((a, b) => a.order - b.order),
+        }))
+        .filter((g) => g.items.length > 0),
+    [prefs],
+  );
+
+  async function save(next: NavPreferences) {
+    setSaving(true);
+    setError(null);
     try {
-      const allowedIds = new Set(groups.flatMap((group) => group.items.map((item) => item.id)));
-      const retainedItems = storedPrefs?.items.filter((item) => !allowedIds.has(item.id)) ?? [];
-      const requiredGroupIds = new Set(retainedItems.map((item) => item.groupId));
-      const retainedGroups = storedPrefs?.groups.filter((group) => requiredGroupIds.has(group.id) && !next.groups.some((candidate) => candidate.id === group.id)) ?? [];
-      const payload = normalizeOrders({...next, groups: [...next.groups, ...retainedGroups], items: [...next.items, ...retainedItems]});
+      // Conservar ítems/grupos que el usuario hoy no tiene permitidos (por rol/flags) para no perderlos.
+      const allowed = new Set(groups.flatMap((g) => g.items.map((it) => it.id)));
+      const keepItems = stored?.items.filter((i) => !allowed.has(i.id)) ?? [];
+      const keepGroupIds = new Set(keepItems.map((i) => i.groupId));
+      const keepGroups = stored?.groups.filter((g) => keepGroupIds.has(g.id) && !next.groups.some((x) => x.id === g.id)) ?? [];
+      const payload = normalize({
+        version: 1,
+        groups: [...next.groups.map((g) => ({...g, collapsed: true})), ...keepGroups],
+        items: [...next.items, ...keepItems],
+      });
       const saved = await api<NavPreferences>("/me/nav-preferences", {method: "PUT", body: payload});
-      setStoredPrefs(saved); setPrefs(effective(groups, saved)); return true;
-    } catch { setError("No se pudieron guardar tus preferencias."); return false; }
-    finally { setSaving(false); }
+      setStored(saved && saved.version === 1 ? saved : payload);
+      setDraft(null);
+    } catch {
+      setError("No se pudieron guardar tus preferencias.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function toggleGroup(groupId: string) {
-    const next = {...prefs, groups: prefs.groups.map((group) => group.id === groupId ? {...group, collapsed: !group.collapsed} : group)};
-    setPrefs(next); void persist(next);
+  // ---- edición sobre el draft ----
+  function setItem(id: string, patch: Partial<NavPreferences["items"][number]>) {
+    setDraft((d) => (d ? normalize({...d, items: d.items.map((i) => (i.id === id ? {...i, ...patch} : i))}) : d));
   }
-
-  function updateDraftItem(id: string, update: Partial<NavPreferences["items"][number]>) {
-    setDraft((current) => current ? normalizeOrders({...current, items: current.items.map((item) => item.id === id ? {...item, ...update} : item)}) : current);
+  function move(id: string, dir: -1 | 1) {
+    setDraft((d) => {
+      if (!d) return d;
+      const it = d.items.find((i) => i.id === id);
+      if (!it) return d;
+      const sibs = d.items.filter((i) => i.groupId === it.groupId).sort((a, b) => a.order - b.order);
+      const idx = sibs.findIndex((i) => i.id === id);
+      const other = sibs[idx + dir];
+      if (!other) return d;
+      return normalize({
+        ...d,
+        items: d.items.map((i) => (i.id === id ? {...i, order: other.order} : i.id === other.id ? {...i, order: it.order} : i)),
+      });
+    });
   }
-
-  function move(id: string, direction: -1 | 1) {
-    setDraft((current) => {
-      if (!current) return current;
-      const item = current.items.find((candidate) => candidate.id === id); if (!item) return current;
-      const siblings = current.items.filter((candidate) => candidate.groupId === item.groupId).sort((a, b) => a.order - b.order);
-      const other = siblings[siblings.findIndex((candidate) => candidate.id === id) + direction]; if (!other) return current;
-      return {...current, items: current.items.map((candidate) => candidate.id === id ? {...candidate, order: other.order} : candidate.id === other.id ? {...candidate, order: item.order} : candidate)};
+  function addGroup() {
+    setDraft((d) => (d ? {...d, groups: [...d.groups, {id: `grupo-${crypto.randomUUID()}`, label: "Nuevo grupo", collapsed: true}]} : d));
+  }
+  function renameGroup(id: string, label: string) {
+    setDraft((d) => (d ? {...d, groups: d.groups.map((g) => (g.id === id ? {...g, label} : g))} : d));
+  }
+  function removeGroup(id: string) {
+    setDraft((d) => {
+      if (!d || d.groups.length === 1) return d;
+      const dest = d.groups.find((g) => g.id !== id)!;
+      let order = d.items.filter((i) => i.groupId === dest.id).length;
+      return normalize({
+        ...d,
+        groups: d.groups.filter((g) => g.id !== id),
+        items: d.items.map((i) => (i.groupId === id ? {...i, groupId: dest.id, order: order++} : i)),
+      });
     });
   }
 
-  function removeGroup(groupId: string) {
-    setDraft((current) => {
-      if (!current || current.groups.length === 1) return current;
-      const destination = current.groups.find((group) => group.id !== groupId)!;
-      let order = current.items.filter((item) => item.groupId === destination.id).length;
-      return normalizeOrders({...current, groups: current.groups.filter((group) => group.id !== groupId), items: current.items.map((item) => item.groupId === groupId ? {...item, groupId: destination.id, order: order++} : item)});
-    });
-  }
+  const modal =
+    draft !== null && mounted
+      ? createPortal(
+          <Modal
+            open
+            wide
+            title="Personalizar navegación"
+            onClose={() => {if (!saving) setDraft(null);}}
+            footer={
+              <>
+                <button type="button" className="btn-ghost btn-sm" disabled={saving} onClick={() => setDraft(null)}>Cancelar</button>
+                <button
+                  type="button"
+                  className="btn-dark btn-sm"
+                  disabled={saving || draft.groups.some((g) => !g.label.trim())}
+                  onClick={() => void save(draft)}
+                >
+                  {saving ? "Guardando…" : "Guardar"}
+                </button>
+              </>
+            }
+          >
+            <div className="nav-editor">
+              {error ? <Alert>{error}</Alert> : null}
+              <section className="nav-editor-section">
+                <div className="nav-editor-heading">
+                  <div><h3>Módulos</h3><p>Elegí qué mostrar, el orden y a qué grupo pertenece cada uno.</p></div>
+                </div>
+                <div className="nav-editor-items">
+                  {draft.groups.flatMap((g) => draft.items.filter((i) => i.groupId === g.id).sort((a, b) => a.order - b.order)).map((item) => {
+                    const meta = info.get(item.id);
+                    if (!meta) return null;
+                    const sibs = draft.items.filter((i) => i.groupId === item.groupId).sort((a, b) => a.order - b.order);
+                    const idx = sibs.findIndex((i) => i.id === item.id);
+                    return (
+                      <div className="nav-editor-item" key={item.id}>
+                        <Checkbox label={`${meta.icon}  ${meta.label}`} checked={!item.hidden} onChange={(c) => setItem(item.id, {hidden: !c})} />
+                        <div className="nav-editor-item-actions">
+                          <button type="button" className="btn-ghost btn-sm" disabled={idx === 0} onClick={() => move(item.id, -1)} aria-label={`Subir ${meta.label}`}>↑</button>
+                          <button type="button" className="btn-ghost btn-sm" disabled={idx === sibs.length - 1} onClick={() => move(item.id, 1)} aria-label={`Bajar ${meta.label}`}>↓</button>
+                          <select aria-label={`Grupo de ${meta.label}`} value={item.groupId} onChange={(e) => setItem(item.id, {groupId: e.target.value, order: draft.items.filter((i) => i.groupId === e.target.value).length})}>
+                            {draft.groups.map((g) => <option key={g.id} value={g.id}>{g.label || "(sin nombre)"}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+              <section className="nav-editor-section">
+                <div className="nav-editor-heading">
+                  <div><h3>Grupos</h3><p>Creá, renombrá o eliminá secciones del menú.</p></div>
+                  <button type="button" className="btn-ghost btn-sm" onClick={addGroup}>+ Crear grupo</button>
+                </div>
+                <div className="nav-editor-groups">
+                  {draft.groups.map((g) => (
+                    <div className="nav-editor-group" key={g.id}>
+                      <Field label="Nombre del grupo"><input value={g.label} maxLength={100} onChange={(e) => renameGroup(g.id, e.target.value)} /></Field>
+                      <button type="button" className="btn-ghost btn-sm" disabled={draft.groups.length === 1} onClick={() => removeGroup(g.id)}>Borrar</button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </Modal>,
+          document.body,
+        )
+      : null;
 
-  const shownGroups = prefs.groups.map((group) => ({...group, items: prefs.items.filter((item) => item.groupId === group.id && !item.hidden).sort((a, b) => a.order - b.order)})).filter((group) => group.items.length > 0);
-
-  return <>
-    {shownGroups.map((group) => <div className="nav-group" key={group.id}>
-      <button type="button" className="nav-group-label nav-group-toggle" aria-expanded={!group.collapsed} onClick={() => toggleGroup(group.id)}><span>{group.label}</span><span aria-hidden="true">{group.collapsed ? "▸" : "▾"}</span></button>
-      {!group.collapsed ? <div className="nav-group-links">{group.items.map((item) => {
-        const info = itemInfo.get(item.id); if (!info) return null;
-        return <button key={item.id} type="button" className={active === item.id ? "nav-link active" : "nav-link"} onClick={() => onNavigate(item.id)}><span className="ico" aria-hidden="true">{info.icon}</span>{info.label}</button>;
-      })}</div> : null}
-    </div>)}
-    <div className="nav-personalize-row"><button type="button" className="btn-ghost btn-sm" onClick={() => {setError(null); setDraft(structuredClone(prefs));}}>Personalizar</button></div>
-    <Modal open={draft !== null} title="Personalizar navegación" wide onClose={() => {if (!saving) setDraft(null);}} footer={<><button type="button" className="btn-ghost btn-sm" disabled={saving} onClick={() => setDraft(null)}>Cancelar</button><button type="button" className="btn-dark btn-sm" disabled={saving || !draft || draft.groups.some((group) => !group.label.trim())} onClick={() => {if (draft) void persist(draft).then((ok) => {if (ok) setDraft(null);});}}>{saving ? "Guardando…" : "Guardar"}</button></>}>
-      {draft ? <div className="nav-editor">
-        {error ? <Alert>{error}</Alert> : null}
-        <section className="nav-editor-section"><div className="nav-editor-heading"><div><h3>Ítems del menú</h3><p>Elegí qué mostrar, su orden y el grupo al que pertenece.</p></div></div>
-          <div className="nav-editor-items">{draft.groups.flatMap((group) => draft.items.filter((item) => item.groupId === group.id).sort((a, b) => a.order - b.order)).map((item) => {
-            const info = itemInfo.get(item.id); if (!info) return null;
-            const siblings = draft.items.filter((candidate) => candidate.groupId === item.groupId).sort((a, b) => a.order - b.order); const index = siblings.findIndex((candidate) => candidate.id === item.id);
-            return <div className="nav-editor-item" key={item.id}><Checkbox label={info.label} checked={!item.hidden} onChange={(checked) => updateDraftItem(item.id, {hidden: !checked})}/><div className="nav-editor-item-actions"><button type="button" className="btn-ghost btn-sm" disabled={index === 0} onClick={() => move(item.id, -1)} aria-label={`Subir ${info.label}`}>↑</button><button type="button" className="btn-ghost btn-sm" disabled={index === siblings.length - 1} onClick={() => move(item.id, 1)} aria-label={`Bajar ${info.label}`}>↓</button><select aria-label={`Grupo de ${info.label}`} value={item.groupId} onChange={(event) => updateDraftItem(item.id, {groupId: event.target.value, order: draft.items.filter((candidate) => candidate.groupId === event.target.value).length})}>{draft.groups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}</select></div></div>;
-          })}</div>
-        </section>
-        <section className="nav-editor-section"><div className="nav-editor-heading"><div><h3>Grupos</h3><p>Creá, renombrá o eliminá secciones del menú.</p></div><button type="button" className="btn-ghost btn-sm" onClick={() => setDraft({...draft, groups: [...draft.groups, {id: `grupo-${crypto.randomUUID()}`, label: "Nuevo grupo", collapsed: true}]})}>+ Crear grupo</button></div>
-          <div className="nav-editor-groups">{draft.groups.map((group) => <div className="nav-editor-group" key={group.id}><Field label="Nombre del grupo"><input value={group.label} maxLength={100} onChange={(event) => setDraft({...draft, groups: draft.groups.map((candidate) => candidate.id === group.id ? {...candidate, label: event.target.value} : candidate)})}/></Field><Checkbox label="Arranca colapsado" checked={group.collapsed} onChange={(collapsed) => setDraft({...draft, groups: draft.groups.map((candidate) => candidate.id === group.id ? {...candidate, collapsed} : candidate)})}/><button type="button" className="btn-ghost btn-sm" disabled={draft.groups.length === 1} onClick={() => removeGroup(group.id)}>Borrar</button></div>)}</div>
-        </section>
-      </div> : null}
-    </Modal>
-  </>;
+  return (
+    <>
+      <div className="nav-groups">
+        {shownGroups.map((group) => {
+          const isOpen = openGroup === group.id;
+          return (
+            <div className={isOpen ? "nav-group open" : "nav-group"} key={group.id}>
+              <button
+                type="button"
+                className="nav-group-toggle"
+                aria-expanded={isOpen}
+                onClick={() => setOpenGroup(isOpen ? null : group.id)}
+              >
+                <span>{group.label}</span>
+                <span className="nav-group-caret" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
+              </button>
+              {isOpen ? (
+                <div className="nav-group-links">
+                  {group.items.map((item) => {
+                    const meta = info.get(item.id);
+                    if (!meta) return null;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={active === item.id ? "nav-link active" : "nav-link"}
+                        onClick={() => onNavigate(item.id)}
+                      >
+                        <span className="ico" aria-hidden="true">{meta.icon}</span>
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <div className="nav-personalize-row">
+        <button type="button" className="btn-ghost btn-sm" onClick={() => {setError(null); setDraft(structuredClone(prefs));}}>⚙ Personalizar menú</button>
+      </div>
+      {modal}
+    </>
+  );
 }

@@ -414,6 +414,13 @@ code {
   font-weight: 600;
 }
 
+.nav-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  flex: 1 1 auto;
+}
+
 .nav-group-toggle {
   width: 100%;
   border: 0;
@@ -421,15 +428,39 @@ code {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   cursor: pointer;
   text-align: left;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  font-family: var(--brand);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #8b93a2;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.nav-group-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cfd4dd;
+}
+.nav-group.open > .nav-group-toggle {
+  color: #e7e9ee;
+}
+.nav-group-caret {
+  font-size: 0.7rem;
+  color: #6b7280;
 }
 
 .nav-personalize-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   margin-top: auto;
-  padding-top: 0.35rem;
+  padding-top: 0.5rem;
+}
+.nav-personalize-row .btn-ghost {
+  width: 100%;
 }
 
 .nav-editor { display: grid; gap: 1.5rem; }
