@@ -1,9 +1,16 @@
 "use client";
 
 import {useEffect, useMemo, useState} from "react";
-import type {NavPreferences} from "@tgs/contracts";
 import {api} from "../lib/api";
 import type {NavId} from "../lib/types";
+
+// Definido local en el web para no depender del build de @tgs/contracts (el Dockerfile del web
+// no rebuildea contracts). Mantener en sync con navPreferencesSchema de packages/contracts.
+export type NavPreferences = {
+  version: 1;
+  groups: {id: string; label: string; collapsed: boolean}[];
+  items: {id: NavId; groupId: string; order: number; hidden: boolean}[];
+};
 
 export type SidebarNavGroup = {
   id: string;

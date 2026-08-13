@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/module.ts": {
-    "mtime": 1786639950.0119965,
-    "ast_hash": "5df77ebfb2f2f99d08cff9b4d52a8773",
+    "mtime": 1786640343.409705,
+    "ast_hash": "3321fa790a10529fa57039de86e12ad3",
     "semantic_hash": ""
   },
   "apps/api/tsconfig.json": {
@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "apps/web/package.json": {
-    "mtime": 1786207049.482767,
-    "ast_hash": "4d522d978f4fec1ab3094b24d6750afa",
+    "mtime": 1786640435.361199,
+    "ast_hash": "34b2088a82d4c554c2c1f6c26be6e1a2",
     "semantic_hash": ""
   },
   "apps/web/tsconfig.json": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786639950.0119965,
-    "ast_hash": "edbdbe6cda1caf70adfd3d4db1a06432",
+    "mtime": 1786640516.655569,
+    "ast_hash": "568150fcf673e927af5935255f4e5b77",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -535,8 +535,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/App.tsx": {
-    "mtime": 1786640016.398147,
-    "ast_hash": "ed74c03ac1a4a9f8fe78833f7946abb8",
+    "mtime": 1786640435.361199,
+    "ast_hash": "9918c482e9af161cc17e2c8015585074",
     "semantic_hash": ""
   },
   "apps/web/components/CollectionsView.tsx": {
@@ -1357,6 +1357,21 @@
   "apps/web/components/EmployeePortalView.tsx": {
     "mtime": 1786640051.3511217,
     "ast_hash": "197fb6fb2adda094d538189c8e852373",
+    "semantic_hash": ""
+  },
+  "apps/api/src/me-preferences.ts": {
+    "mtime": 1786640343.3940136,
+    "ast_hash": "41e01f26fbcd5d9ee234dd89b92ceff8",
+    "semantic_hash": ""
+  },
+  "apps/web/components/PersonalizableSidebarNav.tsx": {
+    "mtime": 1786640497.4080577,
+    "ast_hash": "51a451deb345d64ad14a859a764f8e07",
+    "semantic_hash": ""
+  },
+  "packages/database/prisma/migrations/20260813010000_user_nav_preferences/migration.sql": {
+    "mtime": 1786640343.3940136,
+    "ast_hash": "916dc4e22dd0107000e308f40b03acca",
     "semantic_hash": ""
   }
 }
