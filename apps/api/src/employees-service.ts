@@ -58,18 +58,23 @@ export async function reconcileAllocation(tx:any,targetType:string,targetId:stri
     await tx.installment.update({where:{id:item.id},data:{paidCents:next,status:next===item.amountCents?'PAID':'PARTIAL'}});
     await reconcileObligation(tx,item.obligationId);
   }else{
-    const obligation=await tx.obligation.findUnique({where:{id:targetId}});
+    const obligation=await tx.obligation.findUnique({where:{id:targetId},include:{installments:true}});
     if(!obligation||obligation.employeeId!==employeeId)throw new BadRequestException('La obligación no pertenece al empleado');
     const paid=await tx.paymentAllocation.aggregate({_sum:{amountCents:true},where:{targetType:'OBLIGATION',targetId}});
-    if((paid._sum.amountCents??0n)>obligation.originalAmountCents)throw new BadRequestException('La asignación supera el pendiente de la obligación');
+    const installmentPaid=obligation.installments.reduce((sum:bigint,item:any)=>sum+item.paidCents,0n);
+    if((paid._sum.amountCents??0n)+installmentPaid>obligation.originalAmountCents)throw new BadRequestException('La asignación supera el pendiente de la obligación');
     await reconcileObligation(tx,targetId);
   }
 }
 
+export async function obligationPendingCents(tx:any,obligation:{id:string;originalAmountCents:bigint;installments:{paidCents:bigint}[]}){
+  const direct=await tx.paymentAllocation.aggregate({_sum:{amountCents:true},where:{targetType:'OBLIGATION',targetId:obligation.id}});
+  const installmentPaid=obligation.installments.reduce((sum,item)=>sum+item.paidCents,0n);
+  return obligation.originalAmountCents-(direct._sum.amountCents??0n)-installmentPaid;
+}
+
 export async function reconcileObligation(tx:any,id:string){
   const obligation=await tx.obligation.findUnique({where:{id},include:{installments:true}});if(!obligation)return;
-  let paid:bigint;
-  if(obligation.installments.length)paid=obligation.installments.reduce((s:any,i:any)=>s+i.paidCents,0n);
-  else {const aggregate=await tx.paymentAllocation.aggregate({_sum:{amountCents:true},where:{targetType:'OBLIGATION',targetId:id}});paid=aggregate._sum.amountCents??0n;}
-  await tx.obligation.update({where:{id},data:{status:paid>=obligation.originalAmountCents?'SETTLED':'OPEN'}});
+  const pending=await obligationPendingCents(tx,obligation);
+  await tx.obligation.update({where:{id},data:{status:pending<=0n?'SETTLED':'OPEN'}});
 }
