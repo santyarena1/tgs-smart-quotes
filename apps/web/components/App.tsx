@@ -20,6 +20,7 @@ import { RequestsView } from "./RequestsView";
 import { SettingsView } from "./SettingsView";
 import { PdfLayoutEditorView } from "./PdfLayoutEditorView";
 import { UsersView } from "./UsersView";
+import { EmployeesView } from "./EmployeesView";
 import { Alert, Loading, initials } from "./shared";
 
 const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: string }[] }[] = [
@@ -49,6 +50,7 @@ const NAV_GROUPS: { label: string; items: { id: NavId; label: string; icon: stri
       { id: "recontactos", label: "Recontactos", icon: "↻" },
       { id: "editor-pdf", label: "Editor de PDF", icon: "▧" },
       { id: "usuarios", label: "Usuarios", icon: "♟" },
+      { id: "empleados", label: "Empleados", icon: "♙" },
       { id: "modulo-externo", label: "Módulo Externo", icon: "◈" },
       { id: "configuracion", label: "Configuración", icon: "⚙" },
     ],
@@ -211,7 +213,7 @@ export function App() {
               <p className="nav-group-label">{group.label}</p>
               <div className="nav-group-links">
                 {group.items
-                  .filter((item) => item.id !== "usuarios" || user.role === "ADMIN")
+                  .filter((item) => !["usuarios", "empleados"].includes(item.id) || user.role === "ADMIN")
                   .filter((item) => item.id !== "modulo-externo" || externalEnabled)
                   .map((item) => (
                   <button
@@ -304,6 +306,7 @@ export function App() {
         {nav === "recontactos" ? <RecontactsView /> : null}
         {nav === "editor-pdf" ? <PdfLayoutEditorView /> : null}
         {nav === "usuarios" && user.role === "ADMIN" ? <UsersView /> : null}
+        {nav === "empleados" && user.role === "ADMIN" ? <EmployeesView /> : null}
         {nav === "modulo-externo" && externalEnabled ? <ModuloExternoView /> : null}
         {nav === "configuracion" ? <SettingsView /> : null}
       </main>

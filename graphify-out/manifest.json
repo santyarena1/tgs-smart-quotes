@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/module.ts": {
-    "mtime": 1786202041.2831306,
-    "ast_hash": "9be0826c69a6d145fd063b2050d11fd0",
+    "mtime": 1786637815.119003,
+    "ast_hash": "8e33e6b0dc3a0122db597c70aab4dc33",
     "semantic_hash": ""
   },
   "apps/api/tsconfig.json": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "packages/contracts/src/index.ts": {
-    "mtime": 1786307338.6527474,
-    "ast_hash": "4de792e897eced4a6cafde55968fdb1f",
+    "mtime": 1786637658.093491,
+    "ast_hash": "e9ebf40c678d580fab56d28e82ba23da",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -1332,6 +1332,16 @@
   "docs/empleados/AUDITORIA_Y_DISENO.md": {
     "mtime": 1786636556.8793876,
     "ast_hash": "01c90243a14966557716afacf8e04ca8",
+    "semantic_hash": ""
+  },
+  "apps/api/src/employees-service.ts": {
+    "mtime": 1786637838.1759136,
+    "ast_hash": "9187adcc67aa8bbf5e76c31a25597327",
+    "semantic_hash": ""
+  },
+  "apps/api/src/employees.ts": {
+    "mtime": 1786637881.995066,
+    "ast_hash": "eb4fb101778b2951d4d770f64c9620bd",
     "semantic_hash": ""
   }
 }

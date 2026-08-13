@@ -384,6 +384,7 @@ export type NavId =
   | "recontactos"
   | "editor-pdf"
   | "usuarios"
+  | "empleados"
   | "modulo-externo"
   | "configuracion";
 

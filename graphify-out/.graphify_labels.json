@@ -177,5 +177,8 @@
   "175": "@tgs/pdf",
   "176": "@tgs/pricing",
   "177": "@tgs/providers",
-  "178": "@tgs/validation"
+  "178": "@tgs/validation",
+  "179": "argon2",
+  "180": "@tgs/storage",
+  "181": "zod"
 }
