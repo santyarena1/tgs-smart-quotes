@@ -63,7 +63,7 @@ export function AcustockCatalogView() {
   const [availability, setAvailability] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [sort, setSort] = useState("name_asc");
+  const [sort, setSort] = useState("price_asc");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -78,7 +78,7 @@ export function AcustockCatalogView() {
     return () => window.clearTimeout(handle);
   }, [search]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
@@ -87,21 +87,28 @@ export function AcustockCatalogView() {
           q: query, productType, brand, availability, minPrice, maxPrice, sort, page,
           pageSize: PAGE_SIZE,
         },
+        signal,
       });
+      if (signal.aborted) return;
       setItems(response.items);
       setTotal(response.total);
       setFacets(response.facets);
       setLastSyncedAt(response.lastSyncedAt);
     } catch (err) {
+      if (signal.aborted) return;
       setError(errorMessage(err));
       setItems([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   }, [availability, brand, maxPrice, minPrice, page, productType, query, sort]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
 
   async function sync() {
     setSyncing(true);
@@ -115,7 +122,7 @@ export function AcustockCatalogView() {
         `Catálogo actualizado: ${result.synced} productos sincronizados y ${result.discontinued} discontinuados.`,
       );
       setPage(1);
-      await load();
+      await load(new AbortController().signal);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { formatArs } from "../lib/money";
+import type { AuthUser } from "../lib/types";
 import { Alert, EmptyState, Loading, PageHeader, Stat, StatStrip, errorMessage } from "./shared";
+
+type Branch = { id: string; name: string };
 
 type Summary = {
   families: number;
@@ -30,19 +33,32 @@ function msToHuman(ms: number | null | undefined): string {
   return `${Math.round(hours / 24)} d`;
 }
 
-export function DashboardView() {
+export function DashboardView({ user }: { user: AuthUser }) {
   const [data, setData] = useState<Summary | null>(null);
   const [accepted, setAccepted] = useState<RankBlock | null>(null);
   const [rejected, setRejected] = useState<RankBlock | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState<string>("");
+
+  const isAdmin = user.role === "ADMIN";
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    api<{ items: Branch[] }>("/branches")
+      .then((res) => setBranches(res.items))
+      .catch(() => setBranches([]));
+  }, [isAdmin]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [summary, ranking] = await Promise.all([
-        api<Summary>("/dashboard/summary"),
+        api<Summary>("/dashboard/summary", {
+          query: isAdmin && branchId ? { branchId } : undefined,
+        }),
         api<{ accepted: RankBlock; rejected: RankBlock }>("/dashboard/products", {
           query: { limit: 8 },
         }),
@@ -56,7 +72,7 @@ export function DashboardView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin, branchId]);
 
   useEffect(() => {
     void load();
@@ -71,9 +87,25 @@ export function DashboardView() {
         title="Dashboard"
         subtitle="Métricas sobre la versión activa de cada presupuesto. Sin inflación por historial."
         actions={
-          <button type="button" className="btn-ghost" onClick={() => void load()}>
-            Recargar
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            {isAdmin ? (
+              <select
+                aria-label="Filtrar por local"
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+              >
+                <option value="">Todos los locales</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            <button type="button" className="btn-ghost" onClick={() => void load()}>
+              Recargar
+            </button>
+          </div>
         }
       />
 

@@ -17,8 +17,15 @@ import {
   initials,
 } from "./shared";
 
-type Draft = { id?: string; name: string; phone: string; dni: string };
-const empty = (): Draft => ({ name: "", phone: "", dni: "" });
+type Draft = {
+  id?: string;
+  name: string;
+  phone: string;
+  dni: string;
+  address: string;
+  taxCondition: string;
+};
+const empty = (): Draft => ({ name: "", phone: "", dni: "", address: "", taxCondition: "" });
 
 export function CustomersView() {
   const [items, setItems] = useState<Customer[]>([]);
@@ -53,7 +60,14 @@ export function CustomersView() {
   }
 
   function openEdit(c: Customer) {
-    setDraft({ id: c.id, name: c.name, phone: c.phone ?? "", dni: c.dni ?? "" });
+    setDraft({
+      id: c.id,
+      name: c.name,
+      phone: c.phone ?? "",
+      dni: c.dni ?? "",
+      address: c.address ?? "",
+      taxCondition: c.taxCondition ?? "",
+    });
     setModalOpen(true);
   }
 
@@ -67,6 +81,8 @@ export function CustomersView() {
         name: draft.name.trim(),
         phone: draft.phone.trim() || null,
         dni: draft.dni.trim() || null,
+        address: draft.address.trim() || null,
+        taxCondition: draft.taxCondition || null,
       };
       if (draft.id) {
         await api(`/customers/${draft.id}`, { method: "PUT", body });
@@ -226,6 +242,28 @@ export function CustomersView() {
                 value={draft.dni}
                 onChange={(e) => setDraft({ ...draft, dni: e.target.value })}
               />
+            </Field>
+          </div>
+          <div className="grid-2">
+            <Field label="Dirección" htmlFor="cust-address">
+              <input
+                id="cust-address"
+                value={draft.address}
+                onChange={(e) => setDraft({ ...draft, address: e.target.value })}
+              />
+            </Field>
+            <Field label="Cond. Fiscal" htmlFor="cust-tax-condition">
+              <select
+                id="cust-tax-condition"
+                value={draft.taxCondition}
+                onChange={(e) => setDraft({ ...draft, taxCondition: e.target.value })}
+              >
+                <option value="">Sin especificar</option>
+                <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+                <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                <option value="MONOTRIBUTO">Monotributo</option>
+                <option value="EXENTO">Exento</option>
+              </select>
             </Field>
           </div>
         </form>

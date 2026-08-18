@@ -38,21 +38,29 @@ import {resolveLogoForPdf} from './branding-storage.js';
 const pdfStorage = createPdfStorageFromEnv(process.env);
 
 /**
+ * Resuelve el local a usar en el encabezado del PDF a partir de quien lo está imprimiendo
+ * ahora mismo (`actor`), no de quien creó el presupuesto: el mismo presupuesto debe mostrar
+ * datos distintos según qué vendedor/local lo imprima. Devuelve `null` si el actor no tiene
+ * local asignado (se usan los datos de la empresa como fallback en `buildRenderInput`).
+ */
+async function resolvePrinterBranch(tx: any, actor: RequestUser): Promise<{id: string; address: string | null; phones: string | null} | null> {
+  if (!actor.branchId) return null;
+  return tx.branch.findUnique({
+    where: {id: actor.branchId},
+    select: {id: true, address: true, phones: true},
+  });
+}
+
+/**
  * Arma el `PdfRenderInput` a partir de la familia/versión/settings actuales. La fecha usa
  * `version.createdAt` (no "hoy"): así el hash del PDF es estable mientras el borrador no cambie de
  * contenido, y el número de presupuesto siempre queda fechado según cuándo se creó esa versión.
  */
-async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind): Promise<PdfRenderInput> {
-  const [company, pdfSettings, financingPlans, creatorBranch] = await Promise.all([
+async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind, printerBranch: {address: string | null; phones: string | null} | null): Promise<PdfRenderInput> {
+  const [company, pdfSettings, financingPlans] = await Promise.all([
     tx.companySettings.findUniqueOrThrow({where: {id: 'singleton'}}),
     tx.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}}),
     tx.financingPlan.findMany({where: {active: true}, orderBy: [{sortOrder: 'asc'}]}),
-    version.creatorId
-      ? tx.user.findUnique({
-          where: {id: version.creatorId},
-          select: {branch: {select: {address: true, phones: true}}},
-        }).then((user: any) => user?.branch ?? null)
-      : null,
   ]);
 
   const defaults: PdfResolvedConfig = {
@@ -158,14 +166,23 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
       cuit: company.cuit,
       grossIncome: company.grossIncome,
       activityStart: company.activityStart,
-      address: creatorBranch?.address ?? company.address,
-      phones: creatorBranch?.phones ?? company.phones,
+      address: printerBranch?.address ?? company.address,
+      phones: printerBranch?.phones ?? company.phones,
       footerText: company.footerText,
       rmaUrl: company.rmaUrl,
       primaryColor: company.primaryColor,
       accentColor: company.accentColor,
       logoUrl: await resolveLogoForPdf(company.logoUrl),
     },
+    customer: family.customer
+      ? {
+          name: family.customer.name,
+          phone: family.customer.phone,
+          dni: family.customer.dni,
+          address: family.customer.address,
+          taxCondition: family.customer.taxCondition,
+        }
+      : null,
     config,
     items,
     financing,
@@ -190,21 +207,32 @@ export class PdfController {
       const family = await loadFamily(tx, id);
       const version = family.versions.find((item: any) => item.version === versionNumber);
       if (!version) throw new NotFoundException('Versión inexistente');
+      const printerBranch = await resolvePrinterBranch(tx, actor);
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind}},
       });
-      if (existing) return jsonSafe({...existing, reused: true, immutable: version.state !== 'BORRADOR'});
-      const renderInput = await buildRenderInput(tx, family, version, kind);
+      if (existing && (existing.branchId ?? null) === (printerBranch?.id ?? null)) {
+        return jsonSafe({...existing, reused: true, immutable: version.state !== 'BORRADOR'});
+      }
+      const renderInput = await buildRenderInput(tx, family, version, kind, printerBranch);
       const stored = await generateAndStorePdf({
         input: renderInput,
         storage: pdfStorage,
         storageKey: storageKeyFor(family, version, kind),
       });
-      const pdf = await tx.quotePdf.create({data: {
-        versionId: version.id, kind, storageKey: stored.storageKey, sha256: stored.sha256,
-        sizeBytes: stored.sizeBytes, inputHash: stored.inputHash, driver: stored.driver,
-        configJson: renderInput.config as any,
-      }});
+      const pdf = await tx.quotePdf.upsert({
+        where: {versionId_kind: {versionId: version.id, kind}},
+        create: {
+          versionId: version.id, kind, storageKey: stored.storageKey, sha256: stored.sha256,
+          sizeBytes: stored.sizeBytes, inputHash: stored.inputHash, driver: stored.driver,
+          configJson: renderInput.config as any, branchId: printerBranch?.id ?? null,
+        },
+        update: {
+          storageKey: stored.storageKey, sha256: stored.sha256,
+          sizeBytes: stored.sizeBytes, inputHash: stored.inputHash, driver: stored.driver,
+          configJson: renderInput.config as any, branchId: printerBranch?.id ?? null,
+        },
+      });
       await statusEvent(tx, {
         type: 'PDF_GENERADO', familyId: id, versionId: version.id, requestId: family.requestId,
         customerId: family.customerId, userId: actor.id, next: {kind, version: versionNumber},
@@ -252,9 +280,11 @@ export class PdfController {
 
   /**
    * Genera (o reutiliza) el PDF de una versión. Reglas (ver `docs/specs/BLOCK-3.md`):
-   * - Si ya existe un PDF para (versión, kind) y la versión NO es BORRADOR, el PDF es histórico e
-   *   inmutable (`historicalPdfIsImmutable`): siempre se reutiliza, sin importar `force`.
-   * - Si es BORRADOR y existe un PDF con el mismo `inputHash` y `!force`, se reutiliza.
+   * - El contenido (ítems/precios) de una versión NO-BORRADOR es inmutable y nunca se recalcula.
+   * - El encabezado (local/dirección/teléfono) SÍ varía según quién imprime (`actor.branchId`):
+   *   si el PDF cacheado fue generado para un local distinto al del impresor actual, se regenera
+   *   (solo cambia el encabezado, el contenido sigue siendo el de esa versión congelada).
+   * - Si es BORRADOR y existe un PDF con el mismo `inputHash` y mismo local y `!force`, se reutiliza.
    * - En cualquier otro caso (BORRADOR + force, o BORRADOR + hash distinto) se regenera.
    */
   @Post(':id/pdf')
@@ -266,17 +296,19 @@ export class PdfController {
     return db.$transaction(async (tx) => {
       const family = await loadFamily(tx, id);
       const version = activeVersion(family);
+      const printerBranch = await resolvePrinterBranch(tx, actor);
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind: body.kind}},
       });
 
-      const renderInput = await buildRenderInput(tx, family, version, body.kind);
+      const renderInput = await buildRenderInput(tx, family, version, body.kind, printerBranch);
       const computedHash = pdfInputHash(renderInput);
+      const sameBranchAsCached = existing != null && (existing.branchId ?? null) === (printerBranch?.id ?? null);
 
-      if (existing && version.state !== 'BORRADOR') {
+      if (existing && version.state !== 'BORRADOR' && sameBranchAsCached) {
         return jsonSafe({...existing, reused: true, immutable: true});
       }
-      if (existing && !body.force && existing.inputHash === computedHash) {
+      if (existing && !body.force && existing.inputHash === computedHash && sameBranchAsCached) {
         return jsonSafe({...existing, reused: true, immutable: false});
       }
 
@@ -297,6 +329,7 @@ export class PdfController {
           inputHash: stored.inputHash,
           driver: stored.driver,
           configJson: renderInput.config as any,
+          branchId: printerBranch?.id ?? null,
         },
         update: {
           storageKey: stored.storageKey,
@@ -305,6 +338,7 @@ export class PdfController {
           inputHash: stored.inputHash,
           driver: stored.driver,
           configJson: renderInput.config as any,
+          branchId: printerBranch?.id ?? null,
         },
       });
 

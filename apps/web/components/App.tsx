@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
-import { CHANGELOG, currentAppVersion } from "../lib/changelog";
+import { CHANGELOG, currentAppVersion, type ChangelogEntry } from "../lib/changelog";
 import type { AuthUser, Branding, NavId, QuoteFromRequestSeed } from "../lib/types";
 import { CollectionsView } from "./CollectionsView";
 import { CombosView } from "./CombosView";
@@ -22,7 +22,7 @@ import { PdfLayoutEditorView } from "./PdfLayoutEditorView";
 import { UsersView } from "./UsersView";
 import { EmployeesView } from "./EmployeesView";
 import { EmployeePortalView } from "./EmployeePortalView";
-import { Alert, Loading, initials } from "./shared";
+import { Alert, Loading, Modal, initials } from "./shared";
 import { PersonalizableSidebarNav, type SidebarNavGroup } from "./PersonalizableSidebarNav";
 
 const NAV_GROUPS: SidebarNavGroup[] = [
@@ -63,6 +63,23 @@ const NAV_GROUPS: SidebarNavGroup[] = [
   },
 ];
 
+function ChangelogEntryView({ entry }: { entry: ChangelogEntry }) {
+  return (
+    <article className="side-changelog-entry">
+      <header>
+        <strong>v{entry.version}</strong>
+        <time dateTime={entry.date}>{entry.date}</time>
+      </header>
+      <p>{entry.title}</p>
+      <ul>
+        {entry.items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
 export function App() {
   const [boot, setBoot] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -75,6 +92,7 @@ export function App() {
   const [externalEnabled, setExternalEnabled] = useState(false);
   const [employeePortalAvailable, setEmployeePortalAvailable] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [changelogPopupOpen, setChangelogPopupOpen] = useState(false);
   const changelogRef = useRef<HTMLDivElement>(null);
   const consumeQuoteSeed = useCallback(() => setQuoteSeed(null), []);
   const allowedNavGroups = useMemo(() => NAV_GROUPS.map((group) => ({
@@ -173,6 +191,20 @@ export function App() {
     return () => window.removeEventListener("mousedown", onClick);
   }, [changelogOpen]);
 
+  useEffect(() => {
+    if (!user) return;
+    const latest = CHANGELOG[0]?.version;
+    if (!latest) return;
+    const seen = window.localStorage.getItem("changelog_seen_version");
+    if (seen !== latest) setChangelogPopupOpen(true);
+  }, [user]);
+
+  const closeChangelogPopup = useCallback(() => {
+    const latest = CHANGELOG[0]?.version;
+    if (latest) window.localStorage.setItem("changelog_seen_version", latest);
+    setChangelogPopupOpen(false);
+  }, []);
+
   async function logout() {
     try {
       await api("/auth/logout", { method: "POST" });
@@ -205,6 +237,15 @@ export function App() {
 
   return (
     <div className="app-shell">
+      {CHANGELOG[0] ? (
+        <Modal
+          open={changelogPopupOpen}
+          title={`Novedades v${CHANGELOG[0].version}`}
+          onClose={closeChangelogPopup}
+        >
+          <ChangelogEntryView entry={CHANGELOG[0]} />
+        </Modal>
+      ) : null}
       <button
         type="button"
         className="nav-toggle btn-dark"
@@ -254,18 +295,7 @@ export function App() {
             {changelogOpen ? (
               <div className="side-changelog-panel" role="dialog" aria-label="Historial de novedades">
                 {CHANGELOG.map((entry) => (
-                  <article key={entry.version} className="side-changelog-entry">
-                    <header>
-                      <strong>v{entry.version}</strong>
-                      <time dateTime={entry.date}>{entry.date}</time>
-                    </header>
-                    <p>{entry.title}</p>
-                    <ul>
-                      {entry.items.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </article>
+                  <ChangelogEntryView key={entry.version} entry={entry} />
                 ))}
               </div>
             ) : null}
@@ -284,7 +314,7 @@ export function App() {
       </aside>
 
       <main className="main">
-        {nav === "dashboard" ? <DashboardView /> : null}
+        {nav === "dashboard" ? <DashboardView user={user} /> : null}
         {nav === "presupuestos" ? (
           <QuotesView
             seedFromRequest={quoteSeed}

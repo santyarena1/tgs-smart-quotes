@@ -8,6 +8,22 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-08-18",
+    title: "Impresión por local, buscador más rápido y datos de cliente en el PDF",
+    items: [
+      "El PDF ahora muestra el local de quien imprime, no el de quien creó el presupuesto",
+      "El buscador de productos ordena por precio de menor a mayor y ya no se traba con resultados viejos",
+      "En PC armada, al elegir una línea el buscador se enfoca automáticamente",
+      "Se corrigió un bug que creaba versiones de más al generar el PDF sin editar nada",
+      "Restaurar una versión ahora vuelve a esa versión sin crear una copia nueva, como corresponde",
+      "Al guardar cambios se puede poner un nombre de referencia, y se pueden borrar versiones borrador viejas desde el historial",
+      "El listado de presupuestos muestra el local donde se creó cada uno, y el dashboard filtra por local",
+      "Los clientes pueden tener dirección y condición fiscal, mostradas en el PDF cuando hay cliente vinculado",
+      "Se ajustaron tamaños y espaciados del PDF para que se vea más prolijo",
+    ],
+  },
+  {
     version: "0.2.9",
     date: "2026-07-27",
     title: "Líneas en el presupuesto, ocultas en el PDF si vacías",

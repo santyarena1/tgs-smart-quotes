@@ -234,6 +234,7 @@ async function nextVisibleNumber(tx:any){
 export const quoteInclude={
   customer:true,
   request:true,
+  branch:{select:{id:true,name:true}},
   collections:{include:{collection:true},orderBy:{sortOrder:'asc' as const}},
   versions:{
     include:{
@@ -259,6 +260,7 @@ export async function loadFamily(tx:any,id:string){
   const family=await tx.quoteFamily.findUnique({
     where:{id},
     include:{
+      customer:true,
       versions:{
         include:{
           items:{orderBy:{position:'asc'}},
@@ -447,6 +449,7 @@ export class QuotesController{
           customerId:body.customerId??null,
           isBuiltPc:body.isBuiltPc??false,
           activeVersion:1,
+          branchId:actor.branchId??null,
         }});
         const version=await tx.quoteVersion.create({data:{
           familyId:family.id,
@@ -588,19 +591,26 @@ export class QuotesController{
             ?buildItemRows(body.items,await masterPrices(tx,body.items))
             :version.items.map((item:any)=>copyItemSnapshot(item)))
           :[];
-        // Solo versiona si el contenido REALMENTE cambió (una edición manual: componente, cantidad
-        // o precio de venta). Un guardado que reenvía los mismos ítems —p. ej. el auto-guardado
-        // antes de generar el PDF— no crea versión nueva.
+        // Solo versiona si el contenido REALMENTE cambió (una edición manual: componente, cantidad,
+        // línea, observación o precio de venta). Un guardado que reenvía los mismos ítems —p. ej. el
+        // auto-guardado antes de generar el PDF— no crea versión nueva. La comparación es por
+        // contenido (multiset ordenado), no por posición: reordenar ítems sin cambiarlos no debe
+        // disparar una versión nueva.
+        const itemSignature=(row:any)=>[
+          String(row.productId??''),
+          String(row.frozenName),
+          String(row.quantity),
+          String(row.frozenSalePriceCents),
+          String(row.lineId??''),
+          String(row.observation??''),
+        ].join(' ');
         const itemsChanged=body.items!==undefined&&(
           itemRows.length!==version.items.length||
-          itemRows.some((row:any,index:number)=>{
-            const current:any=version.items[index];
-            return !current
-              ||String(row.frozenName)!==String(current.frozenName)
-              ||row.quantity!==current.quantity
-              ||String(row.frozenSalePriceCents)!==String(current.frozenSalePriceCents)
-              ||String(row.productId??'')!==String(current.productId??'');
-          })
+          (()=>{
+            const next=itemRows.map(itemSignature).sort();
+            const prev=version.items.map(itemSignature).sort();
+            return next.some((sig:string,index:number)=>sig!==prev[index]);
+          })()
         );
         const jsonEq=(a:unknown,b:unknown)=>JSON.stringify(a??null)===JSON.stringify(b??null);
         const actuallyChanged=itemsChanged
@@ -760,6 +770,70 @@ export class QuotesController{
       if(error instanceof BadRequestException||error instanceof NotFoundException)throw error;
       pricingError(error);
     }
+  }
+
+  /**
+   * Restaura una versión anterior como la versión ACTIVA de la familia. A diferencia de
+   * `POST :id/version` (que copia el contenido en una fila NUEVA para poder editarlo), esto es
+   * un restaurado real: no crea ninguna versión ni ítem nuevo, solo mueve `activeVersion` para
+   * que la familia vuelva a apuntar a esa versión ya existente. El contenido de esa versión no
+   * cambia (sigue siendo la misma fila inmutable de siempre).
+   */
+  @Post(':id/version/:version/restore')
+  async restoreVersion(
+    @Param('id',new ZodPipe(idSchema)) id:string,
+    @Param('version') versionParam:string,
+    @CurrentUser() actor:RequestUser,
+  ){
+    const versionNumber=Number(versionParam);
+    if(!Number.isInteger(versionNumber)||versionNumber<1)throw new BadRequestException('Versión inválida');
+    return db.$transaction(async tx=>{
+      const family=await loadFamily(tx,id);
+      const target=family.versions.find((item:any)=>item.version===versionNumber);
+      if(!target)throw new NotFoundException('Versión inexistente');
+      if(family.activeVersion===versionNumber)throw new BadRequestException('Esa versión ya es la activa');
+      const previous=activeVersion(family);
+      const nextFamily=await tx.quoteFamily.update({where:{id},data:{activeVersion:versionNumber}});
+      await statusEvent(tx,{
+        type:'VERSION_RESTAURADA',
+        familyId:id,
+        versionId:target.id,
+        requestId:nextFamily.requestId,
+        customerId:nextFamily.customerId,
+        userId:actor.id,
+        previous:{version:previous.version,state:previous.state},
+        next:{version:versionNumber,state:target.state},
+      });
+      await audit(tx,actor.id,'QuoteFamily',id,'RESTORE',{activeVersion:previous.version},{activeVersion:versionNumber});
+      const loaded=await tx.quoteFamily.findUnique({where:{id},include:quoteInclude});
+      return activeBundle(loaded);
+    });
+  }
+
+  /**
+   * Borra una versión BORRADOR que quedó como basura (p. ej. de cuando el versionado creaba una
+   * fila por cada guardado silencioso). Solo se permite borrar versiones en BORRADOR que no sean
+   * la versión activa de la familia, para no dejar el presupuesto sin una versión vigente.
+   */
+  @Delete(':id/version/:version')
+  async deleteVersion(
+    @Param('id',new ZodPipe(idSchema)) id:string,
+    @Param('version') versionParam:string,
+    @CurrentUser() actor:RequestUser,
+  ){
+    const versionNumber=Number(versionParam);
+    if(!Number.isInteger(versionNumber)||versionNumber<1)throw new BadRequestException('Versión inválida');
+    return db.$transaction(async tx=>{
+      const family=await tx.quoteFamily.findUnique({where:{id}});
+      if(!family)throw new NotFoundException('Presupuesto inexistente');
+      const version=await tx.quoteVersion.findUnique({where:{familyId_version:{familyId:id,version:versionNumber}}});
+      if(!version)throw new NotFoundException('Versión inexistente');
+      if(version.state!=='BORRADOR')throw new BadRequestException('Solo se pueden borrar versiones en borrador');
+      if(family.activeVersion===versionNumber)throw new BadRequestException('No se puede borrar la versión activa');
+      await audit(tx,actor.id,'QuoteVersion',version.id,'DELETE',version,null);
+      await tx.quoteVersion.delete({where:{id:version.id}});
+      return {ok:true};
+    });
   }
 
   @Post(':id/retarget')

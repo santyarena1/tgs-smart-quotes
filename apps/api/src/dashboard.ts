@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from "@nestjs/common";
 import { db } from "@tgs/database";
 import { activeBundle, quoteInclude } from "./quotes.js";
-import { jsonSafe } from "./infrastructure.js";
+import { CurrentUser, jsonSafe, type RequestUser } from "./infrastructure.js";
 
 function avgBigInt(values: bigint[]): string | null {
   if (!values.length) return null;
@@ -52,10 +52,15 @@ function rankProducts(versions: ReadonlyArray<{ items?: ReadonlyArray<{ productI
 @Controller("dashboard")
 export class DashboardController {
   @Get("summary")
-  async summary() {
+  async summary(
+    @Query("branchId") branchId: string | undefined,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const effectiveBranchId = branchId !== undefined ? branchId : actor.branchId;
     const families = await db.quoteFamily.findMany({
       include: quoteInclude,
       orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      ...(effectiveBranchId ? { where: { branchId: effectiveBranchId } } : {}),
     });
     const bundles = families.map((family) => activeBundle(family)) as Array<{
       id: string;

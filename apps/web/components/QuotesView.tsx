@@ -377,6 +377,7 @@ export function QuotesView({
   const [openedAsNewVersion, setOpenedAsNewVersion] = useState(false);
   const [versionEditQuote, setVersionEditQuote] = useState<Quote | null>(null);
   const [versionReason, setVersionReason] = useState("");
+  const [saveReason, setSaveReason] = useState("");
   const [historyQuote, setHistoryQuote] = useState<Quote | null>(null);
   const [previewVersion, setPreviewVersion] = useState<QuoteVersion | null>(null);
 
@@ -389,6 +390,7 @@ export function QuotesView({
   /** Si hay key, se reemplaza ese ítem; si no, se agrega uno nuevo en la línea. */
   const [replaceItemKey, setReplaceItemKey] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const pickerInputRef = useRef<HTMLInputElement | null>(null);
   const initialOpenRef = useRef<string | null>(null);
 
   const [newProdOpen, setNewProdOpen] = useState(false);
@@ -522,6 +524,7 @@ export function QuotesView({
       setEditingKey(null);
       setPickingLineId(null);
       setReplaceItemKey(null);
+      setSaveReason("");
     },
     [pcLines, productById],
   );
@@ -649,15 +652,12 @@ export function QuotesView({
 
   async function restoreVersion(version: QuoteVersion) {
     if (!historyQuote) return;
-    const suggested = `Restaurada desde V${version.version}`;
-    const reason = window.prompt("Nombre de esta restauración (opcional)", suggested);
-    if (reason === null) return;
+    if (!window.confirm(`¿Restaurar la versión ${version.version}? Pasará a ser la versión activa (no se crea ninguna versión nueva).`)) return;
     setBusy(true);
     setError(null);
     try {
-      const restored = await api<Quote>(`/quotes/${historyQuote.id}/version`, {
+      const restored = await api<Quote>(`/quotes/${historyQuote.id}/version/${version.version}/restore`, {
         method: "POST",
-        body: { sourceVersion: version.version, reason: reason.trim() || suggested },
       });
       setHistoryQuote(null);
       setPreviewVersion(null);
@@ -665,9 +665,26 @@ export function QuotesView({
       await loadSideData(historyQuote.id);
       await loadList();
       setDrawerOpen(true);
-      setNotice(
-        `Se creó la versión ${restored.activeVersion} restaurando V${version.version}. Ya podés editarla.`,
-      );
+      setNotice(`Versión ${version.version} restaurada como activa.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteVersion(version: QuoteVersion) {
+    if (!historyQuote) return;
+    if (!window.confirm(`¿Eliminar la versión ${version.version}? No se puede deshacer.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/quotes/${historyQuote.id}/version/${version.version}`, { method: "DELETE" });
+      const refreshed = await api<Quote>(`/quotes/${historyQuote.id}`);
+      setHistoryQuote(refreshed);
+      if (previewVersion?.version === version.version) setPreviewVersion(null);
+      setNotice(`Versión ${version.version} eliminada.`);
+      await loadList();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -685,9 +702,15 @@ export function QuotesView({
     setPdfBusy(kind);
     setError(null);
     try {
-      // Guardar borrador antes de generar para que el PDF refleje lo que se ve.
+      // Guardar borrador antes de generar solo si hay ediciones sin guardar (comparado contra
+      // el snapshot cargado del servidor, `draftBaselineRef`): así imprimir nunca crea una
+      // versión nueva por sí solo, únicamente cuando efectivamente había algo distinto a guardar.
       const draftNow = !detail || getActiveVersion(detail)?.state === "BORRADOR";
-      if (draftNow && items.length) {
+      const currentSnapshot = JSON.stringify({
+        items, internalName, customerId, requestId, isBuiltPc, observation,
+      });
+      const hasUnsavedChanges = currentSnapshot !== draftBaselineRef.current;
+      if (draftNow && hasUnsavedChanges && items.length) {
         await api(`/quotes/${selectedId}`, {
           method: "PUT",
           body: {
@@ -1004,6 +1027,10 @@ export function QuotesView({
     setEditingKey(null);
   }
 
+  function focusPickerInput() {
+    window.requestAnimationFrame(() => pickerInputRef.current?.focus());
+  }
+
   function openAddToLine(lineId: string) {
     const empty = items.find((i) => i.lineId === lineId && isSlotEmpty(i));
     setPickingLineId(lineId);
@@ -1011,6 +1038,7 @@ export function QuotesView({
     setPickerQuery("");
     setPickerOpen(true);
     setEditingKey(null);
+    focusPickerInput();
   }
 
   function openReplaceOnLine(itemKey: string, lineId: string) {
@@ -1019,6 +1047,7 @@ export function QuotesView({
     setPickerQuery("");
     setPickerOpen(true);
     setEditingKey(null);
+    focusPickerInput();
   }
 
   function addItem(item: ItemDraft, startEditing = false) {
@@ -1284,21 +1313,59 @@ export function QuotesView({
 
   const pickerOptions = useMemo((): PickerOption[] => {
     const opts: PickerOption[] = [];
+    const hasQuery = Boolean(pickerQuery.trim());
+    const priceOf = (cents: string | null | undefined) => {
+      try {
+        return cents ? BigInt(cents) : 0n;
+      } catch {
+        return 0n;
+      }
+    };
+    // Mientras no se escribió nada, se muestran sugerencias por uso/recencia (no hay orden por
+    // precio que aplicar). En cuanto hay texto, es una búsqueda real: se ordena por precio asc.
+    type Merged =
+      | { kind: "product"; product: Product; price: bigint }
+      | { kind: "catalog"; product: CatalogPickerItem; price: bigint };
     if (pickingLineId) {
+      if (!hasQuery) {
+        const seen = new Set<string>();
+        for (const product of [...lineSuggestions, ...pickerMatches]) {
+          if (seen.has(product.id)) continue;
+          seen.add(product.id);
+          opts.push({ kind: "product", product });
+        }
+        for (const product of catalogPickerMatches) opts.push({ kind: "catalog", product });
+        return opts;
+      }
       const seen = new Set<string>();
-      for (const product of [...lineSuggestions, ...pickerMatches]) {
+      const merged: Merged[] = [];
+      for (const product of pickerMatches) {
         if (seen.has(product.id)) continue;
         seen.add(product.id);
-        opts.push({ kind: "product", product });
+        merged.push({ kind: "product", product, price: priceOf(product.salePriceCents) });
       }
-      for (const product of catalogPickerMatches) opts.push({ kind: "catalog", product });
-      if (pickerQuery.trim()) opts.push({ kind: "create" });
+      for (const product of catalogPickerMatches) {
+        merged.push({ kind: "catalog", product, price: priceOf(product.salePriceCents ?? product.priceCents) });
+      }
+      merged.sort((a, b) => (a.price < b.price ? -1 : a.price > b.price ? 1 : 0));
+      for (const m of merged) opts.push(m.kind === "product" ? { kind: "product", product: m.product } : { kind: "catalog", product: m.product });
+      opts.push({ kind: "create" });
       return opts;
     }
-    if (!pickerQuery.trim()) return [];
+    if (!hasQuery) return [];
     for (const combo of pickerComboMatches) opts.push({ kind: "combo", combo });
-    for (const product of pickerMatches) opts.push({ kind: "product", product });
-    for (const product of catalogPickerMatches) opts.push({ kind: "catalog", product });
+    const seen = new Set<string>();
+    const merged: Merged[] = [];
+    for (const product of pickerMatches) {
+      if (seen.has(product.id)) continue;
+      seen.add(product.id);
+      merged.push({ kind: "product", product, price: priceOf(product.salePriceCents) });
+    }
+    for (const product of catalogPickerMatches) {
+      merged.push({ kind: "catalog", product, price: priceOf(product.salePriceCents ?? product.priceCents) });
+    }
+    merged.sort((a, b) => (a.price < b.price ? -1 : a.price > b.price ? 1 : 0));
+    for (const m of merged) opts.push(m.kind === "product" ? { kind: "product", product: m.product } : { kind: "catalog", product: m.product });
     opts.push({ kind: "create" }, { kind: "free" });
     return opts;
   }, [
@@ -1485,7 +1552,7 @@ export function QuotesView({
       await api(`/quotes/${selectedId}`, {
         method: "PUT",
         body: {
-          reason: null,
+          reason: saveReason.trim() || null,
           internalName: internalName.trim(),
           customerId: customerId || null,
           requestId: requestId || null,
@@ -1495,6 +1562,7 @@ export function QuotesView({
           items: itemsToPayload(items),
         },
       });
+      setSaveReason("");
       setNotice(
         requestId
           ? "Nueva versión guardada. Solicitud en Lista si seguía en preparación."
@@ -1769,6 +1837,7 @@ export function QuotesView({
                 <th>Nombre</th>
                 <th>Cliente</th>
                 <th>Estado</th>
+                <th>Local</th>
                 <th>Creado por</th>
                 <th className="right">Total</th>
                 <th>Acciones rápidas</th>
@@ -1803,6 +1872,14 @@ export function QuotesView({
                           "—"
                         )}
                       </td>
+                      <td>
+                        <span
+                          className="badge"
+                          title="Local de creación — la impresión puede usar cualquier local según quién imprima"
+                        >
+                          {quote.branch?.name ?? "—"}
+                        </span>
+                      </td>
                       <td>{version?.creator?.displayName || version?.creator?.username || "—"}</td>
                       <td className="num">{formatArs(version?.totalSaleCents)}</td>
                       <td>
@@ -1834,7 +1911,7 @@ export function QuotesView({
                         className="clickable quote-row-products"
                         onClick={() => void openQuote(quote.id)}
                       >
-                        <td colSpan={7} className="quote-products-cell">
+                        <td colSpan={8} className="quote-products-cell">
                           {productsLine}
                         </td>
                       </tr>
@@ -1853,7 +1930,15 @@ export function QuotesView({
             return <article className="mobile-list-card" key={quote.id} onClick={() => void openQuote(quote.id)}>
               <div className="mobile-card-head">
                 <div><strong>{quote.visibleNumber}</strong><span className="cell-sub">v{version?.version ?? quote.activeVersion} · {cname}</span></div>
-                {version ? <Pill tone={STATE_TONE[version.state]}>{STATE_LABEL[version.state]}</Pill> : null}
+                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                  <span
+                    className="badge"
+                    title="Local de creación — la impresión puede usar cualquier local según quién imprima"
+                  >
+                    {quote.branch?.name ?? "—"}
+                  </span>
+                  {version ? <Pill tone={STATE_TONE[version.state]}>{STATE_LABEL[version.state]}</Pill> : null}
+                </div>
               </div>
               <div className="mobile-card-title">{quote.internalName}</div>
               {productsLine ? <p className="mobile-card-detail">{productsLine}</p> : null}
@@ -2009,6 +2094,20 @@ export function QuotesView({
               disabled={Boolean(detail) && !isDraft}
             />
           </Field>
+          {detail && isDraft ? (
+            <Field
+              label="Nombre de este cambio (opcional)"
+              hint="Se ve en el historial de versiones, ayuda a identificar qué se modificó."
+              htmlFor="q-save-reason"
+            >
+              <input
+                id="q-save-reason"
+                value={saveReason}
+                onChange={(e) => setSaveReason(e.target.value)}
+                placeholder="Ej: cambié la fuente por una más económica"
+              />
+            </Field>
+          ) : null}
           <div>
             <h4 className="panel-title" style={{ marginBottom: "0.5rem", fontSize: "0.95rem" }}>
               Colecciones
@@ -2072,6 +2171,7 @@ export function QuotesView({
                     ⌕
                   </span>
                   <input
+                    ref={pickerInputRef}
                     value={pickerQuery}
                     onChange={(e) => {
                       setPickerQuery(e.target.value);
@@ -2828,9 +2928,21 @@ export function QuotesView({
                 {" · "}
                 {version.creator?.displayName || version.creator?.username || "Sin creador"}
               </span>
-              <button type="button" className="btn-ghost" onClick={() => setPreviewVersion(version)}>
-                Ver contenido
-              </button>
+              <div className="form-actions">
+                <button type="button" className="btn-ghost" onClick={() => setPreviewVersion(version)}>
+                  Ver contenido
+                </button>
+                {version.state === "BORRADOR" && version.version !== historyQuote?.activeVersion ? (
+                  <button
+                    type="button"
+                    className="btn-danger btn-sm"
+                    disabled={busy}
+                    onClick={() => void deleteVersion(version)}
+                  >
+                    Eliminar
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

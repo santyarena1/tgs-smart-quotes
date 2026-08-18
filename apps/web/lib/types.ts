@@ -57,6 +57,8 @@ export type Customer = {
   name: string;
   phone: string | null;
   dni: string | null;
+  address?: string | null;
+  taxCondition?: string | null;
 };
 
 export type PcLine = {
@@ -325,6 +327,7 @@ export type Quote = {
   activeVersion: number;
   customer?: Customer | null;
   request?: QuoteRequest | null;
+  branch?: { id: string; name: string } | null;
   version?: QuoteVersion | null;
   activeQuoteVersion?: QuoteVersion | null;
   versions?: QuoteVersion[];

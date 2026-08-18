@@ -447,6 +447,11 @@ export const customerCreateSchema = z
     phone: z.string().trim().max(100).nullable().optional(),
     dni: z.string().trim().max(50).nullable().optional(),
     notes: z.string().trim().max(5000).nullable().optional(),
+    address: z.string().trim().optional().nullable(),
+    taxCondition: z
+      .enum(['CONSUMIDOR_FINAL', 'RESPONSABLE_INSCRIPTO', 'MONOTRIBUTO', 'EXENTO'])
+      .optional()
+      .nullable(),
   })
   .strict();
 export const customerQuickCreateSchema = z

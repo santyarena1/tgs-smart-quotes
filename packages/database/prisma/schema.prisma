@@ -18,6 +18,13 @@ enum QuoteState {
   NO_CONCRETADO
 }
 
+enum TaxCondition {
+  CONSUMIDOR_FINAL
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTO
+  EXENTO
+}
+
 enum RequestState {
   PENDIENTE
   EN_PREPARACION
@@ -233,6 +240,7 @@ enum StatusEventType {
   COLECCION_MODIFICADA
   COSTO_AJUSTADO
   TOTAL_AJUSTADO
+  VERSION_RESTAURADA
 }
 
 /// Intención detectada en la respuesta del cliente. Nunca muta estado sin confirmación humana.
@@ -294,6 +302,8 @@ model Branch {
   updatedAt DateTime   @updatedAt
   users     User[]
   employees Employee[]
+  quoteFamilies QuoteFamily[]
+  quotePdfs QuotePdf[]
 }
 
 model Session {
@@ -441,6 +451,8 @@ model Customer {
   phone           String?
   normalizedPhone String?
   dni             String?
+  address         String?
+  taxCondition    TaxCondition?
   notes           String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -490,6 +502,10 @@ model QuoteFamily {
   customer             Customer?             @relation(fields: [customerId], references: [id])
   isBuiltPc            Boolean               @default(false)
   activeVersion        Int                   @default(1)
+  /// Local donde se creó el presupuesto (snapshot fijo, no varía). Es solo informativo para
+  /// listado/estadísticas: la impresión usa el local de quien imprime (ver QuotePdf.branchId).
+  branchId             String?
+  branch               Branch?               @relation(fields: [branchId], references: [id])
   lastActivityAt       DateTime?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
@@ -501,6 +517,7 @@ model QuoteFamily {
   @@index([internalName])
   @@index([customerId, createdAt])
   @@index([lastActivityAt])
+  @@index([branchId])
 }
 
 model QuoteVersion {
@@ -602,6 +619,11 @@ model QuotePdf {
   inputHash  String
   driver     String          @default("local")
   configJson Json?
+  /// Local (branch) del usuario que generó/imprimió esta versión del PDF cacheado. El
+  /// encabezado (dirección/teléfono) varía según quién imprime, no según quién creó el
+  /// presupuesto: si el impresor actual tiene un branch distinto al de este campo, se regenera.
+  branchId   String?
+  branch     Branch?         @relation(fields: [branchId], references: [id])
   createdAt  DateTime        @default(now())
   deliveries QuoteDelivery[]
 

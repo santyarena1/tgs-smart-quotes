@@ -20,6 +20,14 @@ export type PdfCompany = {
   logoUrl?: string | null;
 };
 
+export type PdfCustomer = {
+  name: string;
+  phone?: string | null;
+  dni?: string | null;
+  address?: string | null;
+  taxCondition?: string | null;
+};
+
 export type PdfFinancingPlan = {
   installments: number;
   interestBps: number;
@@ -114,6 +122,7 @@ export type PdfRenderInput = {
   listTotalCents: bigint;
   cashTotalCents: bigint;
   company: PdfCompany;
+  customer?: PdfCustomer | null;
   config: PdfResolvedConfig;
   items: PdfItem[];
   financing: PdfFinancingPlan[];
@@ -166,6 +175,7 @@ export function pdfInputHash(input: PdfRenderInput): string {
     listTotalCents: input.listTotalCents.toString(),
     cashTotalCents: input.cashTotalCents.toString(),
     company: input.company,
+    customer: input.customer ?? null,
     config: input.config,
     items: input.items.map((i) => ({
       ...i,
@@ -667,6 +677,28 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   return `${note}<table class="fin"><tbody>${body.join('')}</tbody></table>${bbvaNote}`;
 }
 
+const TAX_CONDITION_LABELS: Record<string, string> = {
+  CONSUMIDOR_FINAL: 'Consumidor Final',
+  RESPONSABLE_INSCRIPTO: 'Responsable Inscripto',
+  MONOTRIBUTO: 'Monotributo',
+  EXENTO: 'Exento',
+};
+
+/** Bloque "Datos del cliente" (mismo patrón visual .card/dl que "Datos fiscales"). Solo se
+ *  emite si hay cliente vinculado a la familia, y solo muestra los campos cargados. */
+function buildCustomerCardModerno(customer?: PdfCustomer | null): string {
+  if (!customer) return '';
+  const rows: string[] = [`<dt>Nombre</dt><dd>${escapeHtml(customer.name)}</dd>`];
+  if (customer.phone) rows.push(`<dt>Teléfono</dt><dd>${escapeHtml(customer.phone)}</dd>`);
+  if (customer.dni) rows.push(`<dt>DNI/CUIT</dt><dd>${escapeHtml(customer.dni)}</dd>`);
+  if (customer.address) rows.push(`<dt>Dirección</dt><dd>${escapeHtml(customer.address)}</dd>`);
+  if (customer.taxCondition) {
+    const label = TAX_CONDITION_LABELS[customer.taxCondition] ?? customer.taxCondition;
+    rows.push(`<dt>Cond. Fiscal</dt><dd>${escapeHtml(label)}</dd>`);
+  }
+  return `<div class="card"><h2>Datos del cliente</h2><dl>${rows.join('')}</dl></div>`;
+}
+
 /** Rediseño "MODERNO": réplica del modelo de presupuesto TGS (header con regla, cards con labels en color,
  *  caja Incluye, totales lista/efectivo, tabla de financiación por banco y cajas de notas). */
 export function renderQuoteModernoHtml(input: PdfRenderInput): string {
@@ -693,6 +725,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     ? `<img data-pdf-block="logo" class="logo" src="${escapeHtml(input.company.logoUrl)}" alt="" />`
     : '';
 
+  const customerHtml = buildCustomerCardModerno(input.customer);
+
   const financingHtml = buildFinancingModerno(input);
 
   const validUntilRow = input.validUntil
@@ -704,9 +738,9 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
 <head>
 <meta charset="utf-8" />
 <style>
-  @page { size: A4; margin: 14mm 12mm; }
+  @page { size: A4; margin: 13mm 12mm 18mm 12mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1a1a1a; font-size: 10.5px; line-height: 1.4; }
+  body { margin: 0; font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1a1a1a; font-size: 11px; line-height: 1.35; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand .logo { height: 40px; width: auto; max-width: 120px; object-fit: contain; }
@@ -714,51 +748,52 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .brand .names .csub { font-size: 10px; color: #777; margin-top: 1px; }
   .title-block { text-align: right; }
   .title-block h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.02em; color: ${primary}; }
-  .title-block .meta { margin-top: 3px; color: #666; font-size: 10px; }
-  .rule { height: 2px; background: ${primary}; margin: 8px 0 14px; }
-  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .card { border: 1px solid #e2e2e2; border-radius: 5px; padding: 10px 12px; }
-  .card h2 { margin: 0 0 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; color: ${accent}; text-transform: uppercase; }
-  .card dl { margin: 0; display: grid; grid-template-columns: 92px 1fr; gap: 4px 8px; }
-  .card dt { color: #777; }
-  .card dd { margin: 0; font-weight: 700; color: #1a1a1a; }
-  .box { border: 1px solid #e6e6e6; border-left: 4px solid ${accent}; border-radius: 4px; padding: 9px 12px; margin: 10px 0; background: #fcfcfc; }
-  .box p { margin: 0 0 3px; }
+  .title-block .meta { margin-top: 3px; color: #666; font-size: 10.2px; }
+  .rule { height: 2px; background: ${primary}; margin: 8px 0 9px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 9px; }
+  .card { border: 1px solid #e2e2e2; border-radius: 5px; padding: 8px 9px; margin-bottom: 9px; }
+  .card h2 { margin: 0 0 4px; font-size: 9.6px; font-weight: 800; letter-spacing: 0.04em; color: ${accent}; text-transform: uppercase; }
+  .card dl { margin: 0; display: grid; grid-template-columns: 100px 1fr; gap: 2px 6px; }
+  .card dt { color: #666; font-size: 10.2px; }
+  .card dd { margin: 0; font-weight: 600; font-size: 10.7px; color: #1a1a1a; }
+  .box { border: 1px solid #e6e6e6; border-left: 3px solid ${accent}; border-radius: 4px; padding: 7px 9px; margin: 9px 0; background: #fafafa; font-size: 10.5px; }
+  .box p { margin: 0 0 2px; }
   .box p:last-child { margin: 0; }
   .box-red { border-left-color: ${accent}; }
   .box-blue { border-left-color: ${blue}; }
-  table.items { width: 100%; border-collapse: collapse; margin-top: 2px; }
-  table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 8px 10px; font-weight: 700; font-size: 10px; }
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 9px; border: 1px solid #dedede; }
+  table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 6px 8px; font-weight: 700; font-size: 10.8px; border: 1px solid ${primary}; }
   table.items thead th.qty { text-align: center; }
   table.items thead th.amt { text-align: right; }
-  table.items td { border-bottom: 1px solid #ececec; padding: 7px 10px; vertical-align: top; }
+  table.items td { border-bottom: 1px solid #e8e8e8; padding: 5px 8px; vertical-align: top; font-size: 10.9px; }
+  table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
   table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
-  table.items .code { width: 46px; }
+  table.items .code { width: 50px; }
   table.items td.code { color: #555; }
-  table.items .qty { width: 46px; text-align: center; }
+  table.items .qty { width: 62px; text-align: center; }
   table.items td.qty { font-weight: 700; }
-  table.items .amt { width: 120px; text-align: right; white-space: nowrap; }
+  table.items .amt { width: 115px; text-align: right; white-space: nowrap; }
   table.items td.amt { font-weight: 800; }
-  .price-block { border: 1px solid #d9d9d9; border-radius: 6px; padding: 4px 14px 10px; margin-top: 12px; }
+  .price-block { border: 1px solid #d9d9d9; border-radius: 6px; padding: 4px 14px 10px; margin-top: 9px; }
   .totals { margin-top: 0; }
-  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 2px; border-bottom: 1px solid #eee; }
-  .totals .row .lbl { color: #333; }
-  .totals .list .val { color: ${accent}; font-weight: 800; font-size: 13px; }
-  .totals .cash { border-bottom: none; padding-top: 10px; }
-  .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 12px; }
-  .totals .cash .val { color: ${green}; font-weight: 800; font-size: 17px; }
-  table.fin { width: 100%; border-collapse: collapse; margin: 10px 0; border-top: 2px solid ${primary}; border-bottom: 2px solid ${primary}; }
-  table.fin td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; border-bottom: 1px solid #eee; }
+  .totals .row .lbl { color: #333; font-size: 10.8px; }
+  .totals .list .val { color: ${accent}; font-weight: 800; font-size: 12.8px; }
+  .totals .cash { border-bottom: none; padding-top: 8px; }
+  .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 11.3px; }
+  .totals .cash .val { color: ${green}; font-weight: 900; font-size: 17px; }
+  table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
+  table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
   table.fin tr:last-child td { border-bottom: none; }
   table.fin tr.bbva td { background: #f5f8ff; }
-  table.fin .bank { font-weight: 800; width: 200px; }
+  table.fin .bank { font-weight: 700; width: 34%; }
   table.fin tr.bbva .bank { color: ${blue}; }
-  table.fin .desc { color: #555; }
+  table.fin .desc { color: #555; width: 33%; }
   table.fin tr.bbva .desc { color: ${blue}; }
-  table.fin .amt { text-align: right; white-space: nowrap; font-weight: 800; width: 150px; }
-  .footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e2e2e2; color: #888; font-size: 9px; text-align: center; }
+  table.fin .amt { text-align: right; white-space: nowrap; font-weight: 800; width: 33%; }
+  .footer { margin-top: 12px; padding-top: 8px; border-top: 1px solid #e2e2e2; color: #888; font-size: 8.8px; text-align: center; }
   .box a, .box b.url { color: ${accent}; font-weight: 700; }
 </style>
 </head>
@@ -802,6 +837,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
         : `<div class="card" data-pdf-block="companyFiscalData"><h2>Datos fiscales</h2><p>Ocultos por configuración</p></div>`
     }
   </section>
+
+  ${customerHtml}
 
   ${includeParts.length ? `<div class="box box-red" data-pdf-block="servicesBlock">${includeParts.map((p) => `<p>${p}</p>`).join('')}</div>` : ''}
 
