@@ -380,6 +380,7 @@ export function QuotesView({
   const [saveReason, setSaveReason] = useState("");
   const [historyQuote, setHistoryQuote] = useState<Quote | null>(null);
   const [previewVersion, setPreviewVersion] = useState<QuoteVersion | null>(null);
+  const [previewFamilyId, setPreviewFamilyId] = useState<string | null>(null);
 
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -650,21 +651,23 @@ export function QuotesView({
     }
   }
 
-  async function restoreVersion(version: QuoteVersion) {
-    if (!historyQuote) return;
+  async function restoreVersion(familyId: string, version: QuoteVersion) {
     if (!window.confirm(`¿Restaurar la versión ${version.version}? Pasará a ser la versión activa (no se crea ninguna versión nueva).`)) return;
     setBusy(true);
     setError(null);
     try {
-      const restored = await api<Quote>(`/quotes/${historyQuote.id}/version/${version.version}/restore`, {
+      const restored = await api<Quote>(`/quotes/${familyId}/version/${version.version}/restore`, {
         method: "POST",
       });
-      setHistoryQuote(null);
       setPreviewVersion(null);
-      applyDetail(restored);
-      await loadSideData(historyQuote.id);
+      setPreviewFamilyId(null);
+      if (historyQuote?.id === familyId) setHistoryQuote(null);
+      if (selectedId === familyId) {
+        applyDetail(restored);
+        await loadSideData(familyId);
+        setDrawerOpen(true);
+      }
       await loadList();
-      setDrawerOpen(true);
       setNotice(`Versión ${version.version} restaurada como activa.`);
     } catch (err) {
       setError(errorMessage(err));
@@ -673,16 +676,19 @@ export function QuotesView({
     }
   }
 
-  async function deleteVersion(version: QuoteVersion) {
-    if (!historyQuote) return;
+  async function deleteVersion(familyId: string, version: QuoteVersion) {
     if (!window.confirm(`¿Eliminar la versión ${version.version}? No se puede deshacer.`)) return;
     setBusy(true);
     setError(null);
     try {
-      await api(`/quotes/${historyQuote.id}/version/${version.version}`, { method: "DELETE" });
-      const refreshed = await api<Quote>(`/quotes/${historyQuote.id}`);
-      setHistoryQuote(refreshed);
-      if (previewVersion?.version === version.version) setPreviewVersion(null);
+      await api(`/quotes/${familyId}/version/${version.version}`, { method: "DELETE" });
+      const refreshed = await api<Quote>(`/quotes/${familyId}`);
+      if (historyQuote?.id === familyId) setHistoryQuote(refreshed);
+      if (selectedId === familyId) applyDetail(refreshed, false);
+      if (previewVersion?.version === version.version) {
+        setPreviewVersion(null);
+        setPreviewFamilyId(null);
+      }
       setNotice(`Versión ${version.version} eliminada.`);
       await loadList();
     } catch (err) {
@@ -739,17 +745,17 @@ export function QuotesView({
     }
   }
 
-  async function downloadVersionPdf(version: QuoteVersion) {
+  async function downloadVersionPdf(version: QuoteVersion, kind: "SIMPLE" | "DETALLADO" = "SIMPLE") {
     if (!selectedId || !detail) return;
-    setPdfBusy("SIMPLE");
+    setPdfBusy(kind);
     setError(null);
     try {
-      await api(`/quotes/${selectedId}/versions/${version.version}/pdf`, { method: "POST" });
+      await api(`/quotes/${selectedId}/versions/${version.version}/pdf`, { method: "POST", body: { kind } });
       await downloadAuthenticated(
-        `/quotes/${selectedId}/versions/${version.version}/pdf`,
-        `${detail.visibleNumber}-V${version.version}-SIMPLE.pdf`,
+        `/quotes/${selectedId}/versions/${version.version}/pdf/${kind}`,
+        `${detail.visibleNumber}-V${version.version}-${kind}.pdf`,
       );
-      setNotice(`PDF simple de la versión ${version.version} listo.`);
+      setNotice(`PDF ${kind === "SIMPLE" ? "simple" : "detallado"} de la versión ${version.version} listo.`);
       await reloadDetail(selectedId);
     } catch (err) {
       setError(errorMessage(err));
@@ -2786,7 +2792,7 @@ export function QuotesView({
               <div className="quote-history">
                 <div>
                   <h4 className="ops-subtitle">Versiones y PDF</h4>
-                  <p className="muted">Elegí una versión para ver sus componentes o descargar su PDF simple.</p>
+                  <p className="muted">Elegí una versión para ver sus componentes, descargar el PDF o restaurarla.</p>
                   {!detail.versions?.length ? (
                     <p className="muted">Todavía no hay versiones.</p>
                   ) : (
@@ -2795,19 +2801,61 @@ export function QuotesView({
                         <li key={version.id}>
                           <div>
                             <strong>v{version.version} · {STATE_LABEL[version.state]}{version.version === detail.activeVersion ? " · Actual" : ""}</strong>
+                            <br />
+                            <span className="cell-sub">{version.reason || "Sin nombre de cambio"}</span>
+                            <br />
                             <span className="cell-sub">
                               {version.items.length} componentes · {formatArs(version.totalSaleCents)}
                             </span>
                           </div>
-                          <button type="button" className="btn-ghost btn-sm" onClick={() => setPreviewVersion(version)}>Ver componentes</button>
-                          <button
-                            type="button"
-                            className="btn-ghost btn-sm"
-                            disabled={!!pdfBusy}
-                            onClick={() => void downloadVersionPdf(version)}
-                          >
-                            Descargar PDF
-                          </button>
+                          <div className="form-actions">
+                            <button
+                              type="button"
+                              className="btn-ghost btn-sm"
+                              onClick={() => {
+                                setPreviewFamilyId(detail.id);
+                                setPreviewVersion(version);
+                              }}
+                            >
+                              Ver componentes
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-ghost btn-sm"
+                              disabled={!!pdfBusy}
+                              onClick={() => void downloadVersionPdf(version, "SIMPLE")}
+                            >
+                              PDF simple
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-ghost btn-sm"
+                              disabled={!!pdfBusy}
+                              onClick={() => void downloadVersionPdf(version, "DETALLADO")}
+                            >
+                              PDF detallado
+                            </button>
+                            {version.version !== detail.activeVersion ? (
+                              <button
+                                type="button"
+                                className="btn-ghost btn-sm"
+                                disabled={busy}
+                                onClick={() => void restoreVersion(detail.id, version)}
+                              >
+                                Restaurar
+                              </button>
+                            ) : null}
+                            {version.state === "BORRADOR" && version.version !== detail.activeVersion ? (
+                              <button
+                                type="button"
+                                className="btn-danger btn-sm"
+                                disabled={busy}
+                                onClick={() => void deleteVersion(detail.id, version)}
+                              >
+                                Eliminar
+                              </button>
+                            ) : null}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -2929,15 +2977,33 @@ export function QuotesView({
                 {version.creator?.displayName || version.creator?.username || "Sin creador"}
               </span>
               <div className="form-actions">
-                <button type="button" className="btn-ghost" onClick={() => setPreviewVersion(version)}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    if (!historyQuote) return;
+                    setPreviewFamilyId(historyQuote.id);
+                    setPreviewVersion(version);
+                  }}
+                >
                   Ver contenido
                 </button>
+                {version.version !== historyQuote?.activeVersion ? (
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm"
+                    disabled={busy}
+                    onClick={() => historyQuote && void restoreVersion(historyQuote.id, version)}
+                  >
+                    Restaurar
+                  </button>
+                ) : null}
                 {version.state === "BORRADOR" && version.version !== historyQuote?.activeVersion ? (
                   <button
                     type="button"
                     className="btn-danger btn-sm"
                     disabled={busy}
-                    onClick={() => void deleteVersion(version)}
+                    onClick={() => historyQuote && void deleteVersion(historyQuote.id, version)}
                   >
                     Eliminar
                   </button>
@@ -2951,7 +3017,10 @@ export function QuotesView({
       <Modal
         open={!!previewVersion}
         title={`Preview versión ${previewVersion?.version ?? ""}`}
-        onClose={() => setPreviewVersion(null)}
+        onClose={() => {
+          setPreviewVersion(null);
+          setPreviewFamilyId(null);
+        }}
         wide
         footer={
           <>
@@ -2960,8 +3029,8 @@ export function QuotesView({
             </button>
             <button
               type="button"
-              disabled={busy || !previewVersion}
-              onClick={() => previewVersion && void restoreVersion(previewVersion)}
+              disabled={busy || !previewVersion || !previewFamilyId}
+              onClick={() => previewVersion && previewFamilyId && void restoreVersion(previewFamilyId, previewVersion)}
             >
               {busy ? "Restaurando…" : "Restaurar versión"}
             </button>
