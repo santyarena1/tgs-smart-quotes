@@ -22,6 +22,7 @@ export class QuoteSearchController {
     if (query.customerId) where.customerId = query.customerId;
     if (query.isBuiltPc !== undefined) where.isBuiltPc = query.isBuiltPc;
     if (query.collectionId) where.collections = {some: {collectionId: query.collectionId}};
+    if (query.branchId) where.branchId = query.branchId;
     if (query.visibleNumber) where.visibleNumber = {contains: query.visibleNumber, mode: 'insensitive'};
     if (query.from || query.to) {
       where.createdAt = {

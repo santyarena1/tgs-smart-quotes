@@ -358,6 +358,8 @@ export function QuotesView({
   const [roundStepPesos, setRoundStepPesos] = useState<"" | "100" | "500" | "1000" | "5000">("");
   const [filter, setFilter] = useState("");
   const [stateFilter, setStateFilter] = useState<QuoteState | "">("");
+  const [branchFilter, setBranchFilter] = useState("");
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [sort, setSort] = useState<QuoteSort>("created-desc");
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [, setPdfs] = useState<QuotePdfRow[]>([]);
@@ -402,11 +404,12 @@ export function QuotesView({
     setLoading(true);
     setError(null);
     try {
-      const [quotesPayload, custs, prods, reqs, cols, comboRows, lines] = await Promise.all([
+      const [quotesPayload, custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
         api<{ items: Quote[] } | Quote[]>("/quotes/search", {
           query: {
             q: filter.trim() || undefined,
             state: stateFilter || undefined,
+            branchId: branchFilter || undefined,
             page: 1,
             pageSize: 100,
             sort: "lastActivityAt",
@@ -419,6 +422,7 @@ export function QuotesView({
         api<Collection[]>("/collections").catch(() => [] as Collection[]),
         api<Combo[]>("/combos").catch(() => [] as Combo[]),
         api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
+        api<{ items: { id: string; name: string }[] }>("/branches").catch(() => ({ items: [] })),
       ]);
       const quotes = Array.isArray(quotesPayload)
         ? quotesPayload
@@ -430,13 +434,14 @@ export function QuotesView({
       setPcLines([...lines].filter((l) => l.active).sort((a, b) => a.sortOrder - b.sortOrder));
       setRequests(reqs);
       setCollections(cols.filter((c) => !c.archived));
+      setBranches(branchRows.items ?? []);
     } catch (err) {
       setError(errorMessage(err));
       setList([]);
     } finally {
       setLoading(false);
     }
-  }, [filter, stateFilter]);
+  }, [filter, stateFilter, branchFilter]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -1812,6 +1817,18 @@ export function QuotesView({
           {QUOTE_STATES.map((s) => (
             <option key={s} value={s}>
               {STATE_LABEL[s]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filtrar por local"
+          value={branchFilter}
+          onChange={(e) => setBranchFilter(e.target.value)}
+        >
+          <option value="">Todos los locales</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
             </option>
           ))}
         </select>

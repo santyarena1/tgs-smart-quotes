@@ -131,9 +131,9 @@ export class UsersController {
   }
 }
 
-@Roles('ADMIN')
 @Controller('branches')
 export class BranchesController {
+  /** Sin @Roles: cualquier usuario logueado necesita esto para filtrar por local (quotes, dashboard). */
   @Get()
   async list() {
     return jsonSafe({
@@ -144,6 +144,7 @@ export class BranchesController {
     });
   }
 
+  @Roles('ADMIN')
   @Post()
   async create(@Body(new ZodPipe(branchCreateSchema)) body: BranchCreateInput) {
     try {
@@ -154,6 +155,7 @@ export class BranchesController {
     }
   }
 
+  @Roles('ADMIN')
   @Patch(':id')
   async update(
     @Param('id', new ZodPipe(idSchema)) id: string,
@@ -168,6 +170,7 @@ export class BranchesController {
     }
   }
 
+  @Roles('ADMIN')
   @Delete(':id')
   async remove(@Param('id', new ZodPipe(idSchema)) id: string) {
     const branch = await db.branch.findUnique({where: {id}, include: {_count: {select: {users: true}}}});

@@ -874,6 +874,7 @@ export const quoteSearchSchema = z
     state: quoteStateEnum.optional(),
     customerId: idSchema.optional(),
     collectionId: idSchema.optional(),
+    branchId: idSchema.optional(),
     phone: z.string().trim().max(100).optional(),
     productName: z.string().trim().max(300).optional(),
     visibleNumber: z.string().trim().max(100).optional(),
