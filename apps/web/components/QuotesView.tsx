@@ -2805,7 +2805,9 @@ export function QuotesView({
                             <span className="cell-sub">{version.reason || "Sin nombre de cambio"}</span>
                             <br />
                             <span className="cell-sub">
-                              {version.items.length} componentes · {formatArs(version.totalSaleCents)}
+                              {version.items.map((item) => item.frozenName ?? item.name).join(", ")}
+                              {" · "}
+                              {formatArs(version.totalSaleCents)}
                             </span>
                           </div>
                           <div className="form-actions">
