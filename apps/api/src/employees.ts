@@ -8,6 +8,24 @@ import {addMonths,audit,balanceFrom,directionFor,employeeBalance,obligationPendi
 const currentSalary=(employeeId:string,tx:any=db)=>tx.salaryRecord.findFirst({where:{employeeId},orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]});
 const periodDates=(period:string)=>{const y=Number(period.slice(0,4)),m=Number(period.slice(4)),next=m===12?`${y+1}-01`:`${y}-${String(m+1).padStart(2,'0')}`;return{gte:new Date(`${y}-${String(m).padStart(2,'0')}-01T00:00:00-03:00`),lt:new Date(`${next}-01T00:00:00-03:00`)};};
 
+/** Cachea el IPC más reciente (INDEC vía ArgentinaDatos) en memoria por 6hs para no pegarle a la API externa en cada apertura del modal. */
+let ipcCache:{period:string|null;pct:number|null;fetchedAt:number}|null=null;
+const IPC_CACHE_TTL_MS=6*60*60*1000;
+async function fetchLatestIpc():Promise<{period:string|null;pct:number|null}>{
+  if(ipcCache&&Date.now()-ipcCache.fetchedAt<IPC_CACHE_TTL_MS)return{period:ipcCache.period,pct:ipcCache.pct};
+  try{
+    const res=await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
+    if(!res.ok)throw new Error(`IPC API status ${res.status}`);
+    const rows=await res.json() as Array<{fecha:string;valor:number}>;
+    const last=rows[rows.length-1];
+    const result={period:last?last.fecha.slice(0,7):null,pct:last?last.valor:null};
+    ipcCache={...result,fetchedAt:Date.now()};
+    return result;
+  }catch{
+    return{period:null,pct:null};
+  }
+}
+
 @Roles('ADMIN')
 @Controller()
 export class EmployeesController {
@@ -31,7 +49,10 @@ export class EmployeesController {
 
   @Get('employees/:id/salary') async salary(@Param('id',new ZodPipe(idSchema))id:string){await requireEmployee(id);return jsonSafe(await currentSalary(id));}
   @Get('employees/:id/salary/history') async salaryHistory(@Param('id',new ZodPipe(idSchema))id:string){await requireEmployee(id);return jsonSafe({items:await db.salaryRecord.findMany({where:{employeeId:id},orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]})});}
-  @Put('employees/:id/salary') async setSalary(@Param('id',new ZodPipe(idSchema))id:string,@Body(new ZodPipe(salaryUpdateSchema))body:SalaryUpdateInput,@CurrentUser()u:RequestUser){await requireEmployee(id);return jsonSafe(await db.$transaction(async tx=>{const old=await currentSalary(id,tx);const record=await tx.salaryRecord.create({data:{employeeId:id,amountCents:BigInt(body.amountCents),effectiveFrom:new Date(),previousAmountCents:old?.amountCents,reason:body.reason,createdById:u.id}});await audit(tx,u.id,'SalaryRecord',record.id,'CREATE');return record;}));}
+  @Put('employees/:id/salary') async setSalary(@Param('id',new ZodPipe(idSchema))id:string,@Body(new ZodPipe(salaryUpdateSchema))body:SalaryUpdateInput,@CurrentUser()u:RequestUser){await requireEmployee(id);return jsonSafe(await db.$transaction(async tx=>{const old=await currentSalary(id,tx);const record=await tx.salaryRecord.create({data:{employeeId:id,amountCents:BigInt(body.amountCents),effectiveFrom:body.effectiveFrom??new Date(),previousAmountCents:old?.amountCents,changeBps:body.changeBps??null,reason:body.reason,createdById:u.id}});await audit(tx,u.id,'SalaryRecord',record.id,'CREATE');return record;}));}
+  @Get('employees/:id/salary/suggestion') async salarySuggestion(@Param('id',new ZodPipe(idSchema))id:string){await requireEmployee(id);const [old,ipc]=await Promise.all([currentSalary(id),fetchLatestIpc()]);const previousAmountCents=old?.amountCents??null;const suggestedAmountCents=previousAmountCents!=null&&ipc.pct!=null?BigInt(Math.round(Number(previousAmountCents)*(1+ipc.pct/100))):null;return jsonSafe({previousAmountCents,ipcPeriod:ipc.period,ipcPct:ipc.pct,suggestedAmountCents});}
+
+  @Get('ipc/latest') async ipcLatest(){return jsonSafe(await fetchLatestIpc());}
   @Post('employees/salary/bulk-preview') async salaryPreview(@Body(new ZodPipe(salaryBulkPreviewSchema))body:SalaryBulkPreviewInput){const employees=await db.employee.findMany({where:{active:true,id:body.employeeIds?{in:body.employeeIds}:undefined},select:{id:true,fullName:true,salaryRecords:{take:1,orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]}}});return jsonSafe({items:employees.filter(e=>e.salaryRecords[0]).map(e=>{const old=e.salaryRecords[0]!.amountCents;return{employeeId:e.id,name:e.fullName,oldCents:old,bps:body.bps,newCents:salaryWithBps(old,body.bps,body.roundingStepPesos)}})});}
   @Post('employees/salary/bulk-apply') async salaryApply(@Body(new ZodPipe(salaryBulkApplySchema))body:SalaryBulkApplyInput,@CurrentUser()u:RequestUser){if(new Set(body.items.map(i=>i.employeeId)).size!==body.items.length)throw new BadRequestException('No se puede repetir un empleado');return jsonSafe(await db.$transaction(async tx=>{const records=[];for(const item of body.items){await requireEmployee(item.employeeId,tx);const old=await currentSalary(item.employeeId,tx);if(!old)throw new BadRequestException('Todos los empleados deben tener un sueldo vigente');const record=await tx.salaryRecord.create({data:{employeeId:item.employeeId,amountCents:BigInt(item.newCents),effectiveFrom:new Date(),previousAmountCents:old.amountCents,changeBps:body.bps,reason:'Actualización salarial masiva',createdById:u.id}});records.push(record);}await audit(tx,u.id,'SalaryRecord','bulk','BULK_APPLY',{bps:body.bps,count:records.length});return{items:records};}));}
 
