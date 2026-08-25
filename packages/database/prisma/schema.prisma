@@ -1187,6 +1187,7 @@ model SalaryRecord {
   createdById         String
   createdBy           User     @relation("SalaryRecordCreatedBy", fields: [createdById], references: [id])
   createdAt           DateTime @default(now())
+  movements           Movement[]
 
   @@index([employeeId, effectiveFrom])
 }
@@ -1210,6 +1211,8 @@ model Movement {
   requestId         String?
   request           EmployeeRequest?  @relation("MovementRequest", fields: [requestId], references: [id])
   resultingRequests EmployeeRequest[] @relation("RequestResultingMovement")
+  salaryRecordId    String?
+  salaryRecord      SalaryRecord?     @relation(fields: [salaryRecordId], references: [id])
   createdById       String
   createdBy         User              @relation("MovementCreatedBy", fields: [createdById], references: [id])
   appliedById       String?

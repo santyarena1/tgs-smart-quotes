@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 import { bpsToPct, centsToInput, formatArs, parseArsToCents, pctToBps } from "../lib/money";
 import { Alert, Checkbox, Field, Loading, Modal, MoneyInput, PageHeader, Pill, Tabs } from "./shared";
 
-type Tab = "resumen" | "empleados" | "sueldos" | "solicitudes";
+type Tab = "resumen" | "sueldos" | "solicitudes";
 type DetailTab = "movimientos" | "sueldo" | "obligaciones";
 type Direction = "EMPLOYEE_OWES" | "COMPANY_OWES";
 type MovementStatus = "PENDING" | "APPLIED" | "CANCELLED";
@@ -26,8 +26,6 @@ const today = () => new Date().toISOString().slice(0,10);
 const month = () => new Date().toISOString().slice(0,7).replace("-","");
 const errorText = (e:unknown) => e instanceof Error ? e.message : "Ocurrió un error inesperado.";
 const abs = (v:string) => { try { const n=BigInt(v); return (n<0n?-n:n).toString(); } catch { return "0"; } };
-/** Sueldo vigente + cuenta corriente (que ya viene con signo: negativo = el empleado debe). */
-const netToPay = (salaryCents:string|undefined, balanceCents:string) => { try { return ((BigInt(salaryCents??"0"))+BigInt(balanceCents)).toString(); } catch { return salaryCents??"0"; } };
 
 function Balance({value}:{value:string}) { const n=BigInt(value||"0"); return n>0n?<Pill tone="ok">Empresa debe: {formatArs(value)}</Pill>:n<0n?<Pill tone="bad">Empleado debe: {formatArs(abs(value))}</Pill>:<Pill>Cuenta saldada</Pill>; }
 function Status({value}:{value:string}) { const labels:Record<string,string>={PENDING:"Pendiente",APPLIED:"Aplicado",CANCELLED:"Cancelado",OPEN:"Abierta",SETTLED:"Saldada"}; return <Pill tone={value==="APPLIED"||value==="SETTLED"?"ok":value==="PENDING"||value==="OPEN"?"warn":"bad"}>{labels[value]??value}</Pill>; }
@@ -35,24 +33,55 @@ function Status({value}:{value:string}) { const labels:Record<string,string>={PE
 export function EmployeesView() {
   const [tab,setTab]=useState<Tab>("resumen"), [loading,setLoading]=useState(true), [error,setError]=useState(""), [ok,setOk]=useState("");
   const [summary,setSummary]=useState<Summary|null>(null), [employees,setEmployees]=useState<Employee[]>([]), [requests,setRequests]=useState<RequestRow[]>([]), [search,setSearch]=useState("");
-  const [selectedId,setSelectedId]=useState<string|null>(null), [employeeModal,setEmployeeModal]=useState<"new"|Employee|null>(null), [quickSalary,setQuickSalary]=useState<Employee|null>(null), [quickObligation,setQuickObligation]=useState<Employee|null>(null);
+  const [selectedId,setSelectedId]=useState<string|null>(null), [employeeModal,setEmployeeModal]=useState<"new"|Employee|null>(null), [quickSalary,setQuickSalary]=useState<Employee|null>(null), [quickObligation,setQuickObligation]=useState<Employee|null>(null), [quickPayment,setQuickPayment]=useState<Employee|null>(null);
   const load=useCallback(async()=>{ setLoading(true); try { const [s,e,r]=await Promise.all([api<Summary>("/employees/summary"),api<{items:Employee[]}>("/employees"),api<{items:RequestRow[]}>("/employee-requests",{query:{status:"PENDING_APPROVAL"}})]); setSummary(s);setEmployees(e.items);setRequests(r.items);setError(""); } catch(e){setError(errorText(e));} finally{setLoading(false);} },[]);
   useEffect(()=>{void load();},[load]);
-  const filtered=useMemo(()=>employees.filter(e=>`${e.fullName} ${e.branch?.name??""} ${e.position??""}`.toLowerCase().includes(search.toLowerCase())),[employees,search]);
+  const filtered=useMemo(()=>{
+    const rows=employees.filter(e=>`${e.fullName} ${e.branch?.name??""} ${e.position??""}`.toLowerCase().includes(search.toLowerCase()));
+    return [...rows].sort((a,b)=>{
+      let av=0n,bv=0n;
+      try{av=BigInt(a.balanceCents||"0");}catch{/* 0 */}
+      try{bv=BigInt(b.balanceCents||"0");}catch{/* 0 */}
+      return bv<av?-1:bv>av?1:0;
+    });
+  },[employees,search]);
+  const salaryByBranch=useMemo(()=>{
+    const totals=new Map<string,bigint>();
+    for(const e of employees){
+      if(!e.active)continue;
+      const amount=e.salaryRecords?.[0]?.amountCents;
+      if(!amount)continue;
+      const label=e.branch?.name??"Sin local";
+      let cents=0n;
+      try{cents=BigInt(amount);}catch{/* 0 */}
+      totals.set(label,(totals.get(label)??0n)+cents);
+    }
+    return [...totals.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  },[employees]);
   async function review(id:string,action:"approve"|"reject"){if(action==="reject"&&!confirm("¿Rechazar esta solicitud?"))return;try{await api(`/employee-requests/${id}/${action}`,{method:"POST"});setOk(action==="approve"?"Solicitud aprobada.":"Solicitud rechazada.");await load();}catch(e){setError(errorText(e));}}
   if(loading)return <Loading label="Cargando empleados…"/>;
   if(selectedId)return <EmployeeDetail id={selectedId} onBack={()=>{setSelectedId(null);void load();}}/>;
   return <section>
     <PageHeader eyebrow="Administración" title="Empleados y cuenta corriente" subtitle="Sueldos, movimientos, obligaciones, pagos y solicitudes." actions={<button onClick={()=>setEmployeeModal("new")}>Nuevo empleado</button>}/>
     {error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
-    <Tabs tabs={[{id:"resumen",label:"Resumen"},{id:"empleados",label:"Empleados"},{id:"sueldos",label:"Ajuste de sueldos"},{id:"solicitudes",label:`Solicitudes (${requests.length})`}]} active={tab} onChange={setTab}/>
-    {tab==="resumen"&&summary?<><div className="stat-strip"><div className="stat"><span className="stat-label">Empresa debe a empleados</span><strong className="stat-value">{formatArs(summary.totalCompanyOwesCents)}</strong></div><div className="stat"><span className="stat-label">Empleados deben a la empresa</span><strong className="stat-value">{formatArs(summary.totalEmployeesOweCents)}</strong></div><div className="stat"><span className="stat-label">Solicitudes pendientes</span><strong className="stat-value">{summary.pendingRequests}</strong></div></div><div className="panel"><h2 className="panel-title">Equipo activo</h2><p>{summary.activeEmployees} empleados activos.</p><button className="btn-ghost" onClick={()=>setTab("empleados")}>Ver cuentas corrientes</button></div></>:null}
-    {tab==="empleados"?<><div className="toolbar"><input aria-label="Buscar empleados" placeholder="Buscar por nombre, local o puesto…" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="table-wrap"><table><thead><tr><th>Empleado</th><th>Local</th><th>Sueldo vigente</th><th>Cuenta corriente</th><th>Neto a pagar</th><th/></tr></thead><tbody>{filtered.map(e=><tr key={e.id}><td><strong>{e.fullName}</strong><br/><span className="muted">{e.position||"Sin puesto"}</span></td><td>{e.branch?.name||"Sin local"}</td><td>{formatArs(e.salaryRecords?.[0]?.amountCents)}</td><td><Balance value={e.balanceCents}/></td><td><strong>{formatArs(netToPay(e.salaryRecords?.[0]?.amountCents,e.balanceCents))}</strong></td><td><div className="row-actions"><button className="btn-dark btn-sm" onClick={()=>setQuickSalary(e)}>Cargar sueldo</button><button className="btn-dark btn-sm" onClick={()=>setQuickObligation(e)}>Cargar deuda</button><button className="btn-ghost btn-sm" onClick={()=>setSelectedId(e.id)}>Detalle</button><button className="btn-ghost btn-sm" onClick={()=>setEmployeeModal(e)}>Editar</button></div></td></tr>)}</tbody></table></div></>:null}
+    <Tabs tabs={[{id:"resumen",label:"Resumen"},{id:"sueldos",label:"Ajuste de sueldos"},{id:"solicitudes",label:`Solicitudes (${requests.length})`}]} active={tab} onChange={setTab}/>
+    {tab==="resumen"&&summary?<>
+      <div className="stat-strip">
+        <div className="stat"><span className="stat-label">Empresa debe a empleados</span><strong className="stat-value">{formatArs(summary.totalCompanyOwesCents)}</strong></div>
+        <div className="stat"><span className="stat-label">Empleados deben a la empresa</span><strong className="stat-value">{formatArs(summary.totalEmployeesOweCents)}</strong></div>
+        <div className="stat"><span className="stat-label">Equipo activo</span><strong className="stat-value">{summary.activeEmployees}</strong></div>
+        <div className="stat"><span className="stat-label">Solicitudes pendientes</span><strong className="stat-value">{summary.pendingRequests}</strong></div>
+      </div>
+      {salaryByBranch.length?<div className="panel"><h2 className="panel-title">Sueldos por local</h2><div className="table-wrap"><table><thead><tr><th>Local</th><th>Total sueldos vigentes</th></tr></thead><tbody>{salaryByBranch.map(([label,cents])=><tr key={label}><td>{label}</td><td>{formatArs(cents.toString())}</td></tr>)}</tbody></table></div></div>:null}
+      <div className="toolbar"><input aria-label="Buscar empleados" placeholder="Buscar por nombre, local o puesto…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+      <div className="table-wrap"><table><thead><tr><th>Empleado</th><th>Local</th><th>Sueldo vigente</th><th>Neto a pagar</th><th/></tr></thead><tbody>{filtered.map(e=><tr key={e.id}><td><strong>{e.fullName}</strong><br/><span className="muted">{e.position||"Sin puesto"}</span></td><td>{e.branch?.name||"Sin local"}</td><td>{formatArs(e.salaryRecords?.[0]?.amountCents)}</td><td><Balance value={e.balanceCents}/></td><td><div className="row-actions"><button className="btn-dark btn-sm" onClick={()=>setQuickSalary(e)}>Cargar sueldo</button><button className="btn-dark btn-sm" onClick={()=>setQuickObligation(e)}>Cargar deuda</button><button className="btn-dark btn-sm" onClick={()=>setQuickPayment(e)}>Pagar</button><button className="btn-ghost btn-sm" onClick={()=>setSelectedId(e.id)}>Detalle</button><button className="btn-ghost btn-sm" onClick={()=>setEmployeeModal(e)}>Editar</button></div></td></tr>)}{!filtered.length?<tr><td colSpan={5}>No hay empleados para esta búsqueda.</td></tr>:null}</tbody></table></div>
+    </>:null}
     {tab==="sueldos"?<BulkSalary onDone={load}/>:null}
     {tab==="solicitudes"?<div className="table-wrap"><table><thead><tr><th>Empleado</th><th>Solicitud</th><th>Monto</th><th>Fecha</th><th/></tr></thead><tbody>{requests.map(r=><tr key={r.id}><td>{r.employee.fullName}</td><td>{kindLabel(r.kind)}<br/><span className="muted">{r.description||"Sin descripción"}</span></td><td>{formatArs(r.amountCents)}</td><td>{new Date(r.createdAt).toLocaleDateString("es-AR")}</td><td><div className="row-actions"><button className="btn-dark btn-sm" onClick={()=>void review(r.id,"approve")}>Aprobar</button><button className="btn-danger btn-sm" onClick={()=>void review(r.id,"reject")}>Rechazar</button></div></td></tr>)}{!requests.length?<tr><td colSpan={5}>No hay solicitudes pendientes.</td></tr>:null}</tbody></table></div>:null}
     <EmployeeModal value={employeeModal} onClose={()=>setEmployeeModal(null)} onSaved={async()=>{setEmployeeModal(null);await load();}}/>
     {quickSalary?<SalaryModal employeeId={quickSalary.id} open onClose={()=>setQuickSalary(null)} onSaved={async()=>{setQuickSalary(null);setOk("Sueldo cargado.");await load();}}/>:null}
     {quickObligation?<ObligationModal employeeId={quickObligation.id} open onClose={()=>setQuickObligation(null)} onSaved={async()=>{setQuickObligation(null);setOk("Deuda cargada.");await load();}}/>:null}
+    {quickPayment?<PaymentModal employeeId={quickPayment.id} obligations={[]} currentBalanceCents={quickPayment.balanceCents} open onClose={()=>setQuickPayment(null)} onSaved={async()=>{setQuickPayment(null);setOk("Pago registrado.");await load();}}/>:null}
   </section>;
 }
 
@@ -66,10 +95,10 @@ function EmployeeDetail({id,onBack}:{id:string;onBack:()=>void}) {
   async function deleteMovement(m:Movement){if(!confirm("¿Eliminar este movimiento? Dejará de impactar el saldo."))return;try{await api(`/movements/${m.id}/cancel`,{method:"POST"});setOk("Movimiento eliminado.");await load();}catch(e){setError(errorText(e));}}
   async function cancelObligation(o:Obligation){if(!confirm("¿Cancelar esta obligación y sus movimientos?"))return;try{await api(`/obligations/${o.id}/cancel`,{method:"POST"});await load();}catch(e){setError(errorText(e));}}
   if(loading&&!detail)return <Loading label="Cargando cuenta corriente…"/>; if(!detail)return <Alert>{error||"No se encontró el empleado."}</Alert>;
-  return <section><PageHeader eyebrow="Cuenta corriente" title={detail.fullName} subtitle={`${detail.position||"Sin puesto"} · ${detail.branch?.name||"Sin local"}`} actions={<><button className="btn-ghost" onClick={onBack}>← Volver</button><button onClick={()=>setSalaryOpen(true)}>Cargar sueldo</button><button onClick={()=>setObligationOpen(true)}>Cargar deuda</button><button className="btn-ghost" onClick={()=>setMovementOpen(true)}>Otro movimiento</button></>}/>{error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
-    <div className="stat-strip"><div className="stat"><span className="stat-label">Cuenta corriente</span><span className="stat-value"><Balance value={detail.balanceCents}/></span></div><div className="stat"><span className="stat-label">Sueldo vigente</span><strong className="stat-value">{formatArs(detail.currentSalary?.amountCents)}</strong></div><div className="stat"><span className="stat-label">Neto a pagar</span><strong className="stat-value">{formatArs(netToPay(detail.currentSalary?.amountCents,detail.balanceCents))}</strong></div><div className="stat"><span className="stat-label">Obligaciones abiertas</span><strong className="stat-value">{detail.summary.openObligations}</strong></div>{detail.summary.pendingMovements?<div className="stat"><span className="stat-label">Movimientos sin aplicar (histórico)</span><strong className="stat-value">{detail.summary.pendingMovements}</strong></div>:null}</div>
+  return <section><PageHeader eyebrow="Cuenta corriente" title={detail.fullName} subtitle={`${detail.position||"Sin puesto"} · ${detail.branch?.name||"Sin local"}`} actions={<><button className="btn-ghost" onClick={onBack}>← Volver</button><button onClick={()=>setSalaryOpen(true)}>Cargar sueldo</button><button onClick={()=>setObligationOpen(true)}>Cargar deuda</button><button onClick={()=>setPaymentOpen(true)}>Pagar</button><button className="btn-ghost" onClick={()=>setMovementOpen(true)}>Otro movimiento</button></>}/>{error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
+    <div className="stat-strip"><div className="stat"><span className="stat-label">Neto a pagar</span><span className="stat-value"><Balance value={detail.balanceCents}/></span></div><div className="stat"><span className="stat-label">Sueldo vigente</span><strong className="stat-value">{formatArs(detail.currentSalary?.amountCents)}</strong></div><div className="stat"><span className="stat-label">Obligaciones abiertas</span><strong className="stat-value">{detail.summary.openObligations}</strong></div>{detail.summary.pendingMovements?<div className="stat"><span className="stat-label">Movimientos sin aplicar (histórico)</span><strong className="stat-value">{detail.summary.pendingMovements}</strong></div>:null}</div>
     <div className="panel"><strong>Usuario asociado:</strong> {detail.user?`${detail.user.displayName||detail.user.username} (@${detail.user.username})${detail.user.active?"":" · inactivo"}`:"Sin usuario asociado"}{detail.docId?<> · <strong>Documento:</strong> {detail.docId}</>:null}</div>
-    <div className="toolbar"><Tabs tabs={[{id:"movimientos",label:"Movimientos"},{id:"sueldo",label:"Sueldo"},{id:"obligaciones",label:"Obligaciones y pagos"}]} active={tab} onChange={setTab}/><div className="toolbar-actions">{tab==="obligaciones"?<button className="btn-ghost" onClick={()=>setPaymentOpen(true)}>Registrar pago</button>:null}</div></div>
+    <div className="toolbar"><Tabs tabs={[{id:"movimientos",label:"Movimientos"},{id:"sueldo",label:"Sueldo"},{id:"obligaciones",label:"Obligaciones y pagos"}]} active={tab} onChange={setTab}/></div>
     {tab==="movimientos"?<><div className="grid-2"><Field label="Concepto"><select value={filters.kind} onChange={e=>setFilters({...filters,kind:e.target.value})}><option value="">Todos</option>{kinds.map(k=><option key={k[0]} value={k[0]}>{k[1]}</option>)}</select></Field><Field label="Dirección"><select value={filters.direction} onChange={e=>setFilters({...filters,direction:e.target.value})}><option value="">Todas</option><option value="COMPANY_OWES">Empresa debe</option><option value="EMPLOYEE_OWES">Empleado debe</option></select></Field></div><MovementTable items={movements} onDelete={deleteMovement}/></>:null}
     {tab==="sueldo"?<div className="table-wrap"><table><thead><tr><th>Vigencia</th><th>Anterior</th><th>Nuevo sueldo</th><th>Variación</th><th>Motivo</th></tr></thead><tbody>{salaries.map(s=><tr key={s.id}><td>{new Date(s.effectiveFrom).toLocaleDateString("es-AR")}</td><td>{formatArs(s.previousAmountCents)}</td><td><strong>{formatArs(s.amountCents)}</strong></td><td>{s.changeBps==null?"—":`${bpsToPct(s.changeBps)} %`}</td><td>{s.reason||"—"}</td></tr>)}</tbody></table></div>:null}
     {tab==="obligaciones"?<Obligations items={obligations} onCancel={cancelObligation}/>:null}
@@ -120,13 +149,13 @@ function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;op
 function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,onSaved}:{employeeId:string;obligations:Obligation[];currentBalanceCents:string;open:boolean;onClose:()=>void;onSaved:()=>void}) {
   const [amount,setAmount]=useState(""),[method,setMethod]=useState("EFECTIVO"),[reference,setReference]=useState(""),[obligationId,setObligationId]=useState(""),[error,setError]=useState("");
   useEffect(()=>{if(!open)return;setAmount("");setMethod("EFECTIVO");setReference("");setObligationId("");setError("");},[open]);
-  const previewBalance=(()=>{try{return (BigInt(currentBalanceCents||"0")+(amount.trim()?BigInt(parseArsToCents(amount)):0n)).toString();}catch{return currentBalanceCents;}})();
+  const previewBalance=(()=>{try{return (BigInt(currentBalanceCents||"0")-(amount.trim()?BigInt(parseArsToCents(amount)):0n)).toString();}catch{return currentBalanceCents;}})();
   async function submit(e:FormEvent){e.preventDefault();try{const cents=parseArsToCents(amount);await api(`/employees/${employeeId}/payments`,{method:"POST",body:{amountCents:cents,method,reference:reference||undefined,...(obligationId?{allocations:[{targetType:"OBLIGATION",targetId:obligationId,amountCents:cents}]}:{})}});onSaved();}catch(e){setError(errorText(e));}}
   return <Modal open={open} title="Registrar pago" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="payment-form">Registrar pago</button></>}>
     <form id="payment-form" className="form-grid" onSubmit={submit}>
       {error?<Alert>{error}</Alert>:null}
-      <Field label="Monto recibido (ARS)" hint="Puede ser un pago parcial, entero, o un adelanto que se lleva."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
-      <div className="panel"><span className="stat-label">Cuenta corriente después de este pago</span><br/><Balance value={previewBalance}/></div>
+      <Field label="Monto a pagar (ARS)" hint="Resta del neto a pagar total. Puede ser parcial, completo, o incluso un adelanto que se lleva."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
+      <div className="panel"><span className="stat-label">Neto a pagar después de este pago</span><br/><Balance value={previewBalance}/></div>
       <Field label="Método"><select value={method} onChange={e=>setMethod(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="MERCADO_PAGO">Mercado Pago</option><option value="TARJETA">Tarjeta</option><option value="OTRO">Otro</option></select></Field>
       <Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{obligations.filter(o=>o.status==="OPEN").map(o=><option key={o.id} value={o.id}>{kindLabel(o.kind)} · {formatArs(o.originalAmountCents)} · pendiente {formatArs(o.pendingCents)}</option>)}</select></Field>
       <Field label="Referencia (opcional)"><input value={reference} onChange={e=>setReference(e.target.value)}/></Field>
