@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 
 export type Tone = "neutral" | "warn" | "info" | "ok" | "bad" | "violet";
 
@@ -45,6 +45,43 @@ export function Field({
       {children}
       {hint ? <span className="field-hint">{hint}</span> : null}
     </label>
+  );
+}
+
+/**
+ * Input de monto en ARS que formatea en tiempo real mientras se escribe (estilo "cajero": los
+ * dígitos que se tipean van llenando desde los centavos hacia la izquierda, ej. "5" → "0,05",
+ * "50" → "0,50", "500" → "5,00"). El `value`/`onChange` siguen siendo el mismo texto ARS de
+ * siempre ("1.234,56"), compatible con `parseArsToCents`/`centsToInput` — es un reemplazo directo
+ * de `<input inputMode="decimal">` para cualquier campo de dinero.
+ */
+export function MoneyInput({
+  value,
+  onChange,
+  ...rest
+}: {
+  value: string;
+  onChange: (value: string) => void;
+} & Omit<ComponentPropsWithoutRef<"input">, "value" | "onChange" | "type" | "inputMode">) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={value}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+        if (!digits) {
+          onChange("");
+          return;
+        }
+        const cents = BigInt(digits);
+        const whole = cents / 100n;
+        const frac = cents % 100n;
+        const wholeFmt = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        onChange(`${wholeFmt},${frac.toString().padStart(2, "0")}`);
+      }}
+      {...rest}
+    />
   );
 }
 

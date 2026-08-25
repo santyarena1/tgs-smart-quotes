@@ -38,6 +38,7 @@ import {
   Field,
   Loading,
   Modal,
+  MoneyInput,
   PageHeader,
   Pill,
   SearchInput,
@@ -2531,10 +2532,10 @@ export function QuotesView({
                           {empty ? (
                             "—"
                           ) : editing ? (
-                            <input
+                            <MoneyInput
                               className="money-input"
                               value={item.costArs}
-                              onChange={(e) => setCost(item.key, e.target.value)}
+                              onChange={(v) => setCost(item.key, v)}
                               placeholder="0,00"
                             />
                           ) : (
@@ -2559,10 +2560,10 @@ export function QuotesView({
                           {empty ? (
                             "—"
                           ) : editing ? (
-                            <input
+                            <MoneyInput
                               className="money-input"
                               value={item.saleArs}
-                              onChange={(e) => setSale(item.key, e.target.value)}
+                              onChange={(v) => setSale(item.key, v)}
                               placeholder="0,00"
                             />
                           ) : (
@@ -2657,9 +2658,9 @@ export function QuotesView({
                     <Field label="Nombre"><input value={item.name} onChange={(e) => setName(item.key, e.target.value)} /></Field>
                     <div className="item-fields">
                       <Field label="Cantidad"><input type="number" min={1} value={item.quantity} onChange={(e) => setQuantity(item.key, e.target.value)} /></Field>
-                      <Field label="Costo"><input value={item.costArs} onChange={(e) => setCost(item.key, e.target.value)} /></Field>
+                      <Field label="Costo"><MoneyInput value={item.costArs} onChange={(v) => setCost(item.key, v)} /></Field>
                       <Field label="Markup %"><input value={item.markupPct} onChange={(e) => setMarkupPct(item.key, e.target.value)} /></Field>
-                      <Field label="Precio de venta"><input value={item.saleArs} onChange={(e) => setSale(item.key, e.target.value)} /></Field>
+                      <Field label="Precio de venta"><MoneyInput value={item.saleArs} onChange={(v) => setSale(item.key, v)} /></Field>
                     </div>
                   </> : !empty ? <div className="item-fields mobile-item-values">
                     <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong>{displayArs(item.saleArs)}</strong></div>
@@ -2778,10 +2779,10 @@ export function QuotesView({
                 <section>
                   <h4 className="ops-subtitle">Ajustes del borrador</h4>
                   <Field label="Total de venta objetivo (ARS)" htmlFor="retarget">
-                    <input
+                    <MoneyInput
                       id="retarget"
                       value={retargetArs}
-                      onChange={(e) => setRetargetArs(e.target.value)}
+                      onChange={(v) => setRetargetArs(v)}
                       disabled={!isDraft}
                       placeholder="Ej: 1200000"
                     />
@@ -3107,10 +3108,10 @@ export function QuotesView({
           </Field>
           <div className="grid-2">
             <Field label="Costo (ARS)" htmlFor="np-cost" hint="Ej: 150000,50">
-              <input
+              <MoneyInput
                 id="np-cost"
                 value={newProd.costArs}
-                onChange={(e) => setNewProd({ ...newProd, costArs: e.target.value })}
+                onChange={(v) => setNewProd({ ...newProd, costArs: v })}
                 required
               />
             </Field>

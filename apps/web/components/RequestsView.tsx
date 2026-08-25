@@ -9,6 +9,7 @@ import {
   Field,
   Loading,
   Modal,
+  MoneyInput,
   PageHeader,
   Pill,
   SearchInput,
@@ -541,10 +542,10 @@ export function RequestsView({
           </div>
           <div className="grid-2">
             <Field label="Presupuesto máximo (ARS)" htmlFor="req-budget">
-              <input
+              <MoneyInput
                 id="req-budget"
                 value={draft.maxBudgetArs}
-                onChange={(e) => setDraft({ ...draft, maxBudgetArs: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, maxBudgetArs: v })}
                 placeholder="Ej: 800000"
               />
             </Field>

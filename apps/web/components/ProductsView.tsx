@@ -11,6 +11,7 @@ import {
   Field,
   Loading,
   Modal,
+  MoneyInput,
   PageHeader,
   Pill,
   SearchInput,
@@ -686,10 +687,10 @@ export function ProductsView() {
           ) : null}
           <div className="grid-2">
             <Field label="Costo (ARS)" htmlFor="prod-cost" hint="Ej: 150000,50">
-              <input
+              <MoneyInput
                 id="prod-cost"
                 value={draft.costArs}
-                onChange={(e) => setDraft({ ...draft, costArs: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, costArs: v })}
                 required
               />
             </Field>
@@ -716,10 +717,10 @@ export function ProductsView() {
             </Field>
           ) : (
             <Field label="Precio de venta (ARS)" htmlFor="prod-sale">
-              <input
+              <MoneyInput
                 id="prod-sale"
                 value={draft.saleArs}
-                onChange={(e) => setDraft({ ...draft, saleArs: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, saleArs: v })}
                 required
               />
             </Field>

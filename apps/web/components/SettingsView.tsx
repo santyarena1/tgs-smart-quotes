@@ -17,6 +17,7 @@ import {
   Field,
   Loading,
   Modal,
+  MoneyInput,
   PageHeader,
   Pill,
   Tabs,
@@ -837,10 +838,10 @@ export function SettingsView() {
             htmlFor="ai-budget"
             hint={ai.monthlyBudgetUsdCents ? `Actual: ${formatArs(ai.monthlyBudgetUsdCents)} (centavos USD)` : "Sin tope"}
           >
-            <input
+            <MoneyInput
               id="ai-budget"
               value={budgetDisplay}
-              onChange={(e) => setBudgetDisplay(e.target.value)}
+              onChange={(v) => setBudgetDisplay(v)}
               placeholder="Vacío = sin tope"
             />
           </Field>
