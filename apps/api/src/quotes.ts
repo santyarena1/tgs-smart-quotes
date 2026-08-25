@@ -11,7 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {db,Prisma,type QuoteState,type StatusEventType} from '@tgs/database';
-import {touchProductsLastUsed} from './products.js';
+import {syncProductCostsFromQuoteItems,touchProductsLastUsed} from './products.js';
 import {
   collectionCreateSchema,
   collectionUpdateSchema,
@@ -441,6 +441,7 @@ export class QuotesController{
         const visibleNumber=await nextVisibleNumber(tx);
         const masters=await masterPrices(tx,body.items);
         const itemRows=buildItemRows(body.items,masters);
+        await syncProductCostsFromQuoteItems(tx,body.items,actor.id);
         const totalsRow=pricingTotals(itemRows);
         const family=await tx.quoteFamily.create({data:{
           visibleNumber,
@@ -591,6 +592,7 @@ export class QuotesController{
             ?buildItemRows(body.items,await masterPrices(tx,body.items))
             :version.items.map((item:any)=>copyItemSnapshot(item)))
           :[];
+        if(body.items)await syncProductCostsFromQuoteItems(tx,body.items,actor.id);
         // Solo versiona si el contenido REALMENTE cambió (una edición manual: componente, cantidad,
         // línea, observación o precio de venta). Un guardado que reenvía los mismos ítems —p. ej. el
         // auto-guardado antes de generar el PDF— no crea versión nueva. La comparación es por
@@ -727,6 +729,7 @@ export class QuotesController{
         const sourceItems=body.items
           ?buildItemRows(body.items,await masterPrices(tx,body.items))
           :source.items.map((item:any)=>copyItemSnapshot(item));
+        if(body.items)await syncProductCostsFromQuoteItems(tx,body.items,actor.id);
         const totalsRow=pricingTotals(sourceItems);
         const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
         const reason=body.reason===undefined&&body.sourceVersion!==undefined

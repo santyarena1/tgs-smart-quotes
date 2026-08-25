@@ -128,6 +128,37 @@ export async function touchProductsLastUsed(tx:any,productIds:Array<string|null|
   });
 }
 
+/**
+ * Si el costo que se cargó para un ítem de presupuesto (ligado a un producto del catálogo)
+ * difiere del costo maestro actual, actualiza el producto: así la próxima vez que se use en un
+ * presupuesto ya sale con el costo nuevo. Mantiene la política de markup del producto (general o
+ * propio), solo cambia costo y precio de venta resultante. No toca productos inactivos.
+ */
+export async function syncProductCostsFromQuoteItems(
+  tx:any,
+  items:ReadonlyArray<{productId?:string|null;costCents:string}>,
+  userId:string,
+){
+  const byProduct=new Map<string,bigint>();
+  for(const item of items){
+    if(!item.productId)continue;
+    byProduct.set(item.productId,BigInt(item.costCents));
+  }
+  if(!byProduct.size)return;
+  const products=await tx.product.findMany({where:{id:{in:[...byProduct.keys()]},active:true}});
+  const generalBps=await generalMarkupBps(tx);
+  for(const product of products){
+    const newCostCents=byProduct.get(product.id)!;
+    if(newCostCents===product.costCents)continue;
+    const markupBps=product.usesGeneralMarkup?generalBps:product.markupBps;
+    const salePriceCents=saleFromCost(newCostCents,markupBps);
+    const next={costCents:newCostCents,salePriceCents,markupBps};
+    await tx.product.update({where:{id:product.id},data:{...next,updatedById:userId}});
+    await addPriceHistory(tx,product.id,next,userId,'Actualizado desde un presupuesto');
+    await audit(tx,userId,'Product',product.id,'UPDATE',product,next);
+  }
+}
+
 @Controller('products')
 export class ProductsController{
   @Get()
