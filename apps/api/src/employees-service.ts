@@ -22,6 +22,28 @@ export async function employeeBalance(employeeId:string, tx:any=db) {
   return balanceFrom(rows);
 }
 
+const DEBT_KINDS:MovementKind[]=['ADVANCE','MERCHANDISE','CARD_CONSUMPTION','DEBT','INSTALLMENT'];
+const CREDIT_KINDS:MovementKind[]=['REPAYMENT','REIMBURSEMENT'];
+
+/**
+ * Desglosa la cuenta corriente en sus partes (sueldo devengado, deudas, otros a favor, ya pagado,
+ * ajustes) para que "cuánto le debo" se pueda explicar, no solo mostrar el número final.
+ * accruedCents + creditsCents - debtsCents - paidCents + adjustmentsCents == balanceCents siempre.
+ */
+export async function balanceBreakdown(employeeId:string, tx:any=db) {
+  const rows:{kind:MovementKind;direction:MovementDirection;amountCents:bigint}[]=await tx.movement.findMany({where:{employeeId,status:'APPLIED'},select:{kind:true,direction:true,amountCents:true}});
+  let accruedCents=0n,creditsCents=0n,debtsCents=0n,paidCents=0n,adjustmentsCents=0n;
+  for(const row of rows){
+    if(row.kind==='SALARY_ACCRUAL')accruedCents+=row.amountCents;
+    else if(CREDIT_KINDS.includes(row.kind))creditsCents+=row.amountCents;
+    else if(DEBT_KINDS.includes(row.kind))debtsCents+=row.amountCents;
+    else if(row.kind==='SALARY_PAYMENT')paidCents+=row.amountCents;
+    else if(row.kind==='ADJUSTMENT')adjustmentsCents+=row.direction==='COMPANY_OWES'?row.amountCents:-row.amountCents;
+  }
+  const balanceCents=accruedCents+creditsCents-debtsCents-paidCents+adjustmentsCents;
+  return {accruedCents,creditsCents,debtsCents,paidCents,adjustmentsCents,balanceCents};
+}
+
 export const isEmployeePortalEnabled=()=>process.env.EMPLOYEE_PORTAL_ENABLED==='true';
 
 export async function requireEmployeeForUser(userId:string,tx:any=db){

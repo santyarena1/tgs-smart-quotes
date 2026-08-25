@@ -19,6 +19,7 @@ type Summary = { activeEmployees:number; totalCompanyOwesCents:string; totalEmpl
 type RequestRow = { id:string; kind:MovementKind; amountCents:string; description?:string|null; createdAt:string; employee:{id:string;fullName:string} };
 type Obligation = { id:string; kind:string; originalAmountCents:string; pendingCents:string; status:"OPEN"|"SETTLED"|"CANCELLED"; description?:string|null; productId?:string|null; createdAt:string; installments:Array<{id:string;number:number;amountCents:string;paidCents:string;period:string;status:string}> };
 type Preview = { employeeId:string; name:string; oldCents:string; bps:number; newCents:string; newInput:string; included:boolean };
+type Breakdown = { accruedCents:string; creditsCents:string; debtsCents:string; paidCents:string; adjustmentsCents:string; balanceCents:string };
 
 const kinds: Array<[MovementKind,string]> = [["ADVANCE","Adelanto"],["MERCHANDISE","Mercadería"],["CARD_CONSUMPTION","Consumo de tarjeta"],["DEBT","Deuda"],["REPAYMENT","Devolución / pago"],["REIMBURSEMENT","Reintegro"],["SALARY_ACCRUAL","Sueldo devengado"],["SALARY_PAYMENT","Pago de sueldo"],["INSTALLMENT","Cuota"],["ADJUSTMENT","Ajuste"]];
 const kindLabel = (kind:string) => kinds.find(([id])=>id===kind)?.[1] ?? kind.replaceAll("_"," ");
@@ -148,16 +149,33 @@ function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;op
 
 function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,onSaved}:{employeeId:string;obligations:Obligation[];currentBalanceCents:string;open:boolean;onClose:()=>void;onSaved:()=>void}) {
   const [amount,setAmount]=useState(""),[method,setMethod]=useState("EFECTIVO"),[reference,setReference]=useState(""),[obligationId,setObligationId]=useState(""),[error,setError]=useState("");
-  useEffect(()=>{if(!open)return;setAmount("");setMethod("EFECTIVO");setReference("");setObligationId("");setError("");},[open]);
+  const [breakdown,setBreakdown]=useState<Breakdown|null>(null),[loadingBreakdown,setLoadingBreakdown]=useState(false);
+  const openObligations=obligations.filter(o=>o.status==="OPEN");
+  useEffect(()=>{
+    if(!open)return;
+    setAmount("");setMethod("EFECTIVO");setReference("");setObligationId("");setError("");setBreakdown(null);setLoadingBreakdown(true);
+    api<Breakdown>(`/employees/${employeeId}/balance/breakdown`).then(setBreakdown).catch(()=>{/* se usa currentBalanceCents como fallback */}).finally(()=>setLoadingBreakdown(false));
+  },[open,employeeId]);
   const previewBalance=(()=>{try{return (BigInt(currentBalanceCents||"0")-(amount.trim()?BigInt(parseArsToCents(amount)):0n)).toString();}catch{return currentBalanceCents;}})();
   async function submit(e:FormEvent){e.preventDefault();try{const cents=parseArsToCents(amount);await api(`/employees/${employeeId}/payments`,{method:"POST",body:{amountCents:cents,method,reference:reference||undefined,...(obligationId?{allocations:[{targetType:"OBLIGATION",targetId:obligationId,amountCents:cents}]}:{})}});onSaved();}catch(e){setError(errorText(e));}}
   return <Modal open={open} title="Registrar pago" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="payment-form">Registrar pago</button></>}>
     <form id="payment-form" className="form-grid" onSubmit={submit}>
       {error?<Alert>{error}</Alert>:null}
+      <div className="panel">
+        <h3 className="panel-title">Cómo se arma el neto a pagar</h3>
+        {loadingBreakdown?<Loading label="Calculando…"/>:breakdown?<table><tbody>
+          <tr><td>Sueldo devengado</td><td className="num">+ {formatArs(breakdown.accruedCents)}</td></tr>
+          {breakdown.creditsCents!=="0"?<tr><td>Otros a favor</td><td className="num">+ {formatArs(breakdown.creditsCents)}</td></tr>:null}
+          <tr><td>Deudas</td><td className="num">− {formatArs(breakdown.debtsCents)}</td></tr>
+          <tr><td>Ya pagado</td><td className="num">− {formatArs(breakdown.paidCents)}</td></tr>
+          {breakdown.adjustmentsCents!=="0"?<tr><td>Ajustes</td><td className="num">{formatArs(breakdown.adjustmentsCents)}</td></tr>:null}
+          <tr><td><strong>Neto a pagar actual</strong></td><td className="num"><Balance value={breakdown.balanceCents}/></td></tr>
+        </tbody></table>:null}
+      </div>
       <Field label="Monto a pagar (ARS)" hint="Resta del neto a pagar total. Puede ser parcial, completo, o incluso un adelanto que se lleva."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
       <div className="panel"><span className="stat-label">Neto a pagar después de este pago</span><br/><Balance value={previewBalance}/></div>
       <Field label="Método"><select value={method} onChange={e=>setMethod(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="MERCADO_PAGO">Mercado Pago</option><option value="TARJETA">Tarjeta</option><option value="OTRO">Otro</option></select></Field>
-      <Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{obligations.filter(o=>o.status==="OPEN").map(o=><option key={o.id} value={o.id}>{kindLabel(o.kind)} · {formatArs(o.originalAmountCents)} · pendiente {formatArs(o.pendingCents)}</option>)}</select></Field>
+      {openObligations.length?<Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{openObligations.map(o=><option key={o.id} value={o.id}>{kindLabel(o.kind)} · {formatArs(o.originalAmountCents)} · pendiente {formatArs(o.pendingCents)}</option>)}</select></Field>:null}
       <Field label="Referencia (opcional)"><input value={reference} onChange={e=>setReference(e.target.value)}/></Field>
     </form>
   </Modal>;
