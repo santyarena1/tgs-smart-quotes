@@ -2,7 +2,7 @@ import {beforeEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('@tgs/database',()=>({db:{}}));
 
-import {applyDueInstallments,balanceBreakdown,balanceFrom,currentPeriod,movementKindForObligation,splitInstallments} from './employees-service.js';
+import {applyDueInstallments,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,currentPeriod,flattenListedMovement,movementKindForObligation,splitInstallments} from './employees-service.js';
 
 describe('cuenta corriente de empleados',()=>{
   it('mapea obligación de la empresa a un movimiento a favor del empleado',()=>{
@@ -70,6 +70,53 @@ describe('cuotas mes a mes',()=>{
     expect(created).toHaveLength(0);
     expect(create).not.toHaveBeenCalled();
   });
+
+  it('no recrea una cuota si ya hubo un movimiento, aunque esté cancelado',async()=>{
+    const create=vi.fn();
+    const findMany=vi.fn(async()=>[{
+      id:'ob-1',
+      employeeId:'emp-1',
+      direction:'EMPLOYEE_OWES',
+      description:'Debe 30 a lucas',
+      installments:[
+        {id:'i1',number:1,amountCents:2500000n,period:'202608',status:'PENDING'},
+        {id:'i2',number:2,amountCents:2500000n,period:'202609',status:'PENDING'},
+      ],
+      movements:[{id:'m-cancelled',installmentId:'i1'}],
+    }]);
+    const created=await applyDueInstallments({obligation:{findMany},movement:{create}},{userId:'u1',now:new Date('2026-08-27T15:00:00-03:00')});
+    expect(created).toHaveLength(0);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('no recrea una cuota marcada como cancelada',async()=>{
+    const create=vi.fn();
+    const findMany=vi.fn(async()=>[{
+      id:'ob-1',
+      employeeId:'emp-1',
+      direction:'EMPLOYEE_OWES',
+      description:null,
+      installments:[{id:'i1',number:1,amountCents:2500000n,period:'202608',status:'CANCELLED'}],
+      movements:[],
+    }]);
+    const created=await applyDueInstallments({obligation:{findMany},movement:{create}},{userId:'u1',now:new Date('2026-08-27T15:00:00-03:00')});
+    expect(created).toHaveLength(0);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('si hay carrera y el unique ya existe, no explota',async()=>{
+    const create=vi.fn(async()=>{const error=new Error('Unique constraint');(error as Error&{code:string}).code='P2002';throw error;});
+    const findMany=vi.fn(async()=>[{
+      id:'ob-1',
+      employeeId:'emp-1',
+      direction:'EMPLOYEE_OWES',
+      description:null,
+      installments:[{id:'i1',number:1,amountCents:2500000n,period:'202608',status:'PENDING'}],
+      movements:[],
+    }]);
+    const created=await applyDueInstallments({obligation:{findMany},movement:{create}},{userId:'u1',now:new Date('2026-08-27T15:00:00-03:00')});
+    expect(created).toHaveLength(0);
+  });
 });
 
 describe('desglose de saldo',()=>{
@@ -97,5 +144,66 @@ describe('desglose de saldo',()=>{
       balanceCents:130000n,
     });
     expect(result.accruedCents+result.creditsCents-result.debtsCents-result.paidCents+result.adjustmentsCents).toBe(result.balanceCents);
+  });
+});
+
+describe('eliminar movimientos y cuotas',()=>{
+  it('expone cuántas cuotas tiene la deuda para que la UI pregunte',()=>{
+    expect(flattenListedMovement({
+      id:'m1',
+      kind:'INSTALLMENT',
+      installment:{number:1,obligation:{plan:{count:2}}},
+    })).toEqual({id:'m1',kind:'INSTALLMENT',totalInstallments:2,installmentNumber:1});
+  });
+
+  it('al borrar solo este mes cancela el movimiento y la cuota para que no se reaplique',async()=>{
+    const movement={id:'m1',status:'APPLIED',installmentId:'i1',obligationId:'ob1'};
+    const tx={
+      movement:{
+        findUnique:vi.fn(async()=>movement),
+        update:vi.fn(async({data}:{data:object})=>({...movement,...data})),
+      },
+      installment:{updateMany:vi.fn(async()=>({count:1}))},
+      auditLog:{create:vi.fn()},
+    };
+    await cancelEmployeeMovement(tx,{id:'m1',userId:'u1',scope:'this_month'});
+    expect(tx.movement.update).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({status:'CANCELLED',cancelledById:'u1'}),
+    }));
+    expect(tx.installment.updateMany).toHaveBeenCalledWith({
+      where:{id:'i1',status:{not:'PAID'}},
+      data:{status:'CANCELLED'},
+    });
+  });
+
+  it('al borrar toda la deuda cancela obligación, cuotas y movimientos',async()=>{
+    const tx={
+      movement:{
+        findUnique:vi.fn(async()=>({id:'m1',status:'APPLIED',installmentId:'i1',obligationId:'ob1'})),
+        updateMany:vi.fn(async()=>({count:1})),
+      },
+      obligation:{
+        findUnique:vi.fn(async()=>({id:'ob1',status:'OPEN'})),
+        update:vi.fn(async()=>({id:'ob1',status:'CANCELLED'})),
+      },
+      installment:{updateMany:vi.fn(async()=>({count:2}))},
+      auditLog:{create:vi.fn()},
+    };
+    const result=await cancelEmployeeMovement(tx,{id:'m1',userId:'u1',scope:'full_obligation'});
+    expect(result).toEqual({id:'ob1',status:'CANCELLED'});
+    expect(tx.installment.updateMany).toHaveBeenCalledWith({
+      where:{obligationId:'ob1',status:{not:'PAID'}},
+      data:{status:'CANCELLED'},
+    });
+    expect(tx.movement.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where:{obligationId:'ob1',status:{not:'CANCELLED'}},
+      data:expect.objectContaining({status:'CANCELLED',cancelledById:'u1'}),
+    }));
+    expect(tx.obligation.update).toHaveBeenCalledWith({where:{id:'ob1'},data:{status:'CANCELLED'}});
+  });
+
+  it('no cancela una obligación ya saldada',async()=>{
+    const tx={obligation:{findUnique:vi.fn(async()=>({id:'ob1',status:'SETTLED'}))}};
+    await expect(cancelEmployeeObligation(tx,{id:'ob1',userId:'u1'})).rejects.toThrow('No se puede cancelar una obligación saldada');
   });
 });

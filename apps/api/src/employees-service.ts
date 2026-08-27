@@ -106,7 +106,9 @@ export async function applyDueInstallments(tx:any,opts:{userId:string;employeeId
     where,
     include:{
       installments:{orderBy:{number:'asc'}},
-      movements:{where:{status:{not:'CANCELLED'}},select:{id:true,installmentId:true}},
+      // Incluye CANCELLED: si ya hubo un movimiento de esa cuota (aunque se haya
+      // eliminado), no hay que volver a crearlo. El unique de installmentId cubre la carrera.
+      movements:{select:{id:true,installmentId:true}},
     },
   });
   const created:unknown[]=[];
@@ -119,23 +121,73 @@ export async function applyDueInstallments(tx:any,opts:{userId:string;employeeId
       if(installment.status==='CANCELLED')continue;
       if(installment.period>period)continue;
       if(accrued.has(installment.id))continue;
-      created.push(await tx.movement.create({data:{
-        employeeId:obligation.employeeId,
-        kind:'INSTALLMENT',
-        direction:obligation.direction,
-        amountCents:installment.amountCents,
-        status:'APPLIED',
-        occurredAt:periodStartDate(installment.period),
-        description:installmentMovementDescription(installment.number,count,obligation.description),
-        obligationId:obligation.id,
-        installmentId:installment.id,
-        createdById:opts.userId,
-        appliedById:opts.userId,
-        appliedAt:now,
-      }}));
+      try{
+        created.push(await tx.movement.create({data:{
+          employeeId:obligation.employeeId,
+          kind:'INSTALLMENT',
+          direction:obligation.direction,
+          amountCents:installment.amountCents,
+          status:'APPLIED',
+          occurredAt:periodStartDate(installment.period),
+          description:installmentMovementDescription(installment.number,count,obligation.description),
+          obligationId:obligation.id,
+          installmentId:installment.id,
+          createdById:opts.userId,
+          appliedById:opts.userId,
+          appliedAt:now,
+        }}));
+      }catch(error:any){
+        if(error?.code==='P2002')continue;
+        throw error;
+      }
     }
   }
   return created;
+}
+
+export function flattenListedMovement(movement:any){
+  const totalInstallments=movement.installment?.obligation?.plan?.count??null;
+  const installmentNumber=movement.installment?.number??null;
+  const {installment:_ignored,...rest}=movement;
+  return {...rest,totalInstallments,installmentNumber};
+}
+
+export async function listEmployeeMovements(tx:any,employeeId:string,q:{status?:string;kind?:string;direction?:string;occurredAt?:{gte:Date;lt:Date}}){
+  const items=await tx.movement.findMany({
+    where:{employeeId,status:q.status??{not:'CANCELLED'},kind:q.kind,direction:q.direction,occurredAt:q.occurredAt},
+    include:{installment:{select:{number:true,obligation:{select:{plan:{select:{count:true}}}}}}},
+    orderBy:[{occurredAt:'desc'},{createdAt:'desc'}],
+  });
+  return items.map(flattenListedMovement);
+}
+
+export async function cancelEmployeeObligation(tx:any,opts:{id:string;userId:string}){
+  const old=await tx.obligation.findUnique({where:{id:opts.id}});
+  if(!old)throw new NotFoundException('Obligación inexistente');
+  if(old.status==='SETTLED')throw new BadRequestException('No se puede cancelar una obligación saldada');
+  const now=new Date();
+  await tx.installment.updateMany({where:{obligationId:opts.id,status:{not:'PAID'}},data:{status:'CANCELLED'}});
+  await tx.movement.updateMany({where:{obligationId:opts.id,status:{not:'CANCELLED'}},data:{status:'CANCELLED',cancelledById:opts.userId,cancelledAt:now}});
+  const next=await tx.obligation.update({where:{id:opts.id},data:{status:'CANCELLED'}});
+  await audit(tx,opts.userId,'Obligation',opts.id,'CANCEL');
+  return next;
+}
+
+export async function cancelEmployeeMovement(tx:any,opts:{id:string;userId:string;scope?:'this_month'|'full_obligation'}){
+  const old=await tx.movement.findUnique({where:{id:opts.id}});
+  if(!old)throw new NotFoundException('Movimiento inexistente');
+  if(old.status==='CANCELLED')throw new BadRequestException('El movimiento ya está cancelado');
+  if(opts.scope==='full_obligation'){
+    if(!old.obligationId)throw new BadRequestException('Este movimiento no pertenece a una deuda');
+    return cancelEmployeeObligation(tx,{id:old.obligationId,userId:opts.userId});
+  }
+  const now=new Date();
+  const movement=await tx.movement.update({where:{id:opts.id},data:{status:'CANCELLED',cancelledById:opts.userId,cancelledAt:now}});
+  if(old.installmentId){
+    await tx.installment.updateMany({where:{id:old.installmentId,status:{not:'PAID'}},data:{status:'CANCELLED'}});
+  }
+  await audit(tx,opts.userId,'Movement',opts.id,'CANCEL',{scope:'this_month',installmentId:old.installmentId??null});
+  return movement;
 }
 
 export async function serializeObligation(tx:any,obligation:any) {

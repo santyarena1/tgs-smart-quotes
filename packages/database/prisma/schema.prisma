@@ -1204,7 +1204,7 @@ model Movement {
   description       String?
   obligationId      String?
   obligation        Obligation?       @relation(fields: [obligationId], references: [id])
-  installmentId     String?
+  installmentId     String?           @unique
   installment       Installment?      @relation(fields: [installmentId], references: [id])
   paymentId         String?
   payment           Payment?          @relation(fields: [paymentId], references: [id])
@@ -1269,7 +1269,7 @@ model Installment {
   status       InstallmentStatus @default(PENDING)
   paidCents    BigInt            @default(0)
   createdAt    DateTime          @default(now())
-  movements    Movement[]
+  movement     Movement?
 
   @@unique([obligationId, number])
   @@index([obligationId])

@@ -14,7 +14,7 @@ type MovementKind = "SALARY_ACCRUAL" | "SALARY_PAYMENT" | "ADVANCE" | "MERCHANDI
 type Employee = { id:string; fullName:string; docId?:string|null; position?:string|null; active:boolean; branchId?:string|null; branch?:{id:string;name:string}|null; salaryRecords?:Salary[]; balanceCents:string; pendingCount:number };
 type Salary = { id:string; amountCents:string; effectiveFrom:string; previousAmountCents?:string|null; changeBps?:number|null; reason?:string|null };
 type Detail = Employee & { user?:{username:string;displayName?:string|null;active:boolean}|null; currentSalary?:Salary|null; notes?:string|null; summary:{pendingMovements:number;openObligations:number} };
-type Movement = { id:string; kind:MovementKind; direction:Direction; amountCents:string; status:MovementStatus; occurredAt:string; description?:string|null; obligationId?:string|null };
+type Movement = { id:string; kind:MovementKind; direction:Direction; amountCents:string; status:MovementStatus; occurredAt:string; description?:string|null; obligationId?:string|null; installmentId?:string|null; totalInstallments?:number|null; installmentNumber?:number|null };
 type Summary = { activeEmployees:number; totalCompanyOwesCents:string; totalEmployeesOweCents:string; pendingMovements:number; pendingRequests:number };
 type RequestRow = { id:string; kind:MovementKind; amountCents:string; description?:string|null; createdAt:string; employee:{id:string;fullName:string} };
 type Obligation = { id:string; kind:string; direction:Direction; originalAmountCents:string; pendingCents:string; status:"OPEN"|"SETTLED"|"CANCELLED"; description?:string|null; productId?:string|null; createdAt:string; installments:Array<{id:string;number:number;amountCents:string;paidCents:string;period:string;status:string;accrued?:boolean}> };
@@ -111,9 +111,24 @@ function EmployeeModal({value,onClose,onSaved}:{value:"new"|Employee|null;onClos
 function EmployeeDetail({id,onBack}:{id:string;onBack:()=>void}) {
   const [detail,setDetail]=useState<Detail|null>(null),[movements,setMovements]=useState<Movement[]>([]),[salaries,setSalaries]=useState<Salary[]>([]),[obligations,setObligations]=useState<Obligation[]>([]),[tab,setTab]=useState<DetailTab>("movimientos"),[loading,setLoading]=useState(true),[error,setError]=useState(""),[ok,setOk]=useState("");
   const [filters,setFilters]=useState({period:"",kind:"",direction:""}),[movementOpen,setMovementOpen]=useState(false),[salaryOpen,setSalaryOpen]=useState(false),[obligationOpen,setObligationOpen]=useState(false),[paymentOpen,setPaymentOpen]=useState(false);
+  const [deleteTarget,setDeleteTarget]=useState<Movement|null>(null),[deleting,setDeleting]=useState(false);
   const load=useCallback(async()=>{setLoading(true);try{const [d,m,s,o]=await Promise.all([api<Detail>(`/employees/${id}`),api<{items:Movement[]}>(`/employees/${id}/movements`,{query:filters}),api<{items:Salary[]}>(`/employees/${id}/salary/history`),api<{items:Obligation[]}>(`/employees/${id}/obligations`)]);setDetail(d);setMovements(m.items);setSalaries(s.items);setObligations(o.items);setError("");}catch(e){setError(errorText(e));}finally{setLoading(false);}},[id,filters]);
   useEffect(()=>{void load();},[load]);
-  async function deleteMovement(m:Movement){if(!confirm("¿Eliminar este movimiento? Dejará de impactar el saldo."))return;try{await api(`/movements/${m.id}/cancel`,{method:"POST"});setOk("Movimiento eliminado.");await load();}catch(e){setError(errorText(e));}}
+  async function performDelete(m:Movement,scope:"this_month"|"full_obligation"){
+    setDeleting(true);
+    try{
+      await api(`/movements/${m.id}/cancel`,{method:"POST",body:{scope}});
+      setDeleteTarget(null);
+      setOk(scope==="full_obligation"?"Deuda eliminada.":"Movimiento eliminado.");
+      await load();
+    }catch(e){setError(errorText(e));}
+    finally{setDeleting(false);}
+  }
+  function requestDelete(m:Movement){
+    if((m.totalInstallments??0)>1){setDeleteTarget(m);return;}
+    if(!confirm("¿Eliminar este movimiento? Dejará de impactar el saldo."))return;
+    void performDelete(m,"this_month");
+  }
   async function cancelObligation(o:Obligation){if(!confirm("¿Cancelar esta obligación y sus movimientos?"))return;try{await api(`/obligations/${o.id}/cancel`,{method:"POST"});await load();}catch(e){setError(errorText(e));}}
   if(loading&&!detail)return <Loading label="Cargando cuenta corriente…"/>; if(!detail)return <Alert>{error||"No se encontró el empleado."}</Alert>;
   return <section><PageHeader eyebrow="Cuenta corriente" title={detail.fullName} subtitle={`${detail.position||"Sin puesto"} · ${detail.branch?.name||"Sin local"}`} actions={<><button className="btn-ghost" onClick={onBack}>← Volver</button><button onClick={()=>setSalaryOpen(true)}>Cargar sueldo</button><button onClick={()=>setObligationOpen(true)}>Cargar deuda</button><button onClick={()=>setPaymentOpen(true)}>Pagar</button><button className="btn-ghost" onClick={()=>setMovementOpen(true)}>Otro movimiento</button></>}/>{error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
@@ -121,10 +136,13 @@ function EmployeeDetail({id,onBack}:{id:string;onBack:()=>void}) {
     {obligations.some(o=>o.status==="OPEN"&&o.installments.length)?<div className="panel"><h2 className="panel-title">Deudas en cuotas</h2>{obligations.filter(o=>o.status==="OPEN"&&o.installments.length).map(o=><p key={o.id}>{obligationWho(o.direction)} · {kindLabel(o.kind)}{o.description?` · ${o.description}`:""} · {installmentCaption(o)}</p>)}</div>:null}
     <div className="panel"><strong>Usuario asociado:</strong> {detail.user?`${detail.user.displayName||detail.user.username} (@${detail.user.username})${detail.user.active?"":" · inactivo"}`:"Sin usuario asociado"}{detail.docId?<> · <strong>Documento:</strong> {detail.docId}</>:null}</div>
     <div className="toolbar"><Tabs tabs={[{id:"movimientos",label:"Movimientos"},{id:"sueldo",label:"Sueldo"},{id:"obligaciones",label:"Obligaciones y pagos"}]} active={tab} onChange={setTab}/></div>
-    {tab==="movimientos"?<><div className="grid-2"><Field label="Concepto"><select value={filters.kind} onChange={e=>setFilters({...filters,kind:e.target.value})}><option value="">Todos</option>{kinds.map(k=><option key={k[0]} value={k[0]}>{k[1]}</option>)}</select></Field><Field label="Dirección"><select value={filters.direction} onChange={e=>setFilters({...filters,direction:e.target.value})}><option value="">Todas</option><option value="COMPANY_OWES">Empresa debe</option><option value="EMPLOYEE_OWES">Empleado debe</option></select></Field></div><MovementTable items={movements} onDelete={deleteMovement}/></>:null}
+    {tab==="movimientos"?<><div className="grid-2"><Field label="Concepto"><select value={filters.kind} onChange={e=>setFilters({...filters,kind:e.target.value})}><option value="">Todos</option>{kinds.map(k=><option key={k[0]} value={k[0]}>{k[1]}</option>)}</select></Field><Field label="Dirección"><select value={filters.direction} onChange={e=>setFilters({...filters,direction:e.target.value})}><option value="">Todas</option><option value="COMPANY_OWES">Empresa debe</option><option value="EMPLOYEE_OWES">Empleado debe</option></select></Field></div><MovementTable items={movements} onDelete={requestDelete}/></>:null}
     {tab==="sueldo"?<div className="table-wrap"><table><thead><tr><th>Vigencia</th><th>Anterior</th><th>Nuevo sueldo</th><th>Variación</th><th>Motivo</th></tr></thead><tbody>{salaries.map(s=><tr key={s.id}><td>{new Date(s.effectiveFrom).toLocaleDateString("es-AR")}</td><td>{formatArs(s.previousAmountCents)}</td><td><strong>{formatArs(s.amountCents)}</strong></td><td>{s.changeBps==null?"—":`${bpsToPct(s.changeBps)} %`}</td><td>{s.reason||"—"}</td></tr>)}</tbody></table></div>:null}
     {tab==="obligaciones"?<Obligations items={obligations} onCancel={cancelObligation}/>:null}
     <MovementModal employeeId={id} open={movementOpen} onClose={()=>setMovementOpen(false)} onSaved={async()=>{setMovementOpen(false);await load();}}/><SalaryModal employeeId={id} open={salaryOpen} onClose={()=>setSalaryOpen(false)} onSaved={async()=>{setSalaryOpen(false);await load();}}/><ObligationModal employeeId={id} open={obligationOpen} onClose={()=>setObligationOpen(false)} onSaved={async()=>{setObligationOpen(false);await load();}}/><PaymentModal employeeId={id} obligations={obligations} currentBalanceCents={detail.balanceCents} open={paymentOpen} onClose={()=>setPaymentOpen(false)} onSaved={async()=>{setPaymentOpen(false);await load();}}/>
+    <Modal open={Boolean(deleteTarget)} title="¿Qué querés eliminar?" onClose={()=>{if(!deleting)setDeleteTarget(null);}} footer={<><button type="button" className="btn-ghost" disabled={deleting} onClick={()=>setDeleteTarget(null)}>Volver</button><button type="button" className="btn-dark" disabled={deleting} onClick={()=>{if(deleteTarget)void performDelete(deleteTarget,"this_month");}}>{deleting?"Eliminando…":"Solo este mes"}</button><button type="button" className="btn-danger" disabled={deleting} onClick={()=>{if(deleteTarget)void performDelete(deleteTarget,"full_obligation");}}>Toda la deuda</button></>}>
+      {deleteTarget?<p>Esta fila es la cuota {deleteTarget.installmentNumber}/{deleteTarget.totalInstallments}{deleteTarget.description?` — ${deleteTarget.description}`:""}. Podés sacar <strong>solo este mes</strong> del saldo (las otras cuotas siguen) o cancelar <strong>toda la deuda</strong>.</p>:null}
+    </Modal>
   </section>;
 }
 

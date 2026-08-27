@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-08-27",
+    title: "Eliminar cuotas sin que vuelvan a aparecer",
+    items: [
+      "Eliminar una cuota la saca del saldo de verdad: ya no se recrea al recargar la ficha",
+      "Si la deuda es en dos o más cuotas, se pregunta si querés borrar solo ese mes o toda la deuda",
+      "Los movimientos eliminados ya no aparecen mezclados en la lista",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-08-27",
     title: "Deudas de The Gamer Shop al empleado",
