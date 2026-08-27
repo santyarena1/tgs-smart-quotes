@@ -17,15 +17,34 @@ type Detail = Employee & { user?:{username:string;displayName?:string|null;activ
 type Movement = { id:string; kind:MovementKind; direction:Direction; amountCents:string; status:MovementStatus; occurredAt:string; description?:string|null; obligationId?:string|null };
 type Summary = { activeEmployees:number; totalCompanyOwesCents:string; totalEmployeesOweCents:string; pendingMovements:number; pendingRequests:number };
 type RequestRow = { id:string; kind:MovementKind; amountCents:string; description?:string|null; createdAt:string; employee:{id:string;fullName:string} };
-type Obligation = { id:string; kind:string; direction:Direction; originalAmountCents:string; pendingCents:string; status:"OPEN"|"SETTLED"|"CANCELLED"; description?:string|null; productId?:string|null; createdAt:string; installments:Array<{id:string;number:number;amountCents:string;paidCents:string;period:string;status:string}> };
+type Obligation = { id:string; kind:string; direction:Direction; originalAmountCents:string; pendingCents:string; status:"OPEN"|"SETTLED"|"CANCELLED"; description?:string|null; productId?:string|null; createdAt:string; installments:Array<{id:string;number:number;amountCents:string;paidCents:string;period:string;status:string;accrued?:boolean}> };
 type Preview = { employeeId:string; name:string; oldCents:string; bps:number; newCents:string; newInput:string; included:boolean };
 type Breakdown = { accruedCents:string; creditsCents:string; debtsCents:string; paidCents:string; adjustmentsCents:string; balanceCents:string };
 
 const kinds: Array<[MovementKind,string]> = [["ADVANCE","Adelanto"],["MERCHANDISE","Mercadería"],["CARD_CONSUMPTION","Consumo de tarjeta"],["DEBT","Deuda"],["REPAYMENT","Devolución / pago"],["REIMBURSEMENT","Reintegro"],["SALARY_ACCRUAL","Sueldo devengado"],["SALARY_PAYMENT","Pago de sueldo"],["INSTALLMENT","Cuota"],["ADJUSTMENT","Ajuste"]];
 const kindLabel = (kind:string) => kinds.find(([id])=>id===kind)?.[1] ?? (kind==="OTHER"?"Otra":kind.replaceAll("_"," "));
 const obligationWho = (direction:Direction) => direction==="COMPANY_OWES"?"The Gamer Shop al empleado":"El empleado a The Gamer Shop";
-const today = () => new Date().toISOString().slice(0,10);
-const month = () => new Date().toISOString().slice(0,7).replace("-","");
+const today = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires"}).format(new Date());
+const month = () => {
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires",year:"numeric",month:"2-digit"}).formatToParts(new Date());
+  return `${parts.find(part=>part.type==="year")?.value??""}${parts.find(part=>part.type==="month")?.value??""}`;
+};
+const formatPeriod = (period:string) => period.length===6?`${period.slice(4)}/${period.slice(0,4)}`:period;
+function installmentCaption(o:Obligation) {
+  const live=o.installments.filter(item=>item.status!=="CANCELLED");
+  if(!live.length)return null;
+  const remaining=live.filter(item=>!item.accrued);
+  let remainingCents=0n;
+  for(const item of remaining){try{remainingCents+=BigInt(item.amountCents);}catch{/* 0 */}}
+  const thisMonth=live.find(item=>item.period===month());
+  const parts=[
+    `en cuotas ${live.length-remaining.length}/${live.length} en el saldo`,
+    remaining.length?`quedan ${remaining.length} (${formatArs(remainingCents.toString())})`:"no quedan cuotas",
+    `total ${formatArs(o.originalAmountCents)}`,
+  ];
+  if(thisMonth)parts.unshift(`este mes ${formatArs(thisMonth.amountCents)}`);
+  return parts.join(" · ");
+}
 const errorText = (e:unknown) => e instanceof Error ? e.message : "Ocurrió un error inesperado.";
 const abs = (v:string) => { try { const n=BigInt(v); return (n<0n?-n:n).toString(); } catch { return "0"; } };
 
@@ -99,6 +118,7 @@ function EmployeeDetail({id,onBack}:{id:string;onBack:()=>void}) {
   if(loading&&!detail)return <Loading label="Cargando cuenta corriente…"/>; if(!detail)return <Alert>{error||"No se encontró el empleado."}</Alert>;
   return <section><PageHeader eyebrow="Cuenta corriente" title={detail.fullName} subtitle={`${detail.position||"Sin puesto"} · ${detail.branch?.name||"Sin local"}`} actions={<><button className="btn-ghost" onClick={onBack}>← Volver</button><button onClick={()=>setSalaryOpen(true)}>Cargar sueldo</button><button onClick={()=>setObligationOpen(true)}>Cargar deuda</button><button onClick={()=>setPaymentOpen(true)}>Pagar</button><button className="btn-ghost" onClick={()=>setMovementOpen(true)}>Otro movimiento</button></>}/>{error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
     <div className="stat-strip"><div className="stat"><span className="stat-label">Neto a pagar</span><span className="stat-value"><Balance value={detail.balanceCents}/></span></div><div className="stat"><span className="stat-label">Sueldo vigente</span><strong className="stat-value">{formatArs(detail.currentSalary?.amountCents)}</strong></div><div className="stat"><span className="stat-label">Obligaciones abiertas</span><strong className="stat-value">{detail.summary.openObligations}</strong></div>{detail.summary.pendingMovements?<div className="stat"><span className="stat-label">Movimientos sin aplicar (histórico)</span><strong className="stat-value">{detail.summary.pendingMovements}</strong></div>:null}</div>
+    {obligations.some(o=>o.status==="OPEN"&&o.installments.length)?<div className="panel"><h2 className="panel-title">Deudas en cuotas</h2>{obligations.filter(o=>o.status==="OPEN"&&o.installments.length).map(o=><p key={o.id}>{obligationWho(o.direction)} · {kindLabel(o.kind)}{o.description?` · ${o.description}`:""} · {installmentCaption(o)}</p>)}</div>:null}
     <div className="panel"><strong>Usuario asociado:</strong> {detail.user?`${detail.user.displayName||detail.user.username} (@${detail.user.username})${detail.user.active?"":" · inactivo"}`:"Sin usuario asociado"}{detail.docId?<> · <strong>Documento:</strong> {detail.docId}</>:null}</div>
     <div className="toolbar"><Tabs tabs={[{id:"movimientos",label:"Movimientos"},{id:"sueldo",label:"Sueldo"},{id:"obligaciones",label:"Obligaciones y pagos"}]} active={tab} onChange={setTab}/></div>
     {tab==="movimientos"?<><div className="grid-2"><Field label="Concepto"><select value={filters.kind} onChange={e=>setFilters({...filters,kind:e.target.value})}><option value="">Todos</option>{kinds.map(k=><option key={k[0]} value={k[0]}>{k[1]}</option>)}</select></Field><Field label="Dirección"><select value={filters.direction} onChange={e=>setFilters({...filters,direction:e.target.value})}><option value="">Todas</option><option value="COMPANY_OWES">Empresa debe</option><option value="EMPLOYEE_OWES">Empleado debe</option></select></Field></div><MovementTable items={movements} onDelete={deleteMovement}/></>:null}
@@ -144,7 +164,7 @@ function SalaryModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:b
   </Modal>;
 }
 
-function Obligations({items,onCancel}:{items:Obligation[];onCancel:(o:Obligation)=>void}) { return <>{items.map(o=><div className="panel" key={o.id}><div className="toolbar"><div><h3 className="panel-title">{kindLabel(o.kind)}</h3><p>{obligationWho(o.direction)} · {o.description||"Sin descripción"} · Original: <strong>{formatArs(o.originalAmountCents)}</strong> · Pendiente: <strong>{formatArs(o.pendingCents)}</strong></p></div><div className="toolbar-actions"><Status value={o.status}/>{o.status==="OPEN"?<button className="btn-danger btn-sm" onClick={()=>onCancel(o)}>Cancelar obligación</button>:null}</div></div>{o.installments.length?<div className="table-wrap"><table><thead><tr><th>Cuota</th><th>Período</th><th>Importe</th><th>Pagado</th><th>Estado</th></tr></thead><tbody>{o.installments.map(i=><tr key={i.id}><td>{i.number}</td><td>{i.period}</td><td>{formatArs(i.amountCents)}</td><td>{formatArs(i.paidCents)}</td><td><Status value={i.status}/></td></tr>)}</tbody></table></div>:null}</div>)}{!items.length?<div className="panel">No hay obligaciones para este empleado.</div>:null}</>; }
+function Obligations({items,onCancel}:{items:Obligation[];onCancel:(o:Obligation)=>void}) { return <>{items.map(o=><div className="panel" key={o.id}><div className="toolbar"><div><h3 className="panel-title">{kindLabel(o.kind)}</h3><p>{obligationWho(o.direction)} · {o.description||"Sin descripción"}{o.installments.length?<> · {installmentCaption(o)}</>:<> · Original: <strong>{formatArs(o.originalAmountCents)}</strong> · Pendiente: <strong>{formatArs(o.pendingCents)}</strong></>}</p></div><div className="toolbar-actions"><Status value={o.status}/>{o.status==="OPEN"?<button className="btn-danger btn-sm" onClick={()=>onCancel(o)}>Cancelar obligación</button>:null}</div></div>{o.installments.length?<div className="table-wrap"><table><thead><tr><th>Cuota</th><th>Período</th><th>Importe</th><th>En el saldo</th><th>Pagado</th><th>Estado</th></tr></thead><tbody>{o.installments.map(i=><tr key={i.id}><td>{i.number}</td><td>{formatPeriod(i.period)}</td><td>{formatArs(i.amountCents)}</td><td>{i.accrued?"Sí":"Todavía no"}</td><td>{formatArs(i.paidCents)}</td><td><Status value={i.status}/></td></tr>)}</tbody></table></div>:null}</div>)}{!items.length?<div className="panel">No hay obligaciones para este empleado.</div>:null}</>; }
 
 function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:boolean;onClose:()=>void;onSaved:()=>void}) {
   const [kind,setKind]=useState("ADVANCE"),[direction,setDirection]=useState<Direction>("EMPLOYEE_OWES"),[amount,setAmount]=useState(""),[description,setDescription]=useState(""),[withInstallments,setWithInstallments]=useState(false),[count,setCount]=useState("1"),[error,setError]=useState("");
@@ -163,7 +183,7 @@ function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;op
   return <Modal open={open} title="Cargar deuda" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="obligation-form">Cargar deuda</button></>}>
     <form id="obligation-form" className="form-grid" onSubmit={submit}>
       {error?<Alert>{error}</Alert>:null}
-      <Field label="Quién debe" hint={companyOwes?"Suma al neto a pagar, igual que el sueldo. Se puede saldar de una o en cuotas.":"Resta del neto a pagar. Se puede descontar de una o en cuotas."}>
+      <Field label="Quién debe" hint={companyOwes?"Si es de una, suma el total al neto. Si es en cuotas, este mes solo suma la cuota.":"Si es de una, resta el total del neto. Si es en cuotas, este mes solo resta la cuota."}>
         <select value={direction} onChange={e=>{
           const next=e.target.value as Direction;
           setDirection(next);
@@ -178,7 +198,7 @@ function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;op
       <Field label="Monto (ARS)"><MoneyInput required value={amount} onChange={setAmount}/></Field>
       <Field label="Descripción"><input value={description} onChange={e=>setDescription(e.target.value)}/></Field>
       <Checkbox label="Dividir en cuotas" checked={withInstallments} onChange={setWithInstallments}/>
-      {withInstallments?<Field label="Cantidad de cuotas" hint="Las cuotas arrancan este mes automáticamente."><input type="number" min={1} required value={count} onChange={e=>setCount(e.target.value)}/></Field>:null}
+      {withInstallments?<Field label="Cantidad de cuotas" hint="Este mes el saldo solo se mueve por la primera cuota. El mes que viene entra la siguiente, no el total."><input type="number" min={1} required value={count} onChange={e=>setCount(e.target.value)}/></Field>:null}
     </form>
   </Modal>;
 }
@@ -211,7 +231,7 @@ function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,o
       <Field label="Monto a pagar (ARS)" hint="Resta del neto a pagar total. Puede ser parcial, completo, o incluso un adelanto que se lleva."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
       <div className="panel"><span className="stat-label">Neto a pagar después de este pago</span><br/><Balance value={previewBalance}/></div>
       <Field label="Método"><select value={method} onChange={e=>setMethod(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="MERCADO_PAGO">Mercado Pago</option><option value="TARJETA">Tarjeta</option><option value="OTRO">Otro</option></select></Field>
-      {openObligations.length?<Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{openObligations.map(o=><option key={o.id} value={o.id}>{o.direction==="COMPANY_OWES"?"Empresa debe":"Empleado debe"} · {kindLabel(o.kind)} · {formatArs(o.originalAmountCents)} · pendiente {formatArs(o.pendingCents)}</option>)}</select></Field>:null}
+      {openObligations.length?<Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{openObligations.map(o=><option key={o.id} value={o.id}>{o.direction==="COMPANY_OWES"?"Empresa debe":"Empleado debe"} · {kindLabel(o.kind)} · {o.installments.length?installmentCaption(o):`pendiente ${formatArs(o.pendingCents)}`}</option>)}</select></Field>:null}
       <Field label="Referencia (opcional)"><input value={reference} onChange={e=>setReference(e.target.value)}/></Field>
     </form>
   </Modal>;

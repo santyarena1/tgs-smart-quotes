@@ -8,7 +8,7 @@ import {Alert,EmptyState,Field,Loading,MoneyInput,PageHeader,Pill,Stat,StatStrip
 type Salary={id:string;amountCents:string;effectiveFrom:string;reason?:string|null};
 type Profile={fullName:string;docId?:string|null;position?:string|null;branch?:{name:string}|null;balanceCents:string;currentSalary:Salary|null;summary:{pendingMovements:number;openObligations:number;pendingRequests:number}};
 type Movement={id:string;kind:string;direction:"EMPLOYEE_OWES"|"COMPANY_OWES";amountCents:string;status:string;occurredAt:string;description?:string|null};
-type Obligation={id:string;kind:string;direction?:"EMPLOYEE_OWES"|"COMPANY_OWES";originalAmountCents:string;pendingCents:string;status:string;description?:string|null;installments:Array<{id:string;number:number;period:string;amountCents:string;paidCents:string;status:string}>};
+type Obligation={id:string;kind:string;direction?:"EMPLOYEE_OWES"|"COMPANY_OWES";originalAmountCents:string;pendingCents:string;status:string;description?:string|null;installments:Array<{id:string;number:number;period:string;amountCents:string;paidCents:string;status:string;accrued?:boolean}>};
 type Payment={id:string;amountCents:string;method:string;paidAt:string;reference?:string|null};
 type RequestItem={id:string;kind:string;amountCents:string;description?:string|null;status:string;createdAt:string};
 
@@ -16,6 +16,14 @@ const labels:Record<string,string>={SALARY_ACCRUAL:"Sueldo",SALARY_PAYMENT:"Pago
 const label=(value:string)=>labels[value]??value.replaceAll("_"," ");
 const date=(value:string)=>new Intl.DateTimeFormat("es-AR").format(new Date(value));
 const balanceText=(cents:string)=>{const value=BigInt(cents);if(value>0n)return `La empresa te debe ${formatArs(value)}`;if(value<0n)return `Le debés a la empresa ${formatArs(-value)}`;return "Cuenta saldada";};
+function installmentNote(item:Obligation){
+  const live=item.installments.filter(row=>row.status!=="CANCELLED");
+  if(!live.length)return null;
+  const remaining=live.filter(row=>!row.accrued);
+  let remainingCents=0n;
+  for(const row of remaining){try{remainingCents+=BigInt(row.amountCents);}catch{/* 0 */}}
+  return `en cuotas ${live.length-remaining.length}/${live.length} en el saldo · quedan ${remaining.length} (${formatArs(remainingCents.toString())}) · total ${formatArs(item.originalAmountCents)}`;
+}
 
 export function EmployeePortalView(){
   const [profile,setProfile]=useState<Profile|null>(null),[movements,setMovements]=useState<Movement[]>([]),[obligations,setObligations]=useState<Obligation[]>([]),[payments,setPayments]=useState<Payment[]>([]),[requests,setRequests]=useState<RequestItem[]>([]),[salaryHistory,setSalaryHistory]=useState<Salary[]>([]);
@@ -33,7 +41,7 @@ export function EmployeePortalView(){
 
     <section className="panel"><h2 className="panel-title">Movimientos</h2>{movements.length?<div className="table-wrap"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Importe</th><th>Sentido</th><th>Estado</th></tr></thead><tbody>{movements.map(item=><tr key={item.id}><td>{date(item.occurredAt)}</td><td>{label(item.kind)}{item.description?<small className="muted"> · {item.description}</small>:null}</td><td>{formatArs(item.amountCents)}</td><td>{item.direction==="COMPANY_OWES"?"A tu favor":"A favor de la empresa"}</td><td><Pill>{label(item.status)}</Pill></td></tr>)}</tbody></table></div>:<EmptyState title="Todavía no hay movimientos"/>}</section>
 
-    <section className="panel"><h2 className="panel-title">Deudas y créditos</h2>{obligations.length?obligations.map(item=><div key={item.id} className="panel"><div className="toolbar"><div><strong>{label(item.kind)}</strong><p>{item.direction==="COMPANY_OWES"?"La empresa te debe":"Le debés a la empresa"} · {item.description||"Sin descripción"} · Pendiente: <strong>{formatArs(item.pendingCents)}</strong></p></div><Pill>{label(item.status)}</Pill></div>{item.installments.length?<div className="table-wrap"><table><thead><tr><th>Cuota</th><th>Período</th><th>Importe</th><th>Pagado</th><th>Estado</th></tr></thead><tbody>{item.installments.map(i=><tr key={i.id}><td>{i.number}</td><td>{i.period}</td><td>{formatArs(i.amountCents)}</td><td>{formatArs(i.paidCents)}</td><td>{label(i.status)}</td></tr>)}</tbody></table></div>:null}</div>):<EmptyState title="No hay deudas ni créditos registrados"/>}</section>
+    <section className="panel"><h2 className="panel-title">Deudas y créditos</h2>{obligations.length?obligations.map(item=><div key={item.id} className="panel"><div className="toolbar"><div><strong>{label(item.kind)}</strong><p>{item.direction==="COMPANY_OWES"?"La empresa te debe":"Le debés a la empresa"} · {item.description||"Sin descripción"}{item.installments.length?<> · {installmentNote(item)}</>:<> · Pendiente: <strong>{formatArs(item.pendingCents)}</strong></>}</p></div><Pill>{label(item.status)}</Pill></div>{item.installments.length?<div className="table-wrap"><table><thead><tr><th>Cuota</th><th>Período</th><th>Importe</th><th>En el saldo</th><th>Pagado</th><th>Estado</th></tr></thead><tbody>{item.installments.map(i=><tr key={i.id}><td>{i.number}</td><td>{i.period}</td><td>{formatArs(i.amountCents)}</td><td>{i.accrued?"Sí":"Todavía no"}</td><td>{formatArs(i.paidCents)}</td><td>{label(i.status)}</td></tr>)}</tbody></table></div>:null}</div>):<EmptyState title="No hay deudas ni créditos registrados"/>}</section>
 
     <div className="grid-2"><section className="panel"><h2 className="panel-title">Pagos</h2>{payments.length?<div className="table-wrap"><table><thead><tr><th>Fecha</th><th>Importe</th><th>Método</th></tr></thead><tbody>{payments.map(item=><tr key={item.id}><td>{date(item.paidAt)}</td><td>{formatArs(item.amountCents)}</td><td>{label(item.method)}</td></tr>)}</tbody></table></div>:<EmptyState title="No hay pagos registrados"/>}</section><section className="panel"><h2 className="panel-title">Historial salarial</h2>{salaryHistory.length?<div className="table-wrap"><table><thead><tr><th>Desde</th><th>Importe</th></tr></thead><tbody>{salaryHistory.map(item=><tr key={item.id}><td>{date(item.effectiveFrom)}</td><td>{formatArs(item.amountCents)}</td></tr>)}</tbody></table></div>:<EmptyState title="No hay sueldo registrado"/>}</section></div>
 

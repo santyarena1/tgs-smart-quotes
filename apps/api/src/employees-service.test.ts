@@ -2,7 +2,7 @@ import {beforeEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('@tgs/database',()=>({db:{}}));
 
-import {balanceBreakdown,balanceFrom,movementKindForObligation,splitInstallments} from './employees-service.js';
+import {applyDueInstallments,balanceBreakdown,balanceFrom,currentPeriod,movementKindForObligation,splitInstallments} from './employees-service.js';
 
 describe('cuenta corriente de empleados',()=>{
   it('mapea obligación de la empresa a un movimiento a favor del empleado',()=>{
@@ -22,6 +22,53 @@ describe('cuenta corriente de empleados',()=>{
       {amountCents:100000n,direction:'COMPANY_OWES'},
       {amountCents:25000n,direction:'EMPLOYEE_OWES'},
     ])).toBe(75000n);
+  });
+});
+
+describe('cuotas mes a mes',()=>{
+  it('arma el período YYYYMM en hora de Argentina',()=>{
+    expect(currentPeriod(new Date('2026-08-27T15:00:00-03:00'))).toBe('202608');
+  });
+
+  it('solo mueve al saldo la cuota cuyo mes ya llegó',async()=>{
+    const create=vi.fn(async({data}:{data:unknown})=>data);
+    const findMany=vi.fn(async()=>[{
+      id:'ob-1',
+      employeeId:'emp-1',
+      direction:'COMPANY_OWES',
+      description:'horas extra',
+      installments:[
+        {id:'i1',number:1,amountCents:2500000n,period:'202608',status:'PENDING'},
+        {id:'i2',number:2,amountCents:2500000n,period:'202609',status:'PENDING'},
+        {id:'i3',number:3,amountCents:2500000n,period:'202610',status:'PENDING'},
+        {id:'i4',number:4,amountCents:2500000n,period:'202611',status:'PENDING'},
+      ],
+      movements:[],
+    }]);
+    const created=await applyDueInstallments({obligation:{findMany},movement:{create}},{userId:'u1',now:new Date('2026-08-27T15:00:00-03:00')});
+    expect(created).toHaveLength(1);
+    expect(create).toHaveBeenCalledOnce();
+    const data=create.mock.calls[0][0].data as {amountCents:bigint;installmentId:string;kind:string;direction:string;description:string};
+    expect(data.amountCents).toBe(2500000n);
+    expect(data.installmentId).toBe('i1');
+    expect(data.kind).toBe('INSTALLMENT');
+    expect(data.direction).toBe('COMPANY_OWES');
+    expect(data.description).toBe('Cuota 1/4 — horas extra');
+  });
+
+  it('no vuelve a cargar deudas viejas que ya entraron de una al saldo',async()=>{
+    const create=vi.fn();
+    const findMany=vi.fn(async()=>[{
+      id:'ob-old',
+      employeeId:'emp-1',
+      direction:'EMPLOYEE_OWES',
+      description:null,
+      installments:[{id:'i1',number:1,amountCents:10000n,period:'202608',status:'PENDING'}],
+      movements:[{id:'m-bulk',installmentId:null}],
+    }]);
+    const created=await applyDueInstallments({obligation:{findMany},movement:{create}},{userId:'u1',now:new Date('2026-08-27T15:00:00-03:00')});
+    expect(created).toHaveLength(0);
+    expect(create).not.toHaveBeenCalled();
   });
 });
 

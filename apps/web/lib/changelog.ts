@@ -13,7 +13,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Deudas de The Gamer Shop al empleado",
     items: [
       "Al cargar una deuda se elige quién debe: el empleado a TGS, o TGS al empleado",
-      "Si la empresa le debe, el importe suma al neto a pagar (igual que el sueldo), de una o en cuotas",
+      "Si la empresa le debe, el importe suma al neto a pagar (igual que el sueldo)",
+      "En cuotas, el saldo solo se mueve por la cuota del mes: se ve cuántas quedan y cuál era el total",
     ],
   },
   {

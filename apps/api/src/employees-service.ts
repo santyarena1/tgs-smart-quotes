@@ -71,10 +71,84 @@ export function addMonths(period:string, offset:number) {
   return `${date.getUTCFullYear()}${String(date.getUTCMonth()+1).padStart(2,'0')}`;
 }
 
+export function currentPeriod(now=new Date()) {
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit'}).formatToParts(now);
+  const year=parts.find(part=>part.type==='year')?.value??'0000';
+  const month=parts.find(part=>part.type==='month')?.value??'01';
+  return `${year}${month}`;
+}
+
+export function periodStartDate(period:string) {
+  return new Date(`${period.slice(0,4)}-${period.slice(4)}-01T12:00:00-03:00`);
+}
+
+export function installmentMovementDescription(number:number,count:number,description:string|null) {
+  const base=`Cuota ${number}/${count}`;
+  return description?`${base} — ${description}`:base;
+}
+
 export function splitInstallments(total:bigint,count:number,provided?:string[]) {
   if(provided){const values=provided.map(BigInt);if(values.reduce((a,b)=>a+b,0n)!==total)throw new BadRequestException('Las cuotas deben sumar exactamente el importe original');return values;}
   const base=total/BigInt(count), values=Array.from({length:count},()=>base);
   values[count-1]=(values[count-1]??0n)+total-values.reduce((a,b)=>a+b,0n);return values;
+}
+
+/**
+ * En deudas financiadas, el saldo solo se mueve por las cuotas cuyo período ya llegó
+ * (mes actual o atrasadas). Las cuotas futuras no entran hasta su mes.
+ * Las obligaciones viejas que se cargaron de una (movimiento sin installmentId) no se tocan.
+ */
+export async function applyDueInstallments(tx:any,opts:{userId:string;employeeId?:string;now?:Date}) {
+  const period=currentPeriod(opts.now);
+  const where:Record<string,unknown>={status:'OPEN',installments:{some:{}}};
+  if(opts.employeeId)where.employeeId=opts.employeeId;
+  const obligations=await tx.obligation.findMany({
+    where,
+    include:{
+      installments:{orderBy:{number:'asc'}},
+      movements:{where:{status:{not:'CANCELLED'}},select:{id:true,installmentId:true}},
+    },
+  });
+  const created:unknown[]=[];
+  const now=opts.now??new Date();
+  for(const obligation of obligations){
+    if(obligation.movements.some((movement: {installmentId:string|null})=>movement.installmentId==null))continue;
+    const accrued=new Set(obligation.movements.map((movement: {installmentId:string|null})=>movement.installmentId).filter(Boolean));
+    const count=obligation.installments.length;
+    for(const installment of obligation.installments){
+      if(installment.status==='CANCELLED')continue;
+      if(installment.period>period)continue;
+      if(accrued.has(installment.id))continue;
+      created.push(await tx.movement.create({data:{
+        employeeId:obligation.employeeId,
+        kind:'INSTALLMENT',
+        direction:obligation.direction,
+        amountCents:installment.amountCents,
+        status:'APPLIED',
+        occurredAt:periodStartDate(installment.period),
+        description:installmentMovementDescription(installment.number,count,obligation.description),
+        obligationId:obligation.id,
+        installmentId:installment.id,
+        createdById:opts.userId,
+        appliedById:opts.userId,
+        appliedAt:now,
+      }}));
+    }
+  }
+  return created;
+}
+
+export async function serializeObligation(tx:any,obligation:any) {
+  const pendingCents=await obligationPendingCents(tx,obligation);
+  const movements=obligation.movements??[];
+  const hasBulk=movements.some((movement:{installmentId:string|null})=>movement.installmentId==null);
+  const accrued=new Set(movements.map((movement:{installmentId:string|null})=>movement.installmentId).filter(Boolean));
+  const {movements:_ignored,...rest}=obligation;
+  return {
+    ...rest,
+    pendingCents,
+    installments:obligation.installments.map((item:{id:string})=>({...item,accrued:hasBulk||accrued.has(item.id)})),
+  };
 }
 
 export async function requireEmployee(id:string,tx:any=db){const employee=await tx.employee.findUnique({where:{id}});if(!employee)throw new NotFoundException('Empleado inexistente');return employee;}
