@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-08-25",
+    title: "Empleados: cuenta corriente, sueldos y pagos más claros",
+    items: [
+      "La carga de sueldo (con IPC) y deudas es más simple, con montos formateados en tiempo real y neto a pagar",
+      "El sueldo devengado entra a la cuenta corriente, con desglose al registrar un pago",
+      "Se corrigió el costo del catálogo para que se sincronice al editarlo desde un presupuesto",
+      "La lista de presupuestos se puede filtrar por local, y el historial de versiones muestra los nombres de componentes",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-08-18",
     title: "Impresión por local, buscador más rápido y datos de cliente en el PDF",
