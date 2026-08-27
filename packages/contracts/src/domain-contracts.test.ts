@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectionCreateSchema,
   customerCreateSchema,
+  obligationCreateSchema,
   pcLineCreateSchema,
   productCreateSchema,
   productImportSchema,
@@ -92,5 +93,28 @@ describe("contratos del dominio", () => {
         requiredComponents: [],
       }).state,
     ).toBe("PENDIENTE");
+  });
+
+  it("acepta deudas de la empresa al empleado o del empleado a la empresa", () => {
+    expect(
+      obligationCreateSchema.parse({
+        kind: "OTHER",
+        direction: "COMPANY_OWES",
+        originalAmountCents: "1500000",
+      }).direction,
+    ).toBe("COMPANY_OWES");
+    expect(
+      obligationCreateSchema.parse({
+        kind: "ADVANCE",
+        originalAmountCents: "50000",
+      }).direction,
+    ).toBeUndefined();
+    expect(() =>
+      obligationCreateSchema.parse({
+        kind: "OTHER",
+        direction: "COMPANY_OWES",
+        originalAmountCents: "10.5",
+      }),
+    ).toThrow();
   });
 });

@@ -1229,10 +1229,11 @@ model Movement {
 }
 
 model Obligation {
-  id                  String           @id @default(uuid())
+  id                  String             @id @default(uuid())
   employeeId          String
-  employee            Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee            Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   kind                ObligationKind
+  direction           MovementDirection  @default(EMPLOYEE_OWES)
   originalAmountCents BigInt
   description         String?
   productId           String?

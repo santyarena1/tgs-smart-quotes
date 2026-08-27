@@ -17,12 +17,13 @@ type Detail = Employee & { user?:{username:string;displayName?:string|null;activ
 type Movement = { id:string; kind:MovementKind; direction:Direction; amountCents:string; status:MovementStatus; occurredAt:string; description?:string|null; obligationId?:string|null };
 type Summary = { activeEmployees:number; totalCompanyOwesCents:string; totalEmployeesOweCents:string; pendingMovements:number; pendingRequests:number };
 type RequestRow = { id:string; kind:MovementKind; amountCents:string; description?:string|null; createdAt:string; employee:{id:string;fullName:string} };
-type Obligation = { id:string; kind:string; originalAmountCents:string; pendingCents:string; status:"OPEN"|"SETTLED"|"CANCELLED"; description?:string|null; productId?:string|null; createdAt:string; installments:Array<{id:string;number:number;amountCents:string;paidCents:string;period:string;status:string}> };
+type Obligation = { id:string; kind:string; direction:Direction; originalAmountCents:string; pendingCents:string; status:"OPEN"|"SETTLED"|"CANCELLED"; description?:string|null; productId?:string|null; createdAt:string; installments:Array<{id:string;number:number;amountCents:string;paidCents:string;period:string;status:string}> };
 type Preview = { employeeId:string; name:string; oldCents:string; bps:number; newCents:string; newInput:string; included:boolean };
 type Breakdown = { accruedCents:string; creditsCents:string; debtsCents:string; paidCents:string; adjustmentsCents:string; balanceCents:string };
 
 const kinds: Array<[MovementKind,string]> = [["ADVANCE","Adelanto"],["MERCHANDISE","Mercadería"],["CARD_CONSUMPTION","Consumo de tarjeta"],["DEBT","Deuda"],["REPAYMENT","Devolución / pago"],["REIMBURSEMENT","Reintegro"],["SALARY_ACCRUAL","Sueldo devengado"],["SALARY_PAYMENT","Pago de sueldo"],["INSTALLMENT","Cuota"],["ADJUSTMENT","Ajuste"]];
-const kindLabel = (kind:string) => kinds.find(([id])=>id===kind)?.[1] ?? kind.replaceAll("_"," ");
+const kindLabel = (kind:string) => kinds.find(([id])=>id===kind)?.[1] ?? (kind==="OTHER"?"Otra":kind.replaceAll("_"," "));
+const obligationWho = (direction:Direction) => direction==="COMPANY_OWES"?"The Gamer Shop al empleado":"El empleado a The Gamer Shop";
 const today = () => new Date().toISOString().slice(0,10);
 const month = () => new Date().toISOString().slice(0,7).replace("-","");
 const errorText = (e:unknown) => e instanceof Error ? e.message : "Ocurrió un error inesperado.";
@@ -143,9 +144,44 @@ function SalaryModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:b
   </Modal>;
 }
 
-function Obligations({items,onCancel}:{items:Obligation[];onCancel:(o:Obligation)=>void}) { return <>{items.map(o=><div className="panel" key={o.id}><div className="toolbar"><div><h3 className="panel-title">{kindLabel(o.kind)}</h3><p>{o.description||"Sin descripción"} · Original: <strong>{formatArs(o.originalAmountCents)}</strong> · Pendiente: <strong>{formatArs(o.pendingCents)}</strong></p></div><div className="toolbar-actions"><Status value={o.status}/>{o.status==="OPEN"?<button className="btn-danger btn-sm" onClick={()=>onCancel(o)}>Cancelar obligación</button>:null}</div></div>{o.installments.length?<div className="table-wrap"><table><thead><tr><th>Cuota</th><th>Período</th><th>Importe</th><th>Pagado</th><th>Estado</th></tr></thead><tbody>{o.installments.map(i=><tr key={i.id}><td>{i.number}</td><td>{i.period}</td><td>{formatArs(i.amountCents)}</td><td>{formatArs(i.paidCents)}</td><td><Status value={i.status}/></td></tr>)}</tbody></table></div>:null}</div>)}{!items.length?<div className="panel">No hay obligaciones para este empleado.</div>:null}</>; }
+function Obligations({items,onCancel}:{items:Obligation[];onCancel:(o:Obligation)=>void}) { return <>{items.map(o=><div className="panel" key={o.id}><div className="toolbar"><div><h3 className="panel-title">{kindLabel(o.kind)}</h3><p>{obligationWho(o.direction)} · {o.description||"Sin descripción"} · Original: <strong>{formatArs(o.originalAmountCents)}</strong> · Pendiente: <strong>{formatArs(o.pendingCents)}</strong></p></div><div className="toolbar-actions"><Status value={o.status}/>{o.status==="OPEN"?<button className="btn-danger btn-sm" onClick={()=>onCancel(o)}>Cancelar obligación</button>:null}</div></div>{o.installments.length?<div className="table-wrap"><table><thead><tr><th>Cuota</th><th>Período</th><th>Importe</th><th>Pagado</th><th>Estado</th></tr></thead><tbody>{o.installments.map(i=><tr key={i.id}><td>{i.number}</td><td>{i.period}</td><td>{formatArs(i.amountCents)}</td><td>{formatArs(i.paidCents)}</td><td><Status value={i.status}/></td></tr>)}</tbody></table></div>:null}</div>)}{!items.length?<div className="panel">No hay obligaciones para este empleado.</div>:null}</>; }
 
-function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:boolean;onClose:()=>void;onSaved:()=>void}) { const [kind,setKind]=useState("ADVANCE"),[amount,setAmount]=useState(""),[description,setDescription]=useState(""),[withInstallments,setWithInstallments]=useState(false),[count,setCount]=useState("1"),[error,setError]=useState(""); async function submit(e:FormEvent){e.preventDefault();try{await api(`/employees/${employeeId}/obligations`,{method:"POST",body:{kind,originalAmountCents:parseArsToCents(amount),description:description||null,...(withInstallments?{installments:{count:Number(count),firstPeriod:month()}}:{})}});onSaved();}catch(e){setError(errorText(e));}} return <Modal open={open} title="Cargar deuda" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="obligation-form">Cargar deuda</button></>}><form id="obligation-form" className="form-grid" onSubmit={submit}>{error?<Alert>{error}</Alert>:null}<Field label="Tipo"><select value={kind} onChange={e=>setKind(e.target.value)}><option value="ADVANCE">Adelanto</option><option value="MERCHANDISE">Mercadería</option><option value="CARD_CONSUMPTION">Consumo de tarjeta</option><option value="OTHER">Otra</option></select></Field><Field label="Monto (ARS)"><MoneyInput required value={amount} onChange={setAmount}/></Field><Field label="Descripción"><input value={description} onChange={e=>setDescription(e.target.value)}/></Field><Checkbox label="Dividir en cuotas" checked={withInstallments} onChange={setWithInstallments}/>{withInstallments?<Field label="Cantidad de cuotas" hint="Las cuotas arrancan este mes automáticamente."><input type="number" min={1} required value={count} onChange={e=>setCount(e.target.value)}/></Field>:null}</form></Modal>; }
+function ObligationModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:boolean;onClose:()=>void;onSaved:()=>void}) {
+  const [kind,setKind]=useState("ADVANCE"),[direction,setDirection]=useState<Direction>("EMPLOYEE_OWES"),[amount,setAmount]=useState(""),[description,setDescription]=useState(""),[withInstallments,setWithInstallments]=useState(false),[count,setCount]=useState("1"),[error,setError]=useState("");
+  useEffect(()=>{
+    if(!open)return;
+    setKind("ADVANCE");setDirection("EMPLOYEE_OWES");setAmount("");setDescription("");setWithInstallments(false);setCount("1");setError("");
+  },[open]);
+  async function submit(e:FormEvent){
+    e.preventDefault();
+    try{
+      await api(`/employees/${employeeId}/obligations`,{method:"POST",body:{kind,direction,originalAmountCents:parseArsToCents(amount),description:description||null,...(withInstallments?{installments:{count:Number(count),firstPeriod:month()}}:{})}});
+      onSaved();
+    }catch(e){setError(errorText(e));}
+  }
+  const companyOwes=direction==="COMPANY_OWES";
+  return <Modal open={open} title="Cargar deuda" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="obligation-form">Cargar deuda</button></>}>
+    <form id="obligation-form" className="form-grid" onSubmit={submit}>
+      {error?<Alert>{error}</Alert>:null}
+      <Field label="Quién debe" hint={companyOwes?"Suma al neto a pagar, igual que el sueldo. Se puede saldar de una o en cuotas.":"Resta del neto a pagar. Se puede descontar de una o en cuotas."}>
+        <select value={direction} onChange={e=>{
+          const next=e.target.value as Direction;
+          setDirection(next);
+          if(next==="COMPANY_OWES"&&kind==="ADVANCE")setKind("OTHER");
+          if(next==="EMPLOYEE_OWES"&&kind==="OTHER")setKind("ADVANCE");
+        }}>
+          <option value="EMPLOYEE_OWES">El empleado a The Gamer Shop</option>
+          <option value="COMPANY_OWES">The Gamer Shop al empleado</option>
+        </select>
+      </Field>
+      <Field label="Tipo"><select value={kind} onChange={e=>setKind(e.target.value)}><option value="ADVANCE">Adelanto</option><option value="MERCHANDISE">Mercadería</option><option value="CARD_CONSUMPTION">Consumo de tarjeta</option><option value="OTHER">Otra</option></select></Field>
+      <Field label="Monto (ARS)"><MoneyInput required value={amount} onChange={setAmount}/></Field>
+      <Field label="Descripción"><input value={description} onChange={e=>setDescription(e.target.value)}/></Field>
+      <Checkbox label="Dividir en cuotas" checked={withInstallments} onChange={setWithInstallments}/>
+      {withInstallments?<Field label="Cantidad de cuotas" hint="Las cuotas arrancan este mes automáticamente."><input type="number" min={1} required value={count} onChange={e=>setCount(e.target.value)}/></Field>:null}
+    </form>
+  </Modal>;
+}
 
 function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,onSaved}:{employeeId:string;obligations:Obligation[];currentBalanceCents:string;open:boolean;onClose:()=>void;onSaved:()=>void}) {
   const [amount,setAmount]=useState(""),[method,setMethod]=useState("EFECTIVO"),[reference,setReference]=useState(""),[obligationId,setObligationId]=useState(""),[error,setError]=useState("");
@@ -175,7 +211,7 @@ function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,o
       <Field label="Monto a pagar (ARS)" hint="Resta del neto a pagar total. Puede ser parcial, completo, o incluso un adelanto que se lleva."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
       <div className="panel"><span className="stat-label">Neto a pagar después de este pago</span><br/><Balance value={previewBalance}/></div>
       <Field label="Método"><select value={method} onChange={e=>setMethod(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="MERCADO_PAGO">Mercado Pago</option><option value="TARJETA">Tarjeta</option><option value="OTRO">Otro</option></select></Field>
-      {openObligations.length?<Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{openObligations.map(o=><option key={o.id} value={o.id}>{kindLabel(o.kind)} · {formatArs(o.originalAmountCents)} · pendiente {formatArs(o.pendingCents)}</option>)}</select></Field>:null}
+      {openObligations.length?<Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{openObligations.map(o=><option key={o.id} value={o.id}>{o.direction==="COMPANY_OWES"?"Empresa debe":"Empleado debe"} · {kindLabel(o.kind)} · {formatArs(o.originalAmountCents)} · pendiente {formatArs(o.pendingCents)}</option>)}</select></Field>:null}
       <Field label="Referencia (opcional)"><input value={reference} onChange={e=>setReference(e.target.value)}/></Field>
     </form>
   </Modal>;

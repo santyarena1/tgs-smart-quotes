@@ -1,5 +1,5 @@
 import {BadRequestException, NotFoundException} from '@nestjs/common';
-import {db, type MovementDirection, type MovementKind} from '@tgs/database';
+import {db, type MovementDirection, type MovementKind, type ObligationKind} from '@tgs/database';
 
 export const MOVEMENT_DIRECTIONS: Record<MovementKind, MovementDirection | null> = {
   SALARY_ACCRUAL:'COMPANY_OWES', REPAYMENT:'COMPANY_OWES', REIMBURSEMENT:'COMPANY_OWES',
@@ -11,6 +11,11 @@ export function directionFor(kind: MovementKind, explicit?: MovementDirection) {
   const direction=explicit??MOVEMENT_DIRECTIONS[kind];
   if(!direction) throw new BadRequestException('Los ajustes requieren dirección');
   return direction;
+}
+
+export function movementKindForObligation(kind: ObligationKind, direction: MovementDirection): MovementKind {
+  if(kind==='OTHER') return direction==='COMPANY_OWES'?'REIMBURSEMENT':'DEBT';
+  return kind;
 }
 
 export function balanceFrom(movements: {amountCents:bigint;direction:MovementDirection}[]) {
@@ -35,7 +40,7 @@ export async function balanceBreakdown(employeeId:string, tx:any=db) {
   let accruedCents=0n,creditsCents=0n,debtsCents=0n,paidCents=0n,adjustmentsCents=0n;
   for(const row of rows){
     if(row.kind==='SALARY_ACCRUAL')accruedCents+=row.amountCents;
-    else if(CREDIT_KINDS.includes(row.kind))creditsCents+=row.amountCents;
+    else if(CREDIT_KINDS.includes(row.kind) || (DEBT_KINDS.includes(row.kind) && row.direction==='COMPANY_OWES'))creditsCents+=row.amountCents;
     else if(DEBT_KINDS.includes(row.kind))debtsCents+=row.amountCents;
     else if(row.kind==='SALARY_PAYMENT')paidCents+=row.amountCents;
     else if(row.kind==='ADJUSTMENT')adjustmentsCents+=row.direction==='COMPANY_OWES'?row.amountCents:-row.amountCents;

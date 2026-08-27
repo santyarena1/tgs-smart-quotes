@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-08-27",
+    title: "Deudas de The Gamer Shop al empleado",
+    items: [
+      "Al cargar una deuda se elige quién debe: el empleado a TGS, o TGS al empleado",
+      "Si la empresa le debe, el importe suma al neto a pagar (igual que el sueldo), de una o en cuotas",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-08-25",
     title: "Empleados: cuenta corriente, sueldos y pagos más claros",
