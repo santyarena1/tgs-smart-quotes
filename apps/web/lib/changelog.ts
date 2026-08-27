@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.4",
+    date: "2026-08-27",
+    title: "Pago con el neto ya cargado",
+    items: [
+      "Al tocar Pagar, el monto viene preescrito con el 100% del neto a pagar (se puede cambiar)",
+    ],
+  },
+  {
     version: "0.3.3",
     date: "2026-08-27",
     title: "Eliminar cuotas sin que vuelvan a aparecer",

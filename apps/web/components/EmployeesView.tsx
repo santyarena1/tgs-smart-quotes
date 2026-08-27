@@ -47,6 +47,15 @@ function installmentCaption(o:Obligation) {
 }
 const errorText = (e:unknown) => e instanceof Error ? e.message : "Ocurrió un error inesperado.";
 const abs = (v:string) => { try { const n=BigInt(v); return (n<0n?-n:n).toString(); } catch { return "0"; } };
+/** Prefill del pago: 100% del neto si la empresa debe. Si el empleado debe o está saldado, queda vacío. */
+function suggestedPaymentInput(balanceCents:string) {
+  try {
+    const n=BigInt(balanceCents||"0");
+    if(n<=0n)return "";
+    const whole=n/100n, frac=n%100n;
+    return `${whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g,".")},${frac.toString().padStart(2,"0")}`;
+  } catch { return ""; }
+}
 
 function Balance({value}:{value:string}) { const n=BigInt(value||"0"); return n>0n?<Pill tone="ok">Empresa debe: {formatArs(value)}</Pill>:n<0n?<Pill tone="bad">Empleado debe: {formatArs(abs(value))}</Pill>:<Pill>Cuenta saldada</Pill>; }
 function Status({value}:{value:string}) { const labels:Record<string,string>={PENDING:"Pendiente",APPLIED:"Aplicado",CANCELLED:"Cancelado",OPEN:"Abierta",SETTLED:"Saldada"}; return <Pill tone={value==="APPLIED"||value==="SETTLED"?"ok":value==="PENDING"||value==="OPEN"?"warn":"bad"}>{labels[value]??value}</Pill>; }
@@ -227,7 +236,7 @@ function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,o
   const openObligations=obligations.filter(o=>o.status==="OPEN");
   useEffect(()=>{
     if(!open)return;
-    setAmount("");setMethod("EFECTIVO");setReference("");setObligationId("");setError("");setBreakdown(null);setLoadingBreakdown(true);
+    setAmount(suggestedPaymentInput(currentBalanceCents));setMethod("EFECTIVO");setReference("");setObligationId("");setError("");setBreakdown(null);setLoadingBreakdown(true);
     api<Breakdown>(`/employees/${employeeId}/balance/breakdown`).then(setBreakdown).catch(()=>{/* se usa currentBalanceCents como fallback */}).finally(()=>setLoadingBreakdown(false));
   },[open,employeeId]);
   const previewBalance=(()=>{try{return (BigInt(currentBalanceCents||"0")-(amount.trim()?BigInt(parseArsToCents(amount)):0n)).toString();}catch{return currentBalanceCents;}})();
@@ -246,7 +255,7 @@ function PaymentModal({employeeId,obligations,currentBalanceCents,open,onClose,o
           <tr><td><strong>Neto a pagar actual</strong></td><td className="num"><Balance value={breakdown.balanceCents}/></td></tr>
         </tbody></table>:null}
       </div>
-      <Field label="Monto a pagar (ARS)" hint="Resta del neto a pagar total. Puede ser parcial, completo, o incluso un adelanto que se lleva."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
+      <Field label="Monto a pagar (ARS)" hint="Viene el 100% del neto a pagar. Podés bajarlo si es parcial, o subirlo si es un adelanto."><MoneyInput autoFocus required value={amount} onChange={setAmount}/></Field>
       <div className="panel"><span className="stat-label">Neto a pagar después de este pago</span><br/><Balance value={previewBalance}/></div>
       <Field label="Método"><select value={method} onChange={e=>setMethod(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="MERCADO_PAGO">Mercado Pago</option><option value="TARJETA">Tarjeta</option><option value="OTRO">Otro</option></select></Field>
       {openObligations.length?<Field label="Asociar a obligación (opcional)" hint="Si no elegís ninguna, queda como pago general contra la cuenta corriente."><select value={obligationId} onChange={e=>setObligationId(e.target.value)}><option value="">Pago general</option>{openObligations.map(o=><option key={o.id} value={o.id}>{o.direction==="COMPANY_OWES"?"Empresa debe":"Empleado debe"} · {kindLabel(o.kind)} · {o.installments.length?installmentCaption(o):`pendiente ${formatArs(o.pendingCents)}`}</option>)}</select></Field>:null}
