@@ -25,4 +25,4 @@ FROM ranked
 WHERE m.id = ranked.id
   AND ranked.rn > 1;
 
-CREATE UNIQUE INDEX "Movement_installmentId_key" ON "Movement"("installmentId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Movement_installmentId_key" ON "Movement"("installmentId");

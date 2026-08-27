@@ -62,6 +62,6 @@ RUN mkdir -p /data/pdfs /data/uploads \
   && npx playwright install chromium
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
-# Migra + siembra datos base (admin, singletons de configuración) y arranca. El seed es idempotente
-# (upserts): crea lo que falte sin pisar ediciones del usuario; el admin toma ADMIN_USERNAME/ADMIN_PASSWORD.
-CMD ["sh", "-c", "pnpm --filter @tgs/database migrate && pnpm --filter @tgs/database seed && node apps/api/dist/main.js"]
+# Migra (si el unique de cuotas quedó failed, la marca rolled-back y reintenta) + seed + arranque.
+# El seed es idempotente: crea lo que falte sin pisar ediciones; el admin toma ADMIN_USERNAME/ADMIN_PASSWORD.
+CMD ["sh", "-c", "pnpm --filter @tgs/database migrate:start && pnpm --filter @tgs/database seed && node apps/api/dist/main.js"]
