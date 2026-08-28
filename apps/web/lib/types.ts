@@ -277,9 +277,11 @@ export type CalculatorGroup = {
   key: string;
   label: string;
   iconUrl: string | null;
+  iconUrls?: string[];
   kind: CalculatorGroupKind;
   sortOrder: number;
   visible: boolean;
+  note: string | null;
   plans: CalculatorPlan[];
 };
 

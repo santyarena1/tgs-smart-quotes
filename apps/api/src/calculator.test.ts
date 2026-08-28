@@ -32,7 +32,9 @@ integration("calculadora de financiación", () => {
     expect(groups.find((g) => g.key === "list")?.plans[0]?.interestBps).toBe(1300);
     expect(groups.find((g) => g.key === "bbva")?.plans[0]?.installments).toBe(3);
     expect(groups.find((g) => g.key === "mercadopago")?.plans[0]?.interestBps).toBe(1050);
-    expect(groups.find((g) => g.key === "visa")?.label).toBe("Visa");
+    expect(groups.find((g) => g.key === "visa")).toBeUndefined();
+    expect(groups.find((g) => g.key === "mastercard")).toBeUndefined();
+    expect(groups.find((g) => g.key === "otros-bancos")?.label).toBe("Otros bancos");
   });
 
   it("guarda un interés propio sin tocar los planes de presupuestos", async () => {

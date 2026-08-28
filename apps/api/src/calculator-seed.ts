@@ -19,6 +19,7 @@ export type SeededGroup = {
   label: string;
   kind: CalculatorKind;
   sortOrder: number;
+  note: string | null;
   plans: SeededPlan[];
 };
 
@@ -27,8 +28,6 @@ const DEFAULT_ORDER = [
   'list',
   'bbva',
   'mercadopago',
-  'visa',
-  'mastercard',
   'gocuotas',
   'otros-bancos',
 ] as const;
@@ -55,6 +54,22 @@ const FALLBACK_BBVA: SeededPlan[] = [
   {installments: 6, interestBps: 0, sortOrder: 1},
 ];
 
+export const DEFAULT_BBVA_NOTE =
+  '3 cuotas sin interés viernes y sábados. 6 cuotas sin interés 1 día al mes, generalmente a mediados.';
+
+const DEFAULT_NOTES: Record<string, string> = {
+  bbva: DEFAULT_BBVA_NOTE,
+  'otros-bancos': 'Con interés. Los valores se calculan sobre el precio de lista.',
+};
+
+export function noteForKey(key: string, bbvaNote?: string | null): string | null {
+  if (key === 'bbva') {
+    const custom = bbvaNote?.trim();
+    return custom || DEFAULT_NOTES.bbva!;
+  }
+  return DEFAULT_NOTES[key] ?? null;
+}
+
 function slug(value: string): string {
   const s = value
     .normalize('NFD')
@@ -72,10 +87,10 @@ export function groupKeyFromBank(bank: string | null | undefined): string {
     .toLowerCase();
   if (/bbva/.test(n)) return 'bbva';
   if (/mercado\s*pago|mercadopago/.test(n)) return 'mercadopago';
-  if (/\bvisa\b/.test(n)) return 'visa';
-  if (/master\s*card|\bmastercard\b|\bmaster\b/.test(n)) return 'mastercard';
+  if (/\bvisa\b/.test(n) || /master\s*card|\bmastercard\b|\bmaster\b/.test(n) || /otros?\s*bancos?/.test(n)) {
+    return 'otros-bancos';
+  }
   if (/go\s*cuotas|gocuotas/.test(n)) return 'gocuotas';
-  if (/otros?\s*bancos?/.test(n)) return 'otros-bancos';
   if (!bank?.trim()) return 'otros-bancos';
   return slug(bank);
 }
@@ -110,6 +125,7 @@ function uniquePlans(plans: SeededPlan[]): SeededPlan[] {
 export function seedCalculatorGroups(
   listInterestBps: number,
   financing: FinancingSeedPlan[],
+  options: {bbvaNote?: string | null} = {},
 ): SeededGroup[] {
   const listBps = Number.isFinite(listInterestBps) && listInterestBps > 0 ? Math.trunc(listInterestBps) : 0;
   const active = financing.filter((plan) => plan.active !== false);
@@ -136,6 +152,7 @@ export function seedCalculatorGroups(
       label: DEFAULT_LABELS.cash!,
       kind: 'CASH',
       sortOrder: 0,
+      note: null,
       plans: [{installments: 1, interestBps: 0, sortOrder: 0}],
     },
     {
@@ -143,6 +160,7 @@ export function seedCalculatorGroups(
       label: DEFAULT_LABELS.list!,
       kind: 'LIST',
       sortOrder: 1,
+      note: '1 pago con tarjeta.',
       plans: [{installments: 1, interestBps: listBps, sortOrder: 0}],
     },
   ];
@@ -168,6 +186,7 @@ export function seedCalculatorGroups(
       label: labelForKey(key, matched?.bank),
       kind: 'PLAN',
       sortOrder: groups.length,
+      note: noteForKey(key, options.bbvaNote),
       plans,
     });
   }

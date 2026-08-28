@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.9",
+    date: "2026-08-28",
+    title: "Calculadora compacta para captura",
+    items: [
+      "La tarjeta de financiación entra en una captura: medios en grilla, no uno abajo del otro",
+      "Cada cuota muestra el valor y, abajo en chiquito, el total",
+      "Leyendas por medio (días de BBVA sin interés, promos, etc.) editables en el engranaje",
+      "Visa, Mastercard y otros bancos van juntos en un solo recuadro, con los dos logos",
+      "El interés de cada medio es sobre el efectivo, una sola vez: 13% de $ 10 es $ 11, no $ 13",
+    ],
+  },
+  {
     version: "0.3.8",
     date: "2026-08-28",
     title: "Calculadora de financiación",
