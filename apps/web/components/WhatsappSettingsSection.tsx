@@ -82,7 +82,7 @@ export function WhatsappSettingsSection() {
       <Checkbox label="Habilitar WhatsApp Cloud API" checked={settings.enabled} onChange={enabled => setSettings({...settings, enabled})}/>
       <div className="grid-2">
         <Field label="Phone Number ID" hint="Meta → WhatsApp → API Setup.">
-          <input required value={settings.phoneNumberId ?? ""} onChange={event => setSettings({...settings, phoneNumberId: event.target.value})}/>
+          <input value={settings.phoneNumberId ?? ""} onChange={event => setSettings({...settings, phoneNumberId: event.target.value})}/>
         </Field>
         <Field label="Business Account ID" hint="WhatsApp Business Account ID de Meta.">
           <input value={settings.businessAccountId ?? ""} onChange={event => setSettings({...settings, businessAccountId: event.target.value})}/>
