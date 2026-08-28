@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.10",
+    date: "2026-08-28",
+    title: "Vercel deja de fallar en cada push",
+    items: [
+      "Los deploys automáticos de Vercel quedan apagados: este repo se publica en Railway, no en Vercel",
+    ],
+  },
+  {
     version: "0.3.9",
     date: "2026-08-28",
     title: "Calculadora compacta para captura",

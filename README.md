@@ -13,7 +13,7 @@ Usuario inicial: `ADMIN_USERNAME`; la clave es `ADMIN_PASSWORD`. No hay registro
 
 Validacion: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm extension:zip`.
 
-Produccion: `docker compose -f docker-compose.prod.yml up -d --build`.
+Produccion: Railway (web, API y worker). En local, `docker compose -f docker-compose.prod.yml up -d --build`. Vercel no se usa: el Next.js está en `apps/web` y los deploys automáticos de Vercel están desactivados.
 
 
 
