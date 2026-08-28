@@ -11,9 +11,10 @@ type Direction = "EMPLOYEE_OWES" | "COMPANY_OWES";
 type MovementStatus = "PENDING" | "APPLIED" | "CANCELLED";
 type MovementKind = "SALARY_ACCRUAL" | "SALARY_PAYMENT" | "ADVANCE" | "MERCHANDISE" | "CARD_CONSUMPTION" | "DEBT" | "REPAYMENT" | "REIMBURSEMENT" | "INSTALLMENT" | "ADJUSTMENT";
 
-type Employee = { id:string; fullName:string; docId?:string|null; position?:string|null; active:boolean; branchId?:string|null; branch?:{id:string;name:string}|null; salaryRecords?:Salary[]; balanceCents:string; pendingCount:number };
+type Employee = { id:string; fullName:string; docId?:string|null; position?:string|null; active:boolean; branchId?:string|null; branch?:{id:string;name:string}|null; notes?:string|null; salaryRecords?:Salary[]; balanceCents:string; pendingCount:number };
+type BranchOption = { id:string; name:string };
 type Salary = { id:string; amountCents:string; effectiveFrom:string; previousAmountCents?:string|null; changeBps?:number|null; reason?:string|null };
-type Detail = Employee & { user?:{username:string;displayName?:string|null;active:boolean}|null; currentSalary?:Salary|null; notes?:string|null; summary:{pendingMovements:number;openObligations:number} };
+type Detail = Employee & { user?:{username:string;displayName?:string|null;active:boolean}|null; currentSalary?:Salary|null; summary:{pendingMovements:number;openObligations:number} };
 type Movement = { id:string; kind:MovementKind; direction:Direction; amountCents:string; status:MovementStatus; occurredAt:string; description?:string|null; obligationId?:string|null; installmentId?:string|null; totalInstallments?:number|null; installmentNumber?:number|null };
 type Summary = { activeEmployees:number; totalCompanyOwesCents:string; totalEmployeesOweCents:string; pendingMovements:number; pendingRequests:number };
 type RequestRow = { id:string; kind:MovementKind; amountCents:string; description?:string|null; createdAt:string; employee:{id:string;fullName:string} };
@@ -115,7 +116,56 @@ export function EmployeesView() {
   </section>;
 }
 
-function EmployeeModal({value,onClose,onSaved}:{value:"new"|Employee|null;onClose:()=>void;onSaved:()=>void}) { const [name,setName]=useState(""),[doc,setDoc]=useState(""),[position,setPosition]=useState(""),[notes,setNotes]=useState(""),[saving,setSaving]=useState(false),[error,setError]=useState(""); useEffect(()=>{setName(value&&value!=="new"?value.fullName:"");setDoc(value&&value!=="new"?value.docId??"":"");setPosition(value&&value!=="new"?value.position??"":"");setNotes("");setError("");},[value]); async function submit(e:FormEvent){e.preventDefault();setSaving(true);try{const path=value==="new"?"/employees":`/employees/${value?.id??""}`;await api(path,{method:value==="new"?"POST":"PUT",body:{fullName:name,docId:doc||null,position:position||null,notes:notes||null}});onSaved();}catch(e){setError(errorText(e));}finally{setSaving(false);}} return <Modal open={Boolean(value)} title={value==="new"?"Nuevo empleado":"Editar empleado"} onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="employee-form" disabled={saving}>{saving?"Guardando…":"Guardar"}</button></>}><form id="employee-form" className="form-grid" onSubmit={submit}>{error?<Alert>{error}</Alert>:null}<Field label="Nombre y apellido"><input required value={name} onChange={e=>setName(e.target.value)}/></Field><div className="grid-2"><Field label="DNI / documento"><input value={doc} onChange={e=>setDoc(e.target.value)}/></Field><Field label="Puesto"><input value={position} onChange={e=>setPosition(e.target.value)}/></Field></div><Field label="Notas"><textarea value={notes} onChange={e=>setNotes(e.target.value)}/></Field></form></Modal>; }
+function EmployeeModal({value,onClose,onSaved}:{value:"new"|Employee|null;onClose:()=>void;onSaved:()=>void}) {
+  const [name,setName]=useState("");
+  const [doc,setDoc]=useState("");
+  const [position,setPosition]=useState("");
+  const [branchId,setBranchId]=useState("");
+  const [notes,setNotes]=useState("");
+  const [branches,setBranches]=useState<BranchOption[]>([]);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  useEffect(()=>{
+    if(!value)return;
+    const employee=value!=="new"?value:null;
+    setName(employee?.fullName??"");
+    setDoc(employee?.docId??"");
+    setPosition(employee?.position??"");
+    setBranchId(employee?.branchId??employee?.branch?.id??"");
+    setNotes(employee?.notes??"");
+    setError("");
+    api<{items:BranchOption[]}>("/branches")
+      .then((r)=>setBranches(r.items))
+      .catch(()=>setBranches([]));
+  },[value]);
+  async function submit(e:FormEvent){
+    e.preventDefault();
+    setSaving(true);
+    try{
+      const path=value==="new"?"/employees":`/employees/${value?.id??""}`;
+      await api(path,{method:value==="new"?"POST":"PUT",body:{fullName:name,docId:doc||null,position:position||null,branchId:branchId||null,notes:notes||null}});
+      onSaved();
+    }catch(e){setError(errorText(e));}
+    finally{setSaving(false);}
+  }
+  return <Modal open={Boolean(value)} title={value==="new"?"Nuevo empleado":"Editar empleado"} onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="employee-form" disabled={saving}>{saving?"Guardando…":"Guardar"}</button></>}>
+    <form id="employee-form" className="form-grid" onSubmit={submit}>
+      {error?<Alert>{error}</Alert>:null}
+      <Field label="Nombre y apellido"><input required value={name} onChange={e=>setName(e.target.value)}/></Field>
+      <div className="grid-2">
+        <Field label="DNI / documento"><input value={doc} onChange={e=>setDoc(e.target.value)}/></Field>
+        <Field label="Puesto"><input value={position} onChange={e=>setPosition(e.target.value)}/></Field>
+      </div>
+      <Field label="Local" hint={!branches.length?"Todavía no hay locales. Cargalos en Usuarios.":undefined}>
+        <select value={branchId} onChange={e=>setBranchId(e.target.value)}>
+          <option value="">Sin local</option>
+          {branches.map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Notas"><textarea value={notes} onChange={e=>setNotes(e.target.value)}/></Field>
+    </form>
+  </Modal>;
+}
 
 function EmployeeDetail({id,onBack}:{id:string;onBack:()=>void}) {
   const [detail,setDetail]=useState<Detail|null>(null),[movements,setMovements]=useState<Movement[]>([]),[salaries,setSalaries]=useState<Salary[]>([]),[obligations,setObligations]=useState<Obligation[]>([]),[tab,setTab]=useState<DetailTab>("movimientos"),[loading,setLoading]=useState(true),[error,setError]=useState(""),[ok,setOk]=useState("");

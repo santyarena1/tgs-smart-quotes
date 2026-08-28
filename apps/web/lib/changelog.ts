@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.7",
+    date: "2026-08-28",
+    title: "Local en empleados",
+    items: [
+      "Al crear o editar un empleado se puede asignar el local; deja de quedar siempre en Sin local",
+    ],
+  },
+  {
     version: "0.3.6",
     date: "2026-08-28",
     title: "Sueldo mensual automático",
