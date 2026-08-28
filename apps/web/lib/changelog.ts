@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.7",
+    date: "2026-08-28",
+    title: "Importes en pesos, sin centavos",
+    items: [
+      "En el editor de presupuestos (y en el resto de la app) los montos se muestran y se cargan en pesos enteros, sin decimales: $ 50.000, no $ 50.000,00",
+    ],
+  },
+  {
     version: "0.3.6",
     date: "2026-08-28",
     title: "Sueldo mensual automático",

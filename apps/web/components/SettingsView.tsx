@@ -8,7 +8,7 @@ import {
   pingChromeExtension,
   type ExtensionPingResult,
 } from "../lib/api";
-import { bpsToPct, formatArs, parseArsToCents, pctToBps } from "../lib/money";
+import { bpsToPct, centsToInput, formatArs, parseArsToCents, pctToBps } from "../lib/money";
 import type { AiSettings, CompanySettings, ExternalModuleSettings, FinancingPlan, PdfSettings } from "../lib/types";
 import {
   Alert,
@@ -1137,13 +1137,4 @@ export function SettingsView() {
       </Modal>
     </div>
   );
-}
-
-function centsToInput(cents: string): string {
-  try {
-    const v = BigInt(cents);
-    return `${v / 100n},${(v % 100n).toString().padStart(2, "0")}`;
-  } catch {
-    return "";
-  }
 }

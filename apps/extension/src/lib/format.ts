@@ -1,4 +1,4 @@
-/** Formatea centavos (string/bigint) a ARS. Copia mínima de apps/web/lib/money.ts para no acoplar paquetes. */
+/** Formatea centavos a pesos enteros ARS. Copia de apps/web/lib/money.ts para no acoplar paquetes. */
 export function formatArs(cents: string | number | bigint | null | undefined): string {
   if (cents === null || cents === undefined || cents === "") return "—";
   let value: bigint;
@@ -9,23 +9,12 @@ export function formatArs(cents: string | number | bigint | null | undefined): s
   }
   const negative = value < 0n;
   const abs = negative ? -value : value;
-  const whole = abs / 100n;
-  const frac = abs % 100n;
-  const wholeFmt = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  const fracFmt = frac.toString().padStart(2, "0");
-  return `${negative ? "-" : ""}$ ${wholeFmt},${fracFmt}`;
+  const pesos = (abs + 50n) / 100n;
+  return `${negative ? "-" : ""}$ ${pesos.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
-/** Precio comercial sin centavos, redondeado al peso y con miles argentinos. */
-export function formatArsWhole(cents:string|number|bigint|null|undefined):string{
-  if(cents===null||cents===undefined||cents==="")return"—";
-  try{
-    const value=typeof cents==="bigint"?cents:BigInt(String(cents).trim());
-    const negative=value<0n,absolute=negative?-value:value;
-    const pesos=(absolute+50n)/100n;
-    return`${negative?"-":""}$ ${pesos.toString().replace(/\B(?=(\d{3})+(?!\d))/g,".")}`;
-  }catch{return"—"}
-}
+/** Alias: el default del sistema es pesos sin centavos. */
+export const formatArsWhole = formatArs;
 
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return "—";

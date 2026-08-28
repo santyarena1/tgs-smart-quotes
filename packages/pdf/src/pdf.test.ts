@@ -87,8 +87,8 @@ const sample = (): PdfRenderInput => ({
 
 describe('@tgs/pdf', () => {
   it('formatea dinero ARS sin floats', () => {
-    expect(formatArsFromCents(114367500n)).toBe('$ 1.143.675,00');
-    expect(formatArsFromCents(0n)).toBe('$ 0,00');
+    expect(formatArsFromCents(114367500n)).toBe('$ 1.143.675');
+    expect(formatArsFromCents(0n)).toBe('$ 0');
   });
 
   it('nombra archivos históricos de forma estable', () => {
@@ -112,10 +112,10 @@ describe('@tgs/pdf', () => {
       financing: [{installments: 6, interestBps: 2500, bank: null, description: null}],
     });
     expect(html).toContain('Precio de lista (1 pago tarjeta)');
-    expect(html).toContain('$ 115.000,00');
-    expect(html).toContain('$ 100.000,00');
+    expect(html).toContain('$ 115.000');
+    expect(html).toContain('$ 100.000');
     expect(html).toContain('6 cuotas');
-    expect(html).toContain('de $ 23.958,33');
+    expect(html).toContain('de $ 23.958');
   });
 
   it('resuelve overrides triestado', () => {
@@ -209,10 +209,10 @@ describe('@tgs/pdf', () => {
     ]});
     // En SIMPLE el componente no lleva precio monetario (guión).
     expect(simple).toContain('—');
-    expect(simple).toContain('$ 1.143.675,00');
+    expect(simple).toContain('$ 1.143.675');
     // En DETALLADO el componente muestra su importe.
     expect(detailed).toContain('PROCESADOR AMD RYZEN 5');
-    expect(detailed).toContain('$ 250.000,00');
+    expect(detailed).toContain('$ 250.000');
   });
 
   it('SIMPLE sin PC armada no muestra importes por fila', () => {
@@ -231,6 +231,6 @@ describe('@tgs/pdf', () => {
     });
     expect(html).toContain('Memoria RAM 16GB');
     expect(html).toContain('—');
-    expect(html).not.toMatch(/Memoria RAM 16GB[\s\S]*\$ 100\.000,00/);
+    expect(html).not.toMatch(/Memoria RAM 16GB[\s\S]*\$ 100\.000/);
   });
 });

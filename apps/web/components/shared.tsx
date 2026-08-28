@@ -49,11 +49,8 @@ export function Field({
 }
 
 /**
- * Input de monto en ARS que formatea en tiempo real mientras se escribe (estilo "cajero": los
- * dígitos que se tipean van llenando desde los centavos hacia la izquierda, ej. "5" → "0,05",
- * "50" → "0,50", "500" → "5,00"). El `value`/`onChange` siguen siendo el mismo texto ARS de
- * siempre ("1.234,56"), compatible con `parseArsToCents`/`centsToInput` — es un reemplazo directo
- * de `<input inputMode="decimal">` para cualquier campo de dinero.
+ * Input de monto en pesos enteros ARS. Los dígitos se agrupan con miles
+ * (ej. "5" → "5", "50000" → "50.000"). Compatible con `parseArsToCents`/`centsToInput`.
  */
 export function MoneyInput({
   value,
@@ -69,16 +66,14 @@ export function MoneyInput({
       inputMode="numeric"
       value={value}
       onChange={(e) => {
+        const negative = e.target.value.trim().startsWith("-");
         const digits = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
         if (!digits) {
-          onChange("");
+          onChange(negative ? "-" : "");
           return;
         }
-        const cents = BigInt(digits);
-        const whole = cents / 100n;
-        const frac = cents % 100n;
-        const wholeFmt = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        onChange(`${wholeFmt},${frac.toString().padStart(2, "0")}`);
+        const wholeFmt = BigInt(digits).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        onChange(`${negative ? "-" : ""}${wholeFmt}`);
       }}
       {...rest}
     />

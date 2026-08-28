@@ -143,11 +143,9 @@ export const pdfFileName = (number: string, version: number, kind: PdfKind) =>
 export function formatArsFromCents(cents: bigint): string {
   const negative = cents < 0n;
   const abs = negative ? -cents : cents;
-  const whole = abs / 100n;
-  const frac = abs % 100n;
-  const wholeStr = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  const fracStr = frac.toString().padStart(2, '0');
-  return `${negative ? '-' : ''}$ ${wholeStr},${fracStr}`;
+  const pesos = (abs + 50n) / 100n;
+  const wholeStr = pesos.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${negative ? '-' : ''}$ ${wholeStr}`;
 }
 
 export function formatDateAr(date: Date): string {
@@ -637,7 +635,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
       const name = escapeHtml(item.name);
       const qty = String(item.quantity);
       // Solo se muestra importe en las filas que corresponde (línea principal en SIMPLE,
-      // todas en DETALLADO). El resto queda vacío (no "$ 0,00").
+      // todas en DETALLADO). El resto queda vacío (no "$ 0").
       const amount = showRowPrice(item) ? formatArsFromCents(item.subtotalCents) : '';
       const subtitle =
         item.isMainLine && input.config.builtPcDescription

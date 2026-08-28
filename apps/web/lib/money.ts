@@ -1,4 +1,20 @@
-/** Formatea centavos (string/bigint) a ARS solo para UI. */
+/** Redondea centavos al peso más cercano (half-up), sin floats. */
+export function roundToPesoCents(cents: bigint): bigint {
+  const negative = cents < 0n;
+  const abs = negative ? -cents : cents;
+  const pesos = (abs + 50n) / 100n;
+  const rounded = pesos * 100n;
+  return negative ? -rounded : rounded;
+}
+
+function pesosGroup(pesos: bigint): string {
+  const negative = pesos < 0n;
+  const abs = negative ? -pesos : pesos;
+  const grouped = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${negative ? "-" : ""}${grouped}`;
+}
+
+/** Formatea centavos a pesos enteros ARS (sin decimales) solo para UI. */
 export function formatArs(cents: string | number | bigint | null | undefined): string {
   if (cents === null || cents === undefined || cents === "") return "—";
   let value: bigint;
@@ -7,38 +23,39 @@ export function formatArs(cents: string | number | bigint | null | undefined): s
   } catch {
     return "—";
   }
-  const negative = value < 0n;
-  const abs = negative ? -value : value;
-  const whole = abs / 100n;
-  const frac = abs % 100n;
-  const wholeFmt = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  const fracFmt = frac.toString().padStart(2, "0");
-  return `${negative ? "-" : ""}$ ${wholeFmt},${fracFmt}`;
+  const rounded = roundToPesoCents(value);
+  const negative = rounded < 0n;
+  const pesos = (negative ? -rounded : rounded) / 100n;
+  return `${negative ? "-" : ""}$ ${pesosGroup(pesos)}`;
 }
 
-/** Convierte entrada de usuario (ARS o centavos puros) a string de centavos. */
+/** Convierte entrada de usuario en pesos a string de centavos. Sin decimales: 50.000 → 5000000. */
 export function parseArsToCents(input: string): string {
-  const raw = input.trim().replace(/\s/g, "").replace(/\$/g, "");
+  const trimmed = input.trim().replace(/\s/g, "").replace(/\$/g, "");
+  if (!trimmed || trimmed === "-") throw new Error("Importe vacío");
+  const negative = trimmed.startsWith("-");
+  const raw = negative ? trimmed.slice(1) : trimmed;
   if (!raw) throw new Error("Importe vacío");
-  if (/^\d+$/.test(raw)) {
-    // Si no hay separador decimal, interpretamos como pesos enteros → centavos
-    return (BigInt(raw) * 100n).toString();
+
+  let wholeDigits: string;
+  let fracCents = 0n;
+  if (raw.includes(",")) {
+    const parts = raw.split(",");
+    if (parts.length !== 2) throw new Error("Importe inválido. Usá pesos enteros, ej. 50.000");
+    wholeDigits = (parts[0] ?? "").replace(/\./g, "");
+    fracCents = BigInt(((parts[1] ?? "") + "00").slice(0, 2));
+  } else if (/^\d+\.\d{1,2}$/.test(raw)) {
+    const parts = raw.split(".");
+    wholeDigits = parts[0] ?? "0";
+    fracCents = BigInt(((parts[1] ?? "") + "00").slice(0, 2));
+  } else {
+    wholeDigits = raw.replace(/\./g, "");
   }
-  // 1.234,56 o 1234,56 o 1234.56
-  let normalized = raw;
-  if (normalized.includes(",") && normalized.includes(".")) {
-    normalized = normalized.replace(/\./g, "").replace(",", ".");
-  } else if (normalized.includes(",")) {
-    normalized = normalized.replace(",", ".");
-  }
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
-    throw new Error("Importe inválido. Usá formato 1234,56 o centavos enteros.");
-  }
-  const parts = normalized.split(".");
-  const whole = parts[0] ?? "0";
-  const frac = parts[1] ?? "";
-  const cents = BigInt(whole) * 100n + BigInt((frac + "00").slice(0, 2));
-  return cents.toString();
+  if (!/^\d+$/.test(wholeDigits)) throw new Error("Importe inválido. Usá pesos enteros, ej. 50.000");
+  let pesos = BigInt(wholeDigits);
+  if (fracCents >= 50n) pesos += 1n;
+  const cents = pesos * 100n;
+  return (negative ? -cents : cents).toString();
 }
 
 /** Entrada explícita de centavos (solo dígitos). */
@@ -55,13 +72,15 @@ export function formatBps(bps: number | null | undefined): string {
   return `${(bps / 100).toFixed(2)} %`;
 }
 
-/** Centavos → texto editable "1234,56" para inputs de ARS. */
+/** Centavos → texto editable en pesos enteros ("50.000") para inputs de ARS. */
 export function centsToInput(cents: string | number | bigint | null | undefined): string {
   if (cents === null || cents === undefined || cents === "") return "";
   try {
     const v = typeof cents === "bigint" ? cents : BigInt(String(cents).trim());
-    const abs = v < 0n ? -v : v;
-    return `${v < 0n ? "-" : ""}${abs / 100n},${(abs % 100n).toString().padStart(2, "0")}`;
+    const rounded = roundToPesoCents(v);
+    const negative = rounded < 0n;
+    const pesos = (negative ? -rounded : rounded) / 100n;
+    return `${negative ? "-" : ""}${pesosGroup(pesos)}`;
   } catch {
     return "";
   }

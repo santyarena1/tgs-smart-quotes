@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import { bpsToPct, formatArs, formatBps, parseArsToCents, pctToBps } from "../lib/money";
+import { bpsToPct, centsToInput, formatArs, formatBps, parseArsToCents, pctToBps } from "../lib/money";
 import type { Product, ProductQuoteUsage } from "../lib/types";
 import {
   Alert,
@@ -40,15 +40,6 @@ const emptyDraft = (): Draft => ({
   active: true,
   priceMode: "markup",
 });
-
-function centsToInput(cents: string): string {
-  try {
-    const v = BigInt(cents);
-    return `${v / 100n},${(v % 100n).toString().padStart(2, "0")}`;
-  } catch {
-    return "";
-  }
-}
 
 function formatTs(iso: string | null | undefined): string {
   if (!iso) return "Nunca";
@@ -812,7 +803,7 @@ export function ProductsView() {
               rows={7}
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder={"Ryzen 5 5600;180000,00;30\nRTX 4060;450000,00"}
+              placeholder={"Ryzen 5 5600;180000;30\nRTX 4060;450000"}
             />
           </Field>
           <Field label="Si el producto ya existe">

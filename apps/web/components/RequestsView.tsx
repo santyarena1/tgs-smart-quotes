@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
 import { api } from "../lib/api";
-import { formatArs, parseArsToCents } from "../lib/money";
+import { centsToInput, formatArs, parseArsToCents } from "../lib/money";
 import type { Customer, Quote, QuoteFromRequestSeed, QuoteRequest, RequestState } from "../lib/types";
 import {
   Alert,
@@ -191,7 +191,7 @@ export function RequestsView({
       internalNotes: req.internalNotes ?? "",
       customerId: req.customerId ?? "",
       detectedPhone: req.detectedPhone ?? "",
-      maxBudgetArs: budgetInput(req.maximumBudgetCents),
+      maxBudgetArs: centsToInput(req.maximumBudgetCents),
       expectedUse: req.expectedUse ?? "",
       requiredComponents: (req.requiredComponents ?? []).join(", "),
       state: req.state,
@@ -655,14 +655,4 @@ export function RequestsView({
       </Modal>
     </div>
   );
-}
-
-function budgetInput(cents: string | null): string {
-  if (!cents) return "";
-  try {
-    const v = BigInt(cents);
-    return `${v / 100n},${(v % 100n).toString().padStart(2, "0")}`;
-  } catch {
-    return "";
-  }
 }

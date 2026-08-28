@@ -2536,7 +2536,7 @@ export function QuotesView({
                               className="money-input"
                               value={item.costArs}
                               onChange={(v) => setCost(item.key, v)}
-                              placeholder="0,00"
+                              placeholder="0"
                             />
                           ) : (
                             displayArs(item.costArs)
@@ -2564,7 +2564,7 @@ export function QuotesView({
                               className="money-input"
                               value={item.saleArs}
                               onChange={(v) => setSale(item.key, v)}
-                              placeholder="0,00"
+                              placeholder="0"
                             />
                           ) : (
                             displayArs(item.saleArs)

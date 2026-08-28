@@ -7,8 +7,8 @@ describe("pricing de extensión",()=>{
   it.each([
     ["485.000,00",48500000n],
     ["1.500",150000n],
-    ["1500,50",150050n],
-    ["1500.50",150050n],
+    ["1500,50",150100n],
+    ["1500.50",150100n],
     ["1.234.567",123456700n],
     ["150000",15000000n],
   ])("parsea ARS %s como %s centavos",(input,expected)=>expect(parseArs(input)).toBe(expected));

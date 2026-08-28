@@ -52,8 +52,7 @@ function suggestedPaymentInput(balanceCents:string) {
   try {
     const n=BigInt(balanceCents||"0");
     if(n<=0n)return "";
-    const whole=n/100n, frac=n%100n;
-    return `${whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g,".")},${frac.toString().padStart(2,"0")}`;
+    return centsToInput(n);
   } catch { return ""; }
 }
 
