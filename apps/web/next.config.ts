@@ -7,6 +7,7 @@ const apiProxyTarget = (
 ).replace(/\/$/, '');
 
 const config: NextConfig = {
+  transpilePackages: ['html-to-image'],
   async rewrites() {
     return [
       {

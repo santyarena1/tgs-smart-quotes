@@ -13,7 +13,12 @@ export type NavPreferences = {
   items: {id: NavId; groupId: string; order: number; hidden: boolean}[];
 };
 
-export type SidebarNavGroup = {id: string; label: string; items: {id: NavId; label: string; icon: string}[]};
+export type SidebarNavGroup = {
+  id: string;
+  label: string;
+  ungrouped?: boolean;
+  items: {id: NavId; label: string; icon: string}[];
+};
 type Props = {userId: string; groups: SidebarNavGroup[]; active: NavId; onNavigate: (id: NavId) => void};
 
 function defaults(groups: SidebarNavGroup[]): NavPreferences {
@@ -222,6 +227,31 @@ export function PersonalizableSidebarNav({userId, groups, active, onNavigate}: P
     <>
       <div className="nav-groups">
         {shownGroups.map((group) => {
+          const catalog = groups.find((g) => g.id === group.id);
+          const ungrouped = Boolean(catalog?.ungrouped);
+          if (ungrouped) {
+            return (
+              <div className="nav-group ungrouped" key={group.id}>
+                <div className="nav-group-links">
+                  {group.items.map((item) => {
+                    const meta = info.get(item.id);
+                    if (!meta) return null;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={active === item.id ? "nav-link active" : "nav-link"}
+                        onClick={() => onNavigate(item.id)}
+                      >
+                        <span className="ico" aria-hidden="true">{meta.icon}</span>
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
           const isOpen = openGroup === group.id;
           return (
             <div className={isOpen ? "nav-group open" : "nav-group"} key={group.id}>

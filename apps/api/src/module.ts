@@ -21,6 +21,7 @@ import {ExternalModuleController} from './external-module.js';
 import {EmployeesController} from './employees.js';
 import {EmployeePortalController} from './employee-portal.js';
 import {MePreferencesController} from './me-preferences.js';
+import {CalculatorController} from './calculator.js';
 
 @Controller()
 class HealthController {
@@ -61,6 +62,7 @@ class HealthController {
     EmployeesController,
     EmployeePortalController,
     MePreferencesController,
+    CalculatorController,
   ],
   providers: [
     {provide: APP_GUARD, useClass: RateLimitGuard},

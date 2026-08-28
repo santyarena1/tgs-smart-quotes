@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { CHANGELOG, currentAppVersion, type ChangelogEntry } from "../lib/changelog";
 import type { AuthUser, Branding, NavId, QuoteFromRequestSeed } from "../lib/types";
+import { CalculatorView } from "./CalculatorView";
 import { CollectionsView } from "./CollectionsView";
 import { CombosView } from "./CombosView";
 import { CustomersView } from "./CustomersView";
@@ -28,12 +29,14 @@ import { PersonalizableSidebarNav, type SidebarNavGroup } from "./Personalizable
 const NAV_GROUPS: SidebarNavGroup[] = [
   {
     id: "operacion",
-    label: "Operación",
+    label: "Principal",
+    ungrouped: true,
     items: [
       { id: "dashboard", label: "Dashboard", icon: "▣" },
       { id: "solicitudes", label: "Solicitudes", icon: "☑" },
       { id: "presupuestos", label: "Presupuestos", icon: "▤" },
       { id: "colecciones", label: "Colecciones", icon: "◆" },
+      { id: "calculadora", label: "Calculadora", icon: "%" },
       { id: "mi-cuenta", label: "Mi cuenta", icon: "●" },
     ],
   },
@@ -337,6 +340,7 @@ export function App() {
         {nav === "clientes" ? <CustomersView /> : null}
         {nav === "lineas" ? <PcLinesView /> : null}
         {nav === "colecciones" ? <CollectionsView /> : null}
+        {nav === "calculadora" ? <CalculatorView /> : null}
         {nav === "notificaciones" ? <NotificationsView /> : null}
         {nav === "recontactos" ? <RecontactsView /> : null}
         {nav === "editor-pdf" ? <PdfLayoutEditorView /> : null}

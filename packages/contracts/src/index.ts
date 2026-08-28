@@ -345,6 +345,43 @@ export const financingPlanSchema = financingInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
+export const calculatorGroupKindSchema = z.enum(['CASH', 'LIST', 'PLAN']);
+const calculatorKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'La clave del medio debe ser un slug en minúsculas');
+export const calculatorPlanInputSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    installments: z.number().int().positive().max(60),
+    interestBps: z.number().int().min(0).max(100000),
+    sortOrder: z.number().int().optional(),
+    visible: z.boolean().optional(),
+  })
+  .strict();
+export const calculatorGroupInputSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    key: calculatorKeySchema,
+    label: z.string().trim().min(1).max(80),
+    kind: calculatorGroupKindSchema,
+    sortOrder: z.number().int().optional(),
+    visible: z.boolean().optional(),
+    plans: z.array(calculatorPlanInputSchema).min(1).max(24),
+  })
+  .strict();
+export const calculatorConfigInputSchema = z
+  .object({
+    groups: z.array(calculatorGroupInputSchema).min(1).max(40),
+  })
+  .strict();
+export type CalculatorGroupKind = z.infer<typeof calculatorGroupKindSchema>;
+export type CalculatorPlanInput = z.infer<typeof calculatorPlanInputSchema>;
+export type CalculatorGroupInput = z.infer<typeof calculatorGroupInputSchema>;
+export type CalculatorConfigInput = z.infer<typeof calculatorConfigInputSchema>;
+
 export const productInputSchema = z.object({ name: text });
 export const customerInputSchema = z.object({ name: text });
 export const requestInputSchema = z.object({ title: text });
@@ -1011,7 +1048,7 @@ export type BranchCreateInput = z.infer<typeof branchCreateSchema>;
 export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;
 
 export const navItemIdSchema = z.enum([
-  'dashboard', 'solicitudes', 'presupuestos', 'colecciones', 'mi-cuenta',
+  'dashboard', 'solicitudes', 'presupuestos', 'colecciones', 'calculadora', 'mi-cuenta',
   'clientes', 'productos', 'catalogo-acustock', 'combos', 'lineas',
   'notificaciones', 'recontactos', 'editor-pdf', 'usuarios', 'empleados',
   'modulo-externo', 'configuracion',

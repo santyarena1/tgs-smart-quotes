@@ -262,6 +262,27 @@ export type FinancingPlan = {
   sortOrder: number;
 };
 
+export type CalculatorGroupKind = "CASH" | "LIST" | "PLAN";
+
+export type CalculatorPlan = {
+  id: string;
+  installments: number;
+  interestBps: number;
+  sortOrder: number;
+  visible: boolean;
+};
+
+export type CalculatorGroup = {
+  id: string;
+  key: string;
+  label: string;
+  iconUrl: string | null;
+  kind: CalculatorGroupKind;
+  sortOrder: number;
+  visible: boolean;
+  plans: CalculatorPlan[];
+};
+
 export type QuoteItem = {
   id?: string;
   productId: string | null;
@@ -383,6 +404,7 @@ export type NavId =
   | "lineas"
   | "solicitudes"
   | "colecciones"
+  | "calculadora"
   | "notificaciones"
   | "recontactos"
   | "editor-pdf"

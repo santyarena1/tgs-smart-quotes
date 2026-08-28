@@ -11,6 +11,8 @@ import {
   quoteRetargetSchema,
   quoteStateSchema,
   requestCreateSchema,
+  calculatorConfigInputSchema,
+  navItemIdSchema,
 } from "./index.js";
 
 describe("contratos del dominio", () => {
@@ -116,5 +118,21 @@ describe("contratos del dominio", () => {
         originalAmountCents: "10.5",
       }),
     ).toThrow();
+  });
+
+  it("acepta la config de la calculadora y el ítem de navegación", () => {
+    expect(navItemIdSchema.parse("calculadora")).toBe("calculadora");
+    expect(
+      calculatorConfigInputSchema.parse({
+        groups: [
+          {
+            key: "bbva",
+            label: "BBVA",
+            kind: "PLAN",
+            plans: [{installments: 3, interestBps: 0}],
+          },
+        ],
+      }).groups,
+    ).toHaveLength(1);
   });
 });

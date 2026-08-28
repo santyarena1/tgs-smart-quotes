@@ -13,6 +13,10 @@ import {
   brandingFilePath,
   mimeForBrandingFilename,
 } from './branding-storage.js';
+import {
+  calculatorIconFilePath,
+  mimeForCalculatorIconFilename,
+} from './calculator-storage.js';
 import {chatbotRuleImageMime, chatbotRuleImagePath} from './chatbot-storage.js';
 
 @Controller('uploads')
@@ -25,6 +29,28 @@ export class UploadsController {
     return new StreamableFile(createReadStream(fullPath),{
       type:chatbotRuleImageMime(file),
       disposition:`inline; filename="${file}"`,
+    });
+  }
+
+  @Public()
+  @Get('calculator/:file')
+  async calculatorIcon(@Param('file') file: string) {
+    let fullPath: string;
+    let mime: string;
+    try {
+      fullPath = calculatorIconFilePath(file);
+      mime = mimeForCalculatorIconFilename(file);
+    } catch {
+      throw new NotFoundException('Icono inexistente');
+    }
+    try {
+      await access(fullPath, constants.R_OK);
+    } catch {
+      throw new NotFoundException('Icono inexistente');
+    }
+    return new StreamableFile(createReadStream(fullPath), {
+      type: mime,
+      disposition: `inline; filename="${file}"`,
     });
   }
 

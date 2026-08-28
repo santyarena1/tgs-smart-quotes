@@ -768,6 +768,40 @@ model FinancingPlan {
   updatedAt    DateTime @updatedAt
 }
 
+enum CalculatorGroupKind {
+  CASH
+  LIST
+  PLAN
+}
+
+/// Medio de pago de la calculadora de financiación (icono + tasas propias).
+model CalculatorGroup {
+  id        String              @id @default(uuid())
+  key       String              @unique
+  label     String
+  iconUrl   String?
+  kind      CalculatorGroupKind
+  sortOrder Int                 @default(0)
+  visible   Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  plans     CalculatorPlan[]
+}
+
+model CalculatorPlan {
+  id           String          @id @default(uuid())
+  groupId      String
+  group        CalculatorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  installments Int
+  interestBps  Int             @default(0)
+  sortOrder    Int             @default(0)
+  visible      Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([groupId, sortOrder])
+}
+
 model CompanySettings {
   id              String   @id @default("singleton")
   logoUrl         String?

@@ -35,6 +35,8 @@ const TABLES = [
   "QuoteFamily",
   "QuoteRequest",
   "Collection",
+  "CalculatorPlan",
+  "CalculatorGroup",
   "FinancingPlan",
   "ProductPriceHistory",
   "Product",

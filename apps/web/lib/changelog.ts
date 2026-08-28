@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.8",
+    date: "2026-08-28",
+    title: "Calculadora de financiación",
+    items: [
+      "Nuevo módulo Calculadora, suelto en el menú, para armar una tarjeta linda de cuotas y sacarle una captura",
+      "Dashboard, Solicitudes, Presupuestos, Colecciones y Mi cuenta quedan siempre visibles, fuera del acordeón de Operación",
+      "Los intereses arrancan con los de Configuración → Financiación; el engranaje deja subir iconos (Mercado Pago, BBVA, Visa, Master, Go Cuotas) y ajustar tasas sin pisar los presupuestos",
+    ],
+  },
+  {
     version: "0.3.7",
     date: "2026-08-28",
     title: "Importes en pesos, sin centavos",
