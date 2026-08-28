@@ -17,7 +17,7 @@ import {
 } from '@tgs/contracts';
 import {db, type CalculatorGroupKind} from '@tgs/database';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
-import {seedCalculatorGroups} from './calculator-seed.js';
+import {noteForKey, seedCalculatorGroups} from './calculator-seed.js';
 import {
   normalizeCalculatorIconUrl,
   removeManagedCalculatorIcon,
@@ -51,6 +51,7 @@ function viewOf(group: {
   kind: CalculatorGroupKind;
   sortOrder: number;
   visible: boolean;
+  note: string | null;
   plans: Array<{
     id: string;
     installments: number;
@@ -67,6 +68,7 @@ function viewOf(group: {
     kind: group.kind,
     sortOrder: group.sortOrder,
     visible: group.visible,
+    note: group.note,
     plans: [...group.plans]
       .sort((a, b) => a.sortOrder - b.sortOrder || a.installments - b.installments)
       .map((plan) => ({
@@ -95,7 +97,10 @@ async function persistSeeded(
     where: {active: true},
     orderBy: [{sortOrder: 'asc'}, {createdAt: 'asc'}],
   });
-  const seeded = seedCalculatorGroups(company?.listInterestBps ?? 0, financing);
+  const pdf = await tx.pdfSettings.findUnique({where: {id: 'singleton'}});
+  const seeded = seedCalculatorGroups(company?.listInterestBps ?? 0, financing, {
+    bbvaNote: pdf?.financingBbvaNote,
+  });
   const created: Array<{
     id: string;
     key: string;
@@ -104,6 +109,7 @@ async function persistSeeded(
     kind: CalculatorGroupKind;
     sortOrder: number;
     visible: boolean;
+    note: string | null;
     plans: Array<{
       id: string;
       installments: number;
@@ -120,6 +126,7 @@ async function persistSeeded(
         kind: group.kind,
         sortOrder: group.sortOrder,
         visible: true,
+        note: group.note,
         iconUrl: keepIcons.get(group.key) ?? null,
         plans: {
           create: group.plans.map((plan) => ({
@@ -139,8 +146,22 @@ async function persistSeeded(
 
 async function ensureSeeded() {
   const count = await db.calculatorGroup.count();
-  if (count > 0) return loadGroups();
-  return db.$transaction((tx) => persistSeeded(tx, new Map()));
+  if (count === 0) {
+    return db.$transaction((tx) => persistSeeded(tx, new Map()));
+  }
+  const groups = await loadGroups();
+  const missing = groups.filter((group) => group.note == null && noteForKey(group.key));
+  if (!missing.length) return groups;
+  const pdf = await db.pdfSettings.findUnique({where: {id: 'singleton'}});
+  await db.$transaction(
+    missing.map((group) =>
+      db.calculatorGroup.update({
+        where: {id: group.id},
+        data: {note: noteForKey(group.key, pdf?.financingBbvaNote)},
+      }),
+    ),
+  );
+  return loadGroups();
 }
 
 @Controller('calculator')
@@ -186,6 +207,7 @@ export class CalculatorController {
               kind: group.kind,
               sortOrder,
               visible: group.visible ?? true,
+              note: group.note === undefined ? old.note : (group.note?.trim() || ''),
               plans: {
                 create: group.plans.map((plan, planIndex) => ({
                   installments: plan.installments,
@@ -207,6 +229,7 @@ export class CalculatorController {
               kind: group.kind,
               sortOrder,
               visible: group.visible ?? true,
+              note: group.note?.trim() || null,
               plans: {
                 create: group.plans.map((plan, planIndex) => ({
                   installments: plan.installments,
@@ -236,7 +259,10 @@ export class CalculatorController {
         where: {active: true},
         orderBy: [{sortOrder: 'asc'}, {createdAt: 'asc'}],
       });
-      const seeded = seedCalculatorGroups(company?.listInterestBps ?? 0, financing);
+      const pdf = await tx.pdfSettings.findUnique({where: {id: 'singleton'}});
+      const seeded = seedCalculatorGroups(company?.listInterestBps ?? 0, financing, {
+        bbvaNote: pdf?.financingBbvaNote,
+      });
       const existing = await tx.calculatorGroup.findMany({include: {plans: true}});
       const byKey = new Map(existing.map((row) => [row.key, row]));
       const next: typeof existing = [];
@@ -259,6 +285,7 @@ export class CalculatorController {
                 label: group.label,
                 kind: group.kind,
                 sortOrder: group.sortOrder,
+                note: old.note ?? group.note,
                 plans,
               },
               include: {plans: true},
@@ -273,6 +300,7 @@ export class CalculatorController {
                 kind: group.kind,
                 sortOrder: group.sortOrder,
                 visible: true,
+                note: group.note,
                 plans,
               },
               include: {plans: true},

@@ -783,6 +783,7 @@ model CalculatorGroup {
   kind      CalculatorGroupKind
   sortOrder Int                 @default(0)
   visible   Boolean             @default(true)
+  note      String?
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   plans     CalculatorPlan[]

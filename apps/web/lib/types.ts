@@ -280,6 +280,7 @@ export type CalculatorGroup = {
   kind: CalculatorGroupKind;
   sortOrder: number;
   visible: boolean;
+  note: string | null;
   plans: CalculatorPlan[];
 };
 

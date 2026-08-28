@@ -23,6 +23,12 @@ describe('semilla de la calculadora', () => {
     expect(mp?.plans.map((p) => p.interestBps)).toEqual([1050, 2150, 9400]);
     expect(groups.find((g) => g.key === 'visa')?.label).toBe('Visa');
     expect(groups.find((g) => g.key === 'gocuotas')?.label).toBe('Go Cuotas');
+    expect(groups.find((g) => g.key === 'bbva')?.note).toMatch(/viernes y sábados/i);
+  });
+
+  it('usa la nota de BBVA de los presupuestos si viene cargada', () => {
+    const groups = seedCalculatorGroups(0, [], {bbvaNote: 'BBVA: 3 CSI todos los viernes.'});
+    expect(groups.find((g) => g.key === 'bbva')?.note).toBe('BBVA: 3 CSI todos los viernes.');
   });
 
   it('reconoce nombres de banco aunque vengan con acentos o extra', () => {

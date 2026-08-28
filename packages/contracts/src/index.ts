@@ -369,6 +369,7 @@ export const calculatorGroupInputSchema = z
     kind: calculatorGroupKindSchema,
     sortOrder: z.number().int().optional(),
     visible: z.boolean().optional(),
+    note: z.string().trim().max(600).nullable().optional(),
     plans: z.array(calculatorPlanInputSchema).min(1).max(24),
   })
   .strict();

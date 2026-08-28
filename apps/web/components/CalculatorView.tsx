@@ -21,15 +21,22 @@ type DraftGroup = {
   iconUrl: string | null;
   kind: CalculatorGroupKind;
   visible: boolean;
+  note: string;
   plans: DraftPlan[];
 };
 
-type ShotRow = {label: string; amount: string; muted?: string};
+type ShotRow = {
+  label: string;
+  amount: string;
+  total: string;
+  zeroInterest: boolean;
+};
 type ShotMethod = {
   id: string;
   key: string;
   label: string;
   iconUrl: string | null;
+  note: string | null;
   rows: ShotRow[];
 };
 
@@ -58,6 +65,7 @@ function toDraft(groups: CalculatorGroup[]): DraftGroup[] {
     iconUrl: group.iconUrl,
     kind: group.kind,
     visible: group.visible,
+    note: group.note ?? "",
     plans: group.plans.map((plan) => ({
       id: plan.id,
       installments: plan.installments,
@@ -100,6 +108,7 @@ function FinancingCard({
   cashCents,
   listCents,
   listVisible,
+  listNote,
   methods,
 }: {
   cardRef: RefObject<HTMLElement | null>;
@@ -108,6 +117,7 @@ function FinancingCard({
   cashCents: bigint | null;
   listCents: bigint | null;
   listVisible: boolean;
+  listNote: string | null;
   methods: ShotMethod[];
 }) {
   const company = branding?.name?.trim() || "The Gamer Shop";
@@ -129,42 +139,46 @@ function FinancingCard({
           )}
           <div>
             <strong>{company}</strong>
-            <small>Financiación</small>
+            <small>{title.trim() || "Financiación"}</small>
           </div>
         </div>
         <span className="calc-shot-date">{todayLabel()}</span>
       </header>
 
-      {title.trim() ? <h2 className="calc-shot-title">{title.trim()}</h2> : null}
-
       <section className="calc-shot-hero">
-        <p className="calc-shot-kicker">Efectivo / Transferencia</p>
-        <p className="calc-shot-price">{cashCents === null ? "—" : formatArs(cashCents)}</p>
-        {listVisible && listCents !== null ? (
-          <p className="calc-shot-list">
-            Precio de lista · 1 pago <strong>{formatArs(listCents)}</strong>
-          </p>
+        <div className="calc-shot-hero-cell">
+          <p className="calc-shot-kicker">Efectivo / Transferencia</p>
+          <p className="calc-shot-price">{cashCents === null ? "—" : formatArs(cashCents)}</p>
+        </div>
+        {listVisible ? (
+          <div className="calc-shot-hero-cell">
+            <p className="calc-shot-kicker">Precio de lista · 1 pago</p>
+            <p className="calc-shot-price">{listCents === null ? "—" : formatArs(listCents)}</p>
+            {listNote ? <p className="calc-shot-hero-note">{listNote}</p> : null}
+          </div>
         ) : null}
       </section>
 
       <div className="calc-shot-methods">
         {methods.map((method) => (
           <section className="calc-shot-method" key={method.id}>
-            <PaymentMark groupKey={method.key} label={method.label} iconUrl={method.iconUrl} />
-            <div className="calc-shot-method-body">
+            <div className="calc-shot-method-head">
+              <PaymentMark groupKey={method.key} label={method.label} iconUrl={method.iconUrl} />
               <h3>{method.label}</h3>
-              <ul>
-                {method.rows.map((row) => (
-                  <li key={row.label}>
-                    <span>
-                      {row.label}
-                      {row.muted ? <em>{row.muted}</em> : null}
-                    </span>
-                    <strong>{row.amount}</strong>
-                  </li>
-                ))}
-              </ul>
             </div>
+            <ul>
+              {method.rows.map((row) => (
+                <li key={row.label}>
+                  <span className="calc-shot-cuotas">{row.label}</span>
+                  <span className="calc-shot-figures">
+                    <strong>{row.amount}</strong>
+                    <small>total {row.total}</small>
+                    {row.zeroInterest ? <small className="calc-shot-zero">sin interés</small> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {method.note ? <p className="calc-shot-note">{method.note}</p> : null}
           </section>
         ))}
       </div>
@@ -230,6 +244,7 @@ function GearModal({
         iconUrl: null,
         kind: "PLAN",
         visible: true,
+        note: "",
         plans: reference?.plans.map((p) => ({installments: p.installments, interestBps: p.interestBps, visible: true}))
           ?? [{installments: 3, interestBps: 0, visible: true}],
       },
@@ -268,6 +283,7 @@ function GearModal({
           kind: group.kind,
           sortOrder,
           visible: group.visible,
+          note: group.note.trim() || "",
           plans: group.plans
             .filter((plan) => plan.installments > 0)
             .map((plan, planOrder) => ({
@@ -341,7 +357,7 @@ function GearModal({
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="ok">{notice}</Alert> : null}
         <p className="section-note">
-          Subí el icono real (Mercado Pago, BBVA, Visa, Master, Go Cuotas). Las tasas arrancan con las de presupuestos y se editan acá, sin pisar esa config.
+          Subí el icono real (Mercado Pago, BBVA, Visa, Master, Go Cuotas). Las tasas arrancan con las de presupuestos. La leyenda sale en la captura (días de CSI, promos, etc.).
         </p>
         <div className="calc-gear-list">
           {draft.map((group, index) => (
@@ -364,6 +380,14 @@ function GearModal({
                 <div className="calc-gear-fields">
                   <Field label="Nombre">
                     <input value={group.label} maxLength={80} onChange={(e) => patchGroup(index, {label: e.target.value})} />
+                  </Field>
+                  <Field label="Leyenda en la tarjeta" hint="Ej. días de cuotas sin interés, vigencia de la promo.">
+                    <textarea
+                      rows={2}
+                      maxLength={600}
+                      value={group.note}
+                      onChange={(e) => patchGroup(index, {note: e.target.value})}
+                    />
                   </Field>
                   <Checkbox label="Visible en la tarjeta" checked={group.visible} onChange={(v) => patchGroup(index, {visible: v})} />
                 </div>
@@ -495,6 +519,7 @@ export function CalculatorView() {
   const listBps = groups.find((g) => g.kind === "LIST")?.plans[0]?.interestBps ?? 0;
   const listCents = cashCents === null ? null : applyInterestBps(cashCents, listBps);
   const listVisible = groups.some((g) => g.kind === "LIST" && g.visible);
+  const listNote = groups.find((g) => g.kind === "LIST")?.note?.trim() || null;
 
   const methods = useMemo<ShotMethod[]>(() => {
     if (cashCents === null || listCents === null) return [];
@@ -505,13 +530,15 @@ export function CalculatorView() {
         key: group.key,
         label: group.label,
         iconUrl: group.iconUrl,
+        note: group.note?.trim() || null,
         rows: group.plans.filter((p) => p.visible).map((plan) => {
           const cuota = installmentCents(listCents, plan.installments, plan.interestBps);
           const total = applyInterestBps(listCents, plan.interestBps);
           return {
-            label: plan.installments === 1 ? "1 pago" : `${plan.installments} cuotas de`,
+            label: plan.installments === 1 ? "1 pago" : `${plan.installments} cuotas`,
             amount: formatArs(cuota),
-            muted: plan.interestBps === 0 ? "sin interés" : `total ${formatArs(total)}`,
+            total: formatArs(total),
+            zeroInterest: plan.interestBps === 0,
           };
         }),
       }))
@@ -594,6 +621,7 @@ export function CalculatorView() {
             cashCents={cashCents}
             listCents={listCents}
             listVisible={listVisible}
+            listNote={listNote}
             methods={methods}
           />
         </div>
