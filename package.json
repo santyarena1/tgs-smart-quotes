@@ -1,1 +1,45 @@
-{"name":"tgs-smart-quotes","private":true,"packageManager":"pnpm@10.32.1","engines":{"node":">=22"},"pnpm":{"onlyBuiltDependencies":["@prisma/client","@prisma/engines","@scarf/scarf","argon2","esbuild","prisma","sharp"]},"scripts":{"build":"turbo build","dev":"turbo dev","lint":"turbo lint","typecheck":"turbo typecheck","test":"vitest run","db:generate":"pnpm --filter @tgs/database generate","db:migrate":"pnpm --filter @tgs/database migrate","db:seed":"pnpm --filter @tgs/database seed","e2e":"playwright test --config e2e/playwright.config.ts","extension:zip":"pnpm --filter @tgs/extension zip","wp-plugin:zip":"node infrastructure/scripts/zip-wp-plugin.mjs"},"devDependencies":{"@playwright/test":"^1.54.1","archiver":"^7.0.1","prettier":"^3.6.2","turbo":"^2.5.5","typescript":"^5.8.3","vitest":"^3.2.4"}}
+{
+  "name": "tgs-smart-quotes",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "@scarf/scarf",
+      "argon2",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
+  },
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "vitest run",
+    "db:generate": "pnpm --filter @tgs/database generate",
+    "db:migrate": "pnpm --filter @tgs/database migrate",
+    "db:seed": "pnpm --filter @tgs/database seed",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "extension:zip": "pnpm --filter @tgs/extension zip",
+    "wp-plugin:zip": "node infrastructure/scripts/zip-wp-plugin.mjs"
+  },
+  "dependencies": {
+    "next": "^15.4.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "archiver": "^7.0.1",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.5",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
