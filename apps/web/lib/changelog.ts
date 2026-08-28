@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.5",
+    date: "2026-08-28",
+    title: "IPC de hace 2 meses al cargar sueldo",
+    items: [
+      "El aumento por IPC usa el índice de hace 2 meses: en agosto, el de junio; en septiembre, el de julio",
+    ],
+  },
+  {
     version: "0.3.4",
     date: "2026-08-27",
     title: "Pago con el neto ya cargado",

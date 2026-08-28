@@ -3,23 +3,23 @@ import {argon2id,hash} from 'argon2';
 import {db} from '@tgs/database';
 import {employeeCreateSchema,employeeCreateUserSchema,employeeLinkUserSchema,employeeRequestsQuerySchema,employeeUpdateSchema,idSchema,movementCancelSchema,movementCreateSchema,movementsQuerySchema,movementUpdateSchema,obligationCreateSchema,paymentCreateSchema,periodConfirmSchema,periodParamSchema,salaryBulkApplySchema,salaryBulkPreviewSchema,salaryUpdateSchema,type EmployeeCreateInput,type EmployeeCreateUserInput,type EmployeeLinkUserInput,type EmployeeUpdateInput,type MovementCancelInput,type MovementCreateInput,type MovementsQuery,type MovementUpdateInput,type ObligationCreateInput,type PaymentCreateInput,type PeriodConfirmInput,type SalaryBulkApplyInput,type SalaryBulkPreviewInput,type SalaryUpdateInput} from '@tgs/contracts';
 import {CurrentUser,jsonSafe,Roles,type RequestUser,ZodPipe} from './infrastructure.js';
-import {addMonths,applyDueInstallments,audit,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,directionFor,employeeBalance,listEmployeeMovements,movementKindForObligation,reconcileAllocation,requireEmployee,salaryWithBps,serializeObligation,splitInstallments} from './employees-service.js';
+import {addMonths,applyDueInstallments,audit,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,directionFor,employeeBalance,ipcPeriodFor,listEmployeeMovements,movementKindForObligation,pickIpcForPeriod,reconcileAllocation,requireEmployee,salaryWithBps,serializeObligation,splitInstallments} from './employees-service.js';
 
 const currentSalary=(employeeId:string,tx:any=db)=>tx.salaryRecord.findFirst({where:{employeeId},orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]});
 const periodDates=(period:string)=>{const y=Number(period.slice(0,4)),m=Number(period.slice(4)),next=m===12?`${y+1}-01`:`${y}-${String(m+1).padStart(2,'0')}`;return{gte:new Date(`${y}-${String(m).padStart(2,'0')}-01T00:00:00-03:00`),lt:new Date(`${next}-01T00:00:00-03:00`)};};
 
-/** Cachea el IPC más reciente (INDEC vía ArgentinaDatos) en memoria por 6hs para no pegarle a la API externa en cada apertura del modal. */
-let ipcCache:{period:string|null;pct:number|null;fetchedAt:number}|null=null;
+/** Cachea el IPC de hace 2 meses (INDEC vía ArgentinaDatos) en memoria por 6hs. */
+let ipcCache:{targetPeriod:string;period:string|null;pct:number|null;fetchedAt:number}|null=null;
 const IPC_CACHE_TTL_MS=6*60*60*1000;
 async function fetchLatestIpc():Promise<{period:string|null;pct:number|null}>{
-  if(ipcCache&&Date.now()-ipcCache.fetchedAt<IPC_CACHE_TTL_MS)return{period:ipcCache.period,pct:ipcCache.pct};
+  const targetPeriod=ipcPeriodFor();
+  if(ipcCache&&ipcCache.targetPeriod===targetPeriod&&Date.now()-ipcCache.fetchedAt<IPC_CACHE_TTL_MS)return{period:ipcCache.period,pct:ipcCache.pct};
   try{
     const res=await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
     if(!res.ok)throw new Error(`IPC API status ${res.status}`);
     const rows=await res.json() as Array<{fecha:string;valor:number}>;
-    const last=rows[rows.length-1];
-    const result={period:last?last.fecha.slice(0,7):null,pct:last?last.valor:null};
-    ipcCache={...result,fetchedAt:Date.now()};
+    const result=pickIpcForPeriod(rows,targetPeriod);
+    ipcCache={targetPeriod,...result,fetchedAt:Date.now()};
     return result;
   }catch{
     return{period:null,pct:null};

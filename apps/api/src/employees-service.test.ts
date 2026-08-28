@@ -2,7 +2,7 @@ import {beforeEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('@tgs/database',()=>({db:{}}));
 
-import {applyDueInstallments,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,currentPeriod,flattenListedMovement,movementKindForObligation,splitInstallments} from './employees-service.js';
+import {applyDueInstallments,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,currentPeriod,flattenListedMovement,ipcPeriodFor,movementKindForObligation,pickIpcForPeriod,splitInstallments} from './employees-service.js';
 
 describe('cuenta corriente de empleados',()=>{
   it('mapea obligación de la empresa a un movimiento a favor del empleado',()=>{
@@ -28,6 +28,19 @@ describe('cuenta corriente de empleados',()=>{
 describe('cuotas mes a mes',()=>{
   it('arma el período YYYYMM en hora de Argentina',()=>{
     expect(currentPeriod(new Date('2026-08-27T15:00:00-03:00'))).toBe('202608');
+  });
+
+  it('el IPC del sueldo es el de hace 2 meses',()=>{
+    expect(ipcPeriodFor(new Date('2026-08-28T15:00:00-03:00'))).toBe('202606');
+    expect(ipcPeriodFor(new Date('2026-09-01T00:30:00-03:00'))).toBe('202607');
+    expect(ipcPeriodFor(new Date('2026-01-15T12:00:00-03:00'))).toBe('202511');
+  });
+
+  it('elige el IPC de ese mes aunque ya esté publicado el siguiente',()=>{
+    expect(pickIpcForPeriod([
+      {fecha:'2026-06-30',valor:1.9},
+      {fecha:'2026-07-31',valor:2.1},
+    ],'202606')).toEqual({period:'2026-06',pct:1.9});
   });
 
   it('solo mueve al saldo la cuota cuyo mes ya llegó',async()=>{

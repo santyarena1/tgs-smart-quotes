@@ -78,6 +78,20 @@ export function currentPeriod(now=new Date()) {
   return `${year}${month}`;
 }
 
+/** El IPC del sueldo es el de hace 2 meses: en agosto se usa junio, en septiembre julio. */
+export const IPC_LAG_MONTHS=2;
+
+export function ipcPeriodFor(now=new Date()) {
+  return addMonths(currentPeriod(now),-IPC_LAG_MONTHS);
+}
+
+export function pickIpcForPeriod(rows:Array<{fecha:string;valor:number}>,periodYYYYMM:string) {
+  const yyyyMm=`${periodYYYYMM.slice(0,4)}-${periodYYYYMM.slice(4)}`;
+  const row=rows.find(item=>item.fecha.slice(0,7)===yyyyMm);
+  if(!row)return{period:null,pct:null};
+  return{period:row.fecha.slice(0,7),pct:row.valor};
+}
+
 export function periodStartDate(period:string) {
   return new Date(`${period.slice(0,4)}-${period.slice(4)}-01T12:00:00-03:00`);
 }

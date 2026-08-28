@@ -178,7 +178,7 @@ function SalaryModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:b
       {error?<Alert>{error}</Alert>:null}
       <Field label="Mes"><input type="month" required value={monthInput} onChange={e=>setMonthInput(e.target.value)}/></Field>
       <div className="grid-2">
-        <Field label="% IPC" hint={loadingSuggestion?"Buscando IPC…":suggestion?.ipcPeriod?`Último IPC publicado: ${suggestion.ipcPeriod}`:"No se pudo traer el IPC, completá a mano si querés"}>
+        <Field label="% IPC" hint={loadingSuggestion?"Buscando IPC…":suggestion?.ipcPeriod?`IPC de hace 2 meses: ${suggestion.ipcPeriod.replace(/^(\d{4})-(\d{2})$/,"$2/$1")}`:"No se pudo traer el IPC, completá a mano si querés"}>
           <input inputMode="decimal" placeholder="Ej. 2,1" value={pct} onChange={e=>setPct(e.target.value)}/>
         </Field>
         <Field label="Nuevo sueldo (ARS)" hint={suggestion?.previousAmountCents?`Sueldo anterior: ${formatArs(suggestion.previousAmountCents)}`:"Sin sueldo anterior cargado"}>
