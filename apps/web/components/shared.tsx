@@ -52,6 +52,19 @@ export function Field({
  * Input de monto en pesos enteros ARS. Los dígitos se agrupan con miles
  * (ej. "5" → "5", "50000" → "50.000"). Compatible con `parseArsToCents`/`centsToInput`.
  */
+function moneyDigitsOf(text: string): string {
+  return text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+}
+
+function formatMoneyDigits(digits: string): string {
+  if (!digits) return "";
+  const cents = BigInt(digits);
+  const whole = cents / 100n;
+  const frac = cents % 100n;
+  const wholeFmt = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${wholeFmt},${frac.toString().padStart(2, "0")}`;
+}
+
 export function MoneyInput({
   value,
   onChange,
@@ -60,20 +73,41 @@ export function MoneyInput({
   value: string;
   onChange: (value: string) => void;
 } & Omit<ComponentPropsWithoutRef<"input">, "value" | "onChange" | "type" | "inputMode">) {
+  // Buffer de dígitos propio (no se re-deriva del texto ya formateado): reformatear "0,00" a
+  // partir del texto renderizado siempre reconstruye 3 dígitos ("000"), así que borrar nunca
+  // bajaba de "0,00" — con este buffer, backspace saca un dígito genuino cada vez.
+  const digitsRef = useRef(moneyDigitsOf(value));
+  useEffect(() => {
+    digitsRef.current = moneyDigitsOf(value);
+  }, [value]);
+
+  function commit(nextDigits: string) {
+    digitsRef.current = nextDigits;
+    onChange(formatMoneyDigits(nextDigits));
+  }
+
   return (
     <input
       type="text"
       inputMode="numeric"
       value={value}
-      onChange={(e) => {
-        const negative = e.target.value.trim().startsWith("-");
-        const digits = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-        if (!digits) {
-          onChange(negative ? "-" : "");
-          return;
+      onKeyDown={(e) => {
+        if (/^[0-9]$/.test(e.key)) {
+          e.preventDefault();
+          commit((digitsRef.current + e.key).slice(-15));
+        } else if (e.key === "Backspace" || e.key === "Delete") {
+          e.preventDefault();
+          const el = e.currentTarget;
+          if (el.selectionStart !== el.selectionEnd) {
+            commit("");
+          } else {
+            commit(digitsRef.current.slice(0, -1));
+          }
         }
-        const wholeFmt = BigInt(digits).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        onChange(`${negative ? "-" : ""}${wholeFmt}`);
+      }}
+      onChange={(e) => {
+        // Fallback para pegar (paste) u otros métodos que no disparan onKeyDown.
+        commit(moneyDigitsOf(e.target.value));
       }}
       {...rest}
     />
