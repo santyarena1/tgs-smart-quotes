@@ -81,8 +81,12 @@ export function currentPeriod(now=new Date()) {
 /** El IPC del sueldo es el de hace 2 meses: en agosto se usa junio, en septiembre julio. */
 export const IPC_LAG_MONTHS=2;
 
+export function ipcPeriodForSalaryPeriod(salaryPeriod:string) {
+  return addMonths(salaryPeriod,-IPC_LAG_MONTHS);
+}
+
 export function ipcPeriodFor(now=new Date()) {
-  return addMonths(currentPeriod(now),-IPC_LAG_MONTHS);
+  return ipcPeriodForSalaryPeriod(currentPeriod(now));
 }
 
 export function pickIpcForPeriod(rows:Array<{fecha:string;valor:number}>,periodYYYYMM:string) {
@@ -92,8 +96,246 @@ export function pickIpcForPeriod(rows:Array<{fecha:string;valor:number}>,periodY
   return{period:row.fecha.slice(0,7),pct:row.valor};
 }
 
+/** Cachea la serie de IPC (INDEC vía ArgentinaDatos) en memoria por 6hs. */
+let ipcSeriesCache:{rows:Array<{fecha:string;valor:number}>;fetchedAt:number}|null=null;
+const IPC_CACHE_TTL_MS=6*60*60*1000;
+
+async function fetchIpcSeries():Promise<Array<{fecha:string;valor:number}>|null>{
+  if(ipcSeriesCache&&Date.now()-ipcSeriesCache.fetchedAt<IPC_CACHE_TTL_MS)return ipcSeriesCache.rows;
+  try{
+    const res=await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
+    if(!res.ok)throw new Error(`IPC API status ${res.status}`);
+    const rows=await res.json() as Array<{fecha:string;valor:number}>;
+    ipcSeriesCache={rows,fetchedAt:Date.now()};
+    return rows;
+  }catch{
+    return ipcSeriesCache?.rows??null;
+  }
+}
+
+export async function fetchIpcForSalaryPeriod(salaryPeriod=currentPeriod()):Promise<{period:string|null;pct:number|null}>{
+  const rows=await fetchIpcSeries();
+  if(!rows)return{period:null,pct:null};
+  return pickIpcForPeriod(rows,ipcPeriodForSalaryPeriod(salaryPeriod));
+}
+
+export function ipcPctToBps(pct:number) {
+  return Math.round(pct*100);
+}
+
+/** Aplica el IPC al sueldo en centavos (sin floats) y redondea al peso. Si no hay IPC, deja el monto. */
+export function salaryWithIpc(amountCents:bigint,ipcPct:number|null,roundingStepPesos=1) {
+  if(ipcPct==null)return amountCents;
+  return salaryWithBps(amountCents,ipcPctToBps(ipcPct),roundingStepPesos);
+}
+
+export function changeBpsBetween(oldCents:bigint,newCents:bigint) {
+  if(oldCents===0n)return 0;
+  const num=(newCents-oldCents)*10000n;
+  const den=oldCents;
+  const sign=num<0n?-1n:1n;
+  const abs=num<0n?-num:num;
+  return Number(sign*((abs+den/2n)/den));
+}
+
 export function periodStartDate(period:string) {
   return new Date(`${period.slice(0,4)}-${period.slice(4)}-01T12:00:00-03:00`);
+}
+
+export function periodRange(period:string) {
+  const year=Number(period.slice(0,4)),month=Number(period.slice(4));
+  const next=month===12?`${year+1}-01`:`${year}-${String(month+1).padStart(2,'0')}`;
+  return{gte:new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00-03:00`),lt:new Date(`${next}-01T00:00:00-03:00`)};
+}
+
+/** Meses (YYYYMM) posteriores a fromExclusive hasta toInclusive, como máximo `max` (los más recientes). */
+export function periodsUntil(fromExclusive:string,toInclusive:string,max=24) {
+  const periods:string[]=[];
+  let cursor=fromExclusive;
+  for(let i=0;i<240;i++){
+    cursor=addMonths(cursor,1);
+    periods.push(cursor);
+    if(cursor>=toInclusive)break;
+  }
+  return periods.length>max?periods.slice(-max):periods;
+}
+
+export function suggestedSalaryCents(opts:{previousAmountCents:bigint|null;previousPeriod:string|null;nowPeriod:string;ipcPct:number|null}) {
+  if(opts.previousAmountCents==null)return{suggestedAmountCents:null as bigint|null,ipcAlreadyApplied:false};
+  const ipcAlreadyApplied=opts.previousPeriod===opts.nowPeriod;
+  if(ipcAlreadyApplied)return{suggestedAmountCents:opts.previousAmountCents,ipcAlreadyApplied:true};
+  return{suggestedAmountCents:salaryWithIpc(opts.previousAmountCents,opts.ipcPct),ipcAlreadyApplied:false};
+}
+
+function ipcReason(ipc:{period:string|null;pct:number|null}) {
+  if(!ipc.period)return 'Sueldo del mes';
+  const [year,month]=ipc.period.split('-');
+  return `IPC ${month}/${year}`;
+}
+
+const MAX_SALARY_BACKFILL_MONTHS=24;
+
+export type IpcLookup=(salaryPeriod:string)=>Promise<{period:string|null;pct:number|null}>;
+
+async function latestSalaryRecord(tx:any,employeeId:string) {
+  return tx.salaryRecord.findFirst({where:{employeeId},orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]});
+}
+
+async function salaryAccrualInPeriod(tx:any,employeeId:string,period:string) {
+  return tx.movement.findFirst({where:{employeeId,kind:'SALARY_ACCRUAL',occurredAt:periodRange(period)},orderBy:[{occurredAt:'desc'},{createdAt:'desc'}]});
+}
+
+function accrualDescription(reason:string|null|undefined) {
+  return reason?`Sueldo devengado — ${reason}`:'Sueldo devengado';
+}
+
+/**
+ * Crea o actualiza el sueldo y el movimiento SALARY_ACCRUAL de un mes: como máximo un
+ * devengo no cancelado por empleado por mes. "Actualizar sueldo" cambia ese movimiento,
+ * no suma otro. Lo pendiente de meses anteriores no se toca: el saldo lo arrastra.
+ */
+export async function upsertMonthlySalary(tx:any,opts:{
+  employeeId:string;
+  userId:string;
+  amountCents:bigint;
+  reason?:string|null;
+  changeBps?:number|null;
+  effectiveFrom?:Date;
+  now?:Date;
+}) {
+  const now=opts.now??new Date();
+  const effectiveFrom=opts.effectiveFrom??now;
+  const period=currentPeriod(effectiveFrom);
+  const range=periodRange(period);
+  const existing=await tx.salaryRecord.findFirst({where:{employeeId:opts.employeeId,effectiveFrom:range},orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]});
+  const latest=existing??await latestSalaryRecord(tx,opts.employeeId);
+  const previousAmountCents=existing?existing.previousAmountCents:latest?.amountCents??null;
+  const changeBps=opts.changeBps??(previousAmountCents!=null?changeBpsBetween(previousAmountCents,opts.amountCents):null);
+  const reason=opts.reason?.trim()?opts.reason:existing?.reason??null;
+  const record=existing
+    ?await tx.salaryRecord.update({where:{id:existing.id},data:{amountCents:opts.amountCents,changeBps,reason,effectiveFrom}})
+    :await tx.salaryRecord.create({data:{employeeId:opts.employeeId,amountCents:opts.amountCents,effectiveFrom,previousAmountCents,changeBps,reason,createdById:opts.userId}});
+  const existingAccrual=await tx.movement.findFirst({
+    where:{employeeId:opts.employeeId,kind:'SALARY_ACCRUAL',occurredAt:range,status:{not:'CANCELLED'}},
+    orderBy:[{occurredAt:'desc'},{createdAt:'desc'}],
+  });
+  const description=accrualDescription(reason);
+  if(existingAccrual){
+    await tx.movement.update({where:{id:existingAccrual.id},data:{amountCents:opts.amountCents,description,salaryRecordId:record.id,occurredAt:effectiveFrom}});
+  }else{
+    await tx.movement.create({data:{
+      employeeId:opts.employeeId,
+      kind:'SALARY_ACCRUAL',
+      direction:'COMPANY_OWES',
+      amountCents:opts.amountCents,
+      occurredAt:effectiveFrom,
+      status:'APPLIED',
+      description,
+      salaryRecordId:record.id,
+      createdById:opts.userId,
+      appliedById:opts.userId,
+      appliedAt:now,
+    }});
+  }
+  await audit(tx,opts.userId,'SalaryRecord',record.id,existing?'UPDATE':'CREATE');
+  return record;
+}
+
+/**
+ * Al abrir empleados (como las cuotas): si cambió el mes, para cada empleado con sueldo
+ * vigente se aplica sueldo anterior + IPC de hace 2 meses y se devenga. Idempotente: si
+ * ya hay un SALARY_ACCRUAL de ese mes (aunque se haya actualizado a mano), no se pisa.
+ * Meses sin abrir la app se atrasan, como máximo 24. Sin sueldo previo, no se inventa nada.
+ */
+export async function applyDueSalaryAccruals(tx:any,opts:{userId:string;employeeId?:string;now?:Date;ipcForSalaryPeriod?:IpcLookup}) {
+  const now=opts.now??new Date();
+  const nowPeriod=currentPeriod(now);
+  const where:Record<string,unknown>={active:true};
+  if(opts.employeeId)where.id=opts.employeeId;
+  const employees=await tx.employee.findMany({
+    where,
+    include:{salaryRecords:{take:1,orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]}},
+  });
+  const created:unknown[]=[];
+  for(const employee of employees){
+    const last=employee.salaryRecords[0];
+    if(!last)continue;
+    const lastPeriod=currentPeriod(last.effectiveFrom);
+    if(lastPeriod>nowPeriod)continue;
+    const startExclusive=lastPeriod<nowPeriod?lastPeriod:addMonths(nowPeriod,-1);
+    const months=periodsUntil(startExclusive,nowPeriod,MAX_SALARY_BACKFILL_MONTHS);
+    let amount=last.amountCents as bigint;
+    for(const period of months){
+      const existingAccrual=await salaryAccrualInPeriod(tx,employee.id,period);
+      const existingRecord=currentPeriod(last.effectiveFrom)===period
+        ?last
+        :await tx.salaryRecord.findFirst({where:{employeeId:employee.id,effectiveFrom:periodRange(period)},orderBy:[{effectiveFrom:'desc'},{createdAt:'desc'}]});
+      if(existingRecord)amount=existingRecord.amountCents;
+      else if(existingAccrual){
+        if(existingAccrual.status!=='CANCELLED')amount=existingAccrual.amountCents;
+      }else{
+        const ipc=await (opts.ipcForSalaryPeriod??fetchIpcForSalaryPeriod)(period);
+        const next=salaryWithIpc(amount,ipc.pct);
+        const reason=ipc.pct==null?'Sueldo del mes':ipcReason(ipc);
+        const record=await tx.salaryRecord.create({data:{
+          employeeId:employee.id,
+          amountCents:next,
+          effectiveFrom:periodStartDate(period),
+          previousAmountCents:amount,
+          changeBps:ipc.pct==null?null:ipcPctToBps(ipc.pct),
+          reason,
+          createdById:opts.userId,
+        }});
+        amount=next;
+        await audit(tx,opts.userId,'SalaryRecord',record.id,'CREATE',{source:'monthly_ipc',period});
+        try{
+          created.push(await tx.movement.create({data:{
+            employeeId:employee.id,
+            kind:'SALARY_ACCRUAL',
+            direction:'COMPANY_OWES',
+            amountCents:next,
+            occurredAt:periodStartDate(period),
+            status:'APPLIED',
+            description:accrualDescription(reason),
+            salaryRecordId:record.id,
+            createdById:opts.userId,
+            appliedById:opts.userId,
+            appliedAt:now,
+          }}));
+        }catch(error:any){
+          if(error?.code==='P2002')continue;
+          throw error;
+        }
+        continue;
+      }
+      if(existingAccrual)continue;
+      const recordId=existingRecord?.id??last.id;
+      try{
+        created.push(await tx.movement.create({data:{
+          employeeId:employee.id,
+          kind:'SALARY_ACCRUAL',
+          direction:'COMPANY_OWES',
+          amountCents:amount,
+          occurredAt:periodStartDate(period),
+          status:'APPLIED',
+          description:'Sueldo devengado',
+          salaryRecordId:recordId,
+          createdById:opts.userId,
+          appliedById:opts.userId,
+          appliedAt:now,
+        }}));
+      }catch(error:any){
+        if(error?.code==='P2002')continue;
+        throw error;
+      }
+    }
+  }
+  return created;
+}
+
+export async function applyDueEmployeeCharges(tx:any,opts:{userId:string;employeeId?:string;now?:Date;ipcForSalaryPeriod?:IpcLookup}) {
+  await applyDueInstallments(tx,opts);
+  await applyDueSalaryAccruals(tx,opts);
 }
 
 export function installmentMovementDescription(number:number,count:number,description:string|null) {

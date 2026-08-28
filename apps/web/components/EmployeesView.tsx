@@ -104,12 +104,12 @@ export function EmployeesView() {
       </div>
       {salaryByBranch.length?<div className="panel"><h2 className="panel-title">Sueldos por local</h2><div className="table-wrap"><table><thead><tr><th>Local</th><th>Total sueldos vigentes</th></tr></thead><tbody>{salaryByBranch.map(([label,cents])=><tr key={label}><td>{label}</td><td>{formatArs(cents.toString())}</td></tr>)}</tbody></table></div></div>:null}
       <div className="toolbar"><input aria-label="Buscar empleados" placeholder="Buscar por nombre, local o puesto…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-      <div className="table-wrap"><table><thead><tr><th>Empleado</th><th>Local</th><th>Sueldo vigente</th><th>Neto a pagar</th><th/></tr></thead><tbody>{filtered.map(e=><tr key={e.id}><td><strong>{e.fullName}</strong><br/><span className="muted">{e.position||"Sin puesto"}</span></td><td>{e.branch?.name||"Sin local"}</td><td>{formatArs(e.salaryRecords?.[0]?.amountCents)}</td><td><Balance value={e.balanceCents}/></td><td><div className="row-actions"><button className="btn-dark btn-sm" onClick={()=>setQuickSalary(e)}>Cargar sueldo</button><button className="btn-dark btn-sm" onClick={()=>setQuickObligation(e)}>Cargar deuda</button><button className="btn-dark btn-sm" onClick={()=>setQuickPayment(e)}>Pagar</button><button className="btn-ghost btn-sm" onClick={()=>setSelectedId(e.id)}>Detalle</button><button className="btn-ghost btn-sm" onClick={()=>setEmployeeModal(e)}>Editar</button></div></td></tr>)}{!filtered.length?<tr><td colSpan={5}>No hay empleados para esta búsqueda.</td></tr>:null}</tbody></table></div>
+      <div className="table-wrap"><table><thead><tr><th>Empleado</th><th>Local</th><th>Sueldo vigente</th><th>Neto a pagar</th><th/></tr></thead><tbody>{filtered.map(e=><tr key={e.id}><td><strong>{e.fullName}</strong><br/><span className="muted">{e.position||"Sin puesto"}</span></td><td>{e.branch?.name||"Sin local"}</td><td>{formatArs(e.salaryRecords?.[0]?.amountCents)}</td><td><Balance value={e.balanceCents}/></td><td><div className="row-actions"><button className="btn-dark btn-sm" onClick={()=>setQuickSalary(e)}>Actualizar sueldo</button><button className="btn-dark btn-sm" onClick={()=>setQuickObligation(e)}>Cargar deuda</button><button className="btn-dark btn-sm" onClick={()=>setQuickPayment(e)}>Pagar</button><button className="btn-ghost btn-sm" onClick={()=>setSelectedId(e.id)}>Detalle</button><button className="btn-ghost btn-sm" onClick={()=>setEmployeeModal(e)}>Editar</button></div></td></tr>)}{!filtered.length?<tr><td colSpan={5}>No hay empleados para esta búsqueda.</td></tr>:null}</tbody></table></div>
     </>:null}
     {tab==="sueldos"?<BulkSalary onDone={load}/>:null}
     {tab==="solicitudes"?<div className="table-wrap"><table><thead><tr><th>Empleado</th><th>Solicitud</th><th>Monto</th><th>Fecha</th><th/></tr></thead><tbody>{requests.map(r=><tr key={r.id}><td>{r.employee.fullName}</td><td>{kindLabel(r.kind)}<br/><span className="muted">{r.description||"Sin descripción"}</span></td><td>{formatArs(r.amountCents)}</td><td>{new Date(r.createdAt).toLocaleDateString("es-AR")}</td><td><div className="row-actions"><button className="btn-dark btn-sm" onClick={()=>void review(r.id,"approve")}>Aprobar</button><button className="btn-danger btn-sm" onClick={()=>void review(r.id,"reject")}>Rechazar</button></div></td></tr>)}{!requests.length?<tr><td colSpan={5}>No hay solicitudes pendientes.</td></tr>:null}</tbody></table></div>:null}
     <EmployeeModal value={employeeModal} onClose={()=>setEmployeeModal(null)} onSaved={async()=>{setEmployeeModal(null);await load();}}/>
-    {quickSalary?<SalaryModal employeeId={quickSalary.id} open onClose={()=>setQuickSalary(null)} onSaved={async()=>{setQuickSalary(null);setOk("Sueldo cargado.");await load();}}/>:null}
+    {quickSalary?<SalaryModal employeeId={quickSalary.id} open onClose={()=>setQuickSalary(null)} onSaved={async()=>{setQuickSalary(null);setOk("Sueldo actualizado.");await load();}}/>:null}
     {quickObligation?<ObligationModal employeeId={quickObligation.id} open onClose={()=>setQuickObligation(null)} onSaved={async()=>{setQuickObligation(null);setOk("Deuda cargada.");await load();}}/>:null}
     {quickPayment?<PaymentModal employeeId={quickPayment.id} obligations={[]} currentBalanceCents={quickPayment.balanceCents} open onClose={()=>setQuickPayment(null)} onSaved={async()=>{setQuickPayment(null);setOk("Pago registrado.");await load();}}/>:null}
   </section>;
@@ -140,7 +140,7 @@ function EmployeeDetail({id,onBack}:{id:string;onBack:()=>void}) {
   }
   async function cancelObligation(o:Obligation){if(!confirm("¿Cancelar esta obligación y sus movimientos?"))return;try{await api(`/obligations/${o.id}/cancel`,{method:"POST"});await load();}catch(e){setError(errorText(e));}}
   if(loading&&!detail)return <Loading label="Cargando cuenta corriente…"/>; if(!detail)return <Alert>{error||"No se encontró el empleado."}</Alert>;
-  return <section><PageHeader eyebrow="Cuenta corriente" title={detail.fullName} subtitle={`${detail.position||"Sin puesto"} · ${detail.branch?.name||"Sin local"}`} actions={<><button className="btn-ghost" onClick={onBack}>← Volver</button><button onClick={()=>setSalaryOpen(true)}>Cargar sueldo</button><button onClick={()=>setObligationOpen(true)}>Cargar deuda</button><button onClick={()=>setPaymentOpen(true)}>Pagar</button><button className="btn-ghost" onClick={()=>setMovementOpen(true)}>Otro movimiento</button></>}/>{error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
+  return <section><PageHeader eyebrow="Cuenta corriente" title={detail.fullName} subtitle={`${detail.position||"Sin puesto"} · ${detail.branch?.name||"Sin local"}`} actions={<><button className="btn-ghost" onClick={onBack}>← Volver</button><button onClick={()=>setSalaryOpen(true)}>Actualizar sueldo</button><button onClick={()=>setObligationOpen(true)}>Cargar deuda</button><button onClick={()=>setPaymentOpen(true)}>Pagar</button><button className="btn-ghost" onClick={()=>setMovementOpen(true)}>Otro movimiento</button></>}/>{error?<Alert>{error}</Alert>:null}{ok?<Alert tone="ok">{ok}</Alert>:null}
     <div className="stat-strip"><div className="stat"><span className="stat-label">Neto a pagar</span><span className="stat-value"><Balance value={detail.balanceCents}/></span></div><div className="stat"><span className="stat-label">Sueldo vigente</span><strong className="stat-value">{formatArs(detail.currentSalary?.amountCents)}</strong></div><div className="stat"><span className="stat-label">Obligaciones abiertas</span><strong className="stat-value">{detail.summary.openObligations}</strong></div>{detail.summary.pendingMovements?<div className="stat"><span className="stat-label">Movimientos sin aplicar (histórico)</span><strong className="stat-value">{detail.summary.pendingMovements}</strong></div>:null}</div>
     {obligations.some(o=>o.status==="OPEN"&&o.installments.length)?<div className="panel"><h2 className="panel-title">Deudas en cuotas</h2>{obligations.filter(o=>o.status==="OPEN"&&o.installments.length).map(o=><p key={o.id}>{obligationWho(o.direction)} · {kindLabel(o.kind)}{o.description?` · ${o.description}`:""} · {installmentCaption(o)}</p>)}</div>:null}
     <div className="panel"><strong>Usuario asociado:</strong> {detail.user?`${detail.user.displayName||detail.user.username} (@${detail.user.username})${detail.user.active?"":" · inactivo"}`:"Sin usuario asociado"}{detail.docId?<> · <strong>Documento:</strong> {detail.docId}</>:null}</div>
@@ -159,33 +159,83 @@ function MovementTable({items,onDelete}:{items:Movement[];onDelete:(m:Movement)=
 
 function MovementModal({employeeId,open,onClose,onSaved,label}:{employeeId:string;open:boolean;onClose:()=>void;onSaved:()=>void;label?:string}) { const [kind,setKind]=useState<MovementKind>("ADVANCE"),[amount,setAmount]=useState(""),[description,setDescription]=useState(""),[more,setMore]=useState(false),[direction,setDirection]=useState<Direction>("EMPLOYEE_OWES"),[date,setDate]=useState(today()),[saving,setSaving]=useState(false),[error,setError]=useState(""); useEffect(()=>{if(!open)return;setKind("ADVANCE");setAmount("");setDescription("");setDirection("EMPLOYEE_OWES");setDate(today());setMore(false);setError("");},[open]); async function submit(e:FormEvent){e.preventDefault();setSaving(true);try{const body:any={kind,amountCents:parseArsToCents(amount),description:description||null,occurredAt:new Date(`${date}T12:00:00`).toISOString(),status:"APPLIED"};if(kind==="ADJUSTMENT"||more)body.direction=direction;await api(`/employees/${employeeId}/movements`,{method:"POST",body});onSaved();}catch(e){setError(errorText(e));}finally{setSaving(false);}} return <Modal open={open} title={label?`Cargar movimiento — ${label}`:"Movimiento rápido"} onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="movement-form" disabled={saving}>{saving?"Guardando…":"Guardar movimiento"}</button></>}><form id="movement-form" className="form-grid" onSubmit={submit}>{error?<Alert>{error}</Alert>:null}<Field label="Concepto"><select value={kind} onChange={e=>setKind(e.target.value as MovementKind)}>{kinds.map(k=><option key={k[0]} value={k[0]}>{k[1]}</option>)}</select></Field><Field label="Monto (ARS)"><MoneyInput autoFocus required placeholder="50.000" value={amount} onChange={setAmount}/></Field><Field label="Descripción (opcional)"><input value={description} onChange={e=>setDescription(e.target.value)}/></Field><button type="button" className="btn-ghost" onClick={()=>setMore(!more)}>{more?"Ocultar opciones":"Más opciones"}</button>{more||kind==="ADJUSTMENT"?<div className="grid-2"><Field label="Quién queda debiendo"><select value={direction} onChange={e=>setDirection(e.target.value as Direction)}><option value="EMPLOYEE_OWES">Empleado a empresa</option><option value="COMPANY_OWES">Empresa a empleado</option></select></Field><Field label="Fecha"><input type="date" required value={date} onChange={e=>setDate(e.target.value)}/></Field></div>:null}</form></Modal>; }
 
-type SalarySuggestion = { previousAmountCents:string|null; ipcPeriod:string|null; ipcPct:number|null; suggestedAmountCents:string|null };
-const currentMonthInput = () => new Date().toISOString().slice(0,7);
+type SalarySuggestion = { previousAmountCents:string|null; ipcPeriod:string|null; ipcPct:number|null; suggestedAmountCents:string|null; ipcAlreadyApplied?:boolean };
+type ExtraKind = "none" | "percent" | "fixed";
+const currentMonthInput = () => {
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires",year:"numeric",month:"2-digit"}).formatToParts(new Date());
+  return `${parts.find(part=>part.type==="year")?.value??"0000"}-${parts.find(part=>part.type==="month")?.value??"01"}`;
+};
+const formatIpcPeriod = (period:string) => period.replace(/^(\d{4})-(\d{2})$/,"$2/$1");
+function amountWithExtra(baseCents:string|null, extraKind:ExtraKind, extraPct:string, extraPesos:string) {
+  if(baseCents==null)return "";
+  try{
+    const base=BigInt(baseCents);
+    if(extraKind==="percent"&&extraPct.trim()){
+      const bps=BigInt(pctToBps(extraPct));
+      return centsToInput((base*(10000n+bps)+5000n)/10000n);
+    }
+    if(extraKind==="fixed"&&extraPesos.trim())return centsToInput(base+BigInt(parseArsToCents(extraPesos)));
+    return centsToInput(base);
+  }catch{return centsToInput(baseCents);}
+}
 
 function SalaryModal({employeeId,open,onClose,onSaved}:{employeeId:string;open:boolean;onClose:()=>void;onSaved:()=>void}) {
-  const [monthInput,setMonthInput]=useState(currentMonthInput()),[pct,setPct]=useState(""),[amount,setAmount]=useState(""),[reason,setReason]=useState(""),[suggestion,setSuggestion]=useState<SalarySuggestion|null>(null),[loadingSuggestion,setLoadingSuggestion]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState("");
+  const [monthInput,setMonthInput]=useState(currentMonthInput());
+  const [amount,setAmount]=useState("");
+  const [reason,setReason]=useState("");
+  const [extraKind,setExtraKind]=useState<ExtraKind>("none");
+  const [extraPct,setExtraPct]=useState("");
+  const [extraPesos,setExtraPesos]=useState("");
+  const [suggestion,setSuggestion]=useState<SalarySuggestion|null>(null);
+  const [loadingSuggestion,setLoadingSuggestion]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
   useEffect(()=>{
     if(!open)return;
-    setMonthInput(currentMonthInput());setPct("");setAmount("");setReason("");setError("");setSuggestion(null);setLoadingSuggestion(true);
+    setMonthInput(currentMonthInput());setAmount("");setReason("");setExtraKind("none");setExtraPct("");setExtraPesos("");setError("");setSuggestion(null);setLoadingSuggestion(true);
     api<SalarySuggestion>(`/employees/${employeeId}/salary/suggestion`)
-      .then(s=>{setSuggestion(s);if(s.ipcPct!=null)setPct(bpsToPct(Math.round(s.ipcPct*100)));if(s.suggestedAmountCents!=null)setAmount(centsToInput(s.suggestedAmountCents));})
+      .then(s=>{setSuggestion(s);if(s.suggestedAmountCents!=null)setAmount(centsToInput(s.suggestedAmountCents));})
       .catch(()=>{/* sin sugerencia, se completa a mano */})
       .finally(()=>setLoadingSuggestion(false));
   },[open,employeeId]);
-  async function submit(e:FormEvent){e.preventDefault();setSaving(true);try{const body:any={amountCents:parseArsToCents(amount),reason:reason||undefined,effectiveFrom:new Date(`${monthInput}-01T12:00:00`).toISOString()};if(pct.trim())body.changeBps=pctToBps(pct);await api(`/employees/${employeeId}/salary`,{method:"PUT",body});onSaved();}catch(e){setError(errorText(e));}finally{setSaving(false);}}
-  return <Modal open={open} title="Cargar sueldo" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="salary-form" disabled={saving}>{saving?"Guardando…":"Guardar sueldo"}</button></>}>
+  useEffect(()=>{
+    if(!suggestion?.suggestedAmountCents)return;
+    setAmount(amountWithExtra(suggestion.suggestedAmountCents,extraKind,extraPct,extraPesos));
+  },[suggestion,extraKind,extraPct,extraPesos]);
+  async function submit(e:FormEvent){
+    e.preventDefault();
+    setSaving(true);
+    try{
+      await api(`/employees/${employeeId}/salary`,{method:"PUT",body:{amountCents:parseArsToCents(amount),reason:reason||undefined,effectiveFrom:new Date(`${monthInput}-01T12:00:00`).toISOString()}});
+      onSaved();
+    }catch(e){setError(errorText(e));}
+    finally{setSaving(false);}
+  }
+  const ipcHint=loadingSuggestion
+    ?"Buscando IPC…"
+    :suggestion?.ipcPeriod
+      ?`${suggestion.ipcAlreadyApplied?"IPC ya aplicado":"IPC de hace 2 meses"}: ${formatIpcPeriod(suggestion.ipcPeriod)}${suggestion.ipcPct!=null?` (${bpsToPct(Math.round(suggestion.ipcPct*100))} %)`:""}`
+      :"No se pudo traer el IPC. Se mantiene el sueldo anterior, o cargalo a mano.";
+  const hasPrevious=Boolean(suggestion?.previousAmountCents);
+  return <Modal open={open} title="Actualizar sueldo" onClose={onClose} footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button form="salary-form" disabled={saving}>{saving?"Guardando…":"Actualizar sueldo"}</button></>}>
     <form id="salary-form" className="form-grid" onSubmit={submit}>
       {error?<Alert>{error}</Alert>:null}
-      <Field label="Mes"><input type="month" required value={monthInput} onChange={e=>setMonthInput(e.target.value)}/></Field>
-      <div className="grid-2">
-        <Field label="% IPC" hint={loadingSuggestion?"Buscando IPC…":suggestion?.ipcPeriod?`IPC de hace 2 meses: ${suggestion.ipcPeriod.replace(/^(\d{4})-(\d{2})$/,"$2/$1")}`:"No se pudo traer el IPC, completá a mano si querés"}>
-          <input inputMode="decimal" placeholder="Ej. 2,1" value={pct} onChange={e=>setPct(e.target.value)}/>
+      <Field label="Mes" hint="El sueldo de cada mes se genera solo al cambiar el mes. Esto actualiza el mes elegido."><input type="month" required value={monthInput} onChange={e=>setMonthInput(e.target.value)}/></Field>
+      <Field label="Nuevo sueldo (ARS)" hint={hasPrevious?`Sueldo ${suggestion?.ipcAlreadyApplied?"vigente (con IPC)":"anterior"}: ${formatArs(suggestion?.previousAmountCents)} · ${ipcHint}`:loadingSuggestion?ipcHint:"Sin sueldo anterior: esta es la primera carga, sin IPC automático."}>
+        <MoneyInput required value={amount} onChange={setAmount}/>
+      </Field>
+      {hasPrevious?<>
+        <Field label="Aumento extra (encima del IPC)">
+          <select value={extraKind} onChange={e=>setExtraKind(e.target.value as ExtraKind)}>
+            <option value="none">Ninguno</option>
+            <option value="percent">Porcentaje</option>
+            <option value="fixed">Pesos fijos</option>
+          </select>
         </Field>
-        <Field label="Nuevo sueldo (ARS)" hint={suggestion?.previousAmountCents?`Sueldo anterior: ${formatArs(suggestion.previousAmountCents)}`:"Sin sueldo anterior cargado"}>
-          <MoneyInput required value={amount} onChange={setAmount}/>
-        </Field>
-      </div>
-      <p className="section-note">El monto ya viene calculado con el IPC (sueldo anterior + %). Si además querés dar un aumento, editalo directamente acá.</p>
+        {extraKind==="percent"?<Field label="% extra"><input inputMode="decimal" placeholder="Ej. 5" value={extraPct} onChange={e=>setExtraPct(e.target.value)}/></Field>:null}
+        {extraKind==="fixed"?<Field label="Pesos extra"><MoneyInput value={extraPesos} onChange={setExtraPesos}/></Field>:null}
+      </>:null}
+      <p className="section-note">Lo que no se pague este mes (sueldo, deudas, cuotas) se arrastra al siguiente. Actualizar no suma un segundo sueldo: cambia el de este mes.</p>
       <Field label="Motivo (opcional)"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>
     </form>
   </Modal>;

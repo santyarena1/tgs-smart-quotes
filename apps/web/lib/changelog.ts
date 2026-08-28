@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.6",
+    date: "2026-08-28",
+    title: "Sueldo mensual automático",
+    items: [
+      "Al cambiar de mes se actualiza el sueldo de todos los empleados con el IPC de hace 2 meses y se devenga en la cuenta corriente",
+      "Lo que no se pagó (sueldo, deudas, cuotas) se arrastra al mes siguiente",
+      "El botón ahora es Actualizar sueldo: se puede sumar un aumento extra en % o en pesos, encima del IPC",
+    ],
+  },
+  {
     version: "0.3.5",
     date: "2026-08-28",
     title: "IPC de hace 2 meses al cargar sueldo",

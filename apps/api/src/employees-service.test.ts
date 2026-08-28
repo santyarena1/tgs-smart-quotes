@@ -2,7 +2,7 @@ import {beforeEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('@tgs/database',()=>({db:{}}));
 
-import {applyDueInstallments,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,currentPeriod,flattenListedMovement,ipcPeriodFor,movementKindForObligation,pickIpcForPeriod,splitInstallments} from './employees-service.js';
+import {applyDueInstallments,applyDueSalaryAccruals,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,changeBpsBetween,currentPeriod,flattenListedMovement,ipcPeriodFor,movementKindForObligation,periodsUntil,pickIpcForPeriod,salaryWithIpc,splitInstallments,suggestedSalaryCents,upsertMonthlySalary} from './employees-service.js';
 
 describe('cuenta corriente de empleados',()=>{
   it('mapea obligación de la empresa a un movimiento a favor del empleado',()=>{
@@ -22,6 +22,15 @@ describe('cuenta corriente de empleados',()=>{
       {amountCents:100000n,direction:'COMPANY_OWES'},
       {amountCents:25000n,direction:'EMPLOYEE_OWES'},
     ])).toBe(75000n);
+  });
+
+  it('el saldo arrastra sueldo no pagado y deudas de meses anteriores',()=>{
+    expect(balanceFrom([
+      {amountCents:100000n,direction:'COMPANY_OWES'},
+      {amountCents:100000n,direction:'COMPANY_OWES'},
+      {amountCents:30000n,direction:'EMPLOYEE_OWES'},
+      {amountCents:50000n,direction:'EMPLOYEE_OWES'},
+    ])).toBe(120000n);
   });
 });
 
@@ -218,5 +227,138 @@ describe('eliminar movimientos y cuotas',()=>{
   it('no cancela una obligación ya saldada',async()=>{
     const tx={obligation:{findUnique:vi.fn(async()=>({id:'ob1',status:'SETTLED'}))}};
     await expect(cancelEmployeeObligation(tx,{id:'ob1',userId:'u1'})).rejects.toThrow('No se puede cancelar una obligación saldada');
+  });
+});
+
+describe('sueldo mensual con IPC',()=>{
+  const august=new Date('2026-08-28T15:00:00-03:00');
+  const ipcForSalaryPeriod=vi.fn(async(period:string)=>{
+    if(period==='202608')return{period:'2026-06',pct:1.9};
+    if(period==='202607')return{period:'2026-05',pct:2};
+    return{period:null,pct:null};
+  });
+
+  it('aplica el IPC en centavos enteros y redondea al peso',()=>{
+    expect(salaryWithIpc(10000000n,1.9)).toBe(10190000n);
+    expect(salaryWithIpc(10000000n,null)).toBe(10000000n);
+    expect(changeBpsBetween(10000000n,10190000n)).toBe(190);
+  });
+
+  it('recorre los meses desde el último sueldo hasta el actual',()=>{
+    expect(periodsUntil('202606','202608')).toEqual(['202607','202608']);
+    expect(periodsUntil('202607','202608')).toEqual(['202608']);
+  });
+
+  it('no vuelve a aplicar IPC si el sueldo vigente ya es de este mes',()=>{
+    expect(suggestedSalaryCents({previousAmountCents:10190000n,previousPeriod:'202608',nowPeriod:'202608',ipcPct:1.9})).toEqual({
+      suggestedAmountCents:10190000n,
+      ipcAlreadyApplied:true,
+    });
+    expect(suggestedSalaryCents({previousAmountCents:10000000n,previousPeriod:'202607',nowPeriod:'202608',ipcPct:1.9})).toEqual({
+      suggestedAmountCents:10190000n,
+      ipcAlreadyApplied:false,
+    });
+  });
+
+  function salaryTx(opts:{employees:unknown[];accrual?:unknown;recordInPeriod?:unknown}) {
+    return {
+      employee:{findMany:vi.fn(async()=>opts.employees)},
+      salaryRecord:{
+        findFirst:vi.fn(async()=>opts.recordInPeriod??null),
+        create:vi.fn(async({data}:{data:Record<string,unknown>})=>({id:'sr-new',...data})),
+        update:vi.fn(async({data}:{data:Record<string,unknown>})=>({id:'sr1',...data})),
+      },
+      movement:{
+        findFirst:vi.fn(async()=>opts.accrual??null),
+        create:vi.fn(async({data}:{data:unknown})=>data),
+        update:vi.fn(async({data}:{data:Record<string,unknown>})=>({id:'m1',...data})),
+      },
+      auditLog:{create:vi.fn()},
+    };
+  }
+
+  it('al cambiar de mes devenga el sueldo anterior más el IPC para todos',async()=>{
+    const tx=salaryTx({employees:[{
+      id:'emp-1',
+      salaryRecords:[{id:'sr-july',amountCents:10000000n,effectiveFrom:new Date('2026-07-01T12:00:00-03:00')}],
+    }]});
+    const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(created).toHaveLength(1);
+    expect(tx.salaryRecord.create).toHaveBeenCalledOnce();
+    const record=tx.salaryRecord.create.mock.calls[0][0].data as {amountCents:bigint;changeBps:number;reason:string};
+    expect(record.amountCents).toBe(10190000n);
+    expect(record.changeBps).toBe(190);
+    expect(record.reason).toBe('IPC 06/2026');
+    const movement=tx.movement.create.mock.calls[0][0].data as {kind:string;amountCents:bigint;status:string};
+    expect(movement.kind).toBe('SALARY_ACCRUAL');
+    expect(movement.amountCents).toBe(10190000n);
+    expect(movement.status).toBe('APPLIED');
+  });
+
+  it('es idempotente: si ya hay sueldo devengado este mes, no crea otro',async()=>{
+    const tx=salaryTx({
+      employees:[{
+        id:'emp-1',
+        salaryRecords:[{id:'sr-aug',amountCents:10190000n,effectiveFrom:new Date('2026-08-01T12:00:00-03:00')}],
+      }],
+      accrual:{id:'m-aug',status:'APPLIED',amountCents:10190000n},
+    });
+    const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(created).toHaveLength(0);
+    expect(tx.salaryRecord.create).not.toHaveBeenCalled();
+    expect(tx.movement.create).not.toHaveBeenCalled();
+  });
+
+  it('sin sueldo previo no inventa un sueldo',async()=>{
+    const tx=salaryTx({employees:[{id:'emp-1',salaryRecords:[]}]});
+    const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(created).toHaveLength(0);
+    expect(tx.salaryRecord.create).not.toHaveBeenCalled();
+  });
+
+  it('si no se abrió la app un mes, atrasa sueldo+IPC mes a mes',async()=>{
+    const tx=salaryTx({employees:[{
+      id:'emp-1',
+      salaryRecords:[{id:'sr-june',amountCents:10000000n,effectiveFrom:new Date('2026-06-01T12:00:00-03:00')}],
+    }]});
+    const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(created).toHaveLength(2);
+    const amounts=(tx.salaryRecord.create.mock.calls as Array<[{data:{amountCents:bigint}}]>).map(call=>call[0].data.amountCents);
+    expect(amounts).toEqual([10200000n,10393800n]);
+  });
+
+  it('no recrea un sueldo del mes si el movimiento está cancelado',async()=>{
+    const tx=salaryTx({
+      employees:[{
+        id:'emp-1',
+        salaryRecords:[{id:'sr-july',amountCents:10000000n,effectiveFrom:new Date('2026-07-01T12:00:00-03:00')}],
+      }],
+      accrual:{id:'m-cancelled',status:'CANCELLED',amountCents:10190000n},
+    });
+    const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(created).toHaveLength(0);
+    expect(tx.movement.create).not.toHaveBeenCalled();
+  });
+
+  it('al actualizar el sueldo del mes cambia el devengo, no crea otro',async()=>{
+    const existingRecord={id:'sr1',previousAmountCents:10000000n,amountCents:10190000n};
+    const tx=salaryTx({employees:[],accrual:{id:'m1',status:'APPLIED'}});
+    tx.salaryRecord.findFirst=vi.fn(async()=>existingRecord);
+    await upsertMonthlySalary(tx,{
+      employeeId:'emp-1',
+      userId:'u1',
+      amountCents:11000000n,
+      now:august,
+      effectiveFrom:august,
+    });
+    expect(tx.movement.create).not.toHaveBeenCalled();
+    expect(tx.salaryRecord.update).toHaveBeenCalledWith(expect.objectContaining({
+      where:{id:'sr1'},
+      data:expect.objectContaining({amountCents:11000000n}),
+    }));
+    expect(tx.movement.update).toHaveBeenCalledWith(expect.objectContaining({
+      where:{id:'m1'},
+      data:expect.objectContaining({amountCents:11000000n}),
+    }));
   });
 });
