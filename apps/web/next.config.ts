@@ -1,3 +1,5 @@
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import type { NextConfig } from 'next';
 
 const apiProxyTarget = (
@@ -6,8 +8,11 @@ const apiProxyTarget = (
   'http://127.0.0.1:3001/api'
 ).replace(/\/$/, '');
 
+const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
 const config: NextConfig = {
   transpilePackages: ['html-to-image'],
+  outputFileTracingRoot: repoRoot,
   async rewrites() {
     return [
       {
