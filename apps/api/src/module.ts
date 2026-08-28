@@ -22,6 +22,7 @@ import {EmployeesController} from './employees.js';
 import {EmployeePortalController} from './employee-portal.js';
 import {MePreferencesController} from './me-preferences.js';
 import {CalculatorController} from './calculator.js';
+import {WhatsappController} from './whatsapp.js';
 
 @Controller()
 class HealthController {
@@ -63,6 +64,7 @@ class HealthController {
     EmployeePortalController,
     MePreferencesController,
     CalculatorController,
+    WhatsappController,
   ],
   providers: [
     {provide: APP_GUARD, useClass: RateLimitGuard},

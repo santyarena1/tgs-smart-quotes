@@ -11,6 +11,7 @@ async function bootstrap() {
   const adapter = new FastifyAdapter({logger: true});
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     bufferLogs: true,
+    rawBody: true,
   });
   await app.register(multipart, {
     limits: {fileSize: 2 * 1024 * 1024, files: 1},

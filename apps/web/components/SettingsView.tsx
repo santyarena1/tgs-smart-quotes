@@ -24,14 +24,16 @@ import {
   errorMessage,
 } from "./shared";
 import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
+import {WhatsappSettingsSection} from "./WhatsappSettingsSection";
 
-type Tab = "empresa" | "pdf" | "ia" | "chatbot" | "financiacion" | "extension" | "modulo-externo";
+type Tab = "empresa" | "pdf" | "ia" | "chatbot" | "whatsapp" | "financiacion" | "extension" | "modulo-externo";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
   { id: "pdf", label: "PDF" },
   { id: "ia", label: "IA" },
   { id: "chatbot", label: "Chatbot" },
+  { id: "whatsapp", label: "WhatsApp Cloud" },
   { id: "financiacion", label: "Financiación" },
   { id: "extension", label: "Extensión Chrome" },
   { id: "modulo-externo", label: "MÓDULO EXTERNO" },
@@ -992,6 +994,8 @@ export function SettingsView() {
       ) : null}
 
       {!loading && tab === "chatbot" ? <ChatbotSettingsSection /> : null}
+
+      {!loading && tab === "whatsapp" ? <WhatsappSettingsSection /> : null}
 
       {!loading && tab === "extension" ? (
         <div className="form-grid" style={{ maxWidth: 900 }}>

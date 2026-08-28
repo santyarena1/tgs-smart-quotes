@@ -646,6 +646,15 @@ export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({
   id: z.literal('singleton'),
   updatedAt: z.coerce.date(),
 });
+export const whatsappCloudSettingsInputSchema = z.object({
+  enabled: z.boolean(),
+  phoneNumberId: z.string().trim().max(200).optional(),
+  businessAccountId: z.string().trim().max(200).optional(),
+  accessToken: z.string().trim().max(2000).optional(),
+  appSecret: z.string().trim().max(1000).optional(),
+  webhookVerifyToken: z.string().trim().max(500).optional(),
+  apiVersion: z.string().trim().regex(/^v\d+\.\d+$/).default('v21.0'),
+}).strict();
 export const chatbotConversationUpdateSchema = z
   .object({
     displayName: z.string().trim().max(200).nullable().optional(),
@@ -702,6 +711,7 @@ export const chatbotLogsQuerySchema = z.object({
 export type ChatbotMode = z.infer<typeof chatbotModeSchema>;
 export type ChatbotSettingsInput = z.infer<typeof chatbotSettingsInputSchema>;
 export type ChatbotSettings = z.infer<typeof chatbotSettingsSchema>;
+export type WhatsappCloudSettingsInput = z.infer<typeof whatsappCloudSettingsInputSchema>;
 export type ChatbotResponseEntry = z.infer<typeof chatbotResponseEntrySchema>;
 export type ChatbotConversationUpdate = z.infer<typeof chatbotConversationUpdateSchema>;
 export type ChatbotRespondInput = z.infer<typeof chatbotRespondSchema>;

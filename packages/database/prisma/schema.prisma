@@ -131,6 +131,11 @@ enum ChatbotMessageActor {
   SYSTEM
 }
 
+enum ChatbotMessageChannel {
+  EXTENSION
+  CLOUD_API
+}
+
 enum SuggestionTone {
   AMIGABLE
   INTERMEDIO
@@ -881,6 +886,18 @@ model AiSettings {
   updatedAt                  DateTime       @updatedAt
 }
 
+model WhatsappCloudSettings {
+  id                   String   @id @default("singleton")
+  enabled              Boolean  @default(false)
+  phoneNumberId        String?
+  businessAccountId    String?
+  accessTokenEncrypted String?
+  appSecretEncrypted   String?
+  webhookVerifyToken   String?
+  apiVersion           String   @default("v21.0")
+  updatedAt            DateTime @updatedAt
+}
+
 /// Configuración operativa y editorial del chatbot. El JSON validado permite ampliar reglas sin redeploy.
 model ChatbotSettings {
   id                        String      @id @default("singleton")
@@ -962,7 +979,9 @@ model ChatbotMessageLog {
   actor              ChatbotMessageActor
   mode               ChatbotMode?
   status             ChatbotMessageStatus
+  channel            ChatbotMessageChannel   @default(EXTENSION)
   text               String
+  waMessageId        String?
   inboundFingerprint String?
   pairedMessageId    String?
   notificationId     String?
@@ -984,6 +1003,7 @@ model ChatbotMessageLog {
   @@index([status, createdAt])
   @@index([notificationId])
   @@index([inboundFingerprint])
+  @@index([waMessageId])
 }
 
 /// Parámetros operativos del circuito comercial. Sin vencimiento de presupuestos: solo inactividad.

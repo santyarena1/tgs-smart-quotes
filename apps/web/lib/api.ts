@@ -118,6 +118,42 @@ export function setRecontactOptOut(chatKey: string, recontactOptOut: boolean): P
   });
 }
 
+export type WhatsappSettings = {
+  id: 'singleton';
+  enabled: boolean;
+  phoneNumberId: string | null;
+  businessAccountId: string | null;
+  apiVersion: string;
+  webhookVerifyToken: string | null;
+  webhookUrl: string;
+  accessTokenMasked: string;
+  appSecretMasked: string;
+  hasAccessToken: boolean;
+  hasAppSecret: boolean;
+  updatedAt: string | null;
+};
+
+export type WhatsappSettingsInput = {
+  enabled: boolean;
+  phoneNumberId?: string;
+  businessAccountId?: string;
+  apiVersion: string;
+  accessToken?: string;
+  appSecret?: string;
+};
+
+export function getWhatsappSettings(): Promise<WhatsappSettings> {
+  return api<WhatsappSettings>('/whatsapp/settings');
+}
+
+export function updateWhatsappSettings(body: WhatsappSettingsInput): Promise<WhatsappSettings> {
+  return api<WhatsappSettings>('/whatsapp/settings', {method: 'PUT', body});
+}
+
+export function sendWhatsappTestMessage(to: string, text: string): Promise<{id: string; waMessageId: string | null}> {
+  return api('/whatsapp/send-test', {method: 'POST', body: {to, text}});
+}
+
 /** ID fijo de la extensión TGS (manifest key). */
 export const TGS_EXTENSION_ID = "edfnidnbmlepdddpofocidojlfphjdkc";
 
