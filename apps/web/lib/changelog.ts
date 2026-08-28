@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.11",
+    date: "2026-08-28",
+    title: "Calculadora más ordenada para capturar",
+    items: [
+      "La tarjeta arma una grilla pareja: 4 medios en 2×2, cada uno en su recuadro, sin huecos",
+      "Efectivo y lista van en dos bloques claros; las leyendas quedan abajo de cada medio",
+    ],
+  },
+  {
     version: "0.3.10",
     date: "2026-08-28",
     title: "Vercel vuelve a desplegar la web",

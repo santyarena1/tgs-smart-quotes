@@ -173,7 +173,7 @@ function FinancingCard({
         ) : null}
       </section>
 
-      <div className="calc-shot-methods">
+      <div className="calc-shot-methods" data-count={methods.length}>
         {methods.map((method) => (
           <section className="calc-shot-method" key={method.id}>
             <div className="calc-shot-method-head">
@@ -186,8 +186,10 @@ function FinancingCard({
                   <span className="calc-shot-cuotas">{row.label}</span>
                   <span className="calc-shot-figures">
                     <strong>{row.amount}</strong>
-                    <small>total {row.total}</small>
-                    {row.zeroInterest ? <small className="calc-shot-zero">sin interés</small> : null}
+                    <small>
+                      total {row.total}
+                      {row.zeroInterest ? " · sin interés" : ""}
+                    </small>
                   </span>
                 </li>
               ))}
@@ -199,7 +201,7 @@ function FinancingCard({
 
       <footer className="calc-shot-foot">
         <span>The Gamer Shop</span>
-        <span>Interés sobre efectivo · 0% sobre lista</span>
+        <span>Financiación al {todayLabel()}</span>
       </footer>
     </article>
   );
