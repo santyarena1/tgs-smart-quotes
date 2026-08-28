@@ -13,6 +13,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Vercel deja de fallar en cada push",
     items: [
       "Los deploys automáticos de Vercel quedan apagados: este repo se publica en Railway, no en Vercel",
+      "Si Vercel igual corre un build, ahora genera Prisma antes de TypeScript (el error de InputJsonValue)",
     ],
   },
   {
