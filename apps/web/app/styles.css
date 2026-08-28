@@ -2977,6 +2977,19 @@ tr.editing {
   gap: 0.55rem;
   min-width: 0;
 }
+.calc-marks {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  flex: 0 0 auto;
+}
+.calc-shot .calc-marks .calc-mark,
+.calc-shot .calc-marks .calc-mark-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex: 0 0 32px;
+}
 .calc-shot-method-head h3 {
   margin: 0;
   font-size: 0.72rem;
@@ -3111,6 +3124,10 @@ tr.editing {
   gap: 0.9rem;
   align-items: start;
 }
+.calc-gear-icons {
+  display: flex;
+  gap: 0.65rem;
+}
 .calc-gear-icon {
   display: grid;
   justify-items: center;
@@ -3137,9 +3154,16 @@ tr.editing {
 .calc-gear-plans { display: grid; gap: 0.55rem; }
 .calc-gear-plan {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr minmax(7.5rem, auto) auto;
   gap: 0.6rem;
   align-items: end;
+}
+.calc-gear-preview {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {

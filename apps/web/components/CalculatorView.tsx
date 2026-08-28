@@ -2,7 +2,7 @@
 
 import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject} from "react";
 import {api, apiUpload} from "../lib/api";
-import {applyInterestBps, installmentCents, slugFromLabel} from "../lib/calculator-money";
+import {applyInterestBps, planInstallmentCents, planTotalCents, slugFromLabel} from "../lib/calculator-money";
 import {bpsToPct, formatArs, parseArsToCents, pctToBps} from "../lib/money";
 import type {Branding, CalculatorGroup, CalculatorGroupKind} from "../lib/types";
 import {Alert, Checkbox, Field, Loading, Modal, MoneyInput, PageHeader, errorMessage} from "./shared";
@@ -19,6 +19,7 @@ type DraftGroup = {
   key: string;
   label: string;
   iconUrl: string | null;
+  iconUrls: string[];
   kind: CalculatorGroupKind;
   visible: boolean;
   note: string;
@@ -35,7 +36,7 @@ type ShotMethod = {
   id: string;
   key: string;
   label: string;
-  iconUrl: string | null;
+  iconUrls: string[];
   note: string | null;
   rows: ShotRow[];
 };
@@ -63,6 +64,7 @@ function toDraft(groups: CalculatorGroup[]): DraftGroup[] {
     key: group.key,
     label: group.label,
     iconUrl: group.iconUrl,
+    iconUrls: group.iconUrls?.length ? group.iconUrls : group.iconUrl ? [group.iconUrl] : [],
     kind: group.kind,
     visible: group.visible,
     note: group.note ?? "",
@@ -99,6 +101,18 @@ function PaymentMark({groupKey, label, iconUrl}: {groupKey: string; label: strin
         : label.slice(0, 2).toUpperCase()}
     </span>
   );
+}
+
+function MethodMarks({groupKey, label, iconUrls}: {groupKey: string; label: string; iconUrls: string[]}) {
+  if (groupKey === "otros-bancos") {
+    return (
+      <span className="calc-marks">
+        <PaymentMark groupKey="visa" label="Visa" iconUrl={iconUrls[0] || null} />
+        <PaymentMark groupKey="mastercard" label="Mastercard" iconUrl={iconUrls[1] || null} />
+      </span>
+    );
+  }
+  return <PaymentMark groupKey={groupKey} label={label} iconUrl={iconUrls.find(Boolean) || null} />;
 }
 
 function FinancingCard({
@@ -163,7 +177,7 @@ function FinancingCard({
         {methods.map((method) => (
           <section className="calc-shot-method" key={method.id}>
             <div className="calc-shot-method-head">
-              <PaymentMark groupKey={method.key} label={method.label} iconUrl={method.iconUrl} />
+              <MethodMarks groupKey={method.key} label={method.label} iconUrls={method.iconUrls} />
               <h3>{method.label}</h3>
             </div>
             <ul>
@@ -185,20 +199,41 @@ function FinancingCard({
 
       <footer className="calc-shot-foot">
         <span>The Gamer Shop</span>
-        <span>Cuotas sobre precio de lista</span>
+        <span>Interés sobre efectivo · 0% sobre lista</span>
       </footer>
     </article>
   );
 }
 
+function planPreview(
+  cashCents: bigint | null,
+  listBps: number,
+  kind: CalculatorGroupKind,
+  plan: DraftPlan,
+): string | null {
+  if (cashCents === null) return null;
+  if (kind === "CASH") return `→ ${formatArs(cashCents)}`;
+  const listCents = applyInterestBps(cashCents, listBps);
+  const total = kind === "LIST"
+    ? applyInterestBps(cashCents, plan.interestBps)
+    : planTotalCents(cashCents, listCents, plan.interestBps);
+  if (plan.installments <= 1) return `→ ${formatArs(total)}`;
+  const cuota = kind === "LIST"
+    ? (total + BigInt(plan.installments) / 2n) / BigInt(plan.installments)
+    : planInstallmentCents(cashCents, listCents, plan.installments, plan.interestBps);
+  return `→ ${formatArs(cuota)} · total ${formatArs(total)}`;
+}
+
 function GearModal({
   open,
   groups,
+  cashCents,
   onClose,
   onSaved,
 }: {
   open: boolean;
   groups: CalculatorGroup[];
+  cashCents: bigint | null;
   onClose: () => void;
   onSaved: (groups: CalculatorGroup[]) => void;
 }) {
@@ -242,6 +277,7 @@ function GearModal({
         key,
         label: "Nuevo medio",
         iconUrl: null,
+        iconUrls: [],
         kind: "PLAN",
         visible: true,
         note: "",
@@ -251,24 +287,33 @@ function GearModal({
     ]);
   }
 
-  async function pickIcon(group: DraftGroup, file: File | null) {
+  async function pickIcon(group: DraftGroup, file: File | null, slot = 0) {
     if (!file) return;
     if (group.id) {
       try {
-        const next = await apiUpload<CalculatorGroup>(`/calculator/groups/${group.id}/icon`, (() => {
-          const form = new FormData();
-          form.append("file", file);
-          return form;
-        })());
-        setDraft((rows) => rows.map((row) => (row.id === next.id ? {...row, iconUrl: next.iconUrl} : row)));
+        const form = new FormData();
+        form.append("file", file);
+        const next = await apiUpload<CalculatorGroup>(`/calculator/groups/${group.id}/icon?slot=${slot}`, form);
+        setDraft((rows) => rows.map((row) => (row.id === next.id ? {
+          ...row,
+          iconUrl: next.iconUrl,
+          iconUrls: next.iconUrls ?? [],
+        } : row)));
         setNotice("Icono actualizado.");
       } catch (err) {
         setError(errorMessage(err));
       }
       return;
     }
-    pendingIcons.current.set(group.key, file);
-    setDraft((rows) => rows.map((row) => (row.key === group.key ? {...row, iconUrl: URL.createObjectURL(file)} : row)));
+    pendingIcons.current.set(`${group.key}:${slot}`, file);
+    const preview = URL.createObjectURL(file);
+    setDraft((rows) => rows.map((row) => {
+      if (row.key !== group.key) return row;
+      const iconUrls = [...row.iconUrls];
+      while (iconUrls.length <= slot) iconUrls.push("");
+      iconUrls[slot] = preview;
+      return {...row, iconUrls, iconUrl: iconUrls.find(Boolean) || preview};
+    }));
   }
 
   async function save() {
@@ -299,12 +344,13 @@ function GearModal({
         throw new Error("Cada medio necesita nombre y al menos una cuota.");
       }
       let saved = await api<CalculatorGroup[]>("/calculator", {method: "PUT", body: payload});
-      for (const [key, file] of pendingIcons.current) {
+      for (const [compound, file] of pendingIcons.current) {
+        const [key, slot] = compound.split(":");
         const group = saved.find((g) => g.key === key);
         if (!group) continue;
         const form = new FormData();
         form.append("file", file);
-        const updated = await apiUpload<CalculatorGroup>(`/calculator/groups/${group.id}/icon`, form);
+        const updated = await apiUpload<CalculatorGroup>(`/calculator/groups/${group.id}/icon?slot=${slot ?? "0"}`, form);
         saved = saved.map((g) => (g.id === updated.id ? updated : g));
       }
       pendingIcons.current.clear();
@@ -357,26 +403,37 @@ function GearModal({
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="ok">{notice}</Alert> : null}
         <p className="section-note">
-          Subí el icono real (Mercado Pago, BBVA, Visa, Master, Go Cuotas). Las tasas arrancan con las de presupuestos. La leyenda sale en la captura (días de CSI, promos, etc.).
+          El % es sobre el efectivo que cargaste: 13% de $ 10 es $ 11, no $ 13. El 0% de un medio son cuotas sin interés sobre el precio de lista. Visa, Mastercard y el resto de bancos van juntos en “Otros bancos”.
         </p>
         <div className="calc-gear-list">
           {draft.map((group, index) => (
             <article className="calc-gear-card" key={group.id ?? group.key}>
               <div className="calc-gear-top">
-                <label className="calc-gear-icon">
-                  <PaymentMark groupKey={group.key} label={group.label} iconUrl={group.iconUrl} />
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-                    hidden
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      e.target.value = "";
-                      void pickIcon(group, file);
-                    }}
-                  />
-                  <span>Subir icono</span>
-                </label>
+                <div className="calc-gear-icons">
+                  {(group.key === "otros-bancos"
+                    ? [{slot: 0, name: "Visa"}, {slot: 1, name: "Mastercard"}]
+                    : [{slot: 0, name: "Icono"}]
+                  ).map((slot) => (
+                    <label className="calc-gear-icon" key={`${group.key}-${slot.slot}`}>
+                      <PaymentMark
+                        groupKey={group.key === "otros-bancos" ? (slot.slot === 0 ? "visa" : "mastercard") : group.key}
+                        label={slot.name}
+                        iconUrl={group.iconUrls[slot.slot] || (slot.slot === 0 ? group.iconUrl : null)}
+                      />
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                        hidden
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          e.target.value = "";
+                          void pickIcon(group, file, slot.slot);
+                        }}
+                      />
+                      <span>Subir {slot.name}</span>
+                    </label>
+                  ))}
+                </div>
                 <div className="calc-gear-fields">
                   <Field label="Nombre">
                     <input value={group.label} maxLength={80} onChange={(e) => patchGroup(index, {label: e.target.value})} />
@@ -394,7 +451,7 @@ function GearModal({
                 <div className="calc-gear-move">
                   <button type="button" className="btn-ghost btn-sm" disabled={index === 0} onClick={() => moveGroup(index, -1)}>↑</button>
                   <button type="button" className="btn-ghost btn-sm" disabled={index === draft.length - 1} onClick={() => moveGroup(index, 1)}>↓</button>
-                  {group.kind === "PLAN" && group.key !== "bbva" ? (
+                  {group.kind === "PLAN" && group.key !== "bbva" && group.key !== "otros-bancos" ? (
                     <button
                       type="button"
                       className="btn-ghost btn-sm"
@@ -424,7 +481,14 @@ function GearModal({
                         }}
                       />
                     </Field>
-                    <Field label="Interés %">
+                    <Field
+                      label="Interés sobre efectivo %"
+                      hint={group.kind === "LIST"
+                        ? "Una sola vez sobre el efectivo. 13% de $ 10 → $ 11."
+                        : group.kind === "CASH"
+                          ? "El efectivo no lleva interés."
+                          : "0% = sin interés (precio de lista). No se suma al % de lista."}
+                    >
                       <input
                         type="number"
                         min={0}
@@ -440,6 +504,14 @@ function GearModal({
                         }}
                       />
                     </Field>
+                    <p className="calc-gear-preview">
+                      {planPreview(
+                        cashCents,
+                        draft.find((row) => row.kind === "LIST")?.plans[0]?.interestBps ?? 0,
+                        group.kind,
+                        plan,
+                      ) ?? "→ —"}
+                    </p>
                     {group.kind === "PLAN" ? (
                       <button
                         type="button"
@@ -529,11 +601,11 @@ export function CalculatorView() {
         id: group.id,
         key: group.key,
         label: group.label,
-        iconUrl: group.iconUrl,
+        iconUrls: group.iconUrls?.length ? group.iconUrls : group.iconUrl ? [group.iconUrl] : [],
         note: group.note?.trim() || null,
         rows: group.plans.filter((p) => p.visible).map((plan) => {
-          const cuota = installmentCents(listCents, plan.installments, plan.interestBps);
-          const total = applyInterestBps(listCents, plan.interestBps);
+          const cuota = planInstallmentCents(cashCents, listCents, plan.installments, plan.interestBps);
+          const total = planTotalCents(cashCents, listCents, plan.interestBps);
           return {
             label: plan.installments === 1 ? "1 pago" : `${plan.installments} cuotas`,
             amount: formatArs(cuota),
@@ -604,7 +676,7 @@ export function CalculatorView() {
       {notice ? <Alert tone="ok">{notice}</Alert> : null}
 
       <div className="calc-dock">
-        <Field label="Precio efectivo / transferencia" hint="Las cuotas se calculan sobre el precio de lista, igual que en los presupuestos.">
+        <Field label="Precio efectivo / transferencia" hint="El % de lista y el de cada medio se aplican una sola vez sobre este importe. El 0% de un medio reparte el precio de lista.">
           <MoneyInput value={cashInput} onChange={setCashInput} />
         </Field>
         <Field label="Título en la tarjeta (opcional)" hint="Ej. PC Gamer RTX 5060. Sale en la captura.">
@@ -630,6 +702,7 @@ export function CalculatorView() {
       <GearModal
         open={gearOpen}
         groups={groups}
+        cashCents={cashCents}
         onClose={() => setGearOpen(false)}
         onSaved={(next) => { setGroups(next); setGearOpen(false); setNotice("Medios actualizados."); }}
       />

@@ -21,7 +21,9 @@ describe('semilla de la calculadora', () => {
     expect(groups.find((g) => g.key === 'bbva')?.plans.map((p) => p.installments)).toEqual([3, 6]);
     const mp = groups.find((g) => g.key === 'mercadopago');
     expect(mp?.plans.map((p) => p.interestBps)).toEqual([1050, 2150, 9400]);
-    expect(groups.find((g) => g.key === 'visa')?.label).toBe('Visa');
+    expect(groups.find((g) => g.key === 'visa')).toBeUndefined();
+    expect(groups.find((g) => g.key === 'mastercard')).toBeUndefined();
+    expect(groups.find((g) => g.key === 'otros-bancos')?.label).toBe('Otros bancos');
     expect(groups.find((g) => g.key === 'gocuotas')?.label).toBe('Go Cuotas');
     expect(groups.find((g) => g.key === 'bbva')?.note).toMatch(/viernes y sábados/i);
   });
@@ -35,7 +37,9 @@ describe('semilla de la calculadora', () => {
     expect(groupKeyFromBank('BBVA')).toBe('bbva');
     expect(groupKeyFromBank('Mercado Pago')).toBe('mercadopago');
     expect(groupKeyFromBank('GO CUOTAS')).toBe('gocuotas');
-    expect(groupKeyFromBank('Mastercard Gold')).toBe('mastercard');
+    expect(groupKeyFromBank('Mastercard Gold')).toBe('otros-bancos');
+    expect(groupKeyFromBank('Visa')).toBe('otros-bancos');
+    expect(groupKeyFromBank('Otros bancos')).toBe('otros-bancos');
   });
 });
 

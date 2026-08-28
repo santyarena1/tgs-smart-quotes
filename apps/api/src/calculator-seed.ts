@@ -28,8 +28,6 @@ const DEFAULT_ORDER = [
   'list',
   'bbva',
   'mercadopago',
-  'visa',
-  'mastercard',
   'gocuotas',
   'otros-bancos',
 ] as const;
@@ -89,10 +87,10 @@ export function groupKeyFromBank(bank: string | null | undefined): string {
     .toLowerCase();
   if (/bbva/.test(n)) return 'bbva';
   if (/mercado\s*pago|mercadopago/.test(n)) return 'mercadopago';
-  if (/\bvisa\b/.test(n)) return 'visa';
-  if (/master\s*card|\bmastercard\b|\bmaster\b/.test(n)) return 'mastercard';
+  if (/\bvisa\b/.test(n) || /master\s*card|\bmastercard\b|\bmaster\b/.test(n) || /otros?\s*bancos?/.test(n)) {
+    return 'otros-bancos';
+  }
   if (/go\s*cuotas|gocuotas/.test(n)) return 'gocuotas';
-  if (/otros?\s*bancos?/.test(n)) return 'otros-bancos';
   if (!bank?.trim()) return 'otros-bancos';
   return slug(bank);
 }
