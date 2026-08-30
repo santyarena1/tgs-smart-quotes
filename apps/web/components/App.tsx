@@ -16,6 +16,7 @@ import { NotificationsView } from "./NotificationsView";
 import { RecontactsView } from "./RecontactsView";
 import { PcLinesView } from "./PcLinesView";
 import { ProductsView } from "./ProductsView";
+import { PublicacionWebView } from "./PublicacionWebView";
 import { QuotesView } from "./QuotesView";
 import { RequestsView } from "./RequestsView";
 import { SettingsView } from "./SettingsView";
@@ -46,6 +47,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
     items: [
       { id: "clientes", label: "Clientes", icon: "☺" },
       { id: "productos", label: "Productos", icon: "❏" },
+      { id: "publicacion-web", label: "Publicación Web", icon: "❖" },
       { id: "catalogo-acustock", label: "Catálogo AcuStock", icon: "▦" },
       { id: "combos", label: "Combos", icon: "⊞" },
       { id: "lineas", label: "Líneas PC", icon: "▥" },
@@ -101,7 +103,7 @@ export function App() {
   const allowedNavGroups = useMemo(() => NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items
-      .filter((item) => !["usuarios", "empleados"].includes(item.id) || user?.role === "ADMIN")
+      .filter((item) => !["usuarios", "empleados", "publicacion-web"].includes(item.id) || user?.role === "ADMIN")
       .filter((item) => item.id !== "mi-cuenta" || employeePortalAvailable)
       .filter((item) => item.id !== "modulo-externo" || externalEnabled),
   })), [employeePortalAvailable, externalEnabled, user?.role]);
@@ -335,6 +337,7 @@ export function App() {
           />
         ) : null}
         {nav === "productos" ? <ProductsView /> : null}
+        {nav === "publicacion-web" && user.role === "ADMIN" ? <PublicacionWebView /> : null}
         {nav === "catalogo-acustock" ? <AcustockCatalogView /> : null}
         {nav === "combos" ? <CombosView /> : null}
         {nav === "clientes" ? <CustomersView /> : null}

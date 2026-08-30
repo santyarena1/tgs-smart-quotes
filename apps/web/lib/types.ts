@@ -412,6 +412,7 @@ export type NavId =
   | "editor-pdf"
   | "usuarios"
   | "empleados"
+  | "publicacion-web"
   | "mi-cuenta"
   | "modulo-externo"
   | "configuracion";
