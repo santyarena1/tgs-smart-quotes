@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, apiUpload, downloadAuthenticated } from "../lib/api";
+import { api, downloadAuthenticated } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
 import {
@@ -14,10 +14,8 @@ import {
   Pill,
   errorMessage,
 } from "./shared";
-import { ProductContentEditor } from "./ProductContentEditor";
 import { IntegrationsCard } from "./IntegrationsCard";
-
-type ProductSummary = { id: string; description: string | null };
+import { QuoteWebEditor } from "./QuoteWebEditor";
 
 type WordpressConfig = {
   wpBaseUrl: string;
@@ -65,10 +63,9 @@ function statusTone(status: PublicationStatus | undefined): "ok" | "bad" | "neut
 /**
  * Publicación de PCs armadas en la tienda online.
  *
- * Módulo simple y autocontenido: conecta con la config existente de
- * WordPress (misma tabla que usa el resto del sistema) y lista los
- * presupuestos marcados como "PC armada" para publicarlos o
- * despublicarlos con un clic, sin tener que copiar IDs a mano.
+ * Lista los presupuestos marcados como "PC armada"; "Editar" abre cada uno
+ * en una pantalla propia (QuoteWebEditor) en vez de un desplegable, para no
+ * amontonar todo en un acordeón.
  */
 export function PublicacionWebView() {
   const [config, setConfig] = useState<WordpressConfig | null>(null);
@@ -88,14 +85,7 @@ export function PublicacionWebView() {
   const [search, setSearch] = useState("");
   const [busyVersionId, setBusyVersionId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [titleDrafts, setTitleDrafts] = useState<Record<string, string>>({});
-  const [savingTitleId, setSavingTitleId] = useState<string | null>(null);
-  const [savingAutoId, setSavingAutoId] = useState<string | null>(null);
-  const [uploadingThumbId, setUploadingThumbId] = useState<string | null>(null);
-  const [productsById, setProductsById] = useState<Record<string, ProductSummary>>({});
-  const [assetCounts, setAssetCounts] = useState<Record<string, number>>({});
-  const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -144,20 +134,10 @@ export function PublicacionWebView() {
     }
   }, []);
 
-  const loadProductsSummary = useCallback(async () => {
-    try {
-      const rows = await api<ProductSummary[]>("/products");
-      setProductsById(Object.fromEntries(rows.map((p) => [p.id, p])));
-    } catch {
-      // No es crítico: si falla, simplemente no mostramos el estado de "sin descripción".
-    }
-  }, []);
-
   useEffect(() => {
     void loadConfig();
     void loadQuotes();
-    void loadProductsSummary();
-  }, [loadConfig, loadQuotes, loadProductsSummary]);
+  }, [loadConfig, loadQuotes]);
 
   const saveConfig = async () => {
     setConfigSaving(true);
@@ -250,54 +230,6 @@ export function PublicacionWebView() {
     }
   };
 
-  const saveTitle = async (quote: Quote) => {
-    const nextTitle = (titleDrafts[quote.id] ?? quote.internalName).trim();
-    if (!nextTitle || nextTitle === quote.internalName) return;
-    setSavingTitleId(quote.id);
-    setRowError((prev) => ({ ...prev, [quote.id]: "" }));
-    try {
-      await api(`/quotes/${quote.id}`, { method: "PUT", body: { internalName: nextTitle } });
-      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, internalName: nextTitle } : q)));
-    } catch (err) {
-      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
-    } finally {
-      setSavingTitleId(null);
-    }
-  };
-
-  const toggleAutoRepublish = async (quote: Quote, value: boolean) => {
-    setSavingAutoId(quote.id);
-    try {
-      await api(`/external-module/quote-families/${quote.id}/publish-settings`, {
-        method: "PUT",
-        body: { autoRepublish: value },
-      });
-      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, autoRepublish: value } : q)));
-    } catch (err) {
-      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
-    } finally {
-      setSavingAutoId(null);
-    }
-  };
-
-  const uploadThumbnail = async (quote: Quote, file: File) => {
-    setUploadingThumbId(quote.id);
-    setRowError((prev) => ({ ...prev, [quote.id]: "" }));
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const next = await apiUpload<{ thumbnailUrl: string | null }>(
-        `/external-module/quote-families/${quote.id}/thumbnail`,
-        form,
-      );
-      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, thumbnailUrl: next.thumbnailUrl } : q)));
-    } catch (err) {
-      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
-    } finally {
-      setUploadingThumbId(null);
-    }
-  };
-
   const filteredQuotes = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return quotes;
@@ -305,6 +237,16 @@ export function PublicacionWebView() {
       `${quote.internalName} ${quote.visibleNumber}`.toLowerCase().includes(term),
     );
   }, [quotes, search]);
+
+  if (editingQuoteId) {
+    return (
+      <QuoteWebEditor
+        quoteId={editingQuoteId}
+        onClose={() => setEditingQuoteId(null)}
+        onChanged={() => void loadQuotes()}
+      />
+    );
+  }
 
   return (
     <div>
@@ -405,10 +347,8 @@ export function PublicacionWebView() {
               const version = getActiveVersion(quote)!;
               const publication = publications[version.id];
               const busy = busyVersionId === version.id;
-              const rowErr = rowError[version.id] || rowError[quote.id];
+              const rowErr = rowError[version.id];
               const isPublished = publication?.status === "PUBLISHED";
-              const expanded = expandedId === quote.id;
-              const titleDraft = titleDrafts[quote.id] ?? quote.internalName;
               return (
                 <article key={quote.id} className="card card-pad">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -434,15 +374,8 @@ export function PublicacionWebView() {
                           {busy ? "Publicando…" : "Publicar"}
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="btn-ghost btn-sm"
-                        onClick={() => {
-                          setExpandedId(expanded ? null : quote.id);
-                          setEditingItemKey(null);
-                        }}
-                      >
-                        {expanded ? "Ocultar detalles" : "Vista previa / editar"}
+                      <button type="button" className="btn-ghost btn-sm" onClick={() => setEditingQuoteId(quote.id)}>
+                        Editar
                       </button>
                     </div>
                   </div>
@@ -454,115 +387,6 @@ export function PublicacionWebView() {
                   ) : publication?.status === "FAILED" && publication.lastError ? (
                     <div style={{ marginTop: 10 }}>
                       <Alert tone="error">{publication.lastError}</Alert>
-                    </div>
-                  ) : null}
-
-                  {expanded ? (
-                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)", display: "grid", gap: 14 }}>
-                      <Field label="Título">
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <input
-                            value={titleDraft}
-                            onChange={(e) => setTitleDrafts((prev) => ({ ...prev, [quote.id]: e.target.value }))}
-                          />
-                          <button
-                            type="button"
-                            className="btn-dark btn-sm"
-                            disabled={savingTitleId === quote.id || titleDraft.trim() === quote.internalName}
-                            onClick={() => void saveTitle(quote)}
-                          >
-                            {savingTitleId === quote.id ? "Guardando…" : "Guardar"}
-                          </button>
-                        </div>
-                      </Field>
-
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <span className="field-label">
-                          Componentes ({version.items.length}) — ficha (foto y descripción) de cada uno
-                        </span>
-                        <div style={{ display: "grid", gap: 8 }}>
-                          {version.items.map((item, i) => {
-                            const itemKey = `${quote.id}:${item.productId ?? item.id ?? i}`;
-                            const itemEditing = editingItemKey === itemKey;
-                            const product = item.productId ? productsById[item.productId] : undefined;
-                            const hasDescription = Boolean(product?.description?.trim());
-                            const knownAssetCount = item.productId ? assetCounts[item.productId] : undefined;
-                            return (
-                              <div key={itemKey} className="card card-pad" style={{ display: "grid", gap: 8 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                                  <span className="muted">
-                                    {item.quantity} × {item.frozenName ?? item.name}
-                                  </span>
-                                  {item.productId ? (
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                      <Pill tone={hasDescription ? "ok" : "warn"}>
-                                        {hasDescription ? "Con descripción" : "Sin descripción"}
-                                      </Pill>
-                                      {typeof knownAssetCount === "number" ? (
-                                        <Pill tone={knownAssetCount > 0 ? "ok" : "warn"}>
-                                          {knownAssetCount > 0 ? `${knownAssetCount} imagen(es)` : "Sin imágenes"}
-                                        </Pill>
-                                      ) : null}
-                                      <button
-                                        type="button"
-                                        className="btn-ghost btn-sm"
-                                        onClick={() => setEditingItemKey(itemEditing ? null : itemKey)}
-                                      >
-                                        {itemEditing ? "Cerrar" : "Editar ficha"}
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <span className="muted">Sin producto de catálogo vinculado</span>
-                                  )}
-                                </div>
-                                {itemEditing && item.productId ? (
-                                  <div style={{ paddingTop: 8, borderTop: "1px solid var(--border)" }}>
-                                    <ProductContentEditor
-                                      productId={item.productId}
-                                      productName={item.frozenName ?? item.name}
-                                      initialDescription={product?.description ?? null}
-                                      compact
-                                      onDescriptionSaved={(description) => {
-                                        const pid = item.productId as string;
-                                        setProductsById((prev) => ({ ...prev, [pid]: { id: pid, description } }));
-                                      }}
-                                      onAssetsChange={(assets) => {
-                                        const pid = item.productId as string;
-                                        setAssetCounts((prev) => ({ ...prev, [pid]: assets.length }));
-                                      }}
-                                    />
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <Checkbox
-                        label="Actualizar precio automáticamente desde el catálogo (y re-publicar sola si ya estaba en la tienda)"
-                        checked={Boolean(quote.autoRepublish)}
-                        disabled={savingAutoId === quote.id}
-                        onChange={(v) => void toggleAutoRepublish(quote, v)}
-                      />
-
-                      <Field label="Miniatura" hint="Se usa como imagen destacada del producto en la tienda y como imagen de esta PC en 'Recomendadas de la casa'.">
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          {quote.thumbnailUrl ? (
-                            <img src={quote.thumbnailUrl} alt="Miniatura actual" style={{ width: 64, height: 64, objectFit: "contain", background: "#fff", borderRadius: 8 }} />
-                          ) : null}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            disabled={uploadingThumbId === quote.id}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) void uploadThumbnail(quote, file);
-                            }}
-                          />
-                          {uploadingThumbId === quote.id ? <span className="muted">Subiendo…</span> : null}
-                        </div>
-                      </Field>
                     </div>
                   ) : null}
                 </article>

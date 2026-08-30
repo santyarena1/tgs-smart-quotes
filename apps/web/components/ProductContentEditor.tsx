@@ -46,6 +46,7 @@ export function ProductContentEditor({
   const [descriptionDraft, setDescriptionDraft] = useState(initialDescription ?? "");
   const [busy, setBusy] = useState(false);
   const [savingDescription, setSavingDescription] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -110,6 +111,25 @@ export function ProductContentEditor({
       setError(errorMessage(err));
     } finally {
       setSavingDescription(false);
+    }
+  };
+
+  const generateDescription = async () => {
+    setGeneratingDescription(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const next = await api<{ description: string | null }>(
+        `/external-module/products/${productId}/content/generate`,
+        { method: "POST" },
+      );
+      setDescriptionDraft(next.description ?? "");
+      onDescriptionSaved?.(next.description ?? null);
+      setNotice("Descripción generada con IA. Podés editarla antes de guardar.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setGeneratingDescription(false);
     }
   };
 
@@ -190,7 +210,7 @@ export function ProductContentEditor({
             placeholder="Ej: Placa de video de gama media-alta, ideal para 1440p."
           />
         </Field>
-        <div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
             className="btn-dark btn-sm"
@@ -198,6 +218,14 @@ export function ProductContentEditor({
             onClick={() => void saveDescription()}
           >
             {savingDescription ? "Guardando…" : "Guardar descripción"}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={generatingDescription}
+            onClick={() => void generateDescription()}
+          >
+            {generatingDescription ? "Generando…" : "Generar con IA"}
           </button>
         </div>
       </section>
