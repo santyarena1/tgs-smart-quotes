@@ -347,6 +347,9 @@ model Product {
   defaultLineId     String?
   defaultLine       PcLine?               @relation(fields: [defaultLineId], references: [id])
   active            Boolean               @default(true)
+  /// Descripción reutilizable del componente, se usa como ficha en cualquier
+  /// presupuesto que lo incluya (a menos que el ítem tenga su propia observación).
+  description       String?
   /// Última vez que el producto se usó en un presupuesto (ítem con productId).
   lastUsedAt        DateTime?
   createdAt         DateTime              @default(now())
@@ -507,6 +510,11 @@ model QuoteFamily {
   customer             Customer?             @relation(fields: [customerId], references: [id])
   isBuiltPc            Boolean               @default(false)
   activeVersion        Int                   @default(1)
+  /// Miniatura de este presupuesto para la ficha web (se manda en cada publish).
+  thumbnailUrl         String?
+  /// Si está prendido, un cambio de precio en el catálogo que afecte a esta PC
+  /// recalcula el presupuesto y, si ya estaba publicada, la re-publica sola.
+  autoRepublish        Boolean               @default(false)
   /// Local donde se creó el presupuesto (snapshot fijo, no varía). Es solo informativo para
   /// listado/estadísticas: la impresión usa el local de quien imprime (ver QuotePdf.branchId).
   branchId             String?

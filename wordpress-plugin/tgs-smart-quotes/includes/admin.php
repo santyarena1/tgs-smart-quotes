@@ -1,7 +1,9 @@
 <?php
 /**
  * Panel de administración: Ajustes (secreto HMAC), Productos publicados
- * (elegir variante por producto) y Variantes (crear/editar diseños).
+ * (elegir variante y categoría por producto) y Variantes (crear/editar
+ * diseños, incluidos los extras: WhatsApp, barra flotante, recomendadas,
+ * formas de pago).
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -42,7 +44,7 @@ function tgs_sq_page_settings() {
 	?>
 	<div class="wrap">
 		<h1>TGS Smart Quotes — Ajustes</h1>
-		<p>Este secreto tiene que ser <strong>exactamente el mismo</strong> que el configurado en TGS-SMART-QUOTES (Módulo externo → secreto HMAC de WordPress). Se usa para firmar cada llamada a <code>/wp-json/tgs/v1/publish</code>.</p>
+		<p>Este secreto tiene que ser <strong>exactamente el mismo</strong> que el configurado en TGS-SMART-QUOTES (Publicación Web → secreto HMAC). Se usa para firmar cada llamada a <code>/wp-json/tgs/v1/publish</code>.</p>
 		<p>Estado actual: <?php echo $has_secret ? '<span style="color:#00a32a">✓ configurado</span>' : '<span style="color:#d63638">✗ sin configurar</span>'; ?></p>
 		<form method="post">
 			<?php wp_nonce_field( 'tgs_sq_settings', 'tgs_sq_settings_nonce' ); ?>
@@ -59,12 +61,13 @@ function tgs_sq_page_settings() {
 		</form>
 		<hr>
 		<p><strong>Endpoint de prueba (sin auth):</strong> <code><?php echo esc_url( rest_url( 'tgs/v1/ping' ) ); ?></code></p>
+		<p class="description">La categoría de cada PC (dónde aparece en la tienda) y su variante de diseño se eligen desde "Productos", no acá — cada producto puede ir en una categoría distinta.</p>
 	</div>
 	<?php
 }
 
 /* ---------------------------------------------------------------------
- * Productos publicados: elegir variante por producto.
+ * Productos publicados: elegir variante y categoría por producto.
  * ------------------------------------------------------------------- */
 
 function tgs_sq_page_products() {
@@ -75,9 +78,15 @@ function tgs_sq_page_products() {
 	if ( isset( $_POST['tgs_sq_products_nonce'] ) && wp_verify_nonce( $_POST['tgs_sq_products_nonce'], 'tgs_sq_products' ) ) {
 		$product_id = (int) ( $_POST['product_id'] ?? 0 );
 		$variant    = sanitize_title( $_POST['variant'] ?? '' );
+		$category_id = (int) ( $_POST['category_id'] ?? 0 );
 		if ( $product_id && tgs_sq_get_variant( $variant ) ) {
 			update_post_meta( $product_id, TGS_SQ_META_VARIANT, $variant );
-			echo '<div class="notice notice-success"><p>Variante actualizada para "' . esc_html( get_the_title( $product_id ) ) . '".</p></div>';
+		}
+		if ( $product_id && $category_id ) {
+			wp_set_object_terms( $product_id, array( $category_id ), 'product_cat' );
+		}
+		if ( $product_id ) {
+			echo '<div class="notice notice-success"><p>Producto actualizado: "' . esc_html( get_the_title( $product_id ) ) . '".</p></div>';
 		}
 	}
 
@@ -96,7 +105,7 @@ function tgs_sq_page_products() {
 	<div class="wrap">
 		<h1>Productos publicados por TGS-SMART-QUOTES</h1>
 		<?php if ( ! $products ) : ?>
-			<p>Todavía no se publicó ningún presupuesto desde TGS-SMART-QUOTES. Cuando se publique el primero, va a aparecer acá.</p>
+			<p>Todavía no se publicó ningún presupuesto desde TGS-SMART-QUOTES. Cuando se publique el primero (desde "Publicación Web" en el sistema), va a aparecer acá.</p>
 		<?php else : ?>
 			<table class="widefat striped">
 				<thead>
@@ -104,6 +113,7 @@ function tgs_sq_page_products() {
 						<th>Producto</th>
 						<th>External ID</th>
 						<th>Estado</th>
+						<th>Categoría</th>
 						<th>Variante de diseño</th>
 						<th></th>
 					</tr>
@@ -113,6 +123,7 @@ function tgs_sq_page_products() {
 						<?php
 						$external_id  = get_post_meta( $product->ID, TGS_SQ_META_EXTERNAL_ID, true );
 						$current      = tgs_sq_product_variant_slug( $product->ID );
+						$current_cat  = tgs_sq_product_category_id( $product->ID );
 						?>
 						<tr>
 							<td>
@@ -125,6 +136,25 @@ function tgs_sq_page_products() {
 								<form method="post" style="display:flex;gap:8px;align-items:center;">
 									<?php wp_nonce_field( 'tgs_sq_products', 'tgs_sq_products_nonce' ); ?>
 									<input type="hidden" name="product_id" value="<?php echo esc_attr( $product->ID ); ?>">
+									<input type="hidden" name="variant" value="<?php echo esc_attr( $current ); ?>">
+									<?php
+									wp_dropdown_categories( array(
+										'taxonomy'         => 'product_cat',
+										'name'             => 'category_id',
+										'selected'         => $current_cat,
+										'show_option_none' => 'Sin categoría',
+										'hide_empty'       => false,
+										'hierarchical'     => true,
+									) );
+									?>
+									<button type="submit" class="button">Guardar</button>
+								</form>
+							</td>
+							<td>
+								<form method="post" style="display:flex;gap:8px;align-items:center;">
+									<?php wp_nonce_field( 'tgs_sq_products', 'tgs_sq_products_nonce' ); ?>
+									<input type="hidden" name="product_id" value="<?php echo esc_attr( $product->ID ); ?>">
+									<input type="hidden" name="category_id" value="<?php echo esc_attr( $current_cat ); ?>">
 									<select name="variant">
 										<?php foreach ( $variant_choices as $slug => $name ) : ?>
 											<option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $current, $slug ); ?>><?php echo esc_html( $name ); ?></option>
@@ -138,6 +168,7 @@ function tgs_sq_page_products() {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+			<p class="description">Podés crear categorías nuevas normalmente desde Productos → Categorías de WooCommerce; después van a aparecer acá para elegir.</p>
 		<?php endif; ?>
 	</div>
 	<?php
@@ -226,6 +257,14 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'font'   => sanitize_text_field( $_POST['font'] ?? 'Inter, system-ui, sans-serif' ),
 			),
 			'blocks'      => $blocks,
+			'extra'       => array(
+				'whatsapp_number'   => preg_replace( '/[^0-9]/', '', $_POST['whatsapp_number'] ?? '' ),
+				'whatsapp_message'  => sanitize_text_field( $_POST['whatsapp_message'] ?? '' ),
+				'sticky_label'      => sanitize_text_field( $_POST['sticky_label'] ?? '' ),
+				'recommended_title' => sanitize_text_field( $_POST['recommended_title'] ?? '' ),
+				'recommended_count' => max( 1, min( 8, (int) ( $_POST['recommended_count'] ?? 4 ) ) ),
+				'payment_methods'   => sanitize_text_field( $_POST['payment_methods'] ?? '' ),
+			),
 			// El HTML/CSS lo carga un administrador de confianza a propósito
 			// (es la vía para "pegar código directo" de un diseño 100% a
 			// medida), por eso no se sanitiza con wp_kses acá.
@@ -235,7 +274,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 
 		tgs_sq_save_variant( $variant );
 		echo '<div class="notice notice-success"><p>Variante guardada.</p></div>';
-		$slug = $posted_slug;
+		$slug    = $posted_slug;
+		$variant = tgs_sq_get_variant( $slug );
 	}
 
 	$block_types = tgs_sq_block_types();
@@ -244,6 +284,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 		$blocks_map[ $block['type'] ] = ! empty( $block['visible'] );
 	}
 	$tokens = $variant['tokens'] ?? tgs_sq_default_tokens();
+	$extra  = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
 	?>
 	<div class="wrap">
 		<h1><?php echo $slug ? 'Editar variante' : 'Nueva variante'; ?></h1>
@@ -293,11 +334,45 @@ function tgs_sq_render_variant_editor( $slug ) {
 				<?php endforeach; ?>
 			</table>
 
+			<h2>Extras (WhatsApp, barra flotante, recomendadas, pago)</h2>
+			<p class="description">Estos campos alimentan tanto los bloques de arriba (Botón de WhatsApp, Barra flotante, Recomendadas, Formas de pago) como sus placeholders equivalentes en modo "Código a medida".</p>
+			<table class="form-table">
+				<tr>
+					<th><label for="whatsapp_number">WhatsApp — número</label></th>
+					<td><input type="text" id="whatsapp_number" name="whatsapp_number" value="<?php echo esc_attr( $extra['whatsapp_number'] ); ?>" class="regular-text" placeholder="5491122223333 (con código de país, sin +)">
+					<p class="description">Vacío = el botón de WhatsApp no se muestra, aunque el bloque esté tildado.</p></td>
+				</tr>
+				<tr>
+					<th><label for="whatsapp_message">WhatsApp — mensaje predefinido</label></th>
+					<td><input type="text" id="whatsapp_message" name="whatsapp_message" value="<?php echo esc_attr( $extra['whatsapp_message'] ); ?>" class="regular-text" placeholder="Hola! Quiero consultar por {{title}}">
+					<p class="description">Podés usar <code>{{title}}</code>, se reemplaza por el nombre de la PC.</p></td>
+				</tr>
+				<tr>
+					<th><label for="sticky_label">Barra flotante — texto del botón</label></th>
+					<td><input type="text" id="sticky_label" name="sticky_label" value="<?php echo esc_attr( $extra['sticky_label'] ); ?>" class="regular-text" placeholder="Agregar al carrito"></td>
+				</tr>
+				<tr>
+					<th><label for="recommended_title">Recomendadas — título de la sección</label></th>
+					<td><input type="text" id="recommended_title" name="recommended_title" value="<?php echo esc_attr( $extra['recommended_title'] ); ?>" class="regular-text" placeholder="Recomendadas de la casa"></td>
+				</tr>
+				<tr>
+					<th><label for="recommended_count">Recomendadas — cuántas mostrar</label></th>
+					<td><input type="number" id="recommended_count" name="recommended_count" value="<?php echo esc_attr( $extra['recommended_count'] ); ?>" min="1" max="8">
+					<p class="description">Se eligen automáticamente otras PCs publicadas con precio parecido a esta.</p></td>
+				</tr>
+				<tr>
+					<th><label for="payment_methods">Formas de pago — texto</label></th>
+					<td><input type="text" id="payment_methods" name="payment_methods" value="<?php echo esc_attr( $extra['payment_methods'] ); ?>" class="regular-text" placeholder="Efectivo, transferencia, tarjeta de crédito y débito">
+					<p class="description">Las cuotas/planes de financiación se listan automáticamente debajo si el presupuesto los trae.</p></td>
+				</tr>
+			</table>
+
 			<h2>Código a medida (modo "Código a medida")</h2>
 			<p class="description">
 				Placeholders disponibles: <code>{{title}}</code>, <code>{{price_list}}</code>, <code>{{price_cash}}</code>, <code>{{price_transfer}}</code>,
 				<code>{{gallery_html}}</code>, <code>{{items_html}}</code>, <code>{{description_html}}</code>, <code>{{model3d_html}}</code>,
-				<code>{{add_to_cart_html}}</code>, <code>{{power_watts}}</code>, <code>{{power_psu}}</code>, <code>{{power_note}}</code>, <code>{{permalink}}</code>.
+				<code>{{add_to_cart_html}}</code>, <code>{{sticky_html}}</code>, <code>{{whatsapp_button_html}}</code>, <code>{{payment_html}}</code>,
+				<code>{{recommended_html}}</code>, <code>{{power_watts}}</code>, <code>{{power_psu}}</code>, <code>{{power_note}}</code>, <code>{{permalink}}</code>.
 			</p>
 			<p>
 				<label for="custom_html">HTML</label><br>

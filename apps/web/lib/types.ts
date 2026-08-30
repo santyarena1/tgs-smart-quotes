@@ -348,6 +348,8 @@ export type Quote = {
   customerId: string | null;
   isBuiltPc: boolean;
   activeVersion: number;
+  autoRepublish?: boolean;
+  thumbnailUrl?: string | null;
   customer?: Customer | null;
   request?: QuoteRequest | null;
   branch?: { id: string; name: string } | null;
@@ -413,6 +415,7 @@ export type NavId =
   | "usuarios"
   | "empleados"
   | "publicacion-web"
+  | "fichas-componentes"
   | "mi-cuenta"
   | "modulo-externo"
   | "configuracion";

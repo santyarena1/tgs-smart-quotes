@@ -11,10 +11,6 @@ function tgs_sq_is_managed_product( $post_id = 0 ) {
 	return $post_id && '1' === get_post_meta( $post_id, TGS_SQ_META_MANAGED, true );
 }
 
-/**
- * Reemplaza la plantilla de producto del tema por la nuestra, SOLO para
- * productos publicados por TGS-SMART-QUOTES.
- */
 add_filter( 'template_include', function ( $template ) {
 	if ( is_singular( 'product' ) && tgs_sq_is_managed_product() ) {
 		$custom = TGS_SQ_DIR . 'templates/single-landing.php';
@@ -24,6 +20,18 @@ add_filter( 'template_include', function ( $template ) {
 	}
 	return $template;
 }, 99 );
+
+/**
+ * Clase en <body> para poder scopear CSS (por ejemplo, ocultar el widget
+ * flotante de WhatsApp del sitio SOLO en las fichas de PC). El resto del
+ * sitio no se toca.
+ */
+add_filter( 'body_class', function ( $classes ) {
+	if ( is_singular( 'product' ) && tgs_sq_is_managed_product() ) {
+		$classes[] = 'tgs-managed-page';
+	}
+	return $classes;
+} );
 
 add_action( 'wp_enqueue_scripts', function () {
 	if ( ! is_singular( 'product' ) || ! tgs_sq_is_managed_product() ) {
@@ -38,15 +46,10 @@ add_action( 'wp_enqueue_scripts', function () {
 	}
 } );
 
-// <model-viewer> es un web component: el script tiene que cargar como module.
 add_filter( 'script_loader_tag', function ( $tag, $handle ) {
 	return 'tgs-model-viewer' === $handle ? str_replace( '<script ', '<script type="module" ', $tag ) : $tag;
 }, 10, 2 );
 
-/**
- * Junta todos los datos del producto en un solo array, listo para pasarle
- * a cualquiera de los dos modos de render (blocks o custom).
- */
 function tgs_sq_collect_product_data( $product_id ) {
 	$meta = function ( $key ) use ( $product_id ) {
 		return get_post_meta( $product_id, $key, true );
@@ -73,12 +76,9 @@ function tgs_sq_collect_product_data( $product_id ) {
 		'power'        => $decode( TGS_SQ_META_POWER ),
 		'games'        => $decode( TGS_SQ_META_GAMES ),
 		'compat'       => $decode( TGS_SQ_META_COMPATIBILITY ),
+		'extra'        => tgs_sq_default_extra(),
 	);
 }
-
-/* ---------------------------------------------------------------------
- * Modo "blocks"
- * ------------------------------------------------------------------- */
 
 function tgs_sq_layout_style_vars( array $tokens ) {
 	$accent = sanitize_hex_color( $tokens['accent'] ?? '' ) ?: '#E31B23';
@@ -122,13 +122,18 @@ function tgs_sq_block_pricebox( array $d ) {
 	echo '</section>';
 }
 
-function tgs_sq_block_addtocartsticky( array $d ) {
+function tgs_sq_sticky_html( array $d ) {
 	if ( ! $d['product'] ) {
-		return;
+		return '';
 	}
-	echo '<div class="tgs-sticky" aria-hidden="true"><span>' . esc_html( $d['title'] ) . '</span><strong>'
+	$label = $d['extra']['sticky_label'] ?? 'Agregar al carrito';
+	return '<div class="tgs-sticky" aria-hidden="true"><span>' . esc_html( $d['title'] ) . '</span><strong>'
 		. wp_kses_post( $d['product']->get_price_html() )
-		. '</strong><a href="' . esc_url( $d['product']->add_to_cart_url() ) . '" class="button">Agregar al carrito</a></div>';
+		. '</strong><a href="' . esc_url( $d['product']->add_to_cart_url() ) . '" class="button">' . esc_html( $label ) . '</a></div>';
+}
+
+function tgs_sq_block_addtocartsticky( array $d ) {
+	echo tgs_sq_sticky_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 function tgs_sq_block_gallery( array $d ) {
@@ -142,11 +147,6 @@ function tgs_sq_block_gallery( array $d ) {
 	echo '</div></section>';
 }
 
-/**
- * Lista de componentes: foto + nombre + (si viene) descripción breve y a
- * qué parte corresponde. Nunca se muestra precio por componente — el
- * precio siempre es el total, en el bloque priceBox.
- */
 function tgs_sq_block_specs( array $d ) {
 	if ( empty( $d['items'] ) ) {
 		return;
@@ -209,6 +209,123 @@ function tgs_sq_block_compatibility( array $d ) {
 	echo '</ul></section>';
 }
 
+function tgs_sq_payment_html( array $d ) {
+	$methods = $d['extra']['payment_methods'] ?? '';
+	ob_start();
+	echo '<section class="tgs-payment"><h2>Formas de pago</h2>';
+	if ( $methods ) {
+		echo '<p class="tgs-payment-methods">' . esc_html( $methods ) . '</p>';
+	}
+	if ( ! empty( $d['installments'] ) ) {
+		echo '<div class="tgs-installments">';
+		foreach ( $d['installments'] as $plan ) {
+			if ( ! is_array( $plan ) || empty( $plan['installments'] ) ) {
+				continue;
+			}
+			$bank         = $plan['bank'] ?? '';
+			$installments = (int) $plan['installments'];
+			$per          = isset( $plan['installmentCents'] ) ? wc_price( ( (int) $plan['installmentCents'] ) / 100 ) : '';
+			echo '<div class="tgs-installment-row">';
+			if ( $bank ) {
+				echo '<span class="tgs-installment-bank">' . esc_html( $bank ) . '</span>';
+			}
+			echo '<span>' . esc_html( $installments ) . ' cuotas de ' . wp_kses_post( $per ) . '</span>';
+			echo '</div>';
+		}
+		echo '</div>';
+	}
+	echo '</section>';
+	return ob_get_clean();
+}
+
+function tgs_sq_block_payment( array $d ) {
+	echo tgs_sq_payment_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+function tgs_sq_whatsapp_button_html( array $d ) {
+	$number = preg_replace( '/[^0-9]/', '', $d['extra']['whatsapp_number'] ?? '' );
+	if ( '' === $number ) {
+		return '';
+	}
+	$message = strtr( (string) ( $d['extra']['whatsapp_message'] ?? '' ), array( '{{title}}' => $d['title'] ) );
+	$url     = 'https://api.whatsapp.com/send?phone=' . rawurlencode( $number ) . '&text=' . rawurlencode( $message );
+	return '<a class="tgs-whatsapp-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" aria-label="Consultar por WhatsApp">'
+		. '<svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16 3C9 3 3 9 3 16c0 2.6.8 5 2.1 7L3 29l6.2-2c2 .9 4.2 1.4 6.8 1.4 7 0 13-6 13-13S23 3 16 3zm0 23.6c-2.3 0-4.5-.6-6.4-1.7l-.5-.3-4.6 1.5 1.5-4.5-.3-.5C4.6 19.2 4 17.6 4 16 4 9.5 9.5 4 16 4s12 5.5 12 12-5.5 12-12 12zm6.6-9c-.4-.2-2.1-1-2.4-1.2-.3-.1-.6-.2-.8.2-.2.4-.9 1.2-1.2 1.4-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8.2-.2.4-.4.6-.7.2-.2.3-.4.4-.6.1-.3 0-.5-.1-.7-.1-.2-.8-2-1.1-2.7-.3-.7-.6-.6-.8-.6h-.7c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.3 1.4 3.5c.2.2 2.4 3.7 5.9 5.1.8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.7-.4z"/></svg>'
+		. '<span>Consultar por WhatsApp</span></a>';
+}
+
+function tgs_sq_block_whatsapp( array $d ) {
+	echo tgs_sq_whatsapp_button_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+function tgs_sq_get_recommended_products( $product_id, $price_cents, $count = 4 ) {
+	$count = max( 1, (int) $count );
+	if ( $price_cents <= 0 ) {
+		return array();
+	}
+	$band    = 0.2;
+	$results = array();
+	for ( $tries = 0; $tries < 4 && count( $results ) < $count; $tries++ ) {
+		$min   = (int) round( $price_cents * ( 1 - $band ) );
+		$max   = (int) round( $price_cents * ( 1 + $band ) );
+		$query = new WP_Query( array(
+			'post_type'      => 'product',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'post__not_in'   => array( $product_id ),
+			'meta_key'       => TGS_SQ_META_MANAGED,
+			'meta_value'     => '1',
+			'meta_query'     => array(
+				array(
+					'key'     => TGS_SQ_META_PRICE_TRANSFER,
+					'value'   => array( max( 0, $min ), $max ),
+					'compare' => 'BETWEEN',
+					'type'    => 'NUMERIC',
+				),
+			),
+		) );
+		$results = $query->posts;
+		$band   += 0.2;
+	}
+	usort( $results, function ( $a, $b ) use ( $price_cents ) {
+		$pa = (int) get_post_meta( $a->ID, TGS_SQ_META_PRICE_TRANSFER, true );
+		$pb = (int) get_post_meta( $b->ID, TGS_SQ_META_PRICE_TRANSFER, true );
+		return abs( $pa - $price_cents ) <=> abs( $pb - $price_cents );
+	} );
+	return array_slice( $results, 0, $count );
+}
+
+function tgs_sq_recommended_html( array $d ) {
+	$count = (int) ( $d['extra']['recommended_count'] ?? 4 );
+	$posts = tgs_sq_get_recommended_products( $d['product_id'], $d['price_transfer'], $count );
+	if ( empty( $posts ) ) {
+		return '';
+	}
+	$title = $d['extra']['recommended_title'] ?? 'Recomendadas de la casa';
+	ob_start();
+	echo '<section class="tgs-recommended"><h2>' . esc_html( $title ) . '</h2><div class="tgs-recommended-grid">';
+	foreach ( $posts as $post ) {
+		$pid     = $post->ID;
+		$thumb   = get_post_meta( $pid, TGS_SQ_META_THUMBNAIL, true );
+		$product = wc_get_product( $pid );
+		echo '<a class="tgs-recommended-card" href="' . esc_url( get_permalink( $pid ) ) . '">';
+		if ( $thumb ) {
+			echo '<img src="' . esc_url( $thumb ) . '" alt="">';
+		}
+		echo '<span class="tgs-recommended-name">' . esc_html( get_the_title( $pid ) ) . '</span>';
+		if ( $product ) {
+			echo '<span class="tgs-recommended-price">' . wp_kses_post( $product->get_price_html() ) . '</span>';
+		}
+		echo '</a>';
+	}
+	echo '</div></section>';
+	return ob_get_clean();
+}
+
+function tgs_sq_block_recommended( array $d ) {
+	echo tgs_sq_recommended_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
 function tgs_sq_render_blocks_mode( array $variant, array $data ) {
 	echo '<main class="tgs-landing" style="' . esc_attr( tgs_sq_layout_style_vars( $variant['tokens'] ?? array() ) ) . '">';
 	foreach ( ( $variant['blocks'] ?? array() ) as $block ) {
@@ -219,10 +336,6 @@ function tgs_sq_render_blocks_mode( array $variant, array $data ) {
 	}
 	echo '</main>';
 }
-
-/* ---------------------------------------------------------------------
- * Modo "custom": HTML/CSS pegado a mano en el admin, con placeholders.
- * ------------------------------------------------------------------- */
 
 function tgs_sq_custom_placeholders( array $data ) {
 	$gallery_html = '';
@@ -261,19 +374,23 @@ function tgs_sq_custom_placeholders( array $data ) {
 	$add_to_cart_html = ob_get_clean();
 
 	return array(
-		'{{title}}'             => esc_html( $data['title'] ),
-		'{{permalink}}'         => esc_url( $data['permalink'] ),
-		'{{price_list}}'        => wp_kses_post( wc_price( $data['price_list'] / 100 ) ),
-		'{{price_cash}}'        => wp_kses_post( wc_price( $data['price_cash'] / 100 ) ),
-		'{{price_transfer}}'    => wp_kses_post( wc_price( $data['price_transfer'] / 100 ) ),
-		'{{description_html}}'  => wp_kses_post( $data['description'] ),
-		'{{gallery_html}}'      => $gallery_html,
-		'{{items_html}}'        => $items_html,
-		'{{model3d_html}}'      => $model3d_html,
-		'{{add_to_cart_html}}'  => $add_to_cart_html,
-		'{{power_watts}}'       => esc_html( $data['power']['watts'] ?? '' ),
-		'{{power_psu}}'         => esc_html( $data['power']['psu'] ?? '' ),
-		'{{power_note}}'        => esc_html( $data['power']['note'] ?? '' ),
+		'{{title}}'                => esc_html( $data['title'] ),
+		'{{permalink}}'            => esc_url( $data['permalink'] ),
+		'{{price_list}}'           => wp_kses_post( wc_price( $data['price_list'] / 100 ) ),
+		'{{price_cash}}'           => wp_kses_post( wc_price( $data['price_cash'] / 100 ) ),
+		'{{price_transfer}}'       => wp_kses_post( wc_price( $data['price_transfer'] / 100 ) ),
+		'{{description_html}}'     => wp_kses_post( $data['description'] ),
+		'{{gallery_html}}'         => $gallery_html,
+		'{{items_html}}'           => $items_html,
+		'{{model3d_html}}'         => $model3d_html,
+		'{{add_to_cart_html}}'     => $add_to_cart_html,
+		'{{sticky_html}}'          => tgs_sq_sticky_html( $data ),
+		'{{whatsapp_button_html}}' => tgs_sq_whatsapp_button_html( $data ),
+		'{{payment_html}}'         => tgs_sq_payment_html( $data ),
+		'{{recommended_html}}'     => tgs_sq_recommended_html( $data ),
+		'{{power_watts}}'          => esc_html( $data['power']['watts'] ?? '' ),
+		'{{power_psu}}'            => esc_html( $data['power']['psu'] ?? '' ),
+		'{{power_note}}'           => esc_html( $data['power']['note'] ?? '' ),
 	);
 }
 
@@ -287,21 +404,18 @@ function tgs_sq_render_custom_mode( array $variant, array $data ) {
 
 	echo '<main class="tgs-landing tgs-landing--custom" style="' . esc_attr( tgs_sq_layout_style_vars( $variant['tokens'] ?? array() ) ) . '">';
 	// El HTML de la variante lo escribe un admin de confianza (no un
-	// usuario del sitio), así que se imprime tal cual: es la única forma
-	// de permitir diseño 100% libre pedido explícitamente.
+	// usuario del sitio), así que se imprime tal cual. El *nombre* de la
+	// variante nunca se imprime en ningún lado de este HTML.
 	echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '</main>';
 }
 
-/**
- * Punto de entrada único: arma los datos, resuelve la variante asignada
- * al producto, y la renderiza en el modo que corresponda.
- */
 function tgs_sq_render_product( $product_id ) {
 	tgs_sq_ensure_default_variant();
-	$data         = tgs_sq_collect_product_data( $product_id );
-	$variant_slug = tgs_sq_product_variant_slug( $product_id );
-	$variant      = tgs_sq_get_variant( $variant_slug ) ?: tgs_sq_get_variant( TGS_SQ_DEFAULT_VARIANT );
+	$data          = tgs_sq_collect_product_data( $product_id );
+	$variant_slug  = tgs_sq_product_variant_slug( $product_id );
+	$variant       = tgs_sq_get_variant( $variant_slug ) ?: tgs_sq_get_variant( TGS_SQ_DEFAULT_VARIANT );
+	$data['extra'] = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
 
 	if ( 'custom' === ( $variant['mode'] ?? 'blocks' ) && ! empty( $variant['custom_html'] ) ) {
 		tgs_sq_render_custom_mode( $variant, $data );

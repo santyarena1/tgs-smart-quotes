@@ -172,3 +172,90 @@
 		height: 380px;
 	}
 }
+
+/* --- Widget de WhatsApp del sitio: se oculta SOLO dentro de las fichas de
+ * PC (ver el filtro body_class en render.php). En el resto del sitio sigue
+ * como está. Acá mostramos en cambio nuestro propio botón (tgs-whatsapp-btn),
+ * configurable por variante. */
+body.tgs-managed-page #wa,
+body.tgs-managed-page .wa__widget_container {
+	display: none !important;
+}
+
+.tgs-whatsapp-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	background: #25d366;
+	color: #ffffff !important;
+	text-decoration: none;
+	font-weight: 600;
+	padding: 12px 20px;
+	border-radius: 999px;
+	box-shadow: 0 10px 30px rgba(37, 211, 102, 0.35);
+}
+.tgs-whatsapp-btn:hover {
+	filter: brightness(1.05);
+}
+
+/* --- Formas de pago --- */
+.tgs-payment-methods {
+	color: var(--tgs-muted);
+	margin-bottom: 12px;
+}
+.tgs-installments {
+	display: grid;
+	gap: 6px;
+}
+.tgs-installment-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	background: var(--tgs-card);
+	border: 1px solid #27272a;
+	border-radius: 12px;
+	font-size: 14px;
+}
+.tgs-installment-bank {
+	color: var(--tgs-accent);
+	font-weight: 600;
+}
+
+/* --- Recomendadas de la casa --- */
+.tgs-recommended-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 16px;
+}
+.tgs-recommended-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	background: var(--tgs-card);
+	border: 1px solid #27272a;
+	border-radius: var(--tgs-radius);
+	padding: 16px;
+	text-decoration: none;
+	color: var(--tgs-text);
+	transition: transform 0.15s, border-color 0.15s;
+}
+.tgs-recommended-card:hover {
+	transform: translateY(-3px);
+	border-color: var(--tgs-accent);
+}
+.tgs-recommended-card img {
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: contain;
+	background: white;
+	border-radius: 10px;
+}
+.tgs-recommended-name {
+	font-weight: 600;
+	font-size: 14px;
+}
+.tgs-recommended-price {
+	color: var(--tgs-accent);
+	font-weight: 700;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, downloadAuthenticated } from "../lib/api";
+import { api, apiUpload, downloadAuthenticated } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
 import {
@@ -84,6 +84,11 @@ export function PublicacionWebView() {
   const [search, setSearch] = useState("");
   const [busyVersionId, setBusyVersionId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [titleDrafts, setTitleDrafts] = useState<Record<string, string>>({});
+  const [savingTitleId, setSavingTitleId] = useState<string | null>(null);
+  const [savingAutoId, setSavingAutoId] = useState<string | null>(null);
+  const [uploadingThumbId, setUploadingThumbId] = useState<string | null>(null);
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -228,6 +233,54 @@ export function PublicacionWebView() {
     }
   };
 
+  const saveTitle = async (quote: Quote) => {
+    const nextTitle = (titleDrafts[quote.id] ?? quote.internalName).trim();
+    if (!nextTitle || nextTitle === quote.internalName) return;
+    setSavingTitleId(quote.id);
+    setError(null);
+    try {
+      await api(`/quotes/${quote.id}`, { method: "PUT", body: { internalName: nextTitle } });
+      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, internalName: nextTitle } : q)));
+    } catch (err) {
+      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
+    } finally {
+      setSavingTitleId(null);
+    }
+  };
+
+  const toggleAutoRepublish = async (quote: Quote, value: boolean) => {
+    setSavingAutoId(quote.id);
+    try {
+      await api(`/external-module/quote-families/${quote.id}/publish-settings`, {
+        method: "PUT",
+        body: { autoRepublish: value },
+      });
+      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, autoRepublish: value } : q)));
+    } catch (err) {
+      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
+    } finally {
+      setSavingAutoId(null);
+    }
+  };
+
+  const uploadThumbnail = async (quote: Quote, file: File) => {
+    setUploadingThumbId(quote.id);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const next = await apiUpload<{ thumbnailUrl: string | null }>(
+        `/external-module/quote-families/${quote.id}/thumbnail`,
+        form,
+      );
+      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, thumbnailUrl: next.thumbnailUrl } : q)));
+    } catch (err) {
+      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
+    } finally {
+      setUploadingThumbId(null);
+    }
+  };
+
   const filteredQuotes = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return quotes;
@@ -333,44 +386,109 @@ export function PublicacionWebView() {
               const version = getActiveVersion(quote)!;
               const publication = publications[version.id];
               const busy = busyVersionId === version.id;
-              const rowErr = rowError[version.id];
+              const rowErr = rowError[version.id] || rowError[quote.id];
               const isPublished = publication?.status === "PUBLISHED";
+              const expanded = expandedId === quote.id;
+              const titleDraft = titleDrafts[quote.id] ?? quote.internalName;
               return (
-                <article
-                  key={quote.id}
-                  className="card card-pad"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}
-                >
-                  <div style={{ display: "grid", gap: 4, minWidth: 220 }}>
-                    <strong>{quote.internalName || quote.visibleNumber}</strong>
-                    <span className="muted">
-                      {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <Pill tone={statusTone(publication?.status)}>{statusLabel(publication?.status)}</Pill>
-                    {publication?.url ? (
-                      <a href={publication.url} target="_blank" rel="noreferrer">
-                        Ver en la tienda
-                      </a>
-                    ) : null}
-                    {isPublished ? (
-                      <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void unpublish(quote)}>
-                        {busy ? "Despublicando…" : "Despublicar"}
+                <article key={quote.id} className="card card-pad">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                    <div style={{ display: "grid", gap: 4, minWidth: 220 }}>
+                      <strong>{quote.internalName || quote.visibleNumber}</strong>
+                      <span className="muted">
+                        {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <Pill tone={statusTone(publication?.status)}>{statusLabel(publication?.status)}</Pill>
+                      {publication?.url ? (
+                        <a href={publication.url} target="_blank" rel="noreferrer">
+                          Ver en la tienda
+                        </a>
+                      ) : null}
+                      {isPublished ? (
+                        <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void unpublish(quote)}>
+                          {busy ? "Despublicando…" : "Despublicar"}
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-dark btn-sm" disabled={busy} onClick={() => void publish(quote)}>
+                          {busy ? "Publicando…" : "Publicar"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-ghost btn-sm"
+                        onClick={() => setExpandedId(expanded ? null : quote.id)}
+                      >
+                        {expanded ? "Ocultar detalles" : "Vista previa / editar"}
                       </button>
-                    ) : (
-                      <button type="button" className="btn-dark btn-sm" disabled={busy} onClick={() => void publish(quote)}>
-                        {busy ? "Publicando…" : "Publicar"}
-                      </button>
-                    )}
+                    </div>
                   </div>
+
                   {rowErr ? (
-                    <div style={{ width: "100%" }}>
+                    <div style={{ marginTop: 10 }}>
                       <Alert tone="error">{rowErr}</Alert>
                     </div>
                   ) : publication?.status === "FAILED" && publication.lastError ? (
-                    <div style={{ width: "100%" }}>
+                    <div style={{ marginTop: 10 }}>
                       <Alert tone="error">{publication.lastError}</Alert>
+                    </div>
+                  ) : null}
+
+                  {expanded ? (
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)", display: "grid", gap: 14 }}>
+                      <Field label="Título">
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input
+                            value={titleDraft}
+                            onChange={(e) => setTitleDrafts((prev) => ({ ...prev, [quote.id]: e.target.value }))}
+                          />
+                          <button
+                            type="button"
+                            className="btn-dark btn-sm"
+                            disabled={savingTitleId === quote.id || titleDraft.trim() === quote.internalName}
+                            onClick={() => void saveTitle(quote)}
+                          >
+                            {savingTitleId === quote.id ? "Guardando…" : "Guardar"}
+                          </button>
+                        </div>
+                      </Field>
+
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <span className="field-label">Componentes ({version.items.length})</span>
+                        <div style={{ display: "grid", gap: 4 }}>
+                          {version.items.map((item, i) => (
+                            <span key={`${item.id ?? item.frozenName ?? item.name}-${i}`} className="muted">
+                              {item.quantity} × {item.frozenName ?? item.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <Checkbox
+                        label="Actualizar precio automáticamente desde el catálogo (y re-publicar sola si ya estaba en la tienda)"
+                        checked={Boolean(quote.autoRepublish)}
+                        disabled={savingAutoId === quote.id}
+                        onChange={(v) => void toggleAutoRepublish(quote, v)}
+                      />
+
+                      <Field label="Miniatura" hint="Se usa como imagen destacada del producto en la tienda y como imagen de esta PC en 'Recomendadas de la casa'.">
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          {quote.thumbnailUrl ? (
+                            <img src={quote.thumbnailUrl} alt="Miniatura actual" style={{ width: 64, height: 64, objectFit: "contain", background: "#fff", borderRadius: 8 }} />
+                          ) : null}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingThumbId === quote.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) void uploadThumbnail(quote, file);
+                            }}
+                          />
+                          {uploadingThumbId === quote.id ? <span className="muted">Subiendo…</span> : null}
+                        </div>
+                      </Field>
                     </div>
                   ) : null}
                 </article>

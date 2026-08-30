@@ -23,6 +23,7 @@ import {
 import {markupFromPrices,saleFromCost} from '@tgs/pricing';
 import {extractNumbersModels,normalizePhone,normalizeText,productSimilarity} from '@tgs/validation';
 import {CurrentUser,jsonSafe,type RequestUser,ZodPipe} from './infrastructure.js';
+import{syncAutoRepublishForProduct}from './auto-republish.js';
 
 const audit=(
   tx:any,
@@ -253,6 +254,7 @@ export class ProductsController{
     @CurrentUser() actor:RequestUser,
   ){
     const next=await db.$transaction(tx=>updateProduct(tx,id,body,actor.id));
+    void syncAutoRepublishForProduct(id).catch(()=>{});
     return jsonSafe(next);
   }
 

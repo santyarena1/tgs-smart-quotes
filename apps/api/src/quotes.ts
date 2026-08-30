@@ -204,7 +204,7 @@ function copyItemSnapshot(item:any){
   };
 }
 
-function pricingTotals(rows:ReadonlyArray<{frozenCostCents:bigint;frozenSalePriceCents:bigint;quantity:number}>){
+export function pricingTotals(rows:ReadonlyArray<{frozenCostCents:bigint;frozenSalePriceCents:bigint;quantity:number}>){
   return totals(rows.map(row=>({
     costCents:row.frozenCostCents,
     salePriceCents:row.frozenSalePriceCents,

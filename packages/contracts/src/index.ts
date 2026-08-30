@@ -454,6 +454,15 @@ export const productCreateSchema = z
   })
   .strict();
 export const productUpdateSchema = nonEmptyUpdate(productCreateSchema.shape);
+export const productContentSchema = z.object({
+  description: z.string().trim().max(4000).nullable(),
+}).strict();
+export type ProductContentInput = z.infer<typeof productContentSchema>;
+export const quoteFamilyPublishSettingsSchema = z.object({
+  autoRepublish: z.boolean(),
+}).strict();
+export type QuoteFamilyPublishSettingsInput = z.infer<typeof quoteFamilyPublishSettingsSchema>;
+
 export const productImportSchema = z
   .object({
     rows: z.array(productCreateSchema).min(1).max(5000),

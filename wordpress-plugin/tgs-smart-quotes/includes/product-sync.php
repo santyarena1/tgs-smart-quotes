@@ -25,8 +25,10 @@ function tgs_sq_find_product_id( $external_id ) {
 }
 
 /**
- * Categoría de producto donde caen todos los presupuestos publicados.
- * Se crea sola la primera vez si no existe.
+ * Categoría de producto "por defecto" para presupuestos nuevos. Se crea
+ * sola la primera vez si no existe. La categoría de cada producto se puede
+ * cambiar después desde TGS Smart Quotes → Productos, y una vez cambiada
+ * nunca se pisa en un republish (ver tgs_sq_sync_product).
  */
 function tgs_sq_ensure_category() {
 	$term = term_exists( 'TGS', 'product_cat' );
@@ -37,6 +39,51 @@ function tgs_sq_ensure_category() {
 		return 0;
 	}
 	return (int) ( is_array( $term ) ? $term['term_id'] : $term );
+}
+
+/**
+ * Categoría actualmente asignada a un producto publicado (o 0 si no tiene
+ * ninguna todavía).
+ */
+function tgs_sq_product_category_id( $product_id ) {
+	$terms = wp_get_object_terms( $product_id, 'product_cat', array( 'fields' => 'ids' ) );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		return 0;
+	}
+	return (int) $terms[0];
+}
+
+/**
+ * Baja una imagen externa a la librería de medios de WordPress y la deja
+ * como imagen destacada del producto (así se ve en la grilla de la tienda
+ * y en los resultados de búsqueda, que si no quedan en blanco). No vuelve
+ * a bajar la misma imagen dos veces: si la URL no cambió desde la última
+ * vez, no hace nada.
+ */
+function tgs_sq_maybe_set_featured_image( $product_id, $image_url ) {
+	$image_url = esc_url_raw( (string) $image_url );
+	if ( '' === $image_url ) {
+		return;
+	}
+
+	$stored_source = get_post_meta( $product_id, '_tgs_thumbnail_source', true );
+	if ( $stored_source === $image_url && has_post_thumbnail( $product_id ) ) {
+		return;
+	}
+
+	if ( ! function_exists( 'media_sideload_image' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+	}
+
+	$attachment_id = media_sideload_image( $image_url, $product_id, null, 'id' );
+	if ( is_wp_error( $attachment_id ) ) {
+		return;
+	}
+
+	set_post_thumbnail( $product_id, $attachment_id );
+	update_post_meta( $product_id, '_tgs_thumbnail_source', $image_url );
 }
 
 /**
@@ -53,20 +100,24 @@ function tgs_sq_sync_product( array $payload ) {
 		return new WP_Error( 'tgs_missing_external_id', 'externalId es obligatorio', array( 'status' => 400 ) );
 	}
 
-	$product_id = tgs_sq_find_product_id( $external_id );
-	$product    = $product_id ? wc_get_product( $product_id ) : new WC_Product_Simple();
+	$existing_product_id = tgs_sq_find_product_id( $external_id );
+	$product              = $existing_product_id ? wc_get_product( $existing_product_id ) : new WC_Product_Simple();
 	if ( ! $product ) {
 		return new WP_Error( 'tgs_product_load_failed', 'No se pudo cargar el producto', array( 'status' => 500 ) );
 	}
 
-	$title             = sanitize_text_field( $payload['title'] ?? 'Presupuesto TGS' );
+	$title              = sanitize_text_field( $payload['title'] ?? 'Presupuesto TGS' );
 	$price_transfer_ars = ( (int) ( $payload['priceTransferCents'] ?? 0 ) ) / 100;
 
 	$product->set_name( $title );
 	$product->set_status( 'publish' );
 	$product->set_catalog_visibility( 'visible' );
 	$product->set_regular_price( wc_format_decimal( $price_transfer_ars, 2 ) );
+	// PCs armadas a pedido: no se gestiona stock por unidad, siempre
+	// figura disponible (nunca "sin existencias").
 	$product->set_manage_stock( false );
+	$product->set_stock_status( 'instock' );
+	$product->set_backorders( 'no' );
 	$product->set_sku( 'TGS-' . substr( preg_replace( '/[^A-Za-z0-9]/', '', $external_id ), 0, 24 ) );
 
 	if ( ! empty( $payload['slug'] ) ) {
@@ -75,16 +126,26 @@ function tgs_sq_sync_product( array $payload ) {
 
 	$product_id = $product->save();
 
-	$category_id = tgs_sq_ensure_category();
-	if ( $category_id ) {
-		wp_set_object_terms( $product_id, array( $category_id ), 'product_cat' );
+	// La categoría solo se asigna automáticamente la primera vez que se
+	// publica el producto. Si el admin ya la cambió a mano desde
+	// "Productos", un republish nunca la pisa.
+	if ( ! $existing_product_id && 0 === tgs_sq_product_category_id( $product_id ) ) {
+		$category_id = tgs_sq_ensure_category();
+		if ( $category_id ) {
+			wp_set_object_terms( $product_id, array( $category_id ), 'product_cat' );
+		}
 	}
+
+	$thumbnail_source = ! empty( $payload['thumbnailUrl'] )
+		? $payload['thumbnailUrl']
+		: ( $payload['gallery'][0] ?? '' );
+	tgs_sq_maybe_set_featured_image( $product_id, $thumbnail_source );
 
 	$meta = array(
 		TGS_SQ_META_EXTERNAL_ID     => $external_id,
 		TGS_SQ_META_MANAGED         => '1',
 		TGS_SQ_META_MODEL3D         => esc_url_raw( $payload['model3dUrl'] ?? '' ),
-		TGS_SQ_META_THUMBNAIL       => esc_url_raw( $payload['thumbnailUrl'] ?? '' ),
+		TGS_SQ_META_THUMBNAIL       => esc_url_raw( $thumbnail_source ),
 		TGS_SQ_META_GALLERY         => wp_json_encode( $payload['gallery'] ?? array() ),
 		TGS_SQ_META_PRICE_LIST      => (string) (int) ( $payload['priceListCents'] ?? 0 ),
 		TGS_SQ_META_PRICE_CASH      => (string) (int) ( $payload['priceCashCents'] ?? 0 ),
@@ -115,11 +176,6 @@ function tgs_sq_sync_product( array $payload ) {
  * al menos name/imageUrl/specs; specs.line es la "parte" (CPU, Mother,
  * etc.) y specs no incluye precio individual a propósito — el precio que
  * se muestra siempre es el total de la PC, nunca por componente.
- *
- * NOTA: hoy el payload de TGS-SMART-QUOTES no manda una descripción breve
- * por componente. El campo se deja contemplado (item.description) para
- * cuando se actualice el backend; mientras tanto llega vacío y la
- * plantilla simplemente no muestra esa línea.
  */
 function tgs_sq_sanitize_items( $items ) {
 	if ( ! is_array( $items ) ) {

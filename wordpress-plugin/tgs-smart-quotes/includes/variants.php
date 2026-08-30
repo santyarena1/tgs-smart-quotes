@@ -14,6 +14,11 @@
  *    reales del producto. Para cuando se quiere un diseño 100% a medida
  *    que no encaja en el sistema de bloques.
  *
+ * Además de bloques/tokens, cada variante tiene un set de "extras"
+ * (whatsapp, barra flotante, recomendadas, formas de pago) que se pueden
+ * prender/apagar y personalizar, y están disponibles tanto como bloque
+ * (modo blocks) como placeholder (modo custom).
+ *
  * Se guardan como un único option de WordPress (array serializado). No hace
  * falta una tabla nueva ni un custom post type para esto.
  */
@@ -35,6 +40,9 @@ function tgs_sq_block_types() {
 		'power'          => 'Consumo / potencia recomendada',
 		'games'          => 'Juegos recomendados',
 		'compatibility'  => 'Notas de compatibilidad',
+		'payment'        => 'Formas de pago y cuotas',
+		'whatsapp'       => 'Botón de WhatsApp',
+		'recommended'    => 'Recomendadas de la casa (PCs de precio similar)',
 	);
 }
 
@@ -47,7 +55,11 @@ function tgs_sq_default_blocks() {
 	$types = array_keys( tgs_sq_block_types() );
 	return array_map(
 		function ( $type ) {
-			return array( 'type' => $type, 'visible' => true );
+			// Los bloques nuevos (payment/whatsapp/recommended) arrancan
+			// apagados por default: hay que cargar número de WhatsApp,
+			// etc. antes de que tenga sentido mostrarlos.
+			$visible = ! in_array( $type, array( 'payment', 'whatsapp', 'recommended' ), true );
+			return array( 'type' => $type, 'visible' => $visible );
 		},
 		$types
 	);
@@ -63,6 +75,23 @@ function tgs_sq_default_tokens() {
 	);
 }
 
+/**
+ * Configuración de los bloques "extra" (no son solo on/off de bloque: cada
+ * uno tiene campos propios). Vive separado de `blocks` porque estos campos
+ * también se usan en modo "custom" (como placeholders), no solo en modo
+ * "blocks".
+ */
+function tgs_sq_default_extra() {
+	return array(
+		'whatsapp_number'    => '',
+		'whatsapp_message'   => 'Hola! Quiero consultar por {{title}}',
+		'sticky_label'       => 'Agregar al carrito',
+		'recommended_title'  => 'Recomendadas de la casa',
+		'recommended_count'  => 4,
+		'payment_methods'    => 'Efectivo, transferencia, tarjeta de crédito y débito',
+	);
+}
+
 function tgs_sq_blank_variant( $slug = '', $name = '' ) {
 	return array(
 		'slug'        => $slug,
@@ -70,6 +99,7 @@ function tgs_sq_blank_variant( $slug = '', $name = '' ) {
 		'mode'        => 'blocks', // 'blocks' | 'custom'
 		'tokens'      => tgs_sq_default_tokens(),
 		'blocks'      => tgs_sq_default_blocks(),
+		'extra'       => tgs_sq_default_extra(),
 		'custom_html' => '',
 		'custom_css'  => '',
 		'updated_at'  => current_time( 'mysql' ),
@@ -86,13 +116,21 @@ function tgs_sq_get_variants() {
 
 function tgs_sq_get_variant( $slug ) {
 	$variants = tgs_sq_get_variants();
-	return isset( $variants[ $slug ] ) ? $variants[ $slug ] : null;
+	if ( ! isset( $variants[ $slug ] ) ) {
+		return null;
+	}
+	$variant          = $variants[ $slug ];
+	// Compatibilidad hacia atrás: variantes guardadas antes de que
+	// existiera 'extra' no lo tienen, así que se completa con defaults.
+	$variant['extra'] = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
+	return $variant;
 }
 
 function tgs_sq_save_variant( $variant ) {
 	$variants                        = tgs_sq_get_variants();
 	$slug                             = sanitize_title( $variant['slug'] );
 	$variant['slug']                  = $slug;
+	$variant['extra']                 = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
 	$variant['updated_at']            = current_time( 'mysql' );
 	$variants[ $slug ]                = $variant;
 	update_option( TGS_SQ_OPTION_VARIANTS, $variants );
