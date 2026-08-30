@@ -1,6 +1,29 @@
 <?php
-defined('ABSPATH')||exit;
-$id=get_the_ID();$product=wc_get_product($id);$meta=fn($key)=>get_post_meta($id,$key,true);$decode=fn($key)=>json_decode((string)$meta($key),true)?:[];
-$layout=tgs_sq_layout($id);$data=['product'=>$product,'meta'=>$meta,'model'=>$meta('_tgs_model3d_url'),'thumb'=>$meta('_tgs_thumbnail_url'),'gallery'=>$decode('_tgs_gallery'),'items'=>$decode('_tgs_items'),'power'=>$decode('_tgs_power'),'games'=>$decode('_tgs_games'),'compat'=>$decode('_tgs_compatibility')];
-get_header();echo '<main class="tgs-landing" style="'.esc_attr(tgs_sq_layout_style($layout)).'">';
-foreach($layout['blocks'] as $block){if(!is_array($block)||empty($block['visible']))continue;tgs_sq_render_block(sanitize_key($block['type']??''),$data);}echo '</main>';get_footer();
+/**
+ * Plantilla de producto 100% custom para lo publicado por TGS-SMART-QUOTES.
+ *
+ * Mantiene get_header()/get_footer() del tema (menú, logo, footer siguen
+ * siendo los del sitio), pero agrega un spacer para compensar el header
+ * de Impreza, que es "position: fixed" y NO reserva espacio en el layout
+ * por sí solo (en el resto del sitio ese espacio lo pone un row vacío de
+ * WPBakery puesto a mano en cada página — acá no hay WPBakery, así que lo
+ * ponemos por código). Sin este spacer el header tapa el arranque del
+ * contenido.
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+$product_id = get_the_ID();
+if ( ! $product_id || ! wc_get_product( $product_id ) ) {
+	get_header();
+	echo '<main class="tgs-landing"><p>Producto no disponible.</p></main>';
+	get_footer();
+	return;
+}
+
+get_header();
+?>
+<div id="tgs-header-spacer" aria-hidden="true"></div>
+<?php
+tgs_sq_render_product( $product_id );
+get_footer();

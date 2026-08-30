@@ -1,1 +1,174 @@
-:root{--tgs-bg:#080b12;--tgs-card:#111827;--tgs-accent:#E31B23;--tgs-text:#f8fafc;--tgs-muted:#a1a1aa;--tgs-radius:24px;--tgs-font:Inter,system-ui,sans-serif}.tgs-landing{background:var(--tgs-bg);color:var(--tgs-text);font-family:var(--tgs-font);min-height:100vh;padding:clamp(18px,4vw,64px);display:grid;gap:48px}.tgs-landing section{max-width:1200px;width:100%;margin:auto}.tgs-hero,.tgs-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:32px}.tgs-viewer,.tgs-summary,.tgs-grid article{background:var(--tgs-card);border:1px solid #27272a;border-radius:var(--tgs-radius);padding:24px}.tgs-viewer model-viewer,.tgs-viewer img{width:100%;height:min(68vh,650px);object-fit:contain}.tgs-summary{display:flex;flex-direction:column;justify-content:center}.tgs-kicker{color:var(--tgs-accent);letter-spacing:.18em}.tgs-summary h1{font-size:clamp(34px,5vw,68px);line-height:1}.tgs-price{display:grid;gap:5px;margin:24px 0}.tgs-price strong{font-size:34px}.tgs-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.tgs-gallery img{width:100%;aspect-ratio:1;object-fit:contain;background:white;border-radius:18px}.tgs-item{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #27272a}.tgs-item img{width:64px;height:64px;object-fit:contain;background:white;border-radius:10px}.tgs-sticky{position:fixed;left:50%;bottom:18px;transform:translate(-50%,140%);transition:.25s;z-index:9999;background:#18181b;border:1px solid #3f3f46;border-radius:999px;padding:10px 14px 10px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 12px 45px #0009}.tgs-sticky.is-visible{transform:translate(-50%,0)}.tgs-sticky .button,.tgs-summary .button{background:var(--tgs-accent)!important;color:white!important;border-radius:999px!important}.tgs-product-thumbnail{width:100%;height:auto;object-fit:contain}@media(max-width:760px){.tgs-hero,.tgs-grid{grid-template-columns:1fr}.tgs-sticky span{display:none}.tgs-viewer model-viewer,.tgs-viewer img{height:380px}}
+/* TGS Smart Quotes — estilos base de la ficha de producto custom.
+ * Todo vive scoped dentro de .tgs-landing para no heredar nada del tema. */
+
+:root {
+	--tgs-bg: #080b12;
+	--tgs-card: #111827;
+	--tgs-accent: #E31B23;
+	--tgs-text: #f8fafc;
+	--tgs-muted: #a1a1aa;
+	--tgs-radius: 24px;
+	--tgs-font: Inter, system-ui, sans-serif;
+}
+
+/* --- Spacer del header fijo de Impreza (ver templates/single-landing.php) ---
+ * El valor fijo es un fallback para el primer pintado; tgs-landing.js lo
+ * corrige con la altura real del header apenas carga (cambia en mobile). */
+#tgs-header-spacer {
+	height: 175px;
+}
+@media (max-width: 760px) {
+	#tgs-header-spacer {
+		height: 120px;
+	}
+}
+
+.tgs-landing {
+	background: var(--tgs-bg);
+	color: var(--tgs-text);
+	font-family: var(--tgs-font);
+	min-height: 100vh;
+	padding: clamp(18px, 4vw, 64px);
+	display: grid;
+	gap: 48px;
+	box-sizing: border-box;
+}
+.tgs-landing *,
+.tgs-landing *::before,
+.tgs-landing *::after {
+	box-sizing: border-box;
+}
+.tgs-landing section {
+	max-width: 1200px;
+	width: 100%;
+	margin: auto;
+}
+.tgs-hero,
+.tgs-grid {
+	display: grid;
+	grid-template-columns: 1.3fr 1fr;
+	gap: 32px;
+}
+.tgs-viewer,
+.tgs-summary,
+.tgs-grid article {
+	background: var(--tgs-card);
+	border: 1px solid #27272a;
+	border-radius: var(--tgs-radius);
+	padding: 24px;
+}
+.tgs-viewer model-viewer,
+.tgs-viewer img {
+	width: 100%;
+	height: min(68vh, 650px);
+	object-fit: contain;
+}
+.tgs-summary {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+.tgs-kicker {
+	color: var(--tgs-accent);
+	letter-spacing: .18em;
+}
+.tgs-summary h1,
+.tgs-heading h1 {
+	font-size: clamp(34px, 5vw, 68px);
+	line-height: 1;
+}
+.tgs-price {
+	display: grid;
+	gap: 5px;
+	margin: 24px 0;
+}
+.tgs-price strong {
+	font-size: 34px;
+}
+.tgs-gallery {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 16px;
+}
+.tgs-gallery img {
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: contain;
+	background: white;
+	border-radius: 18px;
+}
+.tgs-items {
+	display: grid;
+	gap: 4px;
+}
+.tgs-item {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 12px 0;
+	border-bottom: 1px solid #27272a;
+}
+.tgs-item img {
+	width: 64px;
+	height: 64px;
+	object-fit: contain;
+	background: white;
+	border-radius: 10px;
+	flex-shrink: 0;
+}
+.tgs-item-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.tgs-item-part {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: .08em;
+	color: var(--tgs-accent);
+}
+.tgs-item-name {
+	font-weight: 600;
+}
+.tgs-item-desc {
+	font-size: 13px;
+	color: var(--tgs-muted);
+}
+.tgs-sticky {
+	position: fixed;
+	left: 50%;
+	bottom: 18px;
+	transform: translate(-50%, 140%);
+	transition: .25s;
+	z-index: 9999;
+	background: #18181b;
+	border: 1px solid #3f3f46;
+	border-radius: 999px;
+	padding: 10px 14px 10px 20px;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	box-shadow: 0 12px 45px #0009;
+}
+.tgs-sticky.is-visible {
+	transform: translate(-50%, 0);
+}
+.tgs-sticky .button,
+.tgs-summary .button {
+	background: var(--tgs-accent) !important;
+	color: white !important;
+	border-radius: 999px !important;
+}
+@media (max-width: 760px) {
+	.tgs-hero,
+	.tgs-grid {
+		grid-template-columns: 1fr;
+	}
+	.tgs-sticky span {
+		display: none;
+	}
+	.tgs-viewer model-viewer,
+	.tgs-viewer img {
+		height: 380px;
+	}
+}
