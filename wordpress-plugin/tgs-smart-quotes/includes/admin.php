@@ -305,7 +305,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 							<option value="blocks" <?php selected( $variant['mode'], 'blocks' ); ?>>Bloques predefinidos</option>
 							<option value="custom" <?php selected( $variant['mode'], 'custom' ); ?>>Código a medida (HTML/CSS)</option>
 						</select>
-						<p class="description">"Bloques" arma la página combinando las secciones de abajo. "Código a medida" usa el HTML/CSS que pegues, con placeholders tipo <code>{{title}}</code>.</p>
+						<p class="description"><strong>"Bloques" es el modo recomendado</strong>: arma la página combinando las secciones de abajo con un diseño ya terminado (tarjetas, tipografía, colores) — no hay que escribir ni un línea de HTML ni CSS, y no se puede "romper" el diseño por accidente. "Código a medida" pega HTML/CSS propio con placeholders tipo <code>{{title}}</code>; da control total, pero si te olvidás de completar el CSS la página queda sin estilos (con esta versión del plugin, al menos conserva una tarjeta y tipografía base de emergencia).</p>
 					</td>
 				</tr>
 			</table>
@@ -380,6 +380,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 			</p>
 			<p>
 				<label for="custom_css">CSS</label><br>
+				<span class="description" style="display:block;margin-bottom:6px;">Importante: si dejás este campo vacío, la página se ve sin diseño (solo texto). El HTML de arriba no trae estilos propios — hay que pegarlos acá.</span>
 				<textarea id="custom_css" name="custom_css" rows="12" style="width:100%;font-family:monospace;"><?php echo esc_textarea( $variant['custom_css'] ); ?></textarea>
 			</p>
 

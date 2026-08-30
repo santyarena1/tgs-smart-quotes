@@ -140,7 +140,7 @@ function tgs_sq_block_gallery( array $d ) {
 	if ( empty( $d['gallery'] ) ) {
 		return;
 	}
-	echo '<section><h2>Galería</h2><div class="tgs-gallery">';
+	echo '<section class="tgs-section-card"><h2>Galería</h2><div class="tgs-gallery">';
 	foreach ( $d['gallery'] as $url ) {
 		echo '<img src="' . esc_url( $url ) . '" alt="Imagen del equipo">';
 	}
@@ -151,7 +151,7 @@ function tgs_sq_block_specs( array $d ) {
 	if ( empty( $d['items'] ) ) {
 		return;
 	}
-	echo '<section><h2>Componentes y especificaciones</h2><div class="tgs-items">';
+	echo '<section class="tgs-section-card"><h2>Componentes</h2><div class="tgs-items">';
 	foreach ( $d['items'] as $item ) {
 		echo '<div class="tgs-item">';
 		if ( ! empty( $item['imageUrl'] ) ) {
@@ -174,24 +174,35 @@ function tgs_sq_block_description( array $d ) {
 	if ( ! $d['description'] ) {
 		return;
 	}
-	echo '<section><h2>Descripción</h2>' . wp_kses_post( $d['description'] ) . '</section>';
+	echo '<section class="tgs-section-card"><h2>Descripción</h2>' . wp_kses_post( $d['description'] ) . '</section>';
 }
 
 function tgs_sq_block_power( array $d ) {
-	if ( empty( $d['power'] ) ) {
+	if ( empty( $d['power'] ) || ( empty( $d['power']['watts'] ) && empty( $d['power']['psu'] ) ) ) {
 		return;
 	}
-	$watts = $d['power']['watts'] ?? '—';
-	$psu   = $d['power']['psu'] ?? '—';
+	$watts = $d['power']['watts'] ?? null;
+	$psu   = $d['power']['psu'] ?? null;
 	$note  = $d['power']['note'] ?? '';
-	echo '<section><h2>Potencia</h2><p>' . esc_html( "{$watts} W · fuente {$psu} W" ) . '<br><small>' . esc_html( $note ) . '</small></p></section>';
+	echo '<section class="tgs-section-card"><h2>Consumo</h2><div class="tgs-power-grid">';
+	if ( $watts ) {
+		echo '<div class="tgs-power-stat"><span>Consumo estimado</span><strong>' . esc_html( $watts ) . ' W</strong></div>';
+	}
+	if ( $psu ) {
+		echo '<div class="tgs-power-stat"><span>Fuente recomendada</span><strong>' . esc_html( $psu ) . ' W</strong></div>';
+	}
+	echo '</div>';
+	if ( $note ) {
+		echo '<p class="tgs-power-note">' . esc_html( $note ) . '</p>';
+	}
+	echo '</section>';
 }
 
 function tgs_sq_block_games( array $d ) {
 	if ( empty( $d['games'] ) ) {
 		return;
 	}
-	echo '<section><h2>Juegos</h2>';
+	echo '<section class="tgs-section-card"><h2>Juegos</h2>';
 	foreach ( $d['games'] as $game ) {
 		echo '<p><strong>' . esc_html( $game['name'] ?? '' ) . '</strong> · ' . esc_html( $game['tier'] ?? '' ) . '</p>';
 	}
@@ -202,7 +213,7 @@ function tgs_sq_block_compatibility( array $d ) {
 	if ( empty( $d['compat'] ) ) {
 		return;
 	}
-	echo '<section><h2>Compatibilidad</h2><ul>';
+	echo '<section class="tgs-section-card"><h2>Compatibilidad</h2><ul>';
 	foreach ( $d['compat'] as $line ) {
 		echo '<li>' . esc_html( $line ) . '</li>';
 	}
@@ -212,7 +223,7 @@ function tgs_sq_block_compatibility( array $d ) {
 function tgs_sq_payment_html( array $d ) {
 	$methods = $d['extra']['payment_methods'] ?? '';
 	ob_start();
-	echo '<section class="tgs-payment"><h2>Formas de pago</h2>';
+	echo '<section class="tgs-section-card tgs-payment"><h2>Formas de pago</h2>';
 	if ( $methods ) {
 		echo '<p class="tgs-payment-methods">' . esc_html( $methods ) . '</p>';
 	}
@@ -303,7 +314,7 @@ function tgs_sq_recommended_html( array $d ) {
 	}
 	$title = $d['extra']['recommended_title'] ?? 'Recomendadas de la casa';
 	ob_start();
-	echo '<section class="tgs-recommended"><h2>' . esc_html( $title ) . '</h2><div class="tgs-recommended-grid">';
+	echo '<section class="tgs-section-card tgs-recommended"><h2>' . esc_html( $title ) . '</h2><div class="tgs-recommended-grid">';
 	foreach ( $posts as $post ) {
 		$pid     = $post->ID;
 		$thumb   = get_post_meta( $pid, TGS_SQ_META_THUMBNAIL, true );

@@ -1,9 +1,11 @@
-/* TGS Smart Quotes — estilos base de la ficha de producto custom.
+/* TGS Smart Quotes — estilos de la ficha de producto de PC armada.
  * Todo vive scoped dentro de .tgs-landing para no heredar nada del tema. */
 
 :root {
 	--tgs-bg: #080b12;
+	--tgs-bg-soft: #0d1119;
 	--tgs-card: #111827;
+	--tgs-card-border: rgba(255, 255, 255, 0.08);
 	--tgs-accent: #E31B23;
 	--tgs-text: #f8fafc;
 	--tgs-muted: #a1a1aa;
@@ -23,117 +25,291 @@
 	}
 }
 
+/* El fondo se fija con !important a propósito: esta página reemplaza por
+ * completo el template del tema (ver template_include en render.php), pero
+ * algunos temas pintan blanco en un contenedor ancestro (.site-content,
+ * #content, etc.) con más especificidad que la nuestra. Sin esto, la ficha
+ * queda con fondo blanco y texto oscuro apenas se cuela un estilo del tema. */
 .tgs-landing {
-	background: var(--tgs-bg);
-	color: var(--tgs-text);
+	background: var(--tgs-bg) !important;
+	color: var(--tgs-text) !important;
 	font-family: var(--tgs-font);
 	min-height: 100vh;
-	padding: clamp(18px, 4vw, 64px);
+	padding: clamp(18px, 4vw, 64px) clamp(18px, 4vw, 64px) 120px;
 	display: grid;
-	gap: 48px;
+	gap: 40px;
 	box-sizing: border-box;
+	line-height: 1.5;
 }
 .tgs-landing *,
 .tgs-landing *::before,
 .tgs-landing *::after {
 	box-sizing: border-box;
 }
-.tgs-landing section {
+.tgs-landing a {
+	color: inherit;
+}
+.tgs-landing h1,
+.tgs-landing h2,
+.tgs-landing h3 {
+	font-family: var(--tgs-font);
+	margin: 0;
+}
+.tgs-landing > * {
 	max-width: 1200px;
 	width: 100%;
-	margin: auto;
+	margin-left: auto;
+	margin-right: auto;
 }
+
+/* --- Título de sección: misma jerarquía visual en toda la página, sea
+ * bloque nativo o HTML pegado a mano en modo custom. --- */
+.tgs-section-title,
+.tgs-landing section > h2:first-child {
+	font-size: 13px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .14em;
+	color: var(--tgs-accent);
+	margin: 0 0 18px;
+}
+
+/* --- Tarjeta base: fondo, borde y aire, consistentes en toda la ficha ---
+ * Se aplica a los bloques nativos con clase propia (.tgs-summary, .tgs-viewer,
+ * .tgs-grid article) y, como red de seguridad, a cualquier <section> del
+ * modo custom que no traiga ya una de nuestras clases con estilo propio —
+ * así una ficha con HTML pegado a mano nunca se ve "pegada": aunque falte
+ * el CSS a medida, conserva la tarjeta y la tipografía base. */
+.tgs-viewer,
+.tgs-summary,
+.tgs-grid article,
+.tgs-section-card,
+.tgs-landing--custom > section:not(.tgs-hero):not(.tgs-summary):not(.tgs-grid):not(.tgs-sticky) {
+	background: var(--tgs-card);
+	border: 1px solid var(--tgs-card-border);
+	border-radius: var(--tgs-radius);
+	padding: clamp(20px, 3vw, 36px);
+}
+
 .tgs-hero,
 .tgs-grid {
 	display: grid;
 	grid-template-columns: 1.3fr 1fr;
 	gap: 32px;
+	align-items: stretch;
 }
-.tgs-viewer,
-.tgs-summary,
-.tgs-grid article {
-	background: var(--tgs-card);
-	border: 1px solid #27272a;
-	border-radius: var(--tgs-radius);
-	padding: 24px;
+.tgs-viewer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 .tgs-viewer model-viewer,
 .tgs-viewer img {
 	width: 100%;
-	height: min(68vh, 650px);
+	height: min(60vh, 560px);
 	object-fit: contain;
 }
 .tgs-summary {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
+	gap: 4px;
 }
 .tgs-kicker {
+	display: inline-block;
 	color: var(--tgs-accent);
+	font-size: 13px;
+	font-weight: 700;
 	letter-spacing: .18em;
+	margin-bottom: 10px;
 }
 .tgs-summary h1,
 .tgs-heading h1 {
-	font-size: clamp(34px, 5vw, 68px);
-	line-height: 1;
+	font-size: clamp(28px, 4vw, 46px);
+	line-height: 1.1;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+}
+.tgs-heading {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 6px;
+}
+.tgs-tagline {
+	color: var(--tgs-muted);
+	font-size: 16px;
+	max-width: 46ch;
 }
 .tgs-price {
 	display: grid;
-	gap: 5px;
-	margin: 24px 0;
+	gap: 4px;
+	margin: 22px 0 20px;
+}
+.tgs-price small {
+	color: var(--tgs-muted);
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: .06em;
 }
 .tgs-price strong {
-	font-size: 34px;
+	font-size: 38px;
+	font-weight: 800;
+	letter-spacing: -0.01em;
 }
+.tgs-price span {
+	color: var(--tgs-muted);
+	font-size: 14px;
+}
+
+/* Botón nativo de WooCommerce (agregar al carrito / cantidad), reestilado
+ * para que combine con el resto de la ficha en vez de verse como un
+ * formulario suelto del tema. */
+.tgs-summary .cart,
+.tgs-landing .cart {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.tgs-summary .quantity,
+.tgs-landing .quantity {
+	display: inline-flex;
+}
+.tgs-summary .quantity .qty,
+.tgs-landing .quantity .qty {
+	width: 64px;
+	height: 48px;
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-card-border);
+	border-radius: 12px;
+	color: var(--tgs-text);
+	text-align: center;
+	font-size: 15px;
+}
+.tgs-sticky .button,
+.tgs-summary .button,
+.tgs-landing .single_add_to_cart_button {
+	background: var(--tgs-accent) !important;
+	color: #fff !important;
+	border: none !important;
+	border-radius: 999px !important;
+	padding: 14px 26px !important;
+	font-weight: 700 !important;
+	font-size: 15px !important;
+	letter-spacing: .01em;
+	box-shadow: 0 10px 30px rgba(227, 27, 35, .35);
+	transition: filter .15s, transform .15s;
+}
+.tgs-sticky .button:hover,
+.tgs-summary .button:hover,
+.tgs-landing .single_add_to_cart_button:hover {
+	filter: brightness(1.08);
+	transform: translateY(-1px);
+}
+
 .tgs-gallery {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-	gap: 16px;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 14px;
 }
 .tgs-gallery img {
 	width: 100%;
 	aspect-ratio: 1;
 	object-fit: contain;
-	background: white;
-	border-radius: 18px;
+	background: #fff;
+	border-radius: 16px;
+	border: 1px solid var(--tgs-card-border);
 }
+
 .tgs-items {
 	display: grid;
-	gap: 4px;
+	gap: 2px;
 }
 .tgs-item {
 	display: flex;
 	align-items: center;
-	gap: 14px;
-	padding: 12px 0;
-	border-bottom: 1px solid #27272a;
+	gap: 16px;
+	padding: 14px 4px;
+	border-bottom: 1px solid var(--tgs-card-border);
+}
+.tgs-item:last-child {
+	border-bottom: none;
+	padding-bottom: 2px;
 }
 .tgs-item img {
-	width: 64px;
-	height: 64px;
+	width: 56px;
+	height: 56px;
 	object-fit: contain;
-	background: white;
+	background: #fff;
 	border-radius: 10px;
+	border: 1px solid var(--tgs-card-border);
 	flex-shrink: 0;
 }
 .tgs-item-info {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	min-width: 0;
 }
 .tgs-item-part {
-	font-size: 12px;
+	font-size: 11px;
+	font-weight: 700;
 	text-transform: uppercase;
-	letter-spacing: .08em;
+	letter-spacing: .09em;
 	color: var(--tgs-accent);
 }
 .tgs-item-name {
 	font-weight: 600;
+	font-size: 15px;
 }
 .tgs-item-desc {
 	font-size: 13px;
 	color: var(--tgs-muted);
 }
+
+/* --- Descripción --- */
+.tgs-section-card p,
+.tgs-landing--custom > section:not(.tgs-hero):not(.tgs-summary):not(.tgs-grid) p {
+	color: #d4d4d8;
+	line-height: 1.7;
+	margin: 0 0 10px;
+}
+.tgs-section-card p:last-child {
+	margin-bottom: 0;
+}
+
+/* --- Consumo / potencia --- */
+.tgs-power-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 14px;
+	margin-bottom: 14px;
+}
+.tgs-power-stat {
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-card-border);
+	border-radius: 14px;
+	padding: 16px;
+}
+.tgs-power-stat span {
+	display: block;
+	font-size: 12px;
+	color: var(--tgs-muted);
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	margin-bottom: 6px;
+}
+.tgs-power-stat strong {
+	font-size: 24px;
+	font-weight: 800;
+}
+.tgs-power-note {
+	color: var(--tgs-muted);
+	font-size: 13px;
+	margin: 0;
+}
+
 .tgs-sticky {
 	position: fixed;
 	left: 50%;
@@ -144,32 +320,46 @@
 	background: #18181b;
 	border: 1px solid #3f3f46;
 	border-radius: 999px;
-	padding: 10px 14px 10px 20px;
+	padding: 10px 10px 10px 22px;
 	display: flex;
 	align-items: center;
 	gap: 16px;
-	box-shadow: 0 12px 45px #0009;
+	box-shadow: 0 12px 45px rgba(0, 0, 0, .55);
+	max-width: calc(100vw - 32px);
 }
 .tgs-sticky.is-visible {
 	transform: translate(-50%, 0);
 }
-.tgs-sticky .button,
-.tgs-summary .button {
-	background: var(--tgs-accent) !important;
-	color: white !important;
-	border-radius: 999px !important;
+.tgs-sticky span {
+	font-size: 14px;
+	color: var(--tgs-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 30vw;
+}
+.tgs-sticky strong {
+	font-size: 16px;
+	white-space: nowrap;
 }
 @media (max-width: 760px) {
 	.tgs-hero,
 	.tgs-grid {
 		grid-template-columns: 1fr;
 	}
+	.tgs-landing {
+		gap: 24px;
+		padding-bottom: 100px;
+	}
 	.tgs-sticky span {
 		display: none;
 	}
 	.tgs-viewer model-viewer,
 	.tgs-viewer img {
-		height: 380px;
+		height: 320px;
+	}
+	.tgs-power-grid {
+		grid-template-columns: 1fr 1fr;
 	}
 }
 
@@ -189,53 +379,56 @@ body.tgs-managed-page .wa__widget_container {
 	background: #25d366;
 	color: #ffffff !important;
 	text-decoration: none;
-	font-weight: 600;
-	padding: 12px 20px;
+	font-weight: 700;
+	padding: 13px 22px;
 	border-radius: 999px;
-	box-shadow: 0 10px 30px rgba(37, 211, 102, 0.35);
+	box-shadow: 0 10px 30px rgba(37, 211, 102, 0.3);
+	transition: filter .15s, transform .15s;
 }
 .tgs-whatsapp-btn:hover {
 	filter: brightness(1.05);
+	transform: translateY(-1px);
 }
 
 /* --- Formas de pago --- */
 .tgs-payment-methods {
 	color: var(--tgs-muted);
-	margin-bottom: 12px;
+	margin-bottom: 14px;
 }
 .tgs-installments {
 	display: grid;
-	gap: 6px;
+	gap: 8px;
 }
 .tgs-installment-row {
 	display: flex;
 	justify-content: space-between;
+	align-items: center;
 	gap: 12px;
-	padding: 10px 14px;
-	background: var(--tgs-card);
-	border: 1px solid #27272a;
+	padding: 12px 16px;
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-card-border);
 	border-radius: 12px;
 	font-size: 14px;
 }
 .tgs-installment-bank {
 	color: var(--tgs-accent);
-	font-weight: 600;
+	font-weight: 700;
 }
 
 /* --- Recomendadas de la casa --- */
 .tgs-recommended-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 	gap: 16px;
 }
 .tgs-recommended-card {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	background: var(--tgs-card);
-	border: 1px solid #27272a;
-	border-radius: var(--tgs-radius);
-	padding: 16px;
+	gap: 10px;
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-card-border);
+	border-radius: 16px;
+	padding: 14px;
 	text-decoration: none;
 	color: var(--tgs-text);
 	transition: transform 0.15s, border-color 0.15s;
@@ -248,14 +441,24 @@ body.tgs-managed-page .wa__widget_container {
 	width: 100%;
 	aspect-ratio: 1;
 	object-fit: contain;
-	background: white;
+	background: #fff;
 	border-radius: 10px;
 }
 .tgs-recommended-name {
 	font-weight: 600;
 	font-size: 14px;
+	line-height: 1.3;
 }
 .tgs-recommended-price {
 	color: var(--tgs-accent);
 	font-weight: 700;
+}
+
+/* --- Juegos / compatibilidad (bloques nativos) --- */
+.tgs-section-card ul {
+	margin: 0;
+	padding-left: 18px;
+	color: #d4d4d8;
+	display: grid;
+	gap: 6px;
 }
