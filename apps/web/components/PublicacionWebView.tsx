@@ -14,6 +14,9 @@ import {
   Pill,
   errorMessage,
 } from "./shared";
+import { ProductContentEditor } from "./ProductContentEditor";
+
+type ProductSummary = { id: string; description: string | null };
 
 type WordpressConfig = {
   wpBaseUrl: string;
@@ -89,6 +92,9 @@ export function PublicacionWebView() {
   const [savingTitleId, setSavingTitleId] = useState<string | null>(null);
   const [savingAutoId, setSavingAutoId] = useState<string | null>(null);
   const [uploadingThumbId, setUploadingThumbId] = useState<string | null>(null);
+  const [productsById, setProductsById] = useState<Record<string, ProductSummary>>({});
+  const [assetCounts, setAssetCounts] = useState<Record<string, number>>({});
+  const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -137,10 +143,20 @@ export function PublicacionWebView() {
     }
   }, []);
 
+  const loadProductsSummary = useCallback(async () => {
+    try {
+      const rows = await api<ProductSummary[]>("/products");
+      setProductsById(Object.fromEntries(rows.map((p) => [p.id, p])));
+    } catch {
+      // No es crítico: si falla, simplemente no mostramos el estado de "sin descripción".
+    }
+  }, []);
+
   useEffect(() => {
     void loadConfig();
     void loadQuotes();
-  }, [loadConfig, loadQuotes]);
+    void loadProductsSummary();
+  }, [loadConfig, loadQuotes, loadProductsSummary]);
 
   const saveConfig = async () => {
     setConfigSaving(true);
@@ -418,7 +434,10 @@ export function PublicacionWebView() {
                       <button
                         type="button"
                         className="btn-ghost btn-sm"
-                        onClick={() => setExpandedId(expanded ? null : quote.id)}
+                        onClick={() => {
+                          setExpandedId(expanded ? null : quote.id);
+                          setEditingItemKey(null);
+                        }}
                       >
                         {expanded ? "Ocultar detalles" : "Vista previa / editar"}
                       </button>
@@ -454,14 +473,66 @@ export function PublicacionWebView() {
                         </div>
                       </Field>
 
-                      <div style={{ display: "grid", gap: 6 }}>
-                        <span className="field-label">Componentes ({version.items.length})</span>
-                        <div style={{ display: "grid", gap: 4 }}>
-                          {version.items.map((item, i) => (
-                            <span key={`${item.id ?? item.frozenName ?? item.name}-${i}`} className="muted">
-                              {item.quantity} × {item.frozenName ?? item.name}
-                            </span>
-                          ))}
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <span className="field-label">
+                          Componentes ({version.items.length}) — ficha (foto y descripción) de cada uno
+                        </span>
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {version.items.map((item, i) => {
+                            const itemKey = `${quote.id}:${item.productId ?? item.id ?? i}`;
+                            const itemEditing = editingItemKey === itemKey;
+                            const product = item.productId ? productsById[item.productId] : undefined;
+                            const hasDescription = Boolean(product?.description?.trim());
+                            const knownAssetCount = item.productId ? assetCounts[item.productId] : undefined;
+                            return (
+                              <div key={itemKey} className="card card-pad" style={{ display: "grid", gap: 8 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                  <span className="muted">
+                                    {item.quantity} × {item.frozenName ?? item.name}
+                                  </span>
+                                  {item.productId ? (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                      <Pill tone={hasDescription ? "ok" : "warn"}>
+                                        {hasDescription ? "Con descripción" : "Sin descripción"}
+                                      </Pill>
+                                      {typeof knownAssetCount === "number" ? (
+                                        <Pill tone={knownAssetCount > 0 ? "ok" : "warn"}>
+                                          {knownAssetCount > 0 ? `${knownAssetCount} imagen(es)` : "Sin imágenes"}
+                                        </Pill>
+                                      ) : null}
+                                      <button
+                                        type="button"
+                                        className="btn-ghost btn-sm"
+                                        onClick={() => setEditingItemKey(itemEditing ? null : itemKey)}
+                                      >
+                                        {itemEditing ? "Cerrar" : "Editar ficha"}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="muted">Sin producto de catálogo vinculado</span>
+                                  )}
+                                </div>
+                                {itemEditing && item.productId ? (
+                                  <div style={{ paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+                                    <ProductContentEditor
+                                      productId={item.productId}
+                                      productName={item.frozenName ?? item.name}
+                                      initialDescription={product?.description ?? null}
+                                      compact
+                                      onDescriptionSaved={(description) => {
+                                        const pid = item.productId as string;
+                                        setProductsById((prev) => ({ ...prev, [pid]: { id: pid, description } }));
+                                      }}
+                                      onAssetsChange={(assets) => {
+                                        const pid = item.productId as string;
+                                        setAssetCounts((prev) => ({ ...prev, [pid]: assets.length }));
+                                      }}
+                                    />
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
