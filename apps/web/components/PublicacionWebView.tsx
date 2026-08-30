@@ -237,7 +237,7 @@ export function PublicacionWebView() {
     const nextTitle = (titleDrafts[quote.id] ?? quote.internalName).trim();
     if (!nextTitle || nextTitle === quote.internalName) return;
     setSavingTitleId(quote.id);
-    setError(null);
+    setRowError((prev) => ({ ...prev, [quote.id]: "" }));
     try {
       await api(`/quotes/${quote.id}`, { method: "PUT", body: { internalName: nextTitle } });
       setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, internalName: nextTitle } : q)));
@@ -265,7 +265,7 @@ export function PublicacionWebView() {
 
   const uploadThumbnail = async (quote: Quote, file: File) => {
     setUploadingThumbId(quote.id);
-    setError(null);
+    setRowError((prev) => ({ ...prev, [quote.id]: "" }));
     try {
       const form = new FormData();
       form.append("file", file);
