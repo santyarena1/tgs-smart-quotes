@@ -15,6 +15,7 @@ import {
   errorMessage,
 } from "./shared";
 import { ProductContentEditor } from "./ProductContentEditor";
+import { IntegrationsCard } from "./IntegrationsCard";
 
 type ProductSummary = { id: string; description: string | null };
 
@@ -378,6 +379,8 @@ export function PublicacionWebView() {
           </>
         )}
       </section>
+
+      <IntegrationsCard />
 
       <section className="card card-pad" style={{ marginTop: 20, display: "grid", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>

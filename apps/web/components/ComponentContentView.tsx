@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Alert, Field, Loading, PageHeader, errorMessage } from "./shared";
 import { ProductContentEditor } from "./ProductContentEditor";
+import { IntegrationsCard } from "./IntegrationsCard";
 
 type Product = {
   id: string;
@@ -47,6 +48,8 @@ export function ComponentContentView() {
       />
 
       {loadError ? <div style={{ marginTop: 16 }}><Alert tone="error">{loadError}</Alert></div> : null}
+
+      <IntegrationsCard />
 
       <section className="card card-pad" style={{ marginTop: 20 }}>
         <h3 className="panel-title">Componente</h3>
