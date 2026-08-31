@@ -282,7 +282,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <Pill tone={statusTone(publication?.status)}>{statusLabel(publication?.status)}</Pill>
-          {publication?.url ? (
+          {isPublished && publication?.url ? (
             <a href={publication.url} target="_blank" rel="noreferrer">
               Ver en la tienda
             </a>
