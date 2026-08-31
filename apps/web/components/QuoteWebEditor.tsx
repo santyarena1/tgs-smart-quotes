@@ -9,6 +9,7 @@ import { ProductContentEditor } from "./ProductContentEditor";
 import { QuotePreview } from "./QuotePreview";
 
 type ProductSummary = { id: string; description: string | null };
+type HeroOption = { id: string; url: string | null; productId: string; productName: string };
 
 type PublicationStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "FAILED";
 type Publication = { status: PublicationStatus; url: string | null; lastError: string | null };
@@ -70,6 +71,9 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
   const [productsById, setProductsById] = useState<Record<string, ProductSummary>>({});
   const [assetCounts, setAssetCounts] = useState<Record<string, number>>({});
+  /** Fotos ya cargadas en los componentes, para poder elegir la del hero. */
+  const [heroOptions, setHeroOptions] = useState<HeroOption[]>([]);
+  const [settingHero, setSettingHero] = useState(false);
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
   /** Se incrementa al publicar/guardar para forzar que la vista previa se rearme. */
   const [previewNonce, setPreviewNonce] = useState(0);
@@ -116,6 +120,11 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           }),
         );
         setAssetCounts(Object.fromEntries(counts));
+        try {
+          setHeroOptions(await api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`));
+        } catch {
+          setHeroOptions([]);
+        }
       }
     } catch (err) {
       setLoadError(errorMessage(err));
@@ -227,6 +236,26 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setActionError(errorMessage(err));
     } finally {
       setUploadingThumb(false);
+    }
+  };
+
+  /** Usa una de las fotos ya cargadas como imagen del hero. */
+  const setHeroImage = async (assetId: string) => {
+    if (!quote) return;
+    setSettingHero(true);
+    setActionError(null);
+    try {
+      const next = await api<{ thumbnailUrl: string | null }>(
+        `/external-module/quote-families/${quote.id}/hero-image`,
+        { method: "PUT", body: { assetId } },
+      );
+      setQuote((prev) => (prev ? { ...prev, thumbnailUrl: next.thumbnailUrl } : prev));
+      setPreviewNonce((n) => n + 1);
+      onChanged?.();
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setSettingHero(false);
     }
   };
 
@@ -472,27 +501,72 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             />
 
             <Field
-              label="Imagen destacada"
-              hint="Se usa como foto principal del producto en la tienda y como imagen de esta PC en 'Recomendadas de la casa'."
+              label="Imagen del hero"
+              hint="Es la foto grande de la ficha en la tienda, y también la imagen de esta PC en 'Recomendadas de la casa'."
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                {quote.thumbnailUrl ? (
-                  <img
-                    src={quote.thumbnailUrl}
-                    alt="Miniatura actual"
-                    style={{ width: 64, height: 64, objectFit: "contain", background: "#fff", borderRadius: 8 }}
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  {quote.thumbnailUrl ? (
+                    <img
+                      src={quote.thumbnailUrl}
+                      alt="Imagen actual del hero"
+                      style={{ width: 72, height: 72, objectFit: "contain", background: "#fff", borderRadius: 8 }}
+                    />
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12.5 }}>Todavía no elegiste ninguna.</span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingThumb}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadThumbnail(file);
+                    }}
                   />
-                ) : null}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={uploadingThumb}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void uploadThumbnail(file);
-                  }}
-                />
-                {uploadingThumb ? <span className="muted">Subiendo…</span> : null}
+                  {uploadingThumb ? <span className="muted">Subiendo…</span> : null}
+                </div>
+
+                {/* Elegir entre las fotos que ya están cargadas en los componentes,
+                    en vez de tener que subir una a mano sí o sí. */}
+                {heroOptions.length ? (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <span className="muted" style={{ fontSize: 12.5 }}>
+                      O elegí una de las fotos ya cargadas:
+                    </span>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {heroOptions.map((option) => {
+                        const elegida = quote.thumbnailUrl === option.url;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            title={option.productName}
+                            disabled={settingHero}
+                            onClick={() => void setHeroImage(option.id)}
+                            style={{
+                              padding: 4,
+                              borderRadius: 10,
+                              cursor: "pointer",
+                              background: "#fff",
+                              border: elegida ? "2px solid var(--accent, #E31B23)" : "1px solid var(--border, #ddd)",
+                            }}
+                          >
+                            <img
+                              src={option.url ?? ""}
+                              alt={option.productName}
+                              style={{ width: 58, height: 58, objectFit: "contain", display: "block" }}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="muted" style={{ fontSize: 12.5 }}>
+                    Cuando los componentes tengan fotos cargadas, vas a poder elegir una acá sin subir nada.
+                  </span>
+                )}
               </div>
             </Field>
           </section>

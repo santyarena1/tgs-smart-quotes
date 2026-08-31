@@ -1,6 +1,10 @@
 import{BadGatewayException,BadRequestException,Body,Controller,Delete,Get,NotFoundException,Param,Patch,Post,Put,Query,Req,StreamableFile}from'@nestjs/common';
 import{createHmac,randomUUID}from'node:crypto';import{createReadStream,existsSync}from'node:fs';import path from'node:path';import{z}from'zod';import{db,enqueueJob}from'@tgs/database';import{assetFromUrlSchema,assetModeSchema,assetUpdateSchema,DEFAULT_LANDING_LAYOUT,idSchema,landingLayoutSchema,quoteEnrichmentUpdateSchema,thumbnailGenerateSchema,thumbnailRulesSchema,thumbnailTemplateCreateSchema,thumbnailTemplateUpdateSchema,productContentSchema,quoteFamilyPublishSettingsSchema,type ProductContentInput,type QuoteFamilyPublishSettingsInput,type AssetFromUrlInput,type AssetModeInput,type AssetUpdateInput,type LandingLayout,type QuoteEnrichmentUpdateInput,type ThumbnailGenerateInput,type ThumbnailRules,type ThumbnailTemplateCreateInput,type ThumbnailTemplateUpdateInput}from'@tgs/contracts';import{buildPublishPayload,generateBackground,getHiggsfieldKey,getSerperKey,publishQuote,searchImages,WordpressPublishError}from'@tgs/providers';import{loadMediaStorage,normalizeMediaUrl,ownStorageKeyFromUrl}from'@tgs/storage';import{AiTask,createAiClient,DEFAULT_AI_MODEL,describeOpenAiError,QuoteEnrichmentService,type AiCacheRepo}from'@tgs/ai';import{decryptSecret}from'@tgs/config';import{CurrentUser,jsonSafe,type RequestUser,ZodPipe}from'./infrastructure.js';import{renderThumbnail}from'./thumbnail-render.js';
 const serperQuerySchema=z.object({q:z.string().trim().min(1).max(300)}).strict();
+// Elegir como imagen del hero una de las fotos ya cargadas. Se recibe el id de
+// la imagen (no la URL) para que el servidor resuelva la dirección real y no
+// se pueda apuntar el hero a cualquier lado.
+const heroFromAssetSchema=z.object({assetId:idSchema}).strict();
 const audit=(tx:any,userId:string,entityId:string,action:string,previous:unknown,next:unknown,entityType='ProductAsset')=>tx.auditLog.create({data:{userId,entityType,entityId,action,previous:previous==null?null:jsonSafe(previous),next:next==null?null:jsonSafe(next)}});
 const ext=(filename:string,mimetype:string)=>{const found=/\.([a-zA-Z0-9]{2,5})$/.exec(filename)?.[1]?.toLowerCase();if(found&&['png','jpg','jpeg','webp','gif'].includes(found))return found;return mimetype==='image/png'?'png':mimetype==='image/webp'?'webp':'jpg';};
 const modelExt=(filename:string)=>/\.gltf$/i.test(filename)?'gltf':/\.glb$/i.test(filename)?'glb':null;
@@ -76,6 +80,31 @@ export class ExternalModuleController{
  // Sin este try/catch, cualquier fallo de Serper (key inválida, cuenta sin
  // crédito, timeout) sale como un 500 genérico "Internal server error" y el
  // detalle real que devuelve la API se pierde antes de llegar a la pantalla.
+ /**
+  * Fotos disponibles para usar como imagen del hero: son las imágenes listas
+  * de los componentes de esta PC. Antes la única forma de poner la foto de la
+  * ficha era subir una miniatura a mano.
+  */
+ @Get('quote-families/:familyId/hero-options')async heroOptions(@Param('familyId',new ZodPipe(idSchema))familyId:string){
+  const family=await db.quoteFamily.findUnique({where:{id:familyId},include:{versions:{orderBy:{version:'desc'},take:1,include:{items:{orderBy:{position:'asc'}}}}}});
+  if(!family)throw new NotFoundException('Presupuesto inexistente');
+  const productIds=Array.from(new Set((family.versions[0]?.items??[]).map(item=>item.productId).filter((id):id is string=>Boolean(id))));
+  if(!productIds.length)return [];
+  const assets=await db.productAsset.findMany({where:{productId:{in:productIds},status:'READY',url:{not:null}},orderBy:[{isPrimary:'desc'},{createdAt:'desc'}]});
+  const products=await db.product.findMany({where:{id:{in:productIds}},select:{id:true,name:true}});
+  const nameById=new Map(products.map(product=>[product.id,product.name]));
+  return jsonSafe(assets.map(asset=>({id:asset.id,url:normalizeMediaUrl(asset.url),productId:asset.productId,productName:nameById.get(asset.productId)??''})));
+ }
+ @Put('quote-families/:familyId/hero-image')async setHeroImage(@Param('familyId',new ZodPipe(idSchema))familyId:string,@Body(new ZodPipe(heroFromAssetSchema))body:{assetId:string},@CurrentUser()u:RequestUser){
+  const family=await db.quoteFamily.findUnique({where:{id:familyId}});
+  if(!family)throw new NotFoundException('Presupuesto inexistente');
+  const asset=await db.productAsset.findUnique({where:{id:body.assetId}});
+  if(!asset||!asset.url)throw new NotFoundException('Imagen inexistente');
+  if(asset.status!=='READY')throw new BadRequestException('Esa imagen todavía se está procesando.');
+  const url=normalizeMediaUrl(asset.url);
+  const next=await db.$transaction(async tx=>{const saved=await tx.quoteFamily.update({where:{id:familyId},data:{thumbnailUrl:url}});await audit(tx,u.id,familyId,'UPDATE_THUMBNAIL',{thumbnailUrl:family.thumbnailUrl},saved,'QuoteFamily');return saved;});
+  return jsonSafe(next);
+ }
  @Get('serper/images')async images(@Query(new ZodPipe(serperQuerySchema))query:{q:string}){
   let key:string;
   try{key=await getSerperKey();}catch(error){throw new BadRequestException(error instanceof Error?error.message:'Falta configurar la API key de Serper');}
