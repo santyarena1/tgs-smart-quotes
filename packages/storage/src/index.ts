@@ -30,10 +30,36 @@ export const UPLOADS_ROOT = process.env.UPLOADS_DIR
 /** Subcarpeta propia para no mezclarse con los otros uploads. */
 export const MEDIA_DIR = path.join(UPLOADS_ROOT, "media");
 
-/** Base pública de la API. WordPress descarga las imágenes desde acá, así que
- *  tiene que ser una URL absoluta y alcanzable desde afuera. */
-export const apiPublicUrl = () =>
-  (process.env.API_PUBLIC_URL ?? "http://localhost:3001/api").replace(/\/$/, "");
+/**
+ * Base pública de la API. WordPress y el navegador del cliente descargan las
+ * imágenes desde acá, así que tiene que ser una URL absoluta y alcanzable
+ * desde afuera.
+ *
+ * Si no está `API_PUBLIC_URL`, se usa el dominio público que Railway expone
+ * solo. Sin ese fallback, las imágenes quedaban guardadas apuntando a
+ * `localhost` y se veían rotas en la tienda.
+ */
+export const apiPublicUrl = () => {
+  const explicit = process.env.API_PUBLIC_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+  const railway = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  if (railway) return `https://${railway.replace(/\/$/, "")}/api`;
+  return "http://localhost:3001/api";
+};
+
+/**
+ * Reescribe una URL nuestra vieja para que apunte a la base pública actual.
+ *
+ * Las imágenes guardadas mientras la base estaba mal configurada quedaron con
+ * `localhost`. En vez de pedir una migración de datos, se corrigen al vuelo
+ * cada vez que se leen. Las URLs externas se devuelven intactas.
+ */
+export function normalizeMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const key = ownStorageKeyFromUrl(url);
+  if (!key) return url;
+  return `${apiPublicUrl()}/uploads/media/${key}`;
+}
 
 /**
  * Valida una key antes de tocar el disco: solo subcarpetas simples, sin

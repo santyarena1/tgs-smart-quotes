@@ -302,6 +302,9 @@ importers:
       '@tgs/database':
         specifier: workspace:*
         version: link:../database
+      '@tgs/storage':
+        specifier: workspace:*
+        version: link:../storage
       sharp:
         specifier: ^0.34.3
         version: 0.34.5
