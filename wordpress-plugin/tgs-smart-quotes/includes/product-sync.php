@@ -138,7 +138,7 @@ function tgs_sq_sync_product( array $payload ) {
 
 	$thumbnail_source = ! empty( $payload['thumbnailUrl'] )
 		? $payload['thumbnailUrl']
-		: ( $payload['gallery'][0] ?? '' );
+		: '';
 	tgs_sq_maybe_set_featured_image( $product_id, $thumbnail_source );
 
 	$meta = array(

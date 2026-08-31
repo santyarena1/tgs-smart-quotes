@@ -42,7 +42,6 @@ function tgs_sq_block_types() {
 	// ahora la fuente se carga como componente propio de la PC.
 	return array(
 		'addToCartSticky'=> 'Barra flotante de compra (mobile)',
-		'gallery'        => 'Galería de imágenes',
 		'specs'          => 'Componentes de la PC (foto + nombre)',
 		'description'    => 'Descripción',
 		'games'          => 'Juegos recomendados',
@@ -124,7 +123,6 @@ function tgs_sq_placeholder_docs() {
 		'imagen_destacada_url'   => 'Solo la URL de la foto principal (para poner en un src o en un background).',
 		'modelo_3d'              => 'Visor 3D del gabinete, si la PC tiene modelo cargado.',
 		'modelo_3d_url'          => 'Solo la URL del modelo 3D.',
-		'galeria'                => 'Sección de galería con todas las fotos del equipo.',
 		'componentes'            => 'Sección con los componentes de la PC (foto + nombre + detalle).',
 		'juegos'                 => 'Sección de juegos recomendados con el rendimiento estimado.',
 		'compatibilidad'         => 'Sección con las notas de compatibilidad del armado.',

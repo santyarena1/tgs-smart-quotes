@@ -34,7 +34,7 @@ type PreviewPayload = {
   priceTransferCents: string;
   installments: Array<{ bank: string | null; installments: number; installmentCents: string }>;
   items: PreviewItem[];
-  gallery: string[];
+
   model3dUrl: string | null;
   thumbnailUrl: string | null;
   descriptionHtml: string | null;
@@ -100,7 +100,7 @@ export function QuotePreview({ versionId }: { versionId: string }) {
   const bg = "#080B12";
   const text = "#F8FAFC";
   const radius = 18;
-  const heroImage = payload.thumbnailUrl ?? payload.gallery[0] ?? null;
+  const heroImage = payload.thumbnailUrl ?? payload.items.find((item) => item.imageUrl)?.imageUrl ?? null;
   const games = payload.games.map(textOf).filter((value): value is string => Boolean(value));
   const compatibility = payload.compatibility.map(textOf).filter((value): value is string => Boolean(value));
 
@@ -217,21 +217,6 @@ export function QuotePreview({ versionId }: { versionId: string }) {
         </section>
       ) : null}
 
-      {payload.gallery.length ? (
-        <section style={card}>
-          <h3 style={sectionTitle}>Galería</h3>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {payload.gallery.slice(0, 8).map((url) => (
-              <img
-                key={url}
-                src={url}
-                alt=""
-                style={{ width: 92, height: 92, objectFit: "contain", background: "#fff", borderRadius: 10 }}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {games.length ? (
         <section style={card}>

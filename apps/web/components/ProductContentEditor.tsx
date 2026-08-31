@@ -178,12 +178,6 @@ export function ProductContentEditor({
       "Imagen marcada como principal.",
     );
 
-  const approve = (asset: Asset) =>
-    runAction(
-      () => api(`/external-module/assets/${asset.id}`, { method: "PATCH", body: { approved: true } }),
-      "Imagen aprobada.",
-    );
-
   const removeBg = (asset: Asset) =>
     runAction(() => api(`/external-module/assets/${asset.id}/remove-bg`, { method: "POST" }), "Quitando fondo…");
 
@@ -301,13 +295,23 @@ export function ProductContentEditor({
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill,minmax(${compact ? 130 : 200}px,1fr))`, gap: 12 }}>
             {assets.map((asset) => (
-              <article key={asset.id} className="card card-pad">
+              <article
+                key={asset.id}
+                className="card card-pad"
+                style={
+                  asset.isPrimary
+                    ? { outline: "2px solid var(--accent, #E31B23)", outlineOffset: -2 }
+                    : undefined
+                }
+              >
                 <img src={asset.url ?? asset.sourceUrl ?? ""} alt="Componente" style={{ width: "100%", height: compact ? 100 : 160, objectFit: "contain" }} />
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                  {asset.isPrimary ? <Pill tone="violet">Principal</Pill> : null}
-                  <Pill tone={asset.status === "READY" ? "ok" : asset.status === "FAILED" ? "bad" : "warn"}>
-                    {asset.status === "READY" ? "Lista" : asset.status === "FAILED" ? "Falló" : "Procesando"}
-                  </Pill>
+                  {asset.isPrimary ? <Pill tone="violet">Es la que se publica</Pill> : null}
+                  {asset.status !== "READY" ? (
+                    <Pill tone={asset.status === "FAILED" ? "bad" : "warn"}>
+                      {asset.status === "FAILED" ? "No se pudo quitar el fondo" : "Quitando fondo…"}
+                    </Pill>
+                  ) : null}
                 </div>
                 {asset.status === "FAILED" && asset.lastError ? (
                   <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.4 }}>
@@ -316,18 +320,15 @@ export function ProductContentEditor({
                 ) : null}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {!asset.isPrimary ? (
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => void setPrimary(asset)}>
-                      Principal
+                    <button type="button" className="btn-dark btn-sm" onClick={() => void setPrimary(asset)}>
+                      Usar esta
                     </button>
                   ) : null}
-                  {!asset.approved ? (
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => void approve(asset)}>
-                      Aprobar
+                  {asset.status !== "PENDING" ? (
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => void removeBg(asset)}>
+                      {asset.status === "FAILED" ? "Reintentar quitar fondo" : "Quitar fondo"}
                     </button>
                   ) : null}
-                  <button type="button" className="btn-ghost btn-sm" onClick={() => void removeBg(asset)}>
-                    Quitar fondo
-                  </button>
                   <button type="button" className="btn-ghost btn-sm" onClick={() => void deleteAsset(asset)}>
                     Borrar
                   </button>

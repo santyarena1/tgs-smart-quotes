@@ -66,7 +66,6 @@ function tgs_sq_collect_product_data( $product_id ) {
 		'permalink'    => get_permalink( $product_id ),
 		'model3d_url'  => $meta( TGS_SQ_META_MODEL3D ),
 		'thumbnail'    => $meta( TGS_SQ_META_THUMBNAIL ),
-		'gallery'      => $decode( TGS_SQ_META_GALLERY ),
 		'items'        => $decode( TGS_SQ_META_ITEMS ),
 		'price_list'   => (int) $meta( TGS_SQ_META_PRICE_LIST ),
 		'price_cash'   => (int) $meta( TGS_SQ_META_PRICE_CASH ),
@@ -186,16 +185,9 @@ function tgs_sq_block_addtocartsticky( array $d ) {
 	echo tgs_sq_sticky_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
-function tgs_sq_block_gallery( array $d ) {
-	if ( empty( $d['gallery'] ) ) {
-		return;
-	}
-	echo '<section class="tgs-section-card"><h2>Galería</h2><div class="tgs-gallery">';
-	foreach ( $d['gallery'] as $url ) {
-		echo '<figure class="tgs-gallery-item"><img src="' . esc_url( $url ) . '" alt="Imagen del equipo" loading="lazy"></figure>';
-	}
-	echo '</div></section>';
-}
+// La sección de galería se eliminó: repetía las mismas fotos de los
+// componentes que ya se muestran abajo. La ficha usa la imagen destacada de la
+// PC en el hero, y cada componente su foto principal.
 
 function tgs_sq_block_specs( array $d ) {
 	if ( empty( $d['items'] ) ) {
@@ -395,7 +387,7 @@ function tgs_sq_block_recommended( array $d ) {
  * plugin puede romper la página nueva.
  */
 function tgs_sq_legacy_block_types() {
-	return array( 'hero3d', 'pricebox', 'whatsapp', 'power' );
+	return array( 'hero3d', 'pricebox', 'whatsapp', 'power', 'gallery' );
 }
 
 function tgs_sq_render_blocks_mode( array $variant, array $data ) {
@@ -484,7 +476,6 @@ function tgs_sq_placeholder_values( array $d ) {
 		'imagen_destacada_url' => esc_url( (string) $d['thumbnail'] ),
 		'modelo_3d'            => $modelo,
 		'modelo_3d_url'        => esc_url( (string) $d['model3d_url'] ),
-		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
 		'componentes'          => tgs_sq_capture_block( 'specs', $d ),
 		'juegos'               => tgs_sq_capture_block( 'games', $d ),
 		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
