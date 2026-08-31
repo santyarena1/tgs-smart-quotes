@@ -104,9 +104,9 @@
 }
 
 /* Si un dato no está cargado, su caja no deja un hueco vacío. */
-.gx-fin:empty,
-.gx-buybar__fin:empty,
 .gx-price__alt li:has(> :last-child:empty) { display: none; }
+/* Sin cuotas cargadas, el bloque de financiación entero desaparece. */
+.gx-barfin:not(:has(.gx-barfin__line:not(:empty))) { display: none; }
 
 /* ---------------------------------------------------------------------
    HERO
@@ -861,49 +861,58 @@
 	white-space: nowrap;
 	font-variant-numeric: tabular-nums;
 }
-/* La financiación es el gancho: va en el color de acento y con peso, no como
-   una nota al pie gris. */
-.gx-buybar__fin {
-	margin: 0;
-	font-size: clamp(12px, 1.3vw, 14px);
-	font-weight: 700;
-	color: var(--gx-accent);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	font-variant-numeric: tabular-nums;
-}
 
-/* ---- Botón que abre las formas de pago ---- */
-.gx-paybtn {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex: 0 1 auto;
-	padding: 10px 16px;
-	cursor: pointer;
-	color: inherit;
-	font: inherit;
-	text-align: left;
-	background: color-mix(in srgb, var(--gx-accent) 12%, transparent);
-	border: 1px solid color-mix(in srgb, var(--gx-accent) 45%, transparent);
+/* ---- Bloque de financiación: el gancho de la barra ---- */
+.gx-barfin {
+	flex: 1 1 260px;
+	min-width: 0;
+	display: grid;
+	gap: 2px;
+	align-content: center;
+	padding: 10px 18px;
 	border-radius: var(--gx-r);
-	transition: background .15s ease, border-color .15s ease;
+	background: color-mix(in srgb, var(--gx-accent) 13%, transparent);
+	border: 1px solid color-mix(in srgb, var(--gx-accent) 40%, transparent);
 }
-.gx-paybtn:hover { background: color-mix(in srgb, var(--gx-accent) 22%, transparent); }
-.gx-paybtn:focus-visible { outline: 2px solid var(--gx-accent); outline-offset: 2px; }
-.gx-paybtn__ico { color: var(--gx-accent); font-size: 15px; line-height: 1; }
-.gx-paybtn__txt { display: grid; gap: 1px; line-height: 1.2; }
-.gx-paybtn__txt strong { font-size: 13.5px; font-weight: 700; }
-.gx-paybtn__txt small {
+.gx-barfin__tag {
 	font-family: var(--gx-mono);
 	font-size: 10px;
-	letter-spacing: 0.08em;
+	letter-spacing: 0.18em;
 	text-transform: uppercase;
-	color: var(--gx-dim);
+	color: var(--gx-accent);
 }
-.gx-paybtn__chev { font-size: 10px; color: var(--gx-dim); transition: transform .18s ease; }
-.gx-paybtn[aria-expanded="true"] .gx-paybtn__chev { transform: rotate(180deg); }
+/* La línea de cuotas es lo más grande después del precio. */
+.gx-barfin__line {
+	font-size: clamp(15px, 1.8vw, 19px);
+	font-weight: 800;
+	line-height: 1.15;
+	letter-spacing: -0.015em;
+	font-variant-numeric: tabular-nums;
+	text-wrap: balance;
+}
+.gx-barfin__line:empty { display: none; }
+.gx-barfin__more {
+	justify-self: start;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 2px;
+	padding: 0;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--gx-text);
+	background: none;
+	border: 0;
+	border-bottom: 1px solid color-mix(in srgb, var(--gx-text) 45%, transparent);
+	line-height: 1.4;
+	transition: color .15s ease, border-color .15s ease;
+}
+.gx-barfin__more:hover { color: var(--gx-accent); border-color: var(--gx-accent); }
+.gx-barfin__more:focus-visible { outline: 2px solid var(--gx-accent); outline-offset: 3px; }
+.gx-barfin__chev { font-size: 9px; transition: transform .18s ease; }
+.gx-barfin__more[aria-expanded="true"] .gx-barfin__chev { transform: rotate(180deg); }
 
 /* ---- Panel de formas de pago, encima de la barra ---- */
 .gx-pay {
@@ -1041,12 +1050,10 @@
 		padding: var(--gx-xs) 12px;
 	}
 	.gx-buybar__value { font-size: 19px; }
-	.gx-buybar__fin { font-size: 11.5px; max-width: 40vw; }
 	.gx-buybar__label { display: none; }
-	/* El botón de pagos se reduce al ícono: el CTA se queda con el lugar. */
-	.gx-paybtn { padding: 10px 12px; }
-	.gx-paybtn__txt small { display: none; }
-	.gx-paybtn__txt strong { font-size: 12px; }
+	.gx-barfin { flex-basis: 200px; padding: 8px 12px; }
+	.gx-barfin__line { font-size: 14px; }
+	.gx-barfin__more { font-size: 11.5px; }
 	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
 		min-height: 50px;
 		padding: 14px 22px !important;
@@ -1064,11 +1071,12 @@
 @media (max-width: 400px) {
 	.gx-buybar__inner { gap: 8px; padding: 8px 10px; }
 	.gx-buybar__value { font-size: 17px; }
-	/* Las cuotas se mantienen: son el gancho de venta. Lo que se va es el
-	   texto del botón de pagos, que queda solo con el ícono. */
-	.gx-buybar__fin { font-size: 11px; max-width: 38vw; }
-	.gx-paybtn { padding: 10px; }
-	.gx-paybtn__txt, .gx-paybtn__chev { display: none; }
+	/* Las cuotas se mantienen: son el gancho. Lo que se recorta es el texto
+	   del link de detalle. */
+	.gx-barfin { flex-basis: 150px; padding: 7px 10px; }
+	.gx-barfin__tag { display: none; }
+	.gx-barfin__line { font-size: 13px; }
+	.gx-barfin__more { font-size: 11px; }
 	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
 		padding: 13px 14px !important;
 		font-size: 12px !important;
@@ -1215,19 +1223,21 @@
 
 		<div class="gx-buybar__inner">
 			<div class="gx-buybar__price">
-				<span class="gx-buybar__label">Precio por transferencia</span>
+				<span class="gx-buybar__label">Transferencia o efectivo</span>
 				<span class="gx-buybar__value">{{precio_transferencia}}</span>
-				<p class="gx-buybar__fin">{{cuotas}}</p>
 			</div>
 
-			<button type="button" class="gx-paybtn" data-gx-pay-toggle aria-expanded="false" aria-controls="gx-pay">
-				<span class="gx-paybtn__ico" aria-hidden="true">▦</span>
-				<span class="gx-paybtn__txt">
-					<strong>Ver formas de pago</strong>
-					<small>Cuotas, transferencia y efectivo</small>
-				</span>
-				<span class="gx-paybtn__chev" aria-hidden="true">▲</span>
-			</button>
+			<!-- Bloque de financiación: siempre visible, tintado con el acento.
+			     Es el gancho, no un dato al pie. El botón abre el detalle de
+			     todos los planes sin tapar el botón de comprar. -->
+			<div class="gx-barfin">
+				<span class="gx-barfin__tag">Financiación</span>
+				<strong class="gx-barfin__line">{{cuotas}}</strong>
+				<button type="button" class="gx-barfin__more" data-gx-pay-toggle aria-expanded="false" aria-controls="gx-pay">
+					Ver todas las formas de pago
+					<span class="gx-barfin__chev" aria-hidden="true">▲</span>
+				</button>
+			</div>
 
 			<div class="gx-buybar__cta">
 				{{barra_flotante}}
