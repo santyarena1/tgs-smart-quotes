@@ -814,6 +814,13 @@
 	padding: var(--gx-sm) clamp(14px, 4vw, 40px);
 }
 .gx-buybar__price { display: grid; gap: 1px; min-width: 0; }
+.gx-buybar__label {
+	font-family: var(--gx-mono);
+	font-size: 10px;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--gx-dim);
+}
 .gx-buybar__value {
 	font-size: clamp(19px, 2.4vw, 26px);
 	font-weight: 800;
@@ -822,14 +829,86 @@
 	white-space: nowrap;
 	font-variant-numeric: tabular-nums;
 }
+/* La financiación es el gancho: va en el color de acento y con peso, no como
+   una nota al pie gris. */
 .gx-buybar__fin {
 	margin: 0;
-	font-size: var(--gx-f-sm);
-	color: var(--gx-dim);
+	font-size: clamp(12px, 1.3vw, 14px);
+	font-weight: 700;
+	color: var(--gx-accent);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	font-variant-numeric: tabular-nums;
+}
+
+/* ---- Botón que abre las formas de pago ---- */
+.gx-paybtn {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 0 1 auto;
+	padding: 10px 16px;
+	cursor: pointer;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	background: color-mix(in srgb, var(--gx-accent) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--gx-accent) 45%, transparent);
+	border-radius: var(--gx-r);
+	transition: background .15s ease, border-color .15s ease;
+}
+.gx-paybtn:hover { background: color-mix(in srgb, var(--gx-accent) 22%, transparent); }
+.gx-paybtn:focus-visible { outline: 2px solid var(--gx-accent); outline-offset: 2px; }
+.gx-paybtn__ico { color: var(--gx-accent); font-size: 15px; line-height: 1; }
+.gx-paybtn__txt { display: grid; gap: 1px; line-height: 1.2; }
+.gx-paybtn__txt strong { font-size: 13.5px; font-weight: 700; }
+.gx-paybtn__txt small {
+	font-family: var(--gx-mono);
+	font-size: 10px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--gx-dim);
+}
+.gx-paybtn__chev { font-size: 10px; color: var(--gx-dim); transition: transform .18s ease; }
+.gx-paybtn[aria-expanded="true"] .gx-paybtn__chev { transform: rotate(180deg); }
+
+/* ---- Panel de formas de pago, encima de la barra ---- */
+.gx-pay {
+	border-bottom: 1px solid var(--gx-line);
+	background: color-mix(in srgb, var(--gx-bg) 96%, var(--gx-text));
+	max-height: min(52vh, 460px);
+	overflow-y: auto;
+}
+.gx-pay__inner {
+	position: relative;
+	max-width: 1280px;
+	margin-inline: auto;
+	padding: var(--gx-md) clamp(14px, 4vw, 40px);
+}
+.gx-pay__close {
+	position: absolute;
+	top: 10px;
+	right: clamp(14px, 4vw, 40px);
+	width: 30px;
+	height: 30px;
+	display: grid;
+	place-items: center;
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	color: var(--gx-dim);
+	background: transparent;
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+}
+.gx-pay__close:hover { color: var(--gx-text); border-color: var(--gx-accent); }
+/* Adentro de la barra la sección de pagos no necesita su propia tarjeta. */
+.tgs-landing.tgs-custom .gx-pay .tgs-section-card {
+	background: none;
+	border: 0;
+	padding: 0;
+	margin: 0;
 }
 .gx-buybar__cta {
 	display: flex;
@@ -860,16 +939,26 @@
 	display: flex;
 }
 .tgs-landing.tgs-custom .gx-buybar .tgs-sticky-info { display: none; }
+/* El CTA es lo más pesado de la barra: más alto, más ancho y con un halo del
+   color de acento para que se despegue del resto. */
 .tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
-	min-height: 52px;
+	min-height: 58px;
 	border-radius: var(--gx-r) !important;
-	padding: 15px clamp(18px, 3vw, 40px) !important;
+	padding: 17px clamp(24px, 4vw, 52px) !important;
 	font-weight: 800 !important;
-	font-size: 14px !important;
+	font-size: clamp(14px, 1.5vw, 16px) !important;
 	letter-spacing: 0.1em;
 	text-transform: uppercase !important;
-	box-shadow: none;
 	white-space: nowrap;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--gx-accent) 60%, transparent),
+		0 10px 30px -12px color-mix(in srgb, var(--gx-accent) 85%, transparent);
+	transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+}
+.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button:hover {
+	filter: brightness(1.08);
+	transform: translateY(-1px);
+	box-shadow: 0 0 0 1px var(--gx-accent),
+		0 14px 34px -12px color-mix(in srgb, var(--gx-accent) 95%, transparent);
 }
 .tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
 	width: auto;
@@ -909,9 +998,14 @@
 	}
 	.gx-buybar__value { font-size: 19px; }
 	.gx-buybar__fin { font-size: 11.5px; max-width: 40vw; }
+	.gx-buybar__label { display: none; }
+	/* El botón de pagos se reduce al ícono: el CTA se queda con el lugar. */
+	.gx-paybtn { padding: 10px 12px; }
+	.gx-paybtn__txt small { display: none; }
+	.gx-paybtn__txt strong { font-size: 12px; }
 	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
-		min-height: 48px;
-		padding: 14px 20px !important;
+		min-height: 50px;
+		padding: 14px 22px !important;
 		font-size: 13px !important;
 	}
 	.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
@@ -926,7 +1020,11 @@
 @media (max-width: 400px) {
 	.gx-buybar__inner { gap: 8px; padding: 8px 10px; }
 	.gx-buybar__value { font-size: 17px; }
-	.gx-buybar__fin { display: none; }
+	/* Las cuotas se mantienen: son el gancho de venta. Lo que se va es el
+	   texto del botón de pagos, que queda solo con el ícono. */
+	.gx-buybar__fin { font-size: 11px; max-width: 38vw; }
+	.gx-paybtn { padding: 10px; }
+	.gx-paybtn__txt, .gx-paybtn__chev { display: none; }
 	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
 		padding: 13px 14px !important;
 		font-size: 12px !important;
@@ -1024,8 +1122,6 @@
 
 		{{compatibilidad}}
 
-		{{formas_de_pago}}
-
 		{{recomendadas}}
 
 	</div>
@@ -1042,11 +1138,32 @@
 	     Fija abajo desde que carga la página (no aparece recién al scrollear).
 	     {{barra_flotante}} aporta el botón real de agregar al carrito. -->
 	<div class="gx-buybar">
+
+		<!-- Formas de pago: viven acá, pegadas al botón de comprar, que es
+		     donde la decisión se toma. Se abren hacia arriba sin tapar el CTA. -->
+		<div class="gx-pay" id="gx-pay" hidden>
+			<div class="gx-pay__inner">
+				<button type="button" class="gx-pay__close" data-gx-pay-close aria-label="Cerrar formas de pago">✕</button>
+				{{formas_de_pago}}
+			</div>
+		</div>
+
 		<div class="gx-buybar__inner">
 			<div class="gx-buybar__price">
+				<span class="gx-buybar__label">Precio por transferencia</span>
 				<span class="gx-buybar__value">{{precio_transferencia}}</span>
 				<p class="gx-buybar__fin">{{cuotas}}</p>
 			</div>
+
+			<button type="button" class="gx-paybtn" data-gx-pay-toggle aria-expanded="false" aria-controls="gx-pay">
+				<span class="gx-paybtn__ico" aria-hidden="true">▦</span>
+				<span class="gx-paybtn__txt">
+					<strong>Ver formas de pago</strong>
+					<small>Cuotas, transferencia y efectivo</small>
+				</span>
+				<span class="gx-paybtn__chev" aria-hidden="true">▲</span>
+			</button>
+
 			<div class="gx-buybar__cta">
 				{{barra_flotante}}
 				{{boton_whatsapp}}
@@ -1057,11 +1174,12 @@
 </div>
 
 <script>
-/* Dos cosas, nada más:
+/* Tres cosas, nada más:
    1) La barra del plugin viene con aria-hidden="true" porque nace escondida.
       Acá se muestra siempre, así que se corrige para lectores de pantalla.
    2) Se mide el alto real de la barra fija y se le deja ese espacio abajo a
-      la página, para que nunca tape el final del contenido. */
+      la página, para que nunca tape el final del contenido.
+   3) Abrir y cerrar las formas de pago. */
 (function () {
 	var bar = document.querySelector('.gx-buybar');
 	if (!bar) { return; }
@@ -1077,5 +1195,30 @@
 	window.addEventListener('resize', medir);
 	window.addEventListener('load', medir);
 	if (window.ResizeObserver) { new ResizeObserver(medir).observe(bar); }
+
+	var panel = bar.querySelector('#gx-pay');
+	var toggle = bar.querySelector('[data-gx-pay-toggle]');
+	if (!panel || !toggle) { return; }
+
+	// Si el presupuesto no trae planes de cuotas, el panel queda sin contenido:
+	// en ese caso el botón directamente no se muestra.
+	if (!panel.textContent.trim()) {
+		toggle.hidden = true;
+		return;
+	}
+
+	function abrir(si) {
+		panel.hidden = !si;
+		toggle.setAttribute('aria-expanded', si ? 'true' : 'false');
+		medir();
+	}
+	toggle.addEventListener('click', function () {
+		abrir(panel.hidden);
+	});
+	var cerrar = bar.querySelector('[data-gx-pay-close]');
+	if (cerrar) { cerrar.addEventListener('click', function () { abrir(false); }); }
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape' && !panel.hidden) { abrir(false); }
+	});
 })();
 </script>
