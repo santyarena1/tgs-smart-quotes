@@ -120,14 +120,55 @@ function tgs_sq_block_hero( array $d ) {
 	}
 	echo '</div>';
 	echo '<div class="tgs-summary">';
-	echo '<span class="tgs-kicker">THE GAMER SHOP</span><h1>' . esc_html( $d['title'] ) . '</h1>';
-	echo '<div class="tgs-price"><small>Transferencia</small><strong>'
-		. wp_kses_post( wc_price( $d['price_transfer'] / 100 ) )
-		. '</strong><span>Efectivo ' . wp_kses_post( wc_price( $d['price_cash'] / 100 ) ) . '</span></div>';
+	echo '<span class="tgs-kicker">THE GAMER SHOP</span>';
+	echo '<h1 class="tgs-title">' . esc_html( $d['title'] ) . '</h1>';
+	/* Caja de compra: precio + CTA agrupados en un solo panel para que el
+	 * precio y el botón se lean como una unidad y no como dos cajas sueltas. */
+	echo '<div class="tgs-buybox">';
+	echo tgs_sq_price_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<div class="tgs-actions">';
 	woocommerce_template_single_add_to_cart();
 	echo tgs_sq_whatsapp_button_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '</div>';
+	echo '</div>';
+	echo '</div>';
 	echo '</section>';
+}
+
+/**
+ * Plan de cuotas "titular" para el hero: el de más cuotas disponible.
+ * Devuelve null si la variante no tiene cuotas cargadas.
+ */
+function tgs_sq_best_installment_plan( $plans ) {
+	$best = null;
+	foreach ( (array) $plans as $plan ) {
+		if ( ! is_array( $plan ) || empty( $plan['installments'] ) || empty( $plan['installmentCents'] ) ) {
+			continue;
+		}
+		if ( null === $best || (int) $plan['installments'] > (int) $best['installments'] ) {
+			$best = $plan;
+		}
+	}
+	return $best;
+}
+
+/**
+ * Bloque de precio del hero: transferencia (precio principal), efectivo
+ * (secundario) y, si hay cuotas cargadas, la mejor financiación.
+ */
+function tgs_sq_price_html( array $d ) {
+	ob_start();
+	echo '<div class="tgs-price">';
+	echo '<span class="tgs-price-label">Transferencia</span>';
+	echo '<strong class="tgs-price-value">' . wp_kses_post( wc_price( $d['price_transfer'] / 100 ) ) . '</strong>';
+	echo '<span class="tgs-price-cash">Efectivo ' . wp_kses_post( wc_price( $d['price_cash'] / 100 ) ) . '</span>';
+	$best = tgs_sq_best_installment_plan( $d['installments'] );
+	if ( $best ) {
+		echo '<span class="tgs-price-financing">Hasta <strong>' . esc_html( (int) $best['installments'] ) . ' cuotas</strong> de '
+			. wp_kses_post( wc_price( ( (int) $best['installmentCents'] ) / 100 ) ) . '</span>';
+	}
+	echo '</div>';
+	return ob_get_clean();
 }
 
 function tgs_sq_sticky_html( array $d ) {
@@ -135,9 +176,10 @@ function tgs_sq_sticky_html( array $d ) {
 		return '';
 	}
 	$label = $d['extra']['sticky_label'] ?? 'Agregar al carrito';
-	return '<div class="tgs-sticky" aria-hidden="true"><span>' . esc_html( $d['title'] ) . '</span><strong>'
+	return '<div class="tgs-sticky" aria-hidden="true"><div class="tgs-sticky-info"><span class="tgs-sticky-name">'
+		. esc_html( $d['title'] ) . '</span><strong class="tgs-sticky-price">'
 		. wp_kses_post( $d['product']->get_price_html() )
-		. '</strong><a href="' . esc_url( $d['product']->add_to_cart_url() ) . '" class="button">' . esc_html( $label ) . '</a></div>';
+		. '</strong></div><a href="' . esc_url( $d['product']->add_to_cart_url() ) . '" class="button">' . esc_html( $label ) . '</a></div>';
 }
 
 function tgs_sq_block_addtocartsticky( array $d ) {
@@ -150,7 +192,7 @@ function tgs_sq_block_gallery( array $d ) {
 	}
 	echo '<section class="tgs-section-card"><h2>Galería</h2><div class="tgs-gallery">';
 	foreach ( $d['gallery'] as $url ) {
-		echo '<img src="' . esc_url( $url ) . '" alt="Imagen del equipo">';
+		echo '<figure class="tgs-gallery-item"><img src="' . esc_url( $url ) . '" alt="Imagen del equipo" loading="lazy"></figure>';
 	}
 	echo '</div></section>';
 }
@@ -162,9 +204,13 @@ function tgs_sq_block_specs( array $d ) {
 	echo '<section class="tgs-section-card"><h2>Componentes</h2><div class="tgs-items">';
 	foreach ( $d['items'] as $item ) {
 		echo '<div class="tgs-item">';
+		/* El recuadro va siempre, tenga imagen o no: así todas las filas de la
+		 * grilla arrancan con la misma sangría y no quedan desalineadas. */
+		echo '<div class="tgs-item-media">';
 		if ( ! empty( $item['imageUrl'] ) ) {
-			echo '<img src="' . esc_url( $item['imageUrl'] ) . '" alt="">';
+			echo '<img src="' . esc_url( $item['imageUrl'] ) . '" alt="" loading="lazy">';
 		}
+		echo '</div>';
 		echo '<div class="tgs-item-info">';
 		if ( ! empty( $item['part'] ) ) {
 			echo '<span class="tgs-item-part">' . esc_html( $item['part'] ) . '</span>';
@@ -182,25 +228,36 @@ function tgs_sq_block_description( array $d ) {
 	if ( ! $d['description'] ) {
 		return;
 	}
-	echo '<section class="tgs-section-card"><h2>Descripción</h2>' . wp_kses_post( $d['description'] ) . '</section>';
+	/* Si la descripción se cargó como texto plano (sin etiquetas), la pasamos
+	 * por wpautop para que los saltos de línea se vean como párrafos y no como
+	 * un bloque de texto corrido. Si ya trae HTML, se respeta tal cual. */
+	$description = (string) $d['description'];
+	if ( $description === wp_strip_all_tags( $description ) ) {
+		$description = wpautop( $description );
+	}
+	echo '<section class="tgs-section-card"><h2>Descripción</h2><div class="tgs-prose">' . wp_kses_post( $description ) . '</div></section>';
 }
 
 function tgs_sq_block_games( array $d ) {
 	if ( empty( $d['games'] ) ) {
 		return;
 	}
-	echo '<section class="tgs-section-card"><h2>Juegos</h2>';
+	echo '<section class="tgs-section-card"><h2>Juegos</h2><div class="tgs-games">';
 	foreach ( $d['games'] as $game ) {
-		echo '<p><strong>' . esc_html( $game['name'] ?? '' ) . '</strong> · ' . esc_html( $game['tier'] ?? '' ) . '</p>';
+		echo '<div class="tgs-game"><span class="tgs-game-name">' . esc_html( $game['name'] ?? '' ) . '</span>';
+		if ( ! empty( $game['tier'] ) ) {
+			echo '<span class="tgs-game-tier">' . esc_html( $game['tier'] ) . '</span>';
+		}
+		echo '</div>';
 	}
-	echo '</section>';
+	echo '</div></section>';
 }
 
 function tgs_sq_block_compatibility( array $d ) {
 	if ( empty( $d['compat'] ) ) {
 		return;
 	}
-	echo '<section class="tgs-section-card"><h2>Compatibilidad</h2><ul>';
+	echo '<section class="tgs-section-card"><h2>Compatibilidad</h2><ul class="tgs-compat">';
 	foreach ( $d['compat'] as $line ) {
 		echo '<li>' . esc_html( $line ) . '</li>';
 	}
@@ -227,7 +284,11 @@ function tgs_sq_payment_html( array $d ) {
 			if ( $bank ) {
 				echo '<span class="tgs-installment-bank">' . esc_html( $bank ) . '</span>';
 			}
-			echo '<span>' . esc_html( $installments ) . ' cuotas de ' . wp_kses_post( $per ) . '</span>';
+			echo '<span class="tgs-installment-plan"><span class="tgs-installment-count">' . esc_html( $installments ) . ' cuotas</span>';
+			if ( $per ) {
+				echo ' de <span class="tgs-installment-amount">' . wp_kses_post( $per ) . '</span>';
+			}
+			echo '</span>';
 			echo '</div>';
 		}
 		echo '</div>';
@@ -303,13 +364,19 @@ function tgs_sq_recommended_html( array $d ) {
 		$thumb   = get_post_meta( $pid, TGS_SQ_META_THUMBNAIL, true );
 		$product = wc_get_product( $pid );
 		echo '<a class="tgs-recommended-card" href="' . esc_url( get_permalink( $pid ) ) . '">';
+		/* El contenedor de la imagen va siempre para que todas las tarjetas
+		 * midan lo mismo aunque a alguna le falte la foto. */
+		echo '<span class="tgs-recommended-media">';
 		if ( $thumb ) {
-			echo '<img src="' . esc_url( $thumb ) . '" alt="">';
+			echo '<img src="' . esc_url( $thumb ) . '" alt="" loading="lazy">';
 		}
+		echo '</span>';
+		echo '<span class="tgs-recommended-body">';
 		echo '<span class="tgs-recommended-name">' . esc_html( get_the_title( $pid ) ) . '</span>';
 		if ( $product ) {
 			echo '<span class="tgs-recommended-price">' . wp_kses_post( $product->get_price_html() ) . '</span>';
 		}
+		echo '</span>';
 		echo '</a>';
 	}
 	echo '</div></section>';

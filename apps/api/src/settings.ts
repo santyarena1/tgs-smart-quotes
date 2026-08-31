@@ -13,7 +13,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import OpenAI from 'openai';
-import {createHmac} from 'node:crypto';
+import {createHmac, randomUUID} from 'node:crypto';
 import {db} from '@tgs/database';
 import {
   aiSettingsInputSchema,
@@ -483,9 +483,43 @@ export class SettingsController {
       if(!row.photoroomKeyEnc)return {ok:false,detail:'No hay una credencial guardada'};
       return request('https://image-api.photoroom.com/v2/account',{headers:{'x-api-key':decryptSecret(row.photoroomKeyEnc)}});
     }
-    if(!row.wpHmacSecretEnc)return {ok:false,detail:'No hay un secreto HMAC guardado'};
-    const timestamp=String(Date.now()),signature=createHmac('sha256',decryptSecret(row.wpHmacSecretEnc)).update(timestamp).digest('hex');
-    return request(`${row.wpBaseUrl.replace(/\/$/,'')}/wp-json`,{headers:{'X-TGS-Timestamp':timestamp,'X-TGS-Signature':signature}});
+    // Diagnostico de WordPress en dos pasos, para poder decir exactamente que
+    // falla en vez de un generico "no se pudo conectar":
+    //   1. GET /tgs/v1/ping  -> el plugin esta instalado y activo (y su version).
+    //   2. POST /tgs/v1/unpublish con un externalId inexistente -> valida que la
+    //      firma HMAC coincida. Es inocuo: el plugin no encuentra el producto y
+    //      no toca nada en la tienda.
+    const base=row.wpBaseUrl.replace(/\/$/,'');
+    let version:string|null=null;
+    try{
+      const response=await fetch(`${base}/wp-json/tgs/v1/ping`,{signal:AbortSignal.timeout(10000)});
+      if(!response.ok){
+        if(response.status===404)return {ok:false,detail:'El sitio responde, pero no encontramos el plugin TGS Smart Quotes. Revisá que esté instalado y activado en WordPress.'};
+        let bodyDetail='';
+        try{const text=await response.text();if(text)bodyDetail=`: ${text.slice(0,200)}`;}catch{/* sin body legible */}
+        return {ok:false,detail:`El sitio respondió HTTP ${response.status}${bodyDetail}`};
+      }
+      const data=await response.json() as {version?:unknown};
+      version=typeof data?.version==='string'?data.version:null;
+    }catch(error){
+      return {ok:false,detail:`No se pudo conectar con ${base}. ${error instanceof Error?error.message:'Error de conexión'}`};
+    }
+    const pluginLabel=version?`v${version}`:'versión desconocida';
+    if(!row.wpHmacSecretEnc)return {ok:false,version,detail:`El plugin responde (${pluginLabel}), pero todavía no cargaste el secreto HMAC acá.`};
+    const probeBody=JSON.stringify({externalId:`prueba-de-conexion-${randomUUID()}`});
+    const probeSignature=createHmac('sha256',decryptSecret(row.wpHmacSecretEnc)).update(probeBody).digest('hex');
+    try{
+      const response=await fetch(`${base}/wp-json/tgs/v1/unpublish`,{method:'POST',headers:{'content-type':'application/json','X-TGS-Signature':probeSignature},body:probeBody,signal:AbortSignal.timeout(10000)});
+      if(401===response.status)return {ok:false,version,detail:`El plugin responde (${pluginLabel}), pero rechaza la firma: el secreto HMAC de acá no coincide con el configurado en WordPress.`};
+      if(!response.ok){
+        let bodyDetail='';
+        try{const text=await response.text();if(text)bodyDetail=`: ${text.slice(0,200)}`;}catch{/* sin body legible */}
+        return {ok:false,version,detail:`El plugin respondió HTTP ${response.status}${bodyDetail}`};
+      }
+      return {ok:true,version,detail:`Conectado al plugin ${pluginLabel}.`};
+    }catch(error){
+      return {ok:false,version,detail:error instanceof Error?error.message:'Error de conexión'};
+    }
   }
 
   @Put('external-module')

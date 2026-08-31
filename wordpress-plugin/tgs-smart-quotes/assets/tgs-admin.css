@@ -1,0 +1,854 @@
+/**
+ * TGS Smart Quotes — estilos del panel de administración.
+ *
+ * Todo está scopeado bajo `.tgs-admin` (la clase que se agrega al `.wrap` de
+ * cada pantalla del plugin) para no tocar el resto del panel de WordPress ni
+ * pelearse con otros plugins.
+ */
+
+.tgs-admin {
+	--tgs-accent: #E31B23;
+	--tgs-accent-dark: #B3151C;
+	--tgs-accent-soft: #FEF2F2;
+	--tgs-dark: #080B12;
+	--tgs-ink: #0F172A;
+	--tgs-ink-soft: #334155;
+	--tgs-muted: #64748B;
+	--tgs-line: #E2E8F0;
+	--tgs-line-strong: #CBD5E1;
+	--tgs-surface: #FFFFFF;
+	--tgs-surface-alt: #F8FAFC;
+	--tgs-ok: #15803D;
+	--tgs-ok-soft: #ECFDF5;
+	--tgs-ok-line: #A7F3D0;
+	--tgs-warn: #B45309;
+	--tgs-warn-soft: #FFFBEB;
+	--tgs-warn-line: #FDE68A;
+	--tgs-radius: 14px;
+	--tgs-radius-sm: 9px;
+	--tgs-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 10px 30px -22px rgba(15, 23, 42, .55);
+
+	max-width: 1180px;
+	margin-right: 20px;
+	color: var(--tgs-ink);
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+.tgs-admin *,
+.tgs-admin *::before,
+.tgs-admin *::after {
+	box-sizing: border-box;
+}
+
+/* WordPress reubica las notices justo después de `.wp-header-end`, o sea
+   entre la navegación y las tarjetas: les damos aire y bordes redondeados. */
+.tgs-admin > .wp-header-end {
+	display: none;
+}
+
+.tgs-admin > .notice,
+.tgs-admin > .updated,
+.tgs-admin > .error {
+	margin: 18px 0 0;
+	border-radius: var(--tgs-radius-sm);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cabecera oscura de marca                                           */
+/* ------------------------------------------------------------------ */
+
+.tgs-hero {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 18px;
+	margin: 16px 0 0;
+	padding: 26px 28px;
+	overflow: hidden;
+	border-radius: var(--tgs-radius) var(--tgs-radius) 0 0;
+	background:
+		radial-gradient(120% 160% at 100% 0%, rgba(227, 27, 35, .35) 0%, rgba(227, 27, 35, 0) 55%),
+		linear-gradient(135deg, #0E1421 0%, var(--tgs-dark) 60%);
+	color: #F8FAFC;
+}
+
+.tgs-hero::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 3px;
+	background: linear-gradient(90deg, var(--tgs-accent) 0%, rgba(227, 27, 35, 0) 70%);
+}
+
+.tgs-hero__eyebrow {
+	display: inline-block;
+	margin-bottom: 6px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	color: rgba(248, 250, 252, .62);
+}
+
+.tgs-admin .tgs-hero h1 {
+	margin: 0;
+	padding: 0;
+	font-size: 25px;
+	line-height: 1.2;
+	font-weight: 700;
+	color: #FFFFFF;
+}
+
+.tgs-hero__sub {
+	max-width: 68ch;
+	margin: 8px 0 0;
+	font-size: 13.5px;
+	color: rgba(248, 250, 252, .72);
+}
+
+.tgs-hero__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.tgs-hero__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Navegación entre pantallas del plugin                              */
+/* ------------------------------------------------------------------ */
+
+.tgs-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 6px 10px;
+	border: 1px solid var(--tgs-line);
+	border-top: 0;
+	border-radius: 0 0 var(--tgs-radius) var(--tgs-radius);
+	background: var(--tgs-surface);
+	box-shadow: var(--tgs-shadow);
+}
+
+.tgs-admin .tgs-nav a {
+	display: inline-block;
+	padding: 9px 14px;
+	border-radius: var(--tgs-radius-sm);
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--tgs-ink-soft);
+	text-decoration: none;
+	transition: background-color .15s ease, color .15s ease;
+}
+
+.tgs-admin .tgs-nav a:hover,
+.tgs-admin .tgs-nav a:focus {
+	background: var(--tgs-surface-alt);
+	color: var(--tgs-ink);
+	box-shadow: none;
+	outline: none;
+}
+
+.tgs-admin .tgs-nav a.is-active {
+	background: var(--tgs-accent-soft);
+	color: var(--tgs-accent-dark);
+}
+
+/* ------------------------------------------------------------------ */
+/* Chips / badges de estado                                           */
+/* ------------------------------------------------------------------ */
+
+.tgs-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 11px;
+	border: 1px solid transparent;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.6;
+	white-space: nowrap;
+}
+
+.tgs-chip::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+	flex: 0 0 auto;
+}
+
+.tgs-chip--ok {
+	background: var(--tgs-ok-soft);
+	border-color: var(--tgs-ok-line);
+	color: var(--tgs-ok);
+}
+
+.tgs-chip--warn {
+	background: var(--tgs-warn-soft);
+	border-color: var(--tgs-warn-line);
+	color: var(--tgs-warn);
+}
+
+.tgs-chip--accent {
+	background: var(--tgs-accent-soft);
+	border-color: #FECACA;
+	color: var(--tgs-accent-dark);
+}
+
+.tgs-chip--neutral {
+	background: var(--tgs-surface-alt);
+	border-color: var(--tgs-line);
+	color: var(--tgs-ink-soft);
+}
+
+/* Dentro de la cabecera oscura los chips van sobre fondo translúcido. */
+.tgs-hero .tgs-chip {
+	background: rgba(248, 250, 252, .10);
+	border-color: rgba(248, 250, 252, .18);
+	color: rgba(248, 250, 252, .88);
+}
+
+.tgs-hero .tgs-chip--ok {
+	color: #6EE7B7;
+	border-color: rgba(110, 231, 183, .35);
+}
+
+.tgs-hero .tgs-chip--warn {
+	color: #FCD34D;
+	border-color: rgba(252, 211, 77, .35);
+}
+
+/* ------------------------------------------------------------------ */
+/* Botones                                                            */
+/* ------------------------------------------------------------------ */
+
+.tgs-admin .tgs-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	padding: 9px 16px;
+	border: 1px solid var(--tgs-line-strong);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-surface);
+	color: var(--tgs-ink);
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+}
+
+.tgs-admin .tgs-btn:hover,
+.tgs-admin .tgs-btn:focus {
+	border-color: var(--tgs-muted);
+	color: var(--tgs-ink);
+	box-shadow: none;
+	outline: none;
+}
+
+.tgs-admin .tgs-btn:active {
+	transform: translateY(1px);
+}
+
+.tgs-admin .tgs-btn--primary {
+	background: var(--tgs-accent);
+	border-color: var(--tgs-accent);
+	color: #FFFFFF;
+}
+
+.tgs-admin .tgs-btn--primary:hover,
+.tgs-admin .tgs-btn--primary:focus {
+	background: var(--tgs-accent-dark);
+	border-color: var(--tgs-accent-dark);
+	color: #FFFFFF;
+}
+
+.tgs-admin .tgs-btn--ghost {
+	background: rgba(248, 250, 252, .10);
+	border-color: rgba(248, 250, 252, .28);
+	color: #F8FAFC;
+}
+
+.tgs-admin .tgs-btn--ghost:hover,
+.tgs-admin .tgs-btn--ghost:focus {
+	background: rgba(248, 250, 252, .18);
+	border-color: rgba(248, 250, 252, .45);
+	color: #FFFFFF;
+}
+
+.tgs-admin .tgs-btn--small {
+	padding: 6px 12px;
+	font-size: 12.5px;
+}
+
+.tgs-admin .tgs-btn--danger {
+	color: var(--tgs-accent-dark);
+	border-color: #FECACA;
+	background: var(--tgs-surface);
+}
+
+.tgs-admin .tgs-btn--danger:hover,
+.tgs-admin .tgs-btn--danger:focus {
+	background: var(--tgs-accent-soft);
+	border-color: var(--tgs-accent);
+	color: var(--tgs-accent-dark);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tarjetas                                                           */
+/* ------------------------------------------------------------------ */
+
+.tgs-cards {
+	display: grid;
+	gap: 18px;
+	margin-top: 20px;
+}
+
+.tgs-card {
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-radius);
+	background: var(--tgs-surface);
+	box-shadow: var(--tgs-shadow);
+	overflow: hidden;
+}
+
+.tgs-card__head {
+	padding: 18px 22px 14px;
+	border-bottom: 1px solid var(--tgs-line);
+	background: var(--tgs-surface-alt);
+}
+
+.tgs-card__head-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.tgs-admin .tgs-card__head h2 {
+	margin: 0;
+	padding: 0;
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1.35;
+	color: var(--tgs-ink);
+}
+
+.tgs-card__head p {
+	max-width: 78ch;
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: var(--tgs-muted);
+}
+
+.tgs-card__body {
+	padding: 22px;
+}
+
+.tgs-card__body--flush {
+	padding: 0;
+}
+
+.tgs-card__footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 16px 22px;
+	border-top: 1px solid var(--tgs-line);
+	background: var(--tgs-surface-alt);
+}
+
+.tgs-card__footer p {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--tgs-muted);
+}
+
+/* Título de grupo entre tarjetas. */
+.tgs-sectiontitle {
+	margin: 12px 0 -4px;
+}
+
+.tgs-admin .tgs-sectiontitle h2 {
+	margin: 0;
+	padding: 0;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--tgs-muted);
+}
+
+.tgs-sectiontitle p {
+	max-width: 78ch;
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: var(--tgs-muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Campos de formulario                                               */
+/* ------------------------------------------------------------------ */
+
+.tgs-fields {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 20px;
+}
+
+.tgs-fields--single {
+	grid-template-columns: 1fr;
+}
+
+.tgs-field {
+	min-width: 0;
+}
+
+.tgs-field--wide {
+	grid-column: 1 / -1;
+}
+
+.tgs-admin .tgs-field > label,
+.tgs-admin .tgs-field__label {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--tgs-ink);
+}
+
+.tgs-admin .tgs-field input[type="text"],
+.tgs-admin .tgs-field input[type="password"],
+.tgs-admin .tgs-field input[type="number"],
+.tgs-admin .tgs-field select {
+	width: 100%;
+	max-width: 100%;
+	min-height: 38px;
+	padding: 7px 11px;
+	border: 1px solid var(--tgs-line-strong);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-surface);
+	color: var(--tgs-ink);
+	font-size: 13.5px;
+	line-height: 1.5;
+	box-shadow: none;
+	transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.tgs-admin .tgs-field input[type="text"]:focus,
+.tgs-admin .tgs-field input[type="password"]:focus,
+.tgs-admin .tgs-field input[type="number"]:focus,
+.tgs-admin .tgs-field select:focus {
+	border-color: var(--tgs-accent);
+	box-shadow: 0 0 0 3px rgba(227, 27, 35, .14);
+	outline: none;
+}
+
+.tgs-admin .tgs-field input[readonly] {
+	background: var(--tgs-surface-alt);
+	color: var(--tgs-muted);
+}
+
+.tgs-admin .tgs-field .description,
+.tgs-admin .tgs-help {
+	display: block;
+	margin: 7px 0 0;
+	font-size: 12.5px;
+	font-style: normal;
+	line-height: 1.5;
+	color: var(--tgs-muted);
+}
+
+.tgs-admin code {
+	padding: 2px 6px;
+	border: 1px solid var(--tgs-line);
+	border-radius: 5px;
+	background: var(--tgs-surface-alt);
+	font-size: 12px;
+	color: var(--tgs-ink-soft);
+}
+
+.tgs-inputgroup {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.tgs-inputgroup .tgs-suffix {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--tgs-muted);
+}
+
+/* Color: input de texto (el que se postea) + selector nativo sincronizado. */
+.tgs-color {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.tgs-admin .tgs-color__picker {
+	flex: 0 0 auto;
+	width: 42px;
+	height: 38px;
+	padding: 3px;
+	border: 1px solid var(--tgs-line-strong);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-surface);
+	cursor: pointer;
+}
+
+.tgs-palette-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 18px;
+	padding: 20px;
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-radius-sm);
+}
+
+.tgs-palette-preview__title {
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.tgs-palette-preview__price {
+	font-size: 13px;
+	opacity: .75;
+}
+
+.tgs-palette-preview__cta {
+	align-self: flex-start;
+	padding: 9px 18px;
+	font-size: 13px;
+	font-weight: 700;
+	color: #FFFFFF;
+}
+
+/* ------------------------------------------------------------------ */
+/* Toggles de secciones visibles                                      */
+/* ------------------------------------------------------------------ */
+
+.tgs-toggles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: 12px;
+}
+
+.tgs-admin .tgs-toggle {
+	display: flex;
+	align-items: flex-start;
+	gap: 11px;
+	padding: 14px 16px;
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-surface);
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--tgs-ink-soft);
+	cursor: pointer;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+
+.tgs-admin .tgs-toggle:hover {
+	border-color: var(--tgs-line-strong);
+	background: var(--tgs-surface-alt);
+}
+
+.tgs-admin .tgs-toggle input[type="checkbox"] {
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	margin: 1px 0 0;
+	border-radius: 5px;
+	border-color: var(--tgs-line-strong);
+}
+
+.tgs-admin .tgs-toggle input[type="checkbox"]:checked {
+	background: var(--tgs-accent);
+	border-color: var(--tgs-accent);
+}
+
+.tgs-admin .tgs-toggle input[type="checkbox"]:checked::before {
+	color: #FFFFFF;
+	margin: -3px 0 0 -4px;
+}
+
+.tgs-admin .tgs-toggle:has(input[type="checkbox"]:checked) {
+	border-color: #FECACA;
+	background: var(--tgs-accent-soft);
+	color: var(--tgs-ink);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tablas                                                             */
+/* ------------------------------------------------------------------ */
+
+.tgs-tablewrap {
+	width: 100%;
+	overflow-x: auto;
+}
+
+.tgs-admin .tgs-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13.5px;
+}
+
+.tgs-admin .tgs-table th,
+.tgs-admin .tgs-table td {
+	padding: 14px 18px;
+	text-align: left;
+	vertical-align: middle;
+}
+
+.tgs-admin .tgs-table thead th {
+	border-bottom: 1px solid var(--tgs-line);
+	background: var(--tgs-surface-alt);
+	font-size: 11.5px;
+	font-weight: 700;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+	color: var(--tgs-muted);
+	white-space: nowrap;
+}
+
+.tgs-admin .tgs-table tbody tr + tr td {
+	border-top: 1px solid var(--tgs-line);
+}
+
+.tgs-admin .tgs-table tbody tr:hover td {
+	background: rgba(248, 250, 252, .8);
+}
+
+.tgs-table__title {
+	display: block;
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--tgs-ink);
+	text-decoration: none;
+}
+
+.tgs-admin .tgs-table__title:hover {
+	color: var(--tgs-accent-dark);
+}
+
+.tgs-table__meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin-top: 3px;
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--tgs-muted);
+	text-decoration: none;
+}
+
+.tgs-admin .tgs-table__meta:hover {
+	color: var(--tgs-accent-dark);
+}
+
+.tgs-table__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.tgs-inlineform {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.tgs-admin .tgs-inlineform select {
+	min-height: 36px;
+	max-width: 230px;
+	padding: 5px 10px;
+	border: 1px solid var(--tgs-line-strong);
+	border-radius: var(--tgs-radius-sm);
+	background-color: var(--tgs-surface);
+	font-size: 13px;
+	color: var(--tgs-ink);
+	box-shadow: none;
+}
+
+.tgs-admin .tgs-inlineform select:focus {
+	border-color: var(--tgs-accent);
+	box-shadow: 0 0 0 3px rgba(227, 27, 35, .14);
+	outline: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Estado vacío                                                       */
+/* ------------------------------------------------------------------ */
+
+.tgs-empty {
+	padding: 46px 26px;
+	text-align: center;
+}
+
+.tgs-empty__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 54px;
+	height: 54px;
+	margin-bottom: 14px;
+	border-radius: 50%;
+	background: var(--tgs-accent-soft);
+	color: var(--tgs-accent);
+	font-size: 26px;
+	line-height: 1;
+}
+
+.tgs-admin .tgs-empty h2 {
+	margin: 0 0 8px;
+	padding: 0;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.tgs-empty p {
+	max-width: 62ch;
+	margin: 0 auto;
+	font-size: 13.5px;
+	color: var(--tgs-muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Lista de datos (clave / valor)                                     */
+/* ------------------------------------------------------------------ */
+
+.tgs-datalist {
+	display: grid;
+	gap: 14px;
+	margin: 0;
+}
+
+.tgs-datalist__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 14px;
+}
+
+.tgs-datalist__key {
+	flex: 0 0 210px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--tgs-ink);
+}
+
+.tgs-datalist__value {
+	flex: 1 1 260px;
+	min-width: 0;
+	font-size: 13px;
+	color: var(--tgs-ink-soft);
+	word-break: break-all;
+}
+
+/* ------------------------------------------------------------------ */
+/* Pantallas chicas                                                   */
+/* ------------------------------------------------------------------ */
+
+@media screen and (max-width: 782px) {
+	.tgs-admin {
+		margin-right: 10px;
+	}
+
+	.tgs-hero {
+		padding: 20px 18px;
+	}
+
+	.tgs-admin .tgs-hero h1 {
+		font-size: 21px;
+	}
+
+	.tgs-card__head,
+	.tgs-card__footer {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.tgs-card__body {
+		padding: 16px;
+	}
+
+	.tgs-admin .tgs-table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+
+	.tgs-admin .tgs-table,
+	.tgs-admin .tgs-table tbody,
+	.tgs-admin .tgs-table tr,
+	.tgs-admin .tgs-table td {
+		display: block;
+		width: 100%;
+	}
+
+	.tgs-admin .tgs-table tr {
+		padding: 8px 0;
+		border-top: 1px solid var(--tgs-line);
+	}
+
+	.tgs-admin .tgs-table tbody tr:first-child {
+		border-top: 0;
+	}
+
+	.tgs-admin .tgs-table tbody tr + tr td {
+		border-top: 0;
+	}
+
+	.tgs-admin .tgs-table td {
+		padding: 8px 16px;
+	}
+
+	.tgs-admin .tgs-table td[data-label]::before {
+		content: attr(data-label);
+		display: block;
+		margin-bottom: 5px;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: .08em;
+		text-transform: uppercase;
+		color: var(--tgs-muted);
+	}
+
+	.tgs-table__actions {
+		justify-content: flex-start;
+	}
+
+	.tgs-admin .tgs-inlineform select {
+		max-width: 100%;
+		flex: 1 1 180px;
+	}
+
+	.tgs-datalist__key {
+		flex: 1 1 100%;
+	}
+}

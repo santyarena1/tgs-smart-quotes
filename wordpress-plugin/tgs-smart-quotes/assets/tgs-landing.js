@@ -29,7 +29,11 @@
 		var observer = new IntersectionObserver(
 			function ( entries ) {
 				entries.forEach( function ( entry ) {
-					sticky.classList.toggle( 'is-visible', ! entry.isIntersecting );
+					var visible = ! entry.isIntersecting;
+					sticky.classList.toggle( 'is-visible', visible );
+					// Mientras está escondida no debe existir para lectores de
+					// pantalla ni recibir foco con el tabulador.
+					sticky.setAttribute( 'aria-hidden', visible ? 'false' : 'true' );
 				} );
 			},
 			{ threshold: 0 }
