@@ -14,8 +14,12 @@ type HeroOption = { id: string; url: string | null; productId: string; productNa
 type PublicationStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "FAILED";
 type Publication = { status: PublicationStatus; url: string | null; lastError: string | null };
 
+type Game = { name: string; tier: string };
 type Enrichment = {
   descriptionHtml: string | null;
+  gamesJson?: Game[] | null;
+  programsJson?: unknown[] | null;
+  compatibilityJson?: string[] | null;
 } | null;
 
 type StepId = "contenido" | "componentes" | "preview";
@@ -63,6 +67,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
   const [enrichment, setEnrichment] = useState<Enrichment>(null);
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [gamesDraft, setGamesDraft] = useState<Game[]>([]);
+  const [compatDraft, setCompatDraft] = useState<string[]>([]);
   const [loadingEnrichment, setLoadingEnrichment] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [savingEnrichment, setSavingEnrichment] = useState(false);
@@ -84,6 +90,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const applyEnrichment = (value: Enrichment) => {
     setEnrichment(value);
     setDescriptionDraft(value?.descriptionHtml ?? "");
+    // Lo que genera la IA se deja editable a propósito: son estimaciones y
+    // conviene poder corregirlas antes de que salgan publicadas.
+    setGamesDraft(Array.isArray(value?.gamesJson) ? value.gamesJson : []);
+    setCompatDraft(Array.isArray(value?.compatibilityJson) ? value.compatibilityJson : []);
   };
 
   const load = useCallback(async () => {
@@ -285,6 +295,12 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
         method: "PUT",
         body: {
           descriptionHtml: descriptionDraft.trim() || null,
+          // Se descartan las filas vacías para no publicar juegos sin nombre.
+          games: gamesDraft
+            .map((game) => ({ name: game.name.trim(), tier: game.tier.trim() }))
+            .filter((game) => game.name && game.tier),
+          compatibility: compatDraft.map((line) => line.trim()).filter(Boolean),
+          programs: (enrichment?.programsJson as { name: string; note: string }[] | undefined) ?? [],
         },
       });
       applyEnrichment(value);
@@ -551,9 +567,104 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                     placeholder="Se completa al generar con IA, o escribila vos."
                   />
                 </Field>
+                {/* Juegos y compatibilidad: la IA los estima, así que se
+                    muestran para revisarlos y corregirlos antes de publicar. */}
+                <Field
+                  label="Juegos y rendimiento"
+                  hint="Los estima la IA a partir de los componentes: no son mediciones reales. Revisalos y corregí lo que no te cierre; lo que borres no se publica."
+                >
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {gamesDraft.length === 0 ? (
+                      <span className="muted" style={{ fontSize: 12.5 }}>
+                        Todavía no hay juegos cargados. Generá con IA o agregalos a mano.
+                      </span>
+                    ) : (
+                      gamesDraft.map((game, index) => (
+                        <div key={index} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <input
+                            value={game.name}
+                            placeholder="Juego"
+                            style={{ flex: "1 1 180px" }}
+                            onChange={(e) =>
+                              setGamesDraft((prev) =>
+                                prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)),
+                              )
+                            }
+                          />
+                          <input
+                            value={game.tier}
+                            placeholder="Ej: Alto 1080p (estimado)"
+                            style={{ flex: "1 1 180px" }}
+                            onChange={(e) =>
+                              setGamesDraft((prev) =>
+                                prev.map((row, i) => (i === index ? { ...row, tier: e.target.value } : row)),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn-ghost btn-sm"
+                            onClick={() => setGamesDraft((prev) => prev.filter((_, i) => i !== index))}
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      ))
+                    )}
+                    <div>
+                      <button
+                        type="button"
+                        className="btn-ghost btn-sm"
+                        onClick={() => setGamesDraft((prev) => [...prev, { name: "", tier: "" }])}
+                      >
+                        + Agregar juego
+                      </button>
+                    </div>
+                  </div>
+                </Field>
+
+                <Field
+                  label="Notas de compatibilidad"
+                  hint="También las estima la IA y son orientativas. Sacá cualquiera que no sea cierta."
+                >
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {compatDraft.length === 0 ? (
+                      <span className="muted" style={{ fontSize: 12.5 }}>Sin notas cargadas.</span>
+                    ) : (
+                      compatDraft.map((line, index) => (
+                        <div key={index} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <input
+                            value={line}
+                            style={{ flex: 1 }}
+                            onChange={(e) =>
+                              setCompatDraft((prev) => prev.map((row, i) => (i === index ? e.target.value : row)))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn-ghost btn-sm"
+                            onClick={() => setCompatDraft((prev) => prev.filter((_, i) => i !== index))}
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      ))
+                    )}
+                    <div>
+                      <button
+                        type="button"
+                        className="btn-ghost btn-sm"
+                        onClick={() => setCompatDraft((prev) => [...prev, ""])}
+                      >
+                        + Agregar nota
+                      </button>
+                    </div>
+                  </div>
+                </Field>
+
                 <div>
                   <button type="button" className="btn-dark btn-sm" disabled={savingEnrichment} onClick={() => void saveEnrichment()}>
-                    {savingEnrichment ? "Guardando…" : "Guardar descripción"}
+                    {savingEnrichment ? "Guardando…" : "Guardar contenido"}
                   </button>
                 </div>
               </>
