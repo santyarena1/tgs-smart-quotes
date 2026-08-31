@@ -768,6 +768,155 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* Selector de modo (secciones predefinidas / diseño propio)          */
+/* ------------------------------------------------------------------ */
+
+/* Las tarjetas del modo que no está elegido se esconden con el atributo
+   `hidden` desde JS (ver el <script> del editor de variantes). */
+.tgs-admin [hidden] {
+	display: none !important;
+}
+
+.tgs-modes {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 12px;
+}
+
+.tgs-admin .tgs-mode {
+	display: flex;
+	align-items: flex-start;
+	gap: 11px;
+	padding: 16px 18px;
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-surface);
+	cursor: pointer;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+
+.tgs-admin .tgs-mode:hover {
+	border-color: var(--tgs-line-strong);
+	background: var(--tgs-surface-alt);
+}
+
+.tgs-admin .tgs-mode input[type="radio"] {
+	flex: 0 0 auto;
+	margin: 2px 0 0;
+	border-color: var(--tgs-line-strong);
+}
+
+.tgs-admin .tgs-mode input[type="radio"]:checked {
+	border-color: var(--tgs-accent);
+	background: var(--tgs-surface);
+}
+
+.tgs-admin .tgs-mode input[type="radio"]:checked::before {
+	background: var(--tgs-accent);
+}
+
+.tgs-admin .tgs-mode:has(input[type="radio"]:checked) {
+	border-color: #FECACA;
+	background: var(--tgs-accent-soft);
+}
+
+.tgs-mode__body {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.tgs-mode__title {
+	font-size: 13.5px;
+	font-weight: 700;
+	color: var(--tgs-ink);
+}
+
+.tgs-mode__desc {
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--tgs-muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Campo de código a medida y su lista de placeholders                */
+/* ------------------------------------------------------------------ */
+
+.tgs-callout {
+	margin: 0 0 18px;
+	padding: 13px 16px;
+	border: 1px solid var(--tgs-warn-line);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-warn-soft);
+	font-size: 12.5px;
+	line-height: 1.55;
+	color: var(--tgs-warn);
+}
+
+.tgs-admin textarea.tgs-code {
+	width: 100%;
+	padding: 14px 16px;
+	border: 1px solid var(--tgs-line-strong);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-dark);
+	color: #E2E8F0;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12.5px;
+	line-height: 1.65;
+	tab-size: 2;
+	white-space: pre;
+	overflow-x: auto;
+	resize: vertical;
+	box-shadow: none;
+}
+
+.tgs-admin textarea.tgs-code:focus {
+	border-color: var(--tgs-accent);
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(227, 27, 35, .18);
+}
+
+.tgs-admin textarea.tgs-code::placeholder {
+	color: #64748B;
+}
+
+.tgs-placeholders {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 10px;
+}
+
+.tgs-placeholder {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 11px 14px;
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-radius-sm);
+	background: var(--tgs-surface-alt);
+}
+
+.tgs-admin .tgs-placeholder__key {
+	align-self: flex-start;
+	padding: 2px 7px;
+	border-radius: 5px;
+	background: var(--tgs-surface);
+	border: 1px solid var(--tgs-line);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--tgs-accent-dark);
+	user-select: all;
+}
+
+.tgs-placeholder__desc {
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--tgs-muted);
+}
+
+/* ------------------------------------------------------------------ */
 /* Pantallas chicas                                                   */
 /* ------------------------------------------------------------------ */
 

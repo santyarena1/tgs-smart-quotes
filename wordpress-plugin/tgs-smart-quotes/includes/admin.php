@@ -513,10 +513,22 @@ function tgs_sq_render_variant_editor( $slug ) {
 			);
 		}
 
+		/*
+		 * El código a medida se guarda TAL CUAL lo pegó el admin: es la
+		 * funcionalidad del modo "Diseño propio" (tiene que poder traer su
+		 * propio <style>, sus clases y su markup completo). Está permitido
+		 * porque a esta pantalla solo llega quien tiene `manage_options`
+		 * (chequeado arriba de todo en tgs_sq_page_variants()) y el POST va
+		 * firmado con nonce. Lo único que se saca son las barras que agrega
+		 * WordPress al $_POST.
+		 */
+		$custom_code = isset( $_POST['custom_code'] ) ? (string) wp_unslash( $_POST['custom_code'] ) : '';
+
 		$variant = array(
 			'slug'        => $posted_slug,
 			'name'        => sanitize_text_field( $_POST['name'] ?? $posted_slug ),
-			'mode'        => 'blocks',
+			'mode'        => tgs_sq_normalize_mode( sanitize_key( $_POST['mode'] ?? '' ) ),
+			'custom_code' => $custom_code,
 			'tokens'      => array(
 				'accent' => sanitize_hex_color( $_POST['accent'] ?? '' ) ?: '#E31B23',
 				'bg'     => sanitize_hex_color( $_POST['bg'] ?? '' ) ?: '#080B12',
@@ -549,6 +561,10 @@ function tgs_sq_render_variant_editor( $slug ) {
 	$tokens = $variant['tokens'] ?? tgs_sq_default_tokens();
 	$extra  = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
 
+	$mode          = tgs_sq_normalize_mode( $variant['mode'] ?? '' );
+	$custom_code   = tgs_sq_variant_custom_code( $variant );
+	$is_custom     = 'custom' === $mode;
+
 	$is_default    = $slug && TGS_SQ_DEFAULT_VARIANT === $slug;
 	$visible_count = count( array_filter( $blocks_map ) );
 	$accent_hex    = tgs_sq_admin_hex( $tokens['accent'] ?? '', '#E31B23' );
@@ -559,6 +575,12 @@ function tgs_sq_render_variant_editor( $slug ) {
 	$chips = array();
 	if ( $slug ) {
 		$chips[] = array( 'label' => 'Slug: ' . $slug, 'state' => 'neutral' );
+	}
+	$chips[] = $is_custom
+		? array( 'label' => 'Modo: diseño propio', 'state' => 'accent' )
+		: array( 'label' => 'Modo: secciones predefinidas', 'state' => 'neutral' );
+	if ( $is_custom && '' === $custom_code ) {
+		$chips[] = array( 'label' => 'Sin código: se usan las secciones', 'state' => 'warn' );
 	}
 	$chips[] = array(
 		'label' => 1 === $visible_count ? '1 sección opcional activa' : sprintf( '%d secciones opcionales activas', $visible_count ),
@@ -592,7 +614,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 				<div class="tgs-card">
 					<div class="tgs-card__head">
 						<h2>Identidad</h2>
-						<p>La ficha siempre se arma con el diseño fijo del plugin (foto/3D + precio + botón de compra a la izquierda, secciones abajo). No hay HTML ni CSS para escribir: lo único que se configura por variante es la paleta, qué secciones mostrar y los textos de WhatsApp/pago/recomendadas de abajo.</p>
+						<p>Por defecto la ficha se arma con el diseño fijo del plugin (foto/3D + precio + botón de compra arriba, secciones abajo) y lo único que se configura es la paleta, qué secciones mostrar y los textos de WhatsApp/pago/recomendadas. Si necesitás un diseño que no entra en ese molde, más abajo podés cambiar el modo y pegar tu propio código.</p>
 					</div>
 					<div class="tgs-card__body">
 						<div class="tgs-fields">
@@ -606,6 +628,72 @@ function tgs_sq_render_variant_editor( $slug ) {
 								<?php endif; ?>
 							</div>
 						</div>
+					</div>
+				</div>
+
+				<div class="tgs-card">
+					<div class="tgs-card__head">
+						<h2>Cómo se arma la ficha</h2>
+						<p>Podés dejar que el plugin arme la ficha con sus secciones (lo recomendado) o pegar tu propio código y que esa sea la ficha entera.</p>
+					</div>
+					<div class="tgs-card__body">
+						<div class="tgs-modes">
+							<label class="tgs-mode">
+								<input type="radio" name="mode" value="blocks" <?php checked( ! $is_custom ); ?>>
+								<span class="tgs-mode__body">
+									<span class="tgs-mode__title">Secciones predefinidas</span>
+									<span class="tgs-mode__desc">El diseño fijo y probado del plugin: hero con foto/3D, precio y botón de compra, y abajo las secciones que tildes más adelante. No hay nada que programar.</span>
+								</span>
+							</label>
+							<label class="tgs-mode">
+								<input type="radio" name="mode" value="custom" <?php checked( $is_custom ); ?>>
+								<span class="tgs-mode__body">
+									<span class="tgs-mode__title">Diseño propio (pegar código)</span>
+									<span class="tgs-mode__desc">Pegás un bloque de código y esa es la ficha. Reemplaza por completo el diseño de secciones: los checkboxes de abajo dejan de tener efecto.</span>
+								</span>
+							</label>
+						</div>
+						<p class="tgs-help">La paleta y los textos de WhatsApp, pago y recomendadas se siguen usando en los dos modos: en "Diseño propio" alimentan los placeholders que insertes.</p>
+					</div>
+				</div>
+
+				<div class="tgs-card" data-tgs-mode-panel="custom">
+					<div class="tgs-card__head">
+						<div class="tgs-card__head-row">
+							<h2>Tu código</h2>
+							<span class="tgs-chip tgs-chip--<?php echo '' !== $custom_code ? 'ok' : 'warn'; ?>"><?php echo '' !== $custom_code ? 'Código cargado' : 'Vacío'; ?></span>
+						</div>
+						<p>Un solo campo: pegá el HTML completo de la ficha, con su propio <code>&lt;style&gt;...&lt;/style&gt;</code> adentro si querés estilos. Es un único bloque a propósito, así no puede pasar que quede el HTML sin su CSS.</p>
+					</div>
+					<div class="tgs-card__body">
+						<div class="tgs-callout">
+							<strong>Ojo:</strong> mientras el modo sea "Diseño propio" y este campo tenga algo, este código <em>reemplaza por completo</em> la ficha: no se dibuja ninguna de las secciones predefinidas. Si lo dejás vacío, la ficha vuelve sola al diseño de secciones (nunca queda una página en blanco).
+						</div>
+						<div class="tgs-fields tgs-fields--single">
+							<div class="tgs-field tgs-field--wide">
+								<label for="custom_code">Código de la ficha</label>
+								<textarea id="custom_code" name="custom_code" class="tgs-code" rows="18" spellcheck="false" placeholder="&lt;style&gt;.mi-ficha{...}&lt;/style&gt;&#10;&lt;div class=&quot;mi-ficha&quot;&gt;&#10;  &lt;h1&gt;{{titulo}}&lt;/h1&gt;&#10;  &lt;p class=&quot;precio&quot;&gt;{{precio_transferencia}}&lt;/p&gt;&#10;  {{boton_carrito}}&#10;  {{componentes}}&#10;&lt;/div&gt;"><?php echo esc_textarea( $custom_code ); ?></textarea>
+								<p class="description">Se guarda tal cual, sin tocarle nada. Aunque no pongas nada de CSS, el plugin carga abajo una base mínima (tipografía, ancho máximo y espaciado) para que la ficha nunca se vea como texto plano; cualquier estilo tuyo la pisa.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="tgs-card" data-tgs-mode-panel="custom">
+					<div class="tgs-card__head">
+						<h2>Placeholders disponibles</h2>
+						<p>Escribilos en tu código donde quieras que aparezca cada dato de la PC. Se reemplazan al mostrar la ficha; si esa PC no tiene ese dato, el placeholder queda vacío y no rompe nada.</p>
+					</div>
+					<div class="tgs-card__body">
+						<div class="tgs-placeholders">
+							<?php foreach ( tgs_sq_placeholder_docs() as $key => $description ) : ?>
+								<div class="tgs-placeholder">
+									<code class="tgs-placeholder__key"><?php echo esc_html( '{{' . $key . '}}' ); ?></code>
+									<span class="tgs-placeholder__desc"><?php echo esc_html( $description ); ?></span>
+								</div>
+							<?php endforeach; ?>
+						</div>
+						<p class="tgs-help">Los que dicen "sección" traen el bloque entero ya armado y con estilo del plugin (título incluido). Los de precio vienen formateados en pesos.</p>
 					</div>
 				</div>
 
@@ -669,7 +757,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 					</div>
 				</div>
 
-				<div class="tgs-card">
+				<div class="tgs-card" data-tgs-mode-panel="blocks">
 					<div class="tgs-card__head">
 						<div class="tgs-card__head-row">
 							<h2>Secciones visibles</h2>
@@ -771,6 +859,31 @@ function tgs_sq_render_variant_editor( $slug ) {
 		</form>
 	</div>
 	<script>
+	/* Muestra solo las tarjetas del modo elegido. Es solo comodidad visual:
+	   los campos del otro modo se siguen enviando y guardando, así que
+	   cambiar de modo nunca borra lo que ya estaba configurado. */
+	(function () {
+		var radios = document.querySelectorAll('.tgs-admin input[name="mode"]');
+		var panels = document.querySelectorAll('.tgs-admin [data-tgs-mode-panel]');
+		if (!radios.length || !panels.length) {
+			return;
+		}
+		function sync() {
+			var current = 'blocks';
+			for (var i = 0; i < radios.length; i++) {
+				if (radios[i].checked) {
+					current = radios[i].value;
+				}
+			}
+			for (var j = 0; j < panels.length; j++) {
+				panels[j].hidden = panels[j].getAttribute('data-tgs-mode-panel') !== current;
+			}
+		}
+		for (var k = 0; k < radios.length; k++) {
+			radios[k].addEventListener('change', sync);
+		}
+		sync();
+	})();
 	(function () {
 		var wraps = document.querySelectorAll('.tgs-admin .tgs-color');
 		for (var i = 0; i < wraps.length; i++) {

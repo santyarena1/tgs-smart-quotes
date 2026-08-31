@@ -18,7 +18,11 @@
 	--tgs-font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-.tgs-landing {
+/* Los tokens derivados valen para los dos modos: en "diseño propio" las
+ * clases del plugin que se insertan por placeholder (.tgs-section-card,
+ * .tgs-price, .tgs-gallery, ...) necesitan exactamente los mismos. */
+.tgs-landing,
+.tgs-custom {
 	/* Superficies: capas de blanco translúcido sobre el fondo de la variante,
 	 * para que cualquier --tgs-bg siga generando tarjetas coherentes. */
 	--tgs-card: rgba(255, 255, 255, 0.038);
@@ -133,8 +137,12 @@
 	box-shadow: var(--tgs-shadow-card);
 }
 
-/* --- Título de sección: misma jerarquía visual en toda la página --- */
+/* --- Título de sección: misma jerarquía visual en toda la página ---
+ * En modo "diseño propio" solo se aplica a las secciones que imprime el
+ * plugin (las que salen de un placeholder, que siempre traen
+ * .tgs-section-card): los <section> que escriba el admin quedan libres. */
 .tgs-section-title,
+.tgs-custom .tgs-section-card > h2:first-child,
 .tgs-landing section > h2:first-child {
 	display: flex;
 	align-items: center;
@@ -149,6 +157,7 @@
 	border-bottom: 1px solid var(--tgs-line);
 }
 .tgs-section-title::before,
+.tgs-custom .tgs-section-card > h2:first-child::before,
 .tgs-landing section > h2:first-child::before {
 	content: "";
 	flex: 0 0 auto;
@@ -316,6 +325,7 @@
  * formulario suelto del tema. */
 .tgs-actions .cart,
 .tgs-summary .cart,
+.tgs-custom .cart,
 .tgs-landing .cart {
 	display: flex;
 	align-items: stretch;
@@ -326,12 +336,14 @@
 	border: none;
 }
 .tgs-summary .quantity,
+.tgs-custom .quantity,
 .tgs-landing .quantity {
 	display: inline-flex;
 	flex: 0 0 auto;
 	margin: 0;
 }
 .tgs-summary .quantity .qty,
+.tgs-custom .quantity .qty,
 .tgs-landing .quantity .qty {
 	width: 68px;
 	height: 54px;
@@ -350,6 +362,7 @@
 }
 .tgs-sticky .button,
 .tgs-summary .button,
+.tgs-custom .single_add_to_cart_button,
 .tgs-landing .single_add_to_cart_button {
 	flex: 1 1 190px;
 	display: inline-flex;
@@ -375,6 +388,7 @@
 }
 .tgs-sticky .button:hover,
 .tgs-summary .button:hover,
+.tgs-custom .single_add_to_cart_button:hover,
 .tgs-landing .single_add_to_cart_button:hover {
 	filter: brightness(1.09);
 	transform: translateY(-1px);
@@ -382,6 +396,7 @@
 }
 .tgs-sticky .button:active,
 .tgs-summary .button:active,
+.tgs-custom .single_add_to_cart_button:active,
 .tgs-landing .single_add_to_cart_button:active {
 	transform: translateY(0);
 	filter: brightness(0.96);
@@ -420,11 +435,13 @@
 }
 
 /* Avisos de stock que imprime Woo dentro del formulario. */
+.tgs-custom .stock,
 .tgs-landing .stock {
 	margin: 0;
 	font-size: 13px;
 	color: var(--tgs-muted);
 }
+.tgs-custom .stock.out-of-stock,
 .tgs-landing .stock.out-of-stock {
 	color: var(--tgs-accent);
 }
@@ -951,4 +968,103 @@
 body.tgs-managed-page #wa,
 body.tgs-managed-page .wa__widget_container {
 	display: none !important;
+}
+
+/* ==========================================================================
+   MODO "DISEÑO PROPIO" — red de seguridad
+   ==========================================================================
+   Cuando la variante está en modo custom, el plugin envuelve el código
+   pegado por el admin en <main class="tgs-custom"> (ver
+   tgs_sq_render_custom_mode en includes/render.php). Los colores, la
+   tipografía y las variables de la paleta van inline en ese <main>; acá va
+   el resto de la base: ancho máximo, espaciado, imágenes que no se desbordan
+   y una tipografía legible.
+
+   TODO este bloque va con `:where()`, o sea con especificidad CERO: cualquier
+   regla que escriba el admin en su propio <style> — incluso un `h2 { ... }`
+   pelado — le gana sin necesidad de !important. Es una base, no una jaula:
+   está para que una ficha sin nada de CSS igual se lea bien, nunca para
+   pelearse con el diseño de quien pegó el código.
+
+   Ojo: las clases del plugin (.tgs-section-card, .tgs-price, .tgs-gallery,
+   etc.) que llegan por placeholder ya vienen con su estilo completo de más
+   arriba en este mismo archivo, así que también se pueden usar a mano en el
+   código pegado. */
+:where(.tgs-custom) {
+	display: block;
+	min-height: 100vh;
+	padding: clamp(20px, 3.5vw, 56px) clamp(16px, 4vw, 56px) clamp(96px, 12vw, 140px);
+	font-size: 15px;
+	line-height: 1.6;
+	box-sizing: border-box;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+:where(.tgs-custom) :where(*, *::before, *::after) {
+	box-sizing: border-box;
+}
+/* Ancho máximo de lectura: las cajas de primer nivel quedan centradas en
+ * pantallas grandes en vez de estirarse de punta a punta. */
+:where(.tgs-custom) > :where(*) {
+	max-width: 1180px;
+	margin-left: auto;
+	margin-right: auto;
+}
+:where(.tgs-custom) :where(h1, h2, h3, h4, h5, h6) {
+	font-family: inherit;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+	margin: 0 0 0.5em;
+	text-transform: none;
+}
+:where(.tgs-custom) :where(h1) {
+	font-size: clamp(26px, 3.4vw, 40px);
+}
+:where(.tgs-custom) :where(h2) {
+	font-size: clamp(20px, 2.2vw, 26px);
+}
+:where(.tgs-custom) :where(h3) {
+	font-size: clamp(17px, 1.7vw, 20px);
+}
+:where(.tgs-custom) :where(p, ul, ol, dl, table, figure, blockquote, pre) {
+	margin: 0 0 1em;
+}
+:where(.tgs-custom) :where(ul, ol) {
+	padding-left: 1.3em;
+}
+:where(.tgs-custom) :where(li) {
+	margin-bottom: 0.35em;
+}
+:where(.tgs-custom) :where(img, video, iframe, model-viewer, canvas, svg) {
+	max-width: 100%;
+	height: auto;
+}
+:where(.tgs-custom) :where(a) {
+	color: var(--tgs-accent);
+}
+:where(.tgs-custom) :where(table) {
+	width: 100%;
+	border-collapse: collapse;
+}
+:where(.tgs-custom) :where(th, td) {
+	padding: 10px 12px;
+	text-align: left;
+	border-bottom: 1px solid var(--tgs-line);
+}
+:where(.tgs-custom) :where(hr) {
+	border: 0;
+	border-top: 1px solid var(--tgs-line);
+	margin: clamp(20px, 3vw, 36px) 0;
+}
+:where(.tgs-custom) :where(strong, b) {
+	font-weight: 700;
+}
+:where(.tgs-custom) :where(code, pre) {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.92em;
+}
+/* Foco visible: accesibilidad mínima aunque el código pegado no la contemple. */
+:where(.tgs-custom) :where(a, button, input, select, textarea):focus-visible {
+	outline: 2px solid var(--tgs-text);
+	outline-offset: 3px;
 }

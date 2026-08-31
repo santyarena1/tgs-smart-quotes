@@ -415,13 +415,134 @@ function tgs_sq_render_blocks_mode( array $variant, array $data ) {
 	echo '</main>';
 }
 
+/* ---------------------------------------------------------------------
+ * Modo "Diseño propio (pegar código)".
+ * ------------------------------------------------------------------- */
+
 /**
- * Todas las fichas se arman con el sistema de bloques: es el único modo
- * que existe desde esta versión. El modo "código a medida" (HTML/CSS
- * pegado a mano por variante) se sacó del todo porque era la causa más
- * común de fichas rotas o sin estilos — con blocks, el diseño siempre sale
- * completo y consistente sin que haya nada que un admin se pueda olvidar
- * de completar.
+ * Corre un renderer de bloque y devuelve su HTML en vez de imprimirlo.
+ * Los bloques que no tienen datos no imprimen nada, así que el placeholder
+ * correspondiente queda vacío en lugar de romper la página.
+ */
+function tgs_sq_capture_block( $type, array $d ) {
+	ob_start();
+	tgs_sq_render_block( $type, $d );
+	return (string) ob_get_clean();
+}
+
+/**
+ * Valores de todos los placeholders documentados en tgs_sq_placeholder_docs(),
+ * ya listos para reemplazar en el código pegado por el admin.
+ *
+ * Devuelve un mapa '{{clave}}' => HTML. Cualquier placeholder documentado que
+ * no tenga datos para este producto queda como string vacío: nunca se muestra
+ * un {{...}} literal en la ficha publicada.
+ */
+function tgs_sq_placeholder_values( array $d ) {
+	$price = function ( $cents ) {
+		$cents = (int) $cents;
+		return $cents > 0 ? wc_price( $cents / 100 ) : '';
+	};
+
+	$cart = '';
+	if ( $d['product'] && function_exists( 'woocommerce_template_single_add_to_cart' ) ) {
+		ob_start();
+		woocommerce_template_single_add_to_cart();
+		$cart = (string) ob_get_clean();
+	}
+
+	$description = (string) $d['description'];
+	if ( '' !== $description && $description === wp_strip_all_tags( $description ) ) {
+		$description = wpautop( $description );
+	}
+
+	$best    = tgs_sq_best_installment_plan( $d['installments'] );
+	$cuotas  = '';
+	if ( $best ) {
+		$cuotas = 'Hasta ' . (int) $best['installments'] . ' cuotas de '
+			. wp_kses_post( wc_price( ( (int) $best['installmentCents'] ) / 100 ) );
+	}
+
+	$imagen = $d['thumbnail']
+		? '<img src="' . esc_url( $d['thumbnail'] ) . '" alt="' . esc_attr( $d['title'] ) . '">'
+		: '';
+	$modelo = $d['model3d_url']
+		? '<model-viewer src="' . esc_url( $d['model3d_url'] ) . '" camera-controls auto-rotate shadow-intensity="1"></model-viewer>'
+		: '';
+
+	$values = array(
+		'titulo'               => esc_html( $d['title'] ),
+		'permalink'            => esc_url( $d['permalink'] ),
+		'precio_lista'         => $price( $d['price_list'] ),
+		'precio_efectivo'      => $price( $d['price_cash'] ),
+		'precio_transferencia' => $price( $d['price_transfer'] ),
+		'caja_precios'         => tgs_sq_price_html( $d ),
+		'cuotas'               => $cuotas,
+		'formas_de_pago'       => tgs_sq_payment_html( $d ),
+		'descripcion'          => wp_kses_post( $description ),
+		'imagen_destacada'     => $imagen,
+		'imagen_destacada_url' => esc_url( (string) $d['thumbnail'] ),
+		'modelo_3d'            => $modelo,
+		'modelo_3d_url'        => esc_url( (string) $d['model3d_url'] ),
+		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
+		'componentes'          => tgs_sq_capture_block( 'specs', $d ),
+		'juegos'               => tgs_sq_capture_block( 'games', $d ),
+		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
+		'recomendadas'         => tgs_sq_recommended_html( $d ),
+		'boton_carrito'        => $cart,
+		'boton_whatsapp'       => tgs_sq_whatsapp_button_html( $d ),
+		'barra_flotante'       => tgs_sq_sticky_html( $d ),
+	);
+
+	// Red de seguridad: si algún día se documenta un placeholder nuevo y
+	// alguien se olvida de darle valor acá, se resuelve a vacío igual.
+	$map = array();
+	foreach ( array_keys( tgs_sq_placeholder_docs() ) as $key ) {
+		$map[ '{{' . $key . '}}' ] = (string) ( $values[ $key ] ?? '' );
+	}
+	return $map;
+}
+
+/**
+ * Reemplaza los placeholders del código pegado por el admin.
+ */
+function tgs_sq_apply_placeholders( $code, array $d ) {
+	return strtr( (string) $code, tgs_sq_placeholder_values( $d ) );
+}
+
+/**
+ * Imprime la ficha usando el código a medida de la variante.
+ *
+ * El wrapper `.tgs-custom` es la red de seguridad: trae tipografía, ancho
+ * máximo, espaciado y los colores de la paleta de la variante, todo con
+ * especificidad cero (ver `:where(.tgs-custom)` en assets/tgs-landing.css)
+ * para que cualquier regla que el admin escriba en su propio <style> la
+ * pise sin pelear. Así, aunque el código pegado no traiga nada de CSS, la
+ * ficha nunca se ve como texto plano sin formato.
+ */
+function tgs_sq_render_custom_mode( array $variant, array $data ) {
+	$style = tgs_sq_layout_style_vars( $variant['tokens'] ?? array() )
+		. 'background:var(--tgs-bg);color:var(--tgs-text);font-family:var(--tgs-font);';
+	echo '<main class="tgs-custom" style="' . esc_attr( $style ) . '">';
+	/*
+	 * Salida sin escapar A PROPÓSITO: esto ES la funcionalidad del modo
+	 * "Diseño propio". El código lo pega un administrador de confianza
+	 * (se exige `current_user_can( 'manage_options' )` + nonce al guardar,
+	 * ver tgs_sq_render_variant_editor()), igual que el HTML que cualquier
+	 * admin puede escribir en un post con el editor de WordPress.
+	 */
+	echo tgs_sq_apply_placeholders( tgs_sq_variant_custom_code( $variant ), $data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '</main>';
+}
+
+/**
+ * Renderiza la ficha con el modo de la variante.
+ *
+ * Por defecto se arma con el sistema de bloques (diseño fijo y probado del
+ * plugin). Si la variante está en modo "custom" y tiene código cargado, se
+ * usa ese código; si está en "custom" pero el código quedó vacío, se cae a
+ * bloques a propósito: una ficha con el diseño de siempre es infinitamente
+ * mejor que una página en blanco.
  */
 function tgs_sq_render_product( $product_id ) {
 	tgs_sq_ensure_default_variant();
@@ -429,6 +550,12 @@ function tgs_sq_render_product( $product_id ) {
 	$variant_slug  = tgs_sq_product_variant_slug( $product_id );
 	$variant       = tgs_sq_get_variant( $variant_slug ) ?: tgs_sq_get_variant( TGS_SQ_DEFAULT_VARIANT );
 	$data['extra'] = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
+
+	$custom_code = tgs_sq_variant_custom_code( $variant );
+	if ( 'custom' === tgs_sq_normalize_mode( $variant['mode'] ?? '' ) && '' !== $custom_code ) {
+		tgs_sq_render_custom_mode( $variant, $data );
+		return;
+	}
 
 	tgs_sq_render_blocks_mode( $variant, $data );
 }
