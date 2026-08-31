@@ -14,9 +14,6 @@ type Publication = { status: PublicationStatus; url: string | null; lastError: s
 
 type Enrichment = {
   descriptionHtml: string | null;
-  powerWatts: number | null;
-  recommendedPsuWatts: number | null;
-  powerNote: string | null;
 } | null;
 
 function statusLabel(status: PublicationStatus | undefined): string {
@@ -59,9 +56,6 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
   const [enrichment, setEnrichment] = useState<Enrichment>(null);
   const [descriptionDraft, setDescriptionDraft] = useState("");
-  const [powerWattsDraft, setPowerWattsDraft] = useState("");
-  const [powerPsuDraft, setPowerPsuDraft] = useState("");
-  const [powerNoteDraft, setPowerNoteDraft] = useState("");
   const [loadingEnrichment, setLoadingEnrichment] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [savingEnrichment, setSavingEnrichment] = useState(false);
@@ -77,9 +71,6 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const applyEnrichment = (value: Enrichment) => {
     setEnrichment(value);
     setDescriptionDraft(value?.descriptionHtml ?? "");
-    setPowerWattsDraft(value?.powerWatts != null ? String(value.powerWatts) : "");
-    setPowerPsuDraft(value?.recommendedPsuWatts != null ? String(value.recommendedPsuWatts) : "");
-    setPowerNoteDraft(value?.powerNote ?? "");
   };
 
   const load = useCallback(async () => {
@@ -239,9 +230,6 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
         method: "PUT",
         body: {
           descriptionHtml: descriptionDraft.trim() || null,
-          powerWatts: powerWattsDraft.trim() ? Number(powerWattsDraft) : null,
-          recommendedPsuWatts: powerPsuDraft.trim() ? Number(powerPsuDraft) : null,
-          powerNote: powerNoteDraft.trim() || null,
         },
       });
       applyEnrichment(value);
@@ -365,7 +353,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
       <section className="card card-pad" style={{ marginTop: 20, display: "grid", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <h3 className="panel-title">Descripción y consumo (con IA)</h3>
+          <h3 className="panel-title">Descripción (con IA)</h3>
           <button type="button" className="btn-ghost btn-sm" disabled={generating} onClick={() => void generateEnrichment()}>
             {generating ? "Generando…" : enrichment ? "Regenerar con IA" : "Generar con IA"}
           </button>
@@ -383,27 +371,6 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                 onChange={(e) => setDescriptionDraft(e.target.value)}
                 placeholder="Se completa al generar con IA, o escribila vos."
               />
-            </Field>
-            <div className="form-grid">
-              <Field label="Consumo estimado (W)">
-                <input
-                  type="number"
-                  min={0}
-                  value={powerWattsDraft}
-                  onChange={(e) => setPowerWattsDraft(e.target.value)}
-                />
-              </Field>
-              <Field label="Fuente recomendada (W)">
-                <input
-                  type="number"
-                  min={0}
-                  value={powerPsuDraft}
-                  onChange={(e) => setPowerPsuDraft(e.target.value)}
-                />
-              </Field>
-            </div>
-            <Field label="Nota de consumo">
-              <input value={powerNoteDraft} onChange={(e) => setPowerNoteDraft(e.target.value)} />
             </Field>
             <div>
               <button type="button" className="btn-dark btn-sm" disabled={savingEnrichment} onClick={() => void saveEnrichment()}>

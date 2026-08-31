@@ -30,18 +30,19 @@ defined( 'ABSPATH' ) || exit;
  * legible para mostrar en el admin.
  */
 function tgs_sq_block_types() {
+	// El hero (foto/3D + título + precio + botón de compra + WhatsApp) ya no
+	// es un bloque opcional: siempre se arma igual, con un diseño fijo y
+	// probado, para que ninguna ficha de producto pueda quedar "sin cabecera"
+	// por accidente. Lo mismo pasaba con "Consumo": se sacó del todo porque
+	// ahora la fuente se carga como componente propio de la PC.
 	return array(
-		'hero3d'         => 'Hero (visor 3D o imagen + título)',
-		'priceBox'       => 'Caja de precio + botón agregar al carrito',
 		'addToCartSticky'=> 'Barra flotante de compra (mobile)',
 		'gallery'        => 'Galería de imágenes',
 		'specs'          => 'Componentes de la PC (foto + nombre)',
 		'description'    => 'Descripción',
-		'power'          => 'Consumo / potencia recomendada',
 		'games'          => 'Juegos recomendados',
 		'compatibility'  => 'Notas de compatibilidad',
 		'payment'        => 'Formas de pago y cuotas',
-		'whatsapp'       => 'Botón de WhatsApp',
 		'recommended'    => 'Recomendadas de la casa (PCs de precio similar)',
 	);
 }
@@ -58,7 +59,7 @@ function tgs_sq_default_blocks() {
 			// Los bloques nuevos (payment/whatsapp/recommended) arrancan
 			// apagados por default: hay que cargar número de WhatsApp,
 			// etc. antes de que tenga sentido mostrarlos.
-			$visible = ! in_array( $type, array( 'payment', 'whatsapp', 'recommended' ), true );
+			$visible = ! in_array( $type, array( 'payment', 'recommended' ), true );
 			return array( 'type' => $type, 'visible' => $visible );
 		},
 		$types

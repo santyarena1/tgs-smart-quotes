@@ -284,6 +284,8 @@ export const aiSettingsInputSchema = z
     generalMarkupBps: z.number().int().nonnegative(),
     productSimilarityThreshold: z.number().int().min(0).max(100),
     frequentSupportThreshold: z.number().int().nonnegative(),
+    pcDescriptionPrompt: z.string().trim().max(4000).nullable().optional(),
+    productDescriptionPrompt: z.string().trim().max(4000).nullable().optional(),
   })
   .strict();
 export const aiSettingsSchema = aiSettingsInputSchema

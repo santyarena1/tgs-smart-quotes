@@ -206,12 +206,11 @@ function tgs_sq_page_variants() {
 		<h1>Variantes de diseño <a href="<?php echo esc_url( add_query_arg( 'new', '1' ) ); ?>" class="page-title-action">Crear nueva</a></h1>
 		<p>Cada variante es un diseño posible para la ficha de producto. Se asignan por producto desde "Productos".</p>
 		<table class="widefat striped">
-			<thead><tr><th>Nombre</th><th>Modo</th><th>Actualizada</th><th></th></tr></thead>
+			<thead><tr><th>Nombre</th><th>Actualizada</th><th></th></tr></thead>
 			<tbody>
 				<?php foreach ( $variants as $slug => $variant ) : ?>
 					<tr>
 						<td><strong><?php echo esc_html( $variant['name'] ); ?></strong> <code><?php echo esc_html( $slug ); ?></code></td>
-						<td><?php echo 'custom' === $variant['mode'] ? 'Código a medida' : 'Bloques'; ?></td>
 						<td><?php echo esc_html( $variant['updated_at'] ?? '' ); ?></td>
 						<td>
 							<a href="<?php echo esc_url( add_query_arg( 'edit', $slug ) ); ?>">Editar</a>
@@ -248,7 +247,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 		$variant = array(
 			'slug'        => $posted_slug,
 			'name'        => sanitize_text_field( $_POST['name'] ?? $posted_slug ),
-			'mode'        => in_array( $_POST['mode'] ?? 'blocks', array( 'blocks', 'custom' ), true ) ? $_POST['mode'] : 'blocks',
+			'mode'        => 'blocks',
 			'tokens'      => array(
 				'accent' => sanitize_hex_color( $_POST['accent'] ?? '' ) ?: '#E31B23',
 				'bg'     => sanitize_hex_color( $_POST['bg'] ?? '' ) ?: '#080B12',
@@ -265,11 +264,6 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'recommended_count' => max( 1, min( 8, (int) ( $_POST['recommended_count'] ?? 4 ) ) ),
 				'payment_methods'   => sanitize_text_field( $_POST['payment_methods'] ?? '' ),
 			),
-			// El HTML/CSS lo carga un administrador de confianza a propósito
-			// (es la vía para "pegar código directo" de un diseño 100% a
-			// medida), por eso no se sanitiza con wp_kses acá.
-			'custom_html' => wp_unslash( $_POST['custom_html'] ?? '' ),
-			'custom_css'  => wp_unslash( $_POST['custom_css'] ?? '' ),
 		);
 
 		tgs_sq_save_variant( $variant );
@@ -298,17 +292,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 					<th><label for="name">Nombre</label></th>
 					<td><input type="text" class="regular-text" id="name" name="name" value="<?php echo esc_attr( $variant['name'] ); ?>" required placeholder="Ej: PC Gamer" <?php echo $slug && TGS_SQ_DEFAULT_VARIANT === $slug ? 'readonly' : ''; ?>></td>
 				</tr>
-				<tr>
-					<th><label for="mode">Modo</label></th>
-					<td>
-						<select id="mode" name="mode">
-							<option value="blocks" <?php selected( $variant['mode'], 'blocks' ); ?>>Bloques predefinidos</option>
-							<option value="custom" <?php selected( $variant['mode'], 'custom' ); ?>>Código a medida (HTML/CSS)</option>
-						</select>
-						<p class="description"><strong>"Bloques" es el modo recomendado</strong>: arma la página combinando las secciones de abajo con un diseño ya terminado (tarjetas, tipografía, colores) — no hay que escribir ni un línea de HTML ni CSS, y no se puede "romper" el diseño por accidente. "Código a medida" pega HTML/CSS propio con placeholders tipo <code>{{title}}</code>; da control total, pero si te olvidás de completar el CSS la página queda sin estilos (con esta versión del plugin, al menos conserva una tarjeta y tipografía base de emergencia).</p>
-					</td>
-				</tr>
 			</table>
+			<p class="description">La ficha siempre se arma con el diseño fijo del plugin (foto/3D + precio + botón de compra a la izquierda, secciones abajo). No hay HTML ni CSS para escribir: lo único que se configura por variante es la paleta, qué secciones mostrar y los textos de WhatsApp/pago/recomendadas de abajo.</p>
 
 			<h2>Paleta (aplica en ambos modos)</h2>
 			<table class="form-table">
@@ -319,7 +304,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 				<tr><th><label for="font">Tipografía (CSS font-family)</label></th><td><input type="text" id="font" name="font" value="<?php echo esc_attr( $tokens['font'] ); ?>" class="regular-text"></td></tr>
 			</table>
 
-			<h2>Bloques visibles (modo "Bloques predefinidos")</h2>
+			<h2>Secciones visibles</h2>
+			<p class="description">El hero (foto, precio y botón de compra) y el botón de WhatsApp van siempre — no se pueden ocultar. Estas son las secciones opcionales de abajo.</p>
 			<table class="form-table">
 				<?php foreach ( $block_types as $type => $label ) : ?>
 					<tr>
@@ -366,23 +352,6 @@ function tgs_sq_render_variant_editor( $slug ) {
 					<p class="description">Las cuotas/planes de financiación se listan automáticamente debajo si el presupuesto los trae.</p></td>
 				</tr>
 			</table>
-
-			<h2>Código a medida (modo "Código a medida")</h2>
-			<p class="description">
-				Placeholders disponibles: <code>{{title}}</code>, <code>{{price_list}}</code>, <code>{{price_cash}}</code>, <code>{{price_transfer}}</code>,
-				<code>{{gallery_html}}</code>, <code>{{items_html}}</code>, <code>{{description_html}}</code>, <code>{{model3d_html}}</code>,
-				<code>{{add_to_cart_html}}</code>, <code>{{sticky_html}}</code>, <code>{{whatsapp_button_html}}</code>, <code>{{payment_html}}</code>,
-				<code>{{recommended_html}}</code>, <code>{{power_watts}}</code>, <code>{{power_psu}}</code>, <code>{{power_note}}</code>, <code>{{permalink}}</code>.
-			</p>
-			<p>
-				<label for="custom_html">HTML</label><br>
-				<textarea id="custom_html" name="custom_html" rows="16" style="width:100%;font-family:monospace;"><?php echo esc_textarea( $variant['custom_html'] ); ?></textarea>
-			</p>
-			<p>
-				<label for="custom_css">CSS</label><br>
-				<span class="description" style="display:block;margin-bottom:6px;">Importante: si dejás este campo vacío, la página se ve sin diseño (solo texto). El HTML de arriba no trae estilos propios — hay que pegarlos acá.</span>
-				<textarea id="custom_css" name="custom_css" rows="12" style="width:100%;font-family:monospace;"><?php echo esc_textarea( $variant['custom_css'] ); ?></textarea>
-			</p>
 
 			<?php submit_button( 'Guardar variante' ); ?>
 		</form>

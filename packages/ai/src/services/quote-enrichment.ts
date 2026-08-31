@@ -6,9 +6,12 @@ const estimated=(value:string)=>value.toLocaleLowerCase('es-AR').includes('estim
 const fallback=(input:QuoteEnrichmentInput):QuoteEnrichmentOutput=>({descriptionHtml:`<p>Configuración The Gamer Shop compuesta por ${input.items.map(item=>`${item.quantity} × ${item.name}`).join(', ')}.</p>`,games:[],programs:[],compatibility:['Compatibilidad orientativa; recomendamos validación técnica antes del armado.']});
 export class QuoteEnrichmentService{
  constructor(private readonly deps:AiServiceDeps){}
- async enrich(input:QuoteEnrichmentInput,options?:AiRunOptions):Promise<AiServiceResult<QuoteEnrichmentOutput>>{
+ async enrich(input:QuoteEnrichmentInput,options?:AiRunOptions,customInstructions?:string|null):Promise<AiServiceResult<QuoteEnrichmentOutput>>{
   const parsed=quoteEnrichmentInputSchema.parse(input);
-  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload:parsed,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt:SYSTEM,buildUserPrompt:value=>`Ítems cotizados:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}`).join('\n')}\n\nGenerá descripción comercial, juegos y programas cualitativos, y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
+  const extra=customInstructions?.trim();
+  const systemPrompt=extra?`${SYSTEM}\n\nInstrucciones adicionales definidas por el negocio (respetalas siempre que no contradigan las reglas anteriores): ${extra}`:SYSTEM;
+  const hashPayload=extra?{...parsed,customInstructions:extra}:parsed;
+  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Ítems cotizados:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}`).join('\n')}\n\nGenerá descripción comercial, juegos y programas cualitativos, y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
   return{...response,result:{...response.result,games:response.result.games.map(game=>({...game,tier:estimated(game.tier)})),programs:response.result.programs.map(program=>({...program,note:estimated(program.note)}))}};
  }
 }

@@ -283,6 +283,8 @@ export function SettingsView() {
         generalMarkupBps: pctToBps(generalMarkupPct),
         productSimilarityThreshold: ai.productSimilarityThreshold,
         frequentSupportThreshold: ai.frequentSupportThreshold,
+        pcDescriptionPrompt: ai.pcDescriptionPrompt?.trim() || null,
+        productDescriptionPrompt: ai.productDescriptionPrompt?.trim() || null,
         clearApiKey: clearKey,
       };
       if (aiKey.trim()) body.apiKey = aiKey.trim();
@@ -854,6 +856,32 @@ export function SettingsView() {
             <Checkbox label="Respuestas" checked={ai.responsesEnabled} onChange={(v) => setAi({ ...ai, responsesEnabled: v })} />
             <Checkbox label="Similitud ambigua con IA" checked={ai.ambiguousSimilarityAi} onChange={(v) => setAi({ ...ai, ambiguousSimilarityAi: v })} />
           </div>
+          <Field
+            label="Prompt maestro — descripción de la PC completa"
+            htmlFor="ai-pc-prompt"
+            hint="Instrucciones adicionales que se suman siempre al generar la descripción y el detalle de la PC (hero, juegos, programas, compatibilidad). Ej: tono, qué destacar, qué evitar."
+          >
+            <textarea
+              id="ai-pc-prompt"
+              rows={4}
+              value={ai.pcDescriptionPrompt ?? ""}
+              onChange={(e) => setAi({ ...ai, pcDescriptionPrompt: e.target.value })}
+              placeholder="Ej: Destacá siempre que el armado incluye garantía y soporte técnico. Tono cercano pero profesional."
+            />
+          </Field>
+          <Field
+            label="Prompt maestro — descripción de componentes"
+            htmlFor="ai-product-prompt"
+            hint="Instrucciones adicionales que se suman siempre al generar la descripción individual de cada componente (CPU, GPU, etc.)."
+          >
+            <textarea
+              id="ai-product-prompt"
+              rows={4}
+              value={ai.productDescriptionPrompt ?? ""}
+              onChange={(e) => setAi({ ...ai, productDescriptionPrompt: e.target.value })}
+              placeholder="Ej: Mencioná la marca pero no el modelo exacto. No uses la palabra 'gama'."
+            />
+          </Field>
           <div className="form-actions">
             <button type="submit" disabled={saving}>
               {saving ? "Guardando…" : "Guardar IA"}

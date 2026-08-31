@@ -73,7 +73,6 @@ function tgs_sq_collect_product_data( $product_id ) {
 		'price_transfer' => (int) $meta( TGS_SQ_META_PRICE_TRANSFER ),
 		'installments' => $decode( TGS_SQ_META_INSTALLMENTS ),
 		'description'  => (string) $meta( TGS_SQ_META_DESCRIPTION ),
-		'power'        => $decode( TGS_SQ_META_POWER ),
 		'games'        => $decode( TGS_SQ_META_GAMES ),
 		'compat'       => $decode( TGS_SQ_META_COMPATIBILITY ),
 		'extra'        => tgs_sq_default_extra(),
@@ -104,21 +103,30 @@ function tgs_sq_render_block( $type, array $data ) {
 	}
 }
 
-function tgs_sq_block_hero3d( array $d ) {
-	echo '<section class="tgs-hero"><div class="tgs-viewer">';
+/**
+ * Hero de la ficha: foto/3D a la izquierda, precio + botón de compra +
+ * WhatsApp a la derecha. Ya no es un bloque que se pueda tildar/destildar
+ * ni reordenar — siempre va primero y siempre con este mismo armado, para
+ * que ninguna PC pueda quedar publicada sin cabecera o con el precio
+ * pegado abajo de cualquier manera.
+ */
+function tgs_sq_block_hero( array $d ) {
+	echo '<section class="tgs-hero">';
+	echo '<div class="tgs-viewer">';
 	if ( $d['model3d_url'] ) {
 		echo '<model-viewer src="' . esc_url( $d['model3d_url'] ) . '" camera-controls auto-rotate shadow-intensity="1"></model-viewer>';
 	} elseif ( $d['thumbnail'] ) {
 		echo '<img src="' . esc_url( $d['thumbnail'] ) . '" alt="' . esc_attr( $d['title'] ) . '">';
 	}
-	echo '</div><div class="tgs-heading"><span class="tgs-kicker">THE GAMER SHOP</span><h1>' . esc_html( $d['title'] ) . '</h1></div></section>';
-}
-
-function tgs_sq_block_pricebox( array $d ) {
-	echo '<section class="tgs-summary"><h2>Tu equipo</h2><div class="tgs-price"><small>Transferencia</small><strong>'
+	echo '</div>';
+	echo '<div class="tgs-summary">';
+	echo '<span class="tgs-kicker">THE GAMER SHOP</span><h1>' . esc_html( $d['title'] ) . '</h1>';
+	echo '<div class="tgs-price"><small>Transferencia</small><strong>'
 		. wp_kses_post( wc_price( $d['price_transfer'] / 100 ) )
 		. '</strong><span>Efectivo ' . wp_kses_post( wc_price( $d['price_cash'] / 100 ) ) . '</span></div>';
 	woocommerce_template_single_add_to_cart();
+	echo tgs_sq_whatsapp_button_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '</div>';
 	echo '</section>';
 }
 
@@ -175,27 +183,6 @@ function tgs_sq_block_description( array $d ) {
 		return;
 	}
 	echo '<section class="tgs-section-card"><h2>Descripción</h2>' . wp_kses_post( $d['description'] ) . '</section>';
-}
-
-function tgs_sq_block_power( array $d ) {
-	if ( empty( $d['power'] ) || ( empty( $d['power']['watts'] ) && empty( $d['power']['psu'] ) ) ) {
-		return;
-	}
-	$watts = $d['power']['watts'] ?? null;
-	$psu   = $d['power']['psu'] ?? null;
-	$note  = $d['power']['note'] ?? '';
-	echo '<section class="tgs-section-card"><h2>Consumo</h2><div class="tgs-power-grid">';
-	if ( $watts ) {
-		echo '<div class="tgs-power-stat"><span>Consumo estimado</span><strong>' . esc_html( $watts ) . ' W</strong></div>';
-	}
-	if ( $psu ) {
-		echo '<div class="tgs-power-stat"><span>Fuente recomendada</span><strong>' . esc_html( $psu ) . ' W</strong></div>';
-	}
-	echo '</div>';
-	if ( $note ) {
-		echo '<p class="tgs-power-note">' . esc_html( $note ) . '</p>';
-	}
-	echo '</section>';
 }
 
 function tgs_sq_block_games( array $d ) {
@@ -263,10 +250,6 @@ function tgs_sq_whatsapp_button_html( array $d ) {
 	return '<a class="tgs-whatsapp-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" aria-label="Consultar por WhatsApp">'
 		. '<svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16 3C9 3 3 9 3 16c0 2.6.8 5 2.1 7L3 29l6.2-2c2 .9 4.2 1.4 6.8 1.4 7 0 13-6 13-13S23 3 16 3zm0 23.6c-2.3 0-4.5-.6-6.4-1.7l-.5-.3-4.6 1.5 1.5-4.5-.3-.5C4.6 19.2 4 17.6 4 16 4 9.5 9.5 4 16 4s12 5.5 12 12-5.5 12-12 12zm6.6-9c-.4-.2-2.1-1-2.4-1.2-.3-.1-.6-.2-.8.2-.2.4-.9 1.2-1.2 1.4-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8.2-.2.4-.4.6-.7.2-.2.3-.4.4-.6.1-.3 0-.5-.1-.7-.1-.2-.8-2-1.1-2.7-.3-.7-.6-.6-.8-.6h-.7c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.3 1.4 3.5c.2.2 2.4 3.7 5.9 5.1.8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.7-.4z"/></svg>'
 		. '<span>Consultar por WhatsApp</span></a>';
-}
-
-function tgs_sq_block_whatsapp( array $d ) {
-	echo tgs_sq_whatsapp_button_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 function tgs_sq_get_recommended_products( $product_id, $price_cents, $count = 4 ) {
@@ -337,90 +320,42 @@ function tgs_sq_block_recommended( array $d ) {
 	echo tgs_sq_recommended_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
+/**
+ * Tipos de bloque que ya no son "opcionales": se imprimen siempre como
+ * parte del hero (ver tgs_sq_block_hero). Si una variante vieja todavía
+ * los tiene guardados en su lista de bloques, se ignoran acá para no
+ * duplicarlos — así ninguna variante creada con una versión anterior del
+ * plugin puede romper la página nueva.
+ */
+function tgs_sq_legacy_block_types() {
+	return array( 'hero3d', 'pricebox', 'whatsapp', 'power' );
+}
+
 function tgs_sq_render_blocks_mode( array $variant, array $data ) {
 	echo '<main class="tgs-landing" style="' . esc_attr( tgs_sq_layout_style_vars( $variant['tokens'] ?? array() ) ) . '">';
+	tgs_sq_block_hero( $data );
+	$legacy = tgs_sq_legacy_block_types();
 	foreach ( ( $variant['blocks'] ?? array() ) as $block ) {
 		if ( empty( $block['visible'] ) ) {
 			continue;
 		}
-		tgs_sq_render_block( sanitize_key( $block['type'] ?? '' ), $data );
+		$type = sanitize_key( $block['type'] ?? '' );
+		if ( in_array( $type, $legacy, true ) ) {
+			continue;
+		}
+		tgs_sq_render_block( $type, $data );
 	}
 	echo '</main>';
 }
 
-function tgs_sq_custom_placeholders( array $data ) {
-	$gallery_html = '';
-	foreach ( $data['gallery'] as $url ) {
-		$gallery_html .= '<img src="' . esc_url( $url ) . '" alt="">';
-	}
-
-	$items_html = '';
-	foreach ( $data['items'] as $item ) {
-		$items_html .= '<div class="tgs-item">';
-		if ( ! empty( $item['imageUrl'] ) ) {
-			$items_html .= '<img src="' . esc_url( $item['imageUrl'] ) . '" alt="">';
-		}
-		$items_html .= '<div class="tgs-item-info">';
-		if ( ! empty( $item['part'] ) ) {
-			$items_html .= '<span class="tgs-item-part">' . esc_html( $item['part'] ) . '</span>';
-		}
-		$items_html .= '<span class="tgs-item-name">' . esc_html( $item['name'] ?? '' ) . '</span>';
-		if ( ! empty( $item['description'] ) ) {
-			$items_html .= '<span class="tgs-item-desc">' . esc_html( $item['description'] ) . '</span>';
-		}
-		$items_html .= '</div></div>';
-	}
-
-	$model3d_html = '';
-	if ( $data['model3d_url'] ) {
-		$model3d_html = '<model-viewer src="' . esc_url( $data['model3d_url'] ) . '" camera-controls auto-rotate shadow-intensity="1"></model-viewer>';
-	} elseif ( $data['thumbnail'] ) {
-		$model3d_html = '<img src="' . esc_url( $data['thumbnail'] ) . '" alt="' . esc_attr( $data['title'] ) . '">';
-	}
-
-	ob_start();
-	if ( $data['product'] ) {
-		woocommerce_template_single_add_to_cart();
-	}
-	$add_to_cart_html = ob_get_clean();
-
-	return array(
-		'{{title}}'                => esc_html( $data['title'] ),
-		'{{permalink}}'            => esc_url( $data['permalink'] ),
-		'{{price_list}}'           => wp_kses_post( wc_price( $data['price_list'] / 100 ) ),
-		'{{price_cash}}'           => wp_kses_post( wc_price( $data['price_cash'] / 100 ) ),
-		'{{price_transfer}}'       => wp_kses_post( wc_price( $data['price_transfer'] / 100 ) ),
-		'{{description_html}}'     => wp_kses_post( $data['description'] ),
-		'{{gallery_html}}'         => $gallery_html,
-		'{{items_html}}'           => $items_html,
-		'{{model3d_html}}'         => $model3d_html,
-		'{{add_to_cart_html}}'     => $add_to_cart_html,
-		'{{sticky_html}}'          => tgs_sq_sticky_html( $data ),
-		'{{whatsapp_button_html}}' => tgs_sq_whatsapp_button_html( $data ),
-		'{{payment_html}}'         => tgs_sq_payment_html( $data ),
-		'{{recommended_html}}'     => tgs_sq_recommended_html( $data ),
-		'{{power_watts}}'          => esc_html( $data['power']['watts'] ?? '' ),
-		'{{power_psu}}'            => esc_html( $data['power']['psu'] ?? '' ),
-		'{{power_note}}'           => esc_html( $data['power']['note'] ?? '' ),
-	);
-}
-
-function tgs_sq_render_custom_mode( array $variant, array $data ) {
-	$replacements = tgs_sq_custom_placeholders( $data );
-	$html         = strtr( (string) ( $variant['custom_html'] ?? '' ), $replacements );
-
-	if ( ! empty( $variant['custom_css'] ) ) {
-		echo '<style id="tgs-variant-custom-css">' . wp_strip_all_tags( $variant['custom_css'] ) . '</style>';
-	}
-
-	echo '<main class="tgs-landing tgs-landing--custom" style="' . esc_attr( tgs_sq_layout_style_vars( $variant['tokens'] ?? array() ) ) . '">';
-	// El HTML de la variante lo escribe un admin de confianza (no un
-	// usuario del sitio), así que se imprime tal cual. El *nombre* de la
-	// variante nunca se imprime en ningún lado de este HTML.
-	echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '</main>';
-}
-
+/**
+ * Todas las fichas se arman con el sistema de bloques: es el único modo
+ * que existe desde esta versión. El modo "código a medida" (HTML/CSS
+ * pegado a mano por variante) se sacó del todo porque era la causa más
+ * común de fichas rotas o sin estilos — con blocks, el diseño siempre sale
+ * completo y consistente sin que haya nada que un admin se pueda olvidar
+ * de completar.
+ */
 function tgs_sq_render_product( $product_id ) {
 	tgs_sq_ensure_default_variant();
 	$data          = tgs_sq_collect_product_data( $product_id );
@@ -428,9 +363,5 @@ function tgs_sq_render_product( $product_id ) {
 	$variant       = tgs_sq_get_variant( $variant_slug ) ?: tgs_sq_get_variant( TGS_SQ_DEFAULT_VARIANT );
 	$data['extra'] = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
 
-	if ( 'custom' === ( $variant['mode'] ?? 'blocks' ) && ! empty( $variant['custom_html'] ) ) {
-		tgs_sq_render_custom_mode( $variant, $data );
-	} else {
-		tgs_sq_render_blocks_mode( $variant, $data );
-	}
+	tgs_sq_render_blocks_mode( $variant, $data );
 }

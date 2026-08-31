@@ -165,6 +165,8 @@ export type AiSettings = {
   generalMarkupBps: number;
   productSimilarityThreshold: number;
   frequentSupportThreshold: number;
+  pcDescriptionPrompt?: string | null;
+  productDescriptionPrompt?: string | null;
   updatedAt?: string;
 };
 

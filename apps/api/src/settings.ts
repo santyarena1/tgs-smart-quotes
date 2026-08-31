@@ -466,7 +466,13 @@ export class SettingsController {
     if(['tripo','higgsfield','r2'].includes(provider))return {ok:false,detail:'Test no implementado aún'};
     const row=await this.externalConfig();
     const request=async(url:string,init?:RequestInit)=>{
-      try{const response=await fetch(url,{...init,signal:AbortSignal.timeout(10000)});return response.ok?{ok:true}:{ok:false,detail:`HTTP ${response.status}`};}
+      try{
+        const response=await fetch(url,{...init,signal:AbortSignal.timeout(10000)});
+        if(response.ok)return {ok:true};
+        let bodyDetail='';
+        try{const text=await response.text();if(text)bodyDetail=`: ${text.slice(0,300)}`;}catch{/* sin body legible */}
+        return {ok:false,detail:`HTTP ${response.status}${bodyDetail}`};
+      }
       catch(error){return {ok:false,detail:error instanceof Error?error.message:'Error de conexión'};}
     };
     if(provider==='serper'){

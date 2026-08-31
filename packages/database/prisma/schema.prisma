@@ -876,6 +876,8 @@ model AiSettings {
   enabled                    Boolean        @default(false)
   model                      String         @default("gpt-4o-mini")
   apiKeyEncrypted            String?
+  pcDescriptionPrompt        String?
+  productDescriptionPrompt   String?
   analysisEnabled            Boolean        @default(true)
   similarityEnabled          Boolean        @default(true)
   compatibilityEnabled       Boolean        @default(true)
