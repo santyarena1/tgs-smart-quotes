@@ -115,7 +115,7 @@
 .tgs-landing a:focus-visible,
 .tgs-landing button:focus-visible,
 .tgs-landing input:focus-visible,
-.tgs-sticky a:focus-visible {
+.tgs-landing .tgs-sticky a:focus-visible {
 	outline: 2px solid var(--tgs-text);
 	outline-offset: 3px;
 	border-radius: var(--tgs-r-sm);
@@ -125,10 +125,10 @@
  * Se aplica a los bloques nativos con clase propia y, como red de seguridad,
  * a cualquier <section> de la ficha que no sea el hero: así ninguna sección
  * puede quedar "suelta" sin tarjeta si mañana se agrega un bloque nuevo. */
-.tgs-viewer,
-.tgs-summary,
-.tgs-grid article,
-.tgs-section-card,
+.tgs-landing .tgs-viewer,
+.tgs-landing .tgs-summary,
+.tgs-landing .tgs-grid article,
+.tgs-landing .tgs-section-card,
 .tgs-landing > section:not(.tgs-hero):not(.tgs-grid):not(.tgs-sticky) {
 	background: var(--tgs-card);
 	border: 1px solid var(--tgs-card-border);
@@ -141,7 +141,7 @@
  * En modo "diseño propio" solo se aplica a las secciones que imprime el
  * plugin (las que salen de un placeholder, que siempre traen
  * .tgs-section-card): los <section> que escriba el admin quedan libres. */
-.tgs-section-title,
+.tgs-landing .tgs-section-title,
 .tgs-custom .tgs-section-card > h2:first-child,
 .tgs-landing section > h2:first-child {
 	display: flex;
@@ -156,7 +156,7 @@
 	padding-bottom: clamp(12px, 1.4vw, 16px);
 	border-bottom: 1px solid var(--tgs-line);
 }
-.tgs-section-title::before,
+.tgs-landing .tgs-section-title::before,
 .tgs-custom .tgs-section-card > h2:first-child::before,
 .tgs-landing section > h2:first-child::before {
 	content: "";
@@ -170,14 +170,14 @@
 /* ==========================================================================
    HERO
    ========================================================================== */
-.tgs-hero,
-.tgs-grid {
+.tgs-landing .tgs-hero,
+.tgs-landing .tgs-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
 	gap: clamp(16px, 2vw, 28px);
 	align-items: stretch;
 }
-.tgs-viewer {
+.tgs-landing .tgs-viewer {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -188,7 +188,7 @@
 }
 /* Halo suave detrás del equipo: le da profundidad a la foto recortada
  * sin necesidad de imágenes extra. */
-.tgs-viewer::before {
+.tgs-landing .tgs-viewer::before {
 	content: "";
 	position: absolute;
 	inset: 0;
@@ -198,21 +198,21 @@
 		linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
 	pointer-events: none;
 }
-.tgs-viewer model-viewer,
-.tgs-viewer img {
+.tgs-landing .tgs-viewer model-viewer,
+.tgs-landing .tgs-viewer img {
 	width: 100%;
 	height: min(58vh, 520px);
 	object-fit: contain;
 	display: block;
 }
 
-.tgs-summary {
+.tgs-landing .tgs-summary {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	gap: 0;
 }
-.tgs-kicker {
+.tgs-landing .tgs-kicker {
 	display: inline-block;
 	color: var(--tgs-accent);
 	font-size: 11px;
@@ -222,9 +222,9 @@
 	line-height: 1;
 	margin-bottom: 14px;
 }
-.tgs-summary h1,
-.tgs-title,
-.tgs-heading h1 {
+.tgs-landing .tgs-summary h1,
+.tgs-landing .tgs-title,
+.tgs-landing .tgs-heading h1 {
 	font-size: clamp(27px, 3.2vw, 42px);
 	line-height: 1.08;
 	font-weight: 800;
@@ -232,13 +232,13 @@
 	color: var(--tgs-text);
 	text-wrap: balance;
 }
-.tgs-heading {
+.tgs-landing .tgs-heading {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	gap: 8px;
 }
-.tgs-tagline {
+.tgs-landing .tgs-tagline {
 	color: var(--tgs-muted);
 	font-size: 16px;
 	line-height: 1.6;
@@ -246,7 +246,7 @@
 }
 
 /* --- Caja de compra: precio + CTA como una sola unidad visual --- */
-.tgs-buybox {
+.tgs-landing .tgs-buybox {
 	margin-top: clamp(20px, 2.4vw, 28px);
 	padding: clamp(18px, 2vw, 24px);
 	background: var(--tgs-card-2);
@@ -254,14 +254,14 @@
 	border-radius: var(--tgs-r-md);
 }
 
-.tgs-price {
+.tgs-landing .tgs-price {
 	display: grid;
 	gap: 2px;
 }
 /* Ojo con los selectores: wc_price() devuelve <span>/<bdi> anidados adentro
  * de cada importe, así que todo va con hijo directo (>) para no pisarle el
  * tamaño ni el color a la moneda que imprime WooCommerce. */
-.tgs-price > .tgs-price-label {
+.tgs-landing .tgs-price > .tgs-price-label {
 	color: var(--tgs-muted);
 	font-size: 11px;
 	font-weight: 700;
@@ -270,7 +270,7 @@
 	line-height: 1;
 	margin-bottom: 8px;
 }
-.tgs-price > .tgs-price-value {
+.tgs-landing .tgs-price > .tgs-price-value {
 	display: block;
 	font-size: clamp(32px, 3.8vw, 46px);
 	font-weight: 800;
@@ -279,20 +279,20 @@
 	color: var(--tgs-text);
 	font-variant-numeric: tabular-nums;
 }
-.tgs-price > .tgs-price-value .woocommerce-Price-currencySymbol {
+.tgs-landing .tgs-price > .tgs-price-value .woocommerce-Price-currencySymbol {
 	font-size: 0.62em;
 	font-weight: 700;
 	margin-right: 2px;
 	vertical-align: 0.16em;
 	color: var(--tgs-muted);
 }
-.tgs-price > .tgs-price-cash {
+.tgs-landing .tgs-price > .tgs-price-cash {
 	color: var(--tgs-text-soft);
 	font-size: 14px;
 	line-height: 1.5;
 	margin-top: 8px;
 }
-.tgs-price > .tgs-price-financing {
+.tgs-landing .tgs-price > .tgs-price-financing {
 	display: inline-flex;
 	align-items: center;
 	align-self: start;
@@ -306,7 +306,7 @@
 	border: 1px solid var(--tgs-accent-line);
 	border-radius: 999px;
 }
-.tgs-price > .tgs-price-financing strong {
+.tgs-landing .tgs-price > .tgs-price-financing strong {
 	display: inline;
 	font-size: inherit;
 	font-weight: 700;
@@ -314,7 +314,7 @@
 }
 
 /* --- Acciones del hero: comprar (principal) + WhatsApp (secundario) --- */
-.tgs-actions {
+.tgs-landing .tgs-actions {
 	display: grid;
 	gap: 10px;
 	margin-top: clamp(18px, 2vw, 22px);
@@ -323,8 +323,8 @@
 /* Botón nativo de WooCommerce (agregar al carrito / cantidad), reestilado
  * para que combine con el resto de la ficha en vez de verse como un
  * formulario suelto del tema. */
-.tgs-actions .cart,
-.tgs-summary .cart,
+.tgs-landing .tgs-actions .cart,
+.tgs-landing .tgs-summary .cart,
 .tgs-custom .cart,
 .tgs-landing .cart {
 	display: flex;
@@ -335,14 +335,14 @@
 	padding: 0;
 	border: none;
 }
-.tgs-summary .quantity,
+.tgs-landing .tgs-summary .quantity,
 .tgs-custom .quantity,
 .tgs-landing .quantity {
 	display: inline-flex;
 	flex: 0 0 auto;
 	margin: 0;
 }
-.tgs-summary .quantity .qty,
+.tgs-landing .tgs-summary .quantity .qty,
 .tgs-custom .quantity .qty,
 .tgs-landing .quantity .qty {
 	width: 68px;
@@ -357,11 +357,11 @@
 	font-weight: 600;
 	box-shadow: none;
 }
-.tgs-summary .quantity .qty:focus {
+.tgs-landing .tgs-summary .quantity .qty:focus {
 	border-color: var(--tgs-accent);
 }
-.tgs-sticky .button,
-.tgs-summary .button,
+.tgs-landing .tgs-sticky .button,
+.tgs-landing .tgs-summary .button,
 .tgs-custom .single_add_to_cart_button,
 .tgs-landing .single_add_to_cart_button {
 	flex: 1 1 190px;
@@ -386,16 +386,16 @@
 	box-shadow: 0 14px 34px -12px var(--tgs-accent-glow);
 	transition: filter .16s ease, transform .16s ease, box-shadow .16s ease;
 }
-.tgs-sticky .button:hover,
-.tgs-summary .button:hover,
+.tgs-landing .tgs-sticky .button:hover,
+.tgs-landing .tgs-summary .button:hover,
 .tgs-custom .single_add_to_cart_button:hover,
 .tgs-landing .single_add_to_cart_button:hover {
 	filter: brightness(1.09);
 	transform: translateY(-1px);
 	box-shadow: 0 18px 38px -12px var(--tgs-accent-glow);
 }
-.tgs-sticky .button:active,
-.tgs-summary .button:active,
+.tgs-landing .tgs-sticky .button:active,
+.tgs-landing .tgs-summary .button:active,
 .tgs-custom .single_add_to_cart_button:active,
 .tgs-landing .single_add_to_cart_button:active {
 	transform: translateY(0);
@@ -404,7 +404,7 @@
 
 /* WhatsApp: consulta, no compra. Va como acción secundaria (contorno verde)
  * para que el botón rojo de compra siga siendo el que manda. */
-.tgs-whatsapp-btn {
+.tgs-landing .tgs-whatsapp-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -421,16 +421,16 @@
 	border-radius: 999px;
 	transition: background-color .16s ease, transform .16s ease, border-color .16s ease;
 }
-.tgs-whatsapp-btn svg {
+.tgs-landing .tgs-whatsapp-btn svg {
 	flex: 0 0 auto;
 }
-.tgs-whatsapp-btn:hover {
+.tgs-landing .tgs-whatsapp-btn:hover {
 	background: var(--tgs-wa);
 	border-color: var(--tgs-wa);
 	color: #04240f !important;
 	transform: translateY(-1px);
 }
-.tgs-summary .tgs-whatsapp-btn {
+.tgs-landing .tgs-summary .tgs-whatsapp-btn {
 	margin-top: 0;
 }
 
@@ -449,20 +449,20 @@
 /* ==========================================================================
    GALERÍA
    ========================================================================== */
-.tgs-gallery {
+.tgs-landing .tgs-gallery {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 	gap: 12px;
 }
-.tgs-gallery-item {
+.tgs-landing .tgs-gallery-item {
 	margin: 0;
 	border-radius: var(--tgs-r-sm);
 	overflow: hidden;
 	border: 1px solid var(--tgs-card-border);
 	background: #fff;
 }
-.tgs-gallery img,
-.tgs-gallery-item img {
+.tgs-landing .tgs-gallery img,
+.tgs-landing .tgs-gallery-item img {
 	display: block;
 	width: 100%;
 	aspect-ratio: 1;
@@ -470,19 +470,19 @@
 	background: #fff;
 	transition: transform .3s ease;
 }
-.tgs-gallery-item:hover img {
+.tgs-landing .tgs-gallery-item:hover img {
 	transform: scale(1.04);
 }
 
 /* ==========================================================================
    COMPONENTES DE LA PC
    ========================================================================== */
-.tgs-items {
+.tgs-landing .tgs-items {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 	gap: 10px;
 }
-.tgs-item {
+.tgs-landing .tgs-item {
 	display: flex;
 	align-items: center;
 	gap: 14px;
@@ -492,11 +492,11 @@
 	border-radius: var(--tgs-r-sm);
 	transition: border-color .16s ease, background-color .16s ease;
 }
-.tgs-item:hover {
+.tgs-landing .tgs-item:hover {
 	border-color: var(--tgs-line-strong);
 	background: var(--tgs-card-2);
 }
-.tgs-item-media {
+.tgs-landing .tgs-item-media {
 	flex: 0 0 auto;
 	width: 52px;
 	height: 52px;
@@ -508,20 +508,20 @@
 	border: 1px solid var(--tgs-card-border);
 	overflow: hidden;
 }
-.tgs-item-media img,
-.tgs-item img {
+.tgs-landing .tgs-item-media img,
+.tgs-landing .tgs-item img {
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
 	padding: 4px;
 }
-.tgs-item-info {
+.tgs-landing .tgs-item-info {
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
 	min-width: 0;
 }
-.tgs-item-part {
+.tgs-landing .tgs-item-part {
 	font-size: 10px;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -529,13 +529,13 @@
 	line-height: 1;
 	color: var(--tgs-accent);
 }
-.tgs-item-name {
+.tgs-landing .tgs-item-name {
 	font-weight: 650;
 	font-size: 14.5px;
 	line-height: 1.35;
 	color: var(--tgs-text);
 }
-.tgs-item-desc {
+.tgs-landing .tgs-item-desc {
 	font-size: 12.5px;
 	line-height: 1.45;
 	color: var(--tgs-muted);
@@ -544,36 +544,36 @@
 /* ==========================================================================
    DESCRIPCIÓN / TEXTO CORRIDO
    ========================================================================== */
-.tgs-section-card p,
-.tgs-prose p {
+.tgs-landing .tgs-section-card p,
+.tgs-landing .tgs-prose p {
 	color: var(--tgs-text-soft);
 	font-size: 15px;
 	line-height: 1.75;
 	margin: 0 0 12px;
 }
-.tgs-prose {
+.tgs-landing .tgs-prose {
 	max-width: 72ch;
 }
-.tgs-prose > *:last-child,
-.tgs-section-card p:last-child {
+.tgs-landing .tgs-prose > *:last-child,
+.tgs-landing .tgs-section-card p:last-child {
 	margin-bottom: 0;
 }
-.tgs-prose h3 {
+.tgs-landing .tgs-prose h3 {
 	font-size: 16px;
 	font-weight: 700;
 	margin: 22px 0 8px;
 	color: var(--tgs-text);
 }
-.tgs-prose strong {
+.tgs-landing .tgs-prose strong {
 	color: var(--tgs-text);
 	font-weight: 700;
 }
-.tgs-prose a {
+.tgs-landing .tgs-prose a {
 	color: var(--tgs-accent);
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
-.tgs-prose ol {
+.tgs-landing .tgs-prose ol {
 	margin: 0 0 12px;
 	padding-left: 20px;
 	color: var(--tgs-text-soft);
@@ -584,12 +584,12 @@
 /* ==========================================================================
    JUEGOS
    ========================================================================== */
-.tgs-games {
+.tgs-landing .tgs-games {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 	gap: 8px;
 }
-.tgs-game {
+.tgs-landing .tgs-game {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -599,13 +599,13 @@
 	border: 1px solid var(--tgs-line);
 	border-radius: var(--tgs-r-sm);
 }
-.tgs-game-name {
+.tgs-landing .tgs-game-name {
 	font-size: 14px;
 	font-weight: 600;
 	color: var(--tgs-text);
 	min-width: 0;
 }
-.tgs-game-tier {
+.tgs-landing .tgs-game-tier {
 	flex: 0 0 auto;
 	font-size: 11px;
 	font-weight: 700;
@@ -622,7 +622,7 @@
 /* ==========================================================================
    COMPATIBILIDAD / LISTAS
    ========================================================================== */
-.tgs-section-card ul {
+.tgs-landing .tgs-section-card ul {
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -630,13 +630,13 @@
 	display: grid;
 	gap: 10px;
 }
-.tgs-section-card ul li {
+.tgs-landing .tgs-section-card ul li {
 	position: relative;
 	padding-left: 26px;
 	font-size: 14.5px;
 	line-height: 1.55;
 }
-.tgs-section-card ul li::before {
+.tgs-landing .tgs-section-card ul li::before {
 	content: "";
 	position: absolute;
 	left: 4px;
@@ -647,24 +647,24 @@
 	background: var(--tgs-accent);
 	transform: translateY(-50%);
 }
-.tgs-compat {
+.tgs-landing .tgs-compat {
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
 /* ==========================================================================
    FORMAS DE PAGO
    ========================================================================== */
-.tgs-payment-methods {
+.tgs-landing .tgs-payment-methods {
 	color: var(--tgs-muted) !important;
 	margin-bottom: 16px !important;
 	font-size: 14px !important;
 }
-.tgs-installments {
+.tgs-landing .tgs-installments {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 	gap: 8px;
 }
-.tgs-installment-row {
+.tgs-landing .tgs-installment-row {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -676,7 +676,7 @@
 	font-size: 14px;
 	color: var(--tgs-text-soft);
 }
-.tgs-installment-bank {
+.tgs-landing .tgs-installment-bank {
 	color: var(--tgs-accent);
 	font-weight: 700;
 	font-size: 12px;
@@ -684,19 +684,19 @@
 	letter-spacing: 0.08em;
 	white-space: nowrap;
 }
-.tgs-installment-plan {
+.tgs-landing .tgs-installment-plan {
 	text-align: right;
 	font-variant-numeric: tabular-nums;
 }
 /* Si el plan no tiene banco cargado, el texto ocupa la fila entera. */
-.tgs-installment-plan:only-child {
+.tgs-landing .tgs-installment-plan:only-child {
 	text-align: left;
 }
-.tgs-installment-count {
+.tgs-landing .tgs-installment-count {
 	font-weight: 700;
 	color: var(--tgs-text);
 }
-.tgs-installment-amount {
+.tgs-landing .tgs-installment-amount {
 	font-weight: 700;
 	color: var(--tgs-text);
 	white-space: nowrap;
@@ -705,12 +705,12 @@
 /* ==========================================================================
    RECOMENDADAS DE LA CASA
    ========================================================================== */
-.tgs-recommended-grid {
+.tgs-landing .tgs-recommended-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 	gap: 12px;
 }
-.tgs-recommended-card {
+.tgs-landing .tgs-recommended-card {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -722,12 +722,12 @@
 	color: var(--tgs-text);
 	transition: transform .18s ease, border-color .18s ease, background-color .18s ease;
 }
-.tgs-recommended-card:hover {
+.tgs-landing .tgs-recommended-card:hover {
 	transform: translateY(-3px);
 	border-color: var(--tgs-accent-line);
 	background: var(--tgs-card-2);
 }
-.tgs-recommended-media {
+.tgs-landing .tgs-recommended-media {
 	display: block;
 	width: 100%;
 	aspect-ratio: 1;
@@ -735,19 +735,19 @@
 	border-radius: var(--tgs-r-sm);
 	overflow: hidden;
 }
-.tgs-recommended-card img {
+.tgs-landing .tgs-recommended-card img {
 	display: block;
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
 }
-.tgs-recommended-body {
+.tgs-landing .tgs-recommended-body {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	padding: 0 2px 2px;
 }
-.tgs-recommended-name {
+.tgs-landing .tgs-recommended-name {
 	font-weight: 650;
 	font-size: 14px;
 	line-height: 1.35;
@@ -757,7 +757,7 @@
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
-.tgs-recommended-price {
+.tgs-landing .tgs-recommended-price {
 	color: var(--tgs-accent);
 	font-weight: 800;
 	font-size: 15px;
@@ -765,15 +765,15 @@
 	font-variant-numeric: tabular-nums;
 }
 /* get_price_html() puede traer <del>/<ins> cuando el producto está en oferta. */
-.tgs-recommended-price del,
-.tgs-sticky-price del {
+.tgs-landing .tgs-recommended-price del,
+.tgs-landing .tgs-sticky-price del {
 	opacity: .5;
 	font-weight: 600;
 	font-size: .85em;
 	margin-right: 6px;
 }
-.tgs-recommended-price ins,
-.tgs-sticky-price ins {
+.tgs-landing .tgs-recommended-price ins,
+.tgs-landing .tgs-sticky-price ins {
 	text-decoration: none;
 	background: none;
 }
@@ -781,7 +781,7 @@
 /* ==========================================================================
    BARRA FLOTANTE DE COMPRA (sobre todo mobile)
    ========================================================================== */
-.tgs-sticky {
+.tgs-landing .tgs-sticky {
 	position: fixed;
 	left: 50%;
 	bottom: max(16px, env(safe-area-inset-bottom, 0px));
@@ -803,19 +803,19 @@
 	font-family: var(--tgs-font);
 	transition: transform .3s cubic-bezier(.2, .8, .2, 1), opacity .2s ease, visibility 0s linear .3s;
 }
-.tgs-sticky.is-visible {
+.tgs-landing .tgs-sticky.is-visible {
 	transform: translate(-50%, 0);
 	opacity: 1;
 	visibility: visible;
 	transition: transform .3s cubic-bezier(.2, .8, .2, 1), opacity .2s ease, visibility 0s;
 }
-.tgs-sticky-info {
+.tgs-landing .tgs-sticky-info {
 	display: flex;
 	flex-direction: column;
 	gap: 1px;
 	min-width: 0;
 }
-.tgs-sticky .tgs-sticky-name {
+.tgs-landing .tgs-sticky .tgs-sticky-name {
 	font-size: 12px;
 	color: var(--tgs-muted);
 	white-space: nowrap;
@@ -824,7 +824,7 @@
 	max-width: 32vw;
 	line-height: 1.3;
 }
-.tgs-sticky .tgs-sticky-price {
+.tgs-landing .tgs-sticky .tgs-sticky-price {
 	font-size: 16px;
 	font-weight: 800;
 	color: var(--tgs-text);
@@ -832,7 +832,7 @@
 	white-space: nowrap;
 	line-height: 1.25;
 }
-.tgs-sticky .button {
+.tgs-landing .tgs-sticky .button {
 	flex: 0 0 auto;
 	min-height: 46px;
 	padding: 13px 24px !important;
@@ -842,26 +842,26 @@
    BREAKPOINTS
    ========================================================================== */
 @media (max-width: 1024px) {
-	.tgs-hero,
-	.tgs-grid {
+	.tgs-landing .tgs-hero,
+	.tgs-landing .tgs-grid {
 		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
-	.tgs-viewer model-viewer,
-	.tgs-viewer img {
+	.tgs-landing .tgs-viewer model-viewer,
+	.tgs-landing .tgs-viewer img {
 		height: min(46vh, 420px);
 	}
 }
 
 @media (max-width: 860px) {
-	.tgs-hero,
-	.tgs-grid {
+	.tgs-landing .tgs-hero,
+	.tgs-landing .tgs-grid {
 		grid-template-columns: 1fr;
 	}
-	.tgs-summary {
+	.tgs-landing .tgs-summary {
 		justify-content: flex-start;
 	}
-	.tgs-viewer model-viewer,
-	.tgs-viewer img {
+	.tgs-landing .tgs-viewer model-viewer,
+	.tgs-landing .tgs-viewer img {
 		height: 300px;
 	}
 }
@@ -874,13 +874,13 @@
 	.tgs-landing > * {
 		max-width: none;
 	}
-	.tgs-summary h1,
-	.tgs-title {
+	.tgs-landing .tgs-summary h1,
+	.tgs-landing .tgs-title {
 		font-size: clamp(24px, 6.6vw, 30px);
 	}
 	/* En mobile la caja de compra ocupa todo el ancho de la tarjeta: el
 	 * precio y el botón son lo primero que tiene que entrar por los ojos. */
-	.tgs-buybox {
+	.tgs-landing .tgs-buybox {
 		margin-left: calc(clamp(20px, 2.6vw, 34px) * -1);
 		margin-right: calc(clamp(20px, 2.6vw, 34px) * -1);
 		margin-bottom: calc(clamp(20px, 2.6vw, 34px) * -1);
@@ -889,31 +889,31 @@
 		border-right: none;
 		border-bottom: none;
 	}
-	.tgs-actions .cart,
-	.tgs-summary .cart {
+	.tgs-landing .tgs-actions .cart,
+	.tgs-landing .tgs-summary .cart {
 		flex-wrap: nowrap;
 	}
 	.tgs-landing .single_add_to_cart_button {
 		flex: 1 1 auto;
 		min-width: 0;
 	}
-	.tgs-items,
-	.tgs-games,
-	.tgs-installments,
-	.tgs-compat {
+	.tgs-landing .tgs-items,
+	.tgs-landing .tgs-games,
+	.tgs-landing .tgs-installments,
+	.tgs-landing .tgs-compat {
 		grid-template-columns: 1fr;
 	}
-	.tgs-gallery {
+	.tgs-landing .tgs-gallery {
 		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 		gap: 10px;
 	}
-	.tgs-recommended-grid {
+	.tgs-landing .tgs-recommended-grid {
 		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 		gap: 10px;
 	}
 	/* La barra flotante pasa a ocupar el ancho de la pantalla: el pulgar
 	 * llega mejor y el precio no queda apretado contra el botón. */
-	.tgs-sticky {
+	.tgs-landing .tgs-sticky {
 		left: 12px;
 		right: 12px;
 		bottom: max(12px, env(safe-area-inset-bottom, 0px));
@@ -924,39 +924,39 @@
 		gap: 12px;
 		justify-content: space-between;
 	}
-	.tgs-sticky.is-visible {
+	.tgs-landing .tgs-sticky.is-visible {
 		transform: translate(0, 0);
 	}
-	.tgs-sticky .tgs-sticky-name {
+	.tgs-landing .tgs-sticky .tgs-sticky-name {
 		max-width: 42vw;
 	}
-	.tgs-sticky .button {
+	.tgs-landing .tgs-sticky .button {
 		padding: 13px 20px !important;
 	}
 }
 
 @media (max-width: 420px) {
-	.tgs-sticky .tgs-sticky-name {
+	.tgs-landing .tgs-sticky .tgs-sticky-name {
 		display: none;
 	}
-	.tgs-gallery {
+	.tgs-landing .tgs-gallery {
 		grid-template-columns: repeat(2, 1fr);
 	}
-	.tgs-recommended-grid {
+	.tgs-landing .tgs-recommended-grid {
 		grid-template-columns: repeat(2, 1fr);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.tgs-landing *,
-	.tgs-sticky {
+	.tgs-landing .tgs-sticky {
 		transition-duration: 0.01ms !important;
 		animation-duration: 0.01ms !important;
 	}
-	.tgs-recommended-card:hover,
-	.tgs-gallery-item:hover img,
+	.tgs-landing .tgs-recommended-card:hover,
+	.tgs-landing .tgs-gallery-item:hover img,
 	.tgs-landing .single_add_to_cart_button:hover,
-	.tgs-whatsapp-btn:hover {
+	.tgs-landing .tgs-whatsapp-btn:hover {
 		transform: none;
 	}
 }
@@ -981,7 +981,7 @@ body.tgs-managed-page .wa__widget_container {
    y una tipografía legible.
 
    TODO este bloque va con `:where()`, o sea con especificidad CERO: cualquier
-   regla que escriba el admin en su propio <style> — incluso un `h2 { ... }`
+   regla que escriba el admin en su propio \3c style> — incluso un `h2 { ... }`
    pelado — le gana sin necesidad de !important. Es una base, no una jaula:
    está para que una ficha sin nada de CSS igual se lea bien, nunca para
    pelearse con el diseño de quien pegó el código.

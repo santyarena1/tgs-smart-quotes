@@ -514,7 +514,10 @@ function tgs_sq_apply_placeholders( $code, array $d ) {
 function tgs_sq_render_custom_mode( array $variant, array $data ) {
 	$style = tgs_sq_layout_style_vars( $variant['tokens'] ?? array() )
 		. 'background:var(--tgs-bg);color:var(--tgs-text);font-family:var(--tgs-font);';
-	echo '<main class="tgs-custom" style="' . esc_attr( $style ) . '">';
+	// Lleva también `tgs-landing`: los estilos del plugin están scopeados a esa
+	// clase (para ganarle al CSS del tema, que usa el mismo prefijo `tgs-`), así
+	// que los fragmentos que entran por placeholder salen igual de bien acá.
+	echo '<main class="tgs-landing tgs-custom" style="' . esc_attr( $style ) . '">';
 	/*
 	 * Salida sin escapar A PROPÓSITO: esto ES la funcionalidad del modo
 	 * "Diseño propio". El código lo pega un administrador de confianza
