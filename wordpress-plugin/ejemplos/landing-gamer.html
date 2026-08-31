@@ -399,20 +399,39 @@
 	border-radius: var(--gx-r);
 	overflow: hidden;
 }
+/* Cada dato se lee de arriba hacia abajo: etiqueta chica, dato fuerte y
+   aclaración. La barra de acento arriba le da peso a la columna y evita que
+   las cuatro se vean como celdas sueltas de una tabla. */
 .gx-strip div {
+	position: relative;
 	background: var(--gx-bg);
-	padding: var(--gx-md);
+	padding: calc(var(--gx-md) + 4px) var(--gx-md) var(--gx-md);
 	display: grid;
-	gap: 4px;
+	align-content: start;
+	gap: 7px;
 }
+.gx-strip div::before {
+	content: "";
+	position: absolute;
+	inset: 0 auto auto 0;
+	width: 28px;
+	height: 2px;
+	margin: var(--gx-md) 0 0 var(--gx-md);
+	background: var(--gx-accent);
+}
+.gx-strip .gx-label { margin-top: 10px; }
 .gx-strip b {
-	font-size: var(--gx-f-md);
+	font-size: clamp(17px, 1.9vw, 21px);
 	font-weight: 800;
 	letter-spacing: -0.02em;
+	line-height: 1.15;
+	text-wrap: balance;
 }
 .gx-strip span:last-child {
 	font-size: var(--gx-f-sm);
 	color: var(--gx-dim);
+	line-height: 1.45;
+	max-width: 32ch;
 }
 
 /* ---------------------------------------------------------------------
@@ -974,7 +993,17 @@
 	.gx-hero { grid-template-columns: 1fr; }
 	.gx-stage { border-right: 0; border-bottom: 1px solid var(--gx-line); }
 	.gx-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.gx-strip b { font-size: 17px; }
 	.gx-about { grid-template-columns: 1fr; gap: var(--gx-sm); }
+}
+
+/* Con cuatro datos y textos más largos, dos columnas se aprietan antes que el
+   resto: acá pasan a una sola, con la barra de acento a la izquierda. */
+@media (max-width: 560px) {
+	.gx-strip { grid-template-columns: 1fr; }
+	.gx-strip div { padding: var(--gx-sm) var(--gx-md); }
+	.gx-strip div::before { margin-top: var(--gx-sm); }
+	.gx-strip span:last-child { max-width: none; }
 }
 
 @media (max-width: 620px) {
@@ -1087,12 +1116,29 @@
 
 	</header>
 
-	<!-- ================== 2. FRANJA DE DATOS ================== -->
+	<!-- ================== 2. FRANJA DE DATOS ==================
+	     Texto editable: cambiá los valores por los reales de tu operación. -->
 	<div class="gx-strip">
-		<div><span class="gx-label">Armado</span><b>48 hs</b><span>Ensamblada y probada acá</span></div>
-		<div><span class="gx-label">Testeo</span><b>Stress + temps</b><span>Antes de salir del taller</span></div>
-		<div><span class="gx-label">Cableado</span><b>Prolijo</b><span>Flujo de aire pensado</span></div>
-		<div><span class="gx-label">Post venta</span><b>Directo</b><span>Hablás con quien la armó</span></div>
+		<div>
+			<span class="gx-label">Tiempo de armado</span>
+			<b>3 a 5 días hábiles</b>
+			<span>Ensamblado y cableado en nuestro taller</span>
+		</div>
+		<div>
+			<span class="gx-label">Control de calidad</span>
+			<b>Testeo completo</b>
+			<span>Pruebas de estabilidad y temperatura antes de la entrega</span>
+		</div>
+		<div>
+			<span class="gx-label">Instalación</span>
+			<b>Lista para usar</b>
+			<span>Sistema operativo y controladores actualizados</span>
+		</div>
+		<div>
+			<span class="gx-label">Post venta</span>
+			<b>Soporte directo</b>
+			<span>Te atiende el mismo equipo que armó tu PC</span>
+		</div>
 	</div>
 
 	<!-- ================== 3. SECCIONES ==================
