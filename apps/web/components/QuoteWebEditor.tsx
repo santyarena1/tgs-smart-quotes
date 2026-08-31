@@ -6,6 +6,7 @@ import { formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
 import { Alert, Checkbox, Field, Loading, Pill, Tabs, errorMessage } from "./shared";
 import { ProductContentEditor } from "./ProductContentEditor";
+import { QuoteItemContentEditor } from "./QuoteItemContentEditor";
 import { QuotePreview } from "./QuotePreview";
 
 type ProductSummary = { id: string; description: string | null };
@@ -81,6 +82,9 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [heroOptions, setHeroOptions] = useState<HeroOption[]>([]);
   const [settingHero, setSettingHero] = useState(false);
   const [heroAssetId, setHeroAssetId] = useState<string | null>(null);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  /** Contenido web propio de los items escritos a mano (sin catalogo). */
+  const [itemContent, setItemContent] = useState<Record<string, { description?: string | null; imageUrl?: string | null }>>({});
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
   /** Se incrementa al publicar/guardar para forzar que la vista previa se rearme. */
   const [previewNonce, setPreviewNonce] = useState(0);
@@ -131,7 +135,20 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           }),
         );
         setAssetCounts(Object.fromEntries(counts));
-        setHeroAssetId((q as { heroAssetId?: string | null }).heroAssetId ?? null);
+        const familia = q as { heroAssetId?: string | null; heroImageUrl?: string | null };
+        setHeroAssetId(familia.heroAssetId ?? null);
+        setHeroImageUrl(familia.heroImageUrl ?? null);
+        setItemContent(
+          Object.fromEntries(
+            v.items.map((it) => [
+              it.id ?? "",
+              {
+                description: (it as { webDescription?: string | null }).webDescription ?? null,
+                imageUrl: (it as { webImageUrl?: string | null }).webImageUrl ?? null,
+              },
+            ]),
+          ),
+        );
         try {
           setHeroOptions(await api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`));
         } catch {
@@ -252,13 +269,15 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   };
 
   /** Usa una de las fotos ya cargadas como imagen del hero. */
-  const setHeroImage = async (assetId: string | null) => {
+  const setHeroImage = async (assetId: string | null, imageUrl?: string) => {
     if (!quote) return;
     setSettingHero(true);
     setActionError(null);
     try {
-      await api(`/external-module/quote-families/${quote.id}/hero-image`, { method: "PUT", body: { assetId } });
-      setHeroAssetId(assetId);
+      const body = imageUrl ? { imageUrl } : { assetId };
+      await api(`/external-module/quote-families/${quote.id}/hero-image`, { method: "PUT", body });
+      setHeroAssetId(imageUrl ? null : assetId);
+      setHeroImageUrl(imageUrl ?? null);
       setPreviewNonce((n) => n + 1);
       onChanged?.();
     } catch (err) {
@@ -321,10 +340,18 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
    * (se puede publicar igual), pero avisa antes en vez de después.
    */
   const checklist = useMemo(() => {
-    const linked = items.filter((item) => item.productId);
-    const withPhoto = linked.filter((item) => (assetCounts[item.productId as string] ?? 0) > 0).length;
-    const withDescription = linked.filter((item) =>
-      Boolean(productsById[item.productId as string]?.description?.trim()),
+    // Se cuentan todos los componentes: los del catálogo por su producto y los
+    // escritos a mano por el contenido guardado en el propio ítem.
+    const total = items.length;
+    const withPhoto = items.filter((item) =>
+      item.productId
+        ? (assetCounts[item.productId] ?? 0) > 0
+        : Boolean(itemContent[item.id ?? ""]?.imageUrl),
+    ).length;
+    const withDescription = items.filter((item) =>
+      item.productId
+        ? Boolean(productsById[item.productId]?.description?.trim())
+        : Boolean(itemContent[item.id ?? ""]?.description?.trim()),
     ).length;
     return [
       {
@@ -350,19 +377,19 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       {
         id: "fotos",
         label: "Fotos de los componentes",
-        ok: linked.length > 0 && withPhoto === linked.length,
-        detail: linked.length ? `${withPhoto} de ${linked.length} con foto` : "No hay componentes del catálogo",
+        ok: total > 0 && withPhoto === total,
+        detail: total ? `${withPhoto} de ${total} con foto` : "No hay componentes",
       },
       {
         id: "descripciones",
         label: "Descripciones de los componentes",
-        ok: linked.length > 0 && withDescription === linked.length,
-        detail: linked.length
-          ? `${withDescription} de ${linked.length} con descripción`
-          : "No hay componentes del catálogo",
+        ok: total > 0 && withDescription === total,
+        detail: total
+          ? `${withDescription} de ${total} con descripción`
+          : "No hay componentes",
       },
     ];
-  }, [items, assetCounts, productsById, quote?.internalName, quote?.thumbnailUrl, enrichment?.descriptionHtml]);
+  }, [items, assetCounts, productsById, itemContent, quote?.internalName, quote?.thumbnailUrl, enrichment?.descriptionHtml]);
 
   const pending = checklist.filter((entry) => !entry.ok).length;
 
@@ -743,9 +770,49 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                         </button>
                       </div>
                     ) : (
-                      <span className="muted">Sin producto de catálogo vinculado</span>
+                      /* Componente escrito a mano: se edita igual, pero lo que
+                         se carga queda guardado en este presupuesto. */
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <Pill tone={itemContent[item.id ?? ""]?.imageUrl ? "ok" : "warn"}>
+                          {itemContent[item.id ?? ""]?.imageUrl ? "Con foto" : "Sin foto"}
+                        </Pill>
+                        <Pill tone={itemContent[item.id ?? ""]?.description ? "ok" : "warn"}>
+                          {itemContent[item.id ?? ""]?.description ? "Con descripción" : "Sin descripción"}
+                        </Pill>
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          onClick={() => setEditingItemKey(itemEditing ? null : itemKey)}
+                        >
+                          {itemEditing ? "Cerrar" : "Editar ficha"}
+                        </button>
+                      </div>
                     )}
                   </div>
+
+                  {itemEditing && !item.productId && item.id ? (
+                    <div style={{ paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+                      <QuoteItemContentEditor
+                        itemId={item.id as string}
+                        itemName={item.frozenName ?? item.name}
+                        description={itemContent[item.id ?? ""]?.description ?? null}
+                        imageUrl={itemContent[item.id ?? ""]?.imageUrl ?? null}
+                        esHero={Boolean(
+                          itemContent[item.id ?? ""]?.imageUrl &&
+                            heroImageUrl === itemContent[item.id ?? ""]?.imageUrl,
+                        )}
+                        onUseAsHero={(url) => void setHeroImage(null, url)}
+                        onChanged={(cambios) => {
+                          const id = item.id as string;
+                          setItemContent((prev) => ({
+                            ...prev,
+                            [id]: { ...prev[id], ...cambios },
+                          }));
+                          setPreviewNonce((n) => n + 1);
+                        }}
+                      />
+                    </div>
+                  ) : null}
                   {itemEditing && item.productId ? (
                     <div style={{ paddingTop: 8, borderTop: "1px solid var(--border)" }}>
                       <ProductContentEditor

@@ -4,7 +4,10 @@ const serperQuerySchema=z.object({q:z.string().trim().min(1).max(300)}).strict()
 // Elegir como imagen del hero una de las fotos ya cargadas. Se recibe el id de
 // la imagen (no la URL) para que el servidor resuelva la dirección real y no
 // se pueda apuntar el hero a cualquier lado.
-const heroFromAssetSchema=z.object({assetId:idSchema.nullable()}).strict();
+const heroFromAssetSchema=z.object({assetId:idSchema.nullable().optional(),imageUrl:z.string().url().nullable().optional()}).strict();
+// Contenido web propio de un ítem escrito a mano (sin producto de catálogo).
+const itemContentSchema=z.object({description:z.string().trim().max(2000).nullable()}).strict();
+const itemImageFromUrlSchema=z.object({url:z.string().url(),mode:z.enum(['remove-bg','as-is'])}).strict();
 const audit=(tx:any,userId:string,entityId:string,action:string,previous:unknown,next:unknown,entityType='ProductAsset')=>tx.auditLog.create({data:{userId,entityType,entityId,action,previous:previous==null?null:jsonSafe(previous),next:next==null?null:jsonSafe(next)}});
 const ext=(filename:string,mimetype:string)=>{const found=/\.([a-zA-Z0-9]{2,5})$/.exec(filename)?.[1]?.toLowerCase();if(found&&['png','jpg','jpeg','webp','gif'].includes(found))return found;return mimetype==='image/png'?'png':mimetype==='image/webp'?'webp':'jpg';};
 const modelExt=(filename:string)=>/\.gltf$/i.test(filename)?'gltf':/\.glb$/i.test(filename)?'glb':null;
@@ -31,6 +34,43 @@ const BROWSER_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (
  * URL o bloquea el hotlinking) y que "quitar fondo" fallara al no poder
  * descargarlas. Ahora la imagen queda en nuestro servidor apenas se elige.
  */
+/** Descarga una imagen externa simulando un navegador y valida que lo sea. */
+async function downloadImage(url:string):Promise<{buffer:Buffer;contentType:string}>{
+ let response:Response;
+ try{
+  response=await fetch(url,{headers:{'user-agent':BROWSER_UA,accept:'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8'},signal:AbortSignal.timeout(20000)});
+ }catch(error){
+  throw new BadRequestException(`No se pudo descargar la imagen del sitio de origen: ${error instanceof Error?error.message:'error de conexión'}. Probá con otra imagen.`);
+ }
+ if(!response.ok)throw new BadRequestException(`El sitio de origen no permitió descargar la imagen (HTTP ${response.status}). Probá con otra imagen.`);
+ const contentType=(response.headers.get('content-type')??'').split(';')[0]!.trim().toLowerCase();
+ const buffer=Buffer.from(await response.arrayBuffer());
+ if(!buffer.length)throw new BadRequestException('La imagen de origen vino vacía. Probá con otra imagen.');
+ if(!contentType.startsWith('image/'))throw new BadRequestException('Ese enlace no devolvió una imagen. Probá con otra.');
+ return {buffer,contentType};
+}
+/**
+ * Guarda la foto de un ítem escrito a mano, con el fondo quitado si se pidió.
+ * Si el recorte falla, se guarda igual la imagen original y se avisa: es
+ * preferible tener la foto con fondo que quedarse sin foto.
+ */
+async function saveItemImage(itemId:string,source:Buffer,contentType:string,mode:'remove-bg'|'as-is',userId:string){
+ const storage=await loadMediaStorage();
+ let bytes=source;
+ let extension=contentType==='image/png'?'png':contentType==='image/webp'?'webp':contentType==='image/gif'?'gif':'jpg';
+ let aviso:string|null=null;
+ if(mode==='remove-bg'){
+  try{bytes=await removeBackground(source);extension='png';}
+  catch(error){aviso=error instanceof Error?error.message:'No se pudo quitar el fondo.';}
+ }
+ const stored=await storage.put(`quote-items/${itemId}/${randomUUID()}.${extension}`,bytes,extension==='png'?'image/png':contentType);
+ const old=await db.quoteItem.findUnique({where:{id:itemId}});
+ const previousKey=ownStorageKeyFromUrl(old?.webImageUrl);
+ const next=await db.$transaction(async tx=>{const saved=await tx.quoteItem.update({where:{id:itemId},data:{webImageUrl:stored.url}});await audit(tx,userId,itemId,'UPDATE_IMAGE',old,saved,'QuoteItem');return saved;});
+ // La foto anterior de este ítem ya no la usa nadie.
+ if(previousKey&&previousKey!==stored.key)try{await storage.delete(previousKey);}catch{}
+ return {...next,aviso};
+}
 async function storeRemoteImage(productId:string,url:string){
  let response:Response;
  try{
@@ -140,7 +180,7 @@ export class ExternalModuleController{
   * Marca una imagen de un componente como la foto grande del hero. Mandar
   * `assetId: null` la desmarca y la ficha vuelve a usar la miniatura.
   */
- @Put('quote-families/:familyId/hero-image')async setHeroImage(@Param('familyId',new ZodPipe(idSchema))familyId:string,@Body(new ZodPipe(heroFromAssetSchema))body:{assetId:string|null},@CurrentUser()u:RequestUser){
+ @Put('quote-families/:familyId/hero-image')async setHeroImage(@Param('familyId',new ZodPipe(idSchema))familyId:string,@Body(new ZodPipe(heroFromAssetSchema))body:{assetId?:string|null;imageUrl?:string|null},@CurrentUser()u:RequestUser){
   const family=await db.quoteFamily.findUnique({where:{id:familyId}});
   if(!family)throw new NotFoundException('Presupuesto inexistente');
   if(body.assetId){
@@ -148,7 +188,47 @@ export class ExternalModuleController{
    if(!asset||!asset.url)throw new NotFoundException('Imagen inexistente');
    if(asset.status!=='READY')throw new BadRequestException('Esa imagen todavía se está procesando.');
   }
-  const next=await db.$transaction(async tx=>{const saved=await tx.quoteFamily.update({where:{id:familyId},data:{heroAssetId:body.assetId}});await audit(tx,u.id,familyId,'UPDATE_HERO_IMAGE',{heroAssetId:family.heroAssetId},saved,'QuoteFamily');return saved;});
+  // Elegir una imagen limpia la otra vía, así siempre hay una sola foto de hero.
+  const data=body.imageUrl!==undefined&&body.imageUrl!==null
+   ?{heroImageUrl:body.imageUrl,heroAssetId:null}
+   :{heroAssetId:body.assetId??null,heroImageUrl:null};
+  const next=await db.$transaction(async tx=>{const saved=await tx.quoteFamily.update({where:{id:familyId},data});await audit(tx,u.id,familyId,'UPDATE_HERO_IMAGE',{heroAssetId:family.heroAssetId,heroImageUrl:family.heroImageUrl},saved,'QuoteFamily');return saved;});
+  return jsonSafe(next);
+ }
+ /**
+  * Contenido web de un ítem escrito a mano.
+  *
+  * Los componentes que no están en el catálogo no tienen producto donde
+  * guardar foto ni descripción. Estos endpoints las guardan en el propio ítem
+  * del presupuesto: sirven para esta PC y no se reutilizan en otras.
+  */
+ @Put('quote-items/:itemId/content')async updateItemContent(@Param('itemId',new ZodPipe(idSchema))itemId:string,@Body(new ZodPipe(itemContentSchema))body:{description:string|null},@CurrentUser()u:RequestUser){
+  const old=await db.quoteItem.findUnique({where:{id:itemId}});
+  if(!old)throw new NotFoundException('Ítem inexistente');
+  const next=await db.$transaction(async tx=>{const saved=await tx.quoteItem.update({where:{id:itemId},data:{webDescription:body.description}});await audit(tx,u.id,itemId,'UPDATE_CONTENT',old,saved,'QuoteItem');return saved;});
+  return jsonSafe(next);
+ }
+ @Post('quote-items/:itemId/image/upload')async uploadItemImage(@Param('itemId',new ZodPipe(idSchema))itemId:string,@Query(new ZodPipe(assetModeSchema))input:AssetModeInput,@Req()req:any,@CurrentUser()u:RequestUser){
+  const item=await db.quoteItem.findUnique({where:{id:itemId}});
+  if(!item)throw new NotFoundException('Ítem inexistente');
+  if(typeof req.file!=='function')throw new BadRequestException('Upload multipart no disponible en el servidor');
+  const part=await req.file();if(!part)throw new BadRequestException('Seleccioná una imagen');
+  const mimetype=String(part.mimetype??'');if(!mimetype.startsWith('image/'))throw new BadRequestException('El archivo debe ser una imagen');
+  const buffer=await part.toBuffer();if(!buffer.length)throw new BadRequestException('La imagen está vacía');
+  return jsonSafe(await saveItemImage(item.id,buffer,mimetype,input.mode,u.id));
+ }
+ @Post('quote-items/:itemId/image/from-url')async itemImageFromUrl(@Param('itemId',new ZodPipe(idSchema))itemId:string,@Body(new ZodPipe(itemImageFromUrlSchema))body:{url:string;mode:'remove-bg'|'as-is'},@CurrentUser()u:RequestUser){
+  const item=await db.quoteItem.findUnique({where:{id:itemId}});
+  if(!item)throw new NotFoundException('Ítem inexistente');
+  const {buffer,contentType}=await downloadImage(body.url);
+  return jsonSafe(await saveItemImage(item.id,buffer,contentType,body.mode,u.id));
+ }
+ @Delete('quote-items/:itemId/image')async deleteItemImage(@Param('itemId',new ZodPipe(idSchema))itemId:string,@CurrentUser()u:RequestUser){
+  const item=await db.quoteItem.findUnique({where:{id:itemId}});
+  if(!item)throw new NotFoundException('Ítem inexistente');
+  const key=ownStorageKeyFromUrl(item.webImageUrl);
+  const next=await db.$transaction(async tx=>{const saved=await tx.quoteItem.update({where:{id:itemId},data:{webImageUrl:null}});await audit(tx,u.id,itemId,'DELETE_IMAGE',item,saved,'QuoteItem');return saved;});
+  if(key)try{await(await loadMediaStorage()).delete(key);}catch{}
   return jsonSafe(next);
  }
  @Get('serper/images')async images(@Query(new ZodPipe(serperQuerySchema))query:{q:string}){

@@ -518,6 +518,10 @@ model QuoteFamily {
   /// ninguna marcada, la ficha cae a la miniatura.
   heroAssetId          String?
   heroAsset            ProductAsset?         @relation(fields: [heroAssetId], references: [id], onDelete: SetNull)
+  /// Igual que heroAssetId, pero para las fotos cargadas directamente en un
+  /// ítem escrito a mano (no son ProductAsset, así que no tienen id que
+  /// referenciar). Tiene prioridad sobre heroAssetId.
+  heroImageUrl         String?
   /// Si está prendido, un cambio de precio en el catálogo que afecte a esta PC
   /// recalcula el presupuesto y, si ya estaba publicada, la re-publica sola.
   autoRepublish        Boolean               @default(false)
@@ -619,6 +623,11 @@ model QuoteItem {
   masterSaleCents      BigInt?
   position             Int
   observation          String?
+  /// Contenido web propio de ESTE ítem, para los componentes escritos a mano
+  /// que no están en el catálogo. Vive en el presupuesto: no se reutiliza en
+  /// otras PCs (para eso está la ficha del producto del catálogo).
+  webDescription       String?
+  webImageUrl          String?
   /// Ítem principal del PDF SIMPLE cuando la familia es una PC armada.
   isPcMainLine         Boolean      @default(false)
 
