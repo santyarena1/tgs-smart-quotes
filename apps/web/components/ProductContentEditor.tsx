@@ -27,6 +27,10 @@ type Props = {
   compact?: boolean;
   onDescriptionSaved?: (description: string | null) => void;
   onAssetsChange?: (assets: Asset[]) => void;
+  /** Imagen marcada hoy como foto grande del hero de esta PC. */
+  heroAssetId?: string | null;
+  /** Marcar esta imagen como la del hero. */
+  onUseAsHero?: (assetId: string) => void;
 };
 
 /**
@@ -42,6 +46,8 @@ export function ProductContentEditor({
   compact,
   onDescriptionSaved,
   onAssetsChange,
+  heroAssetId,
+  onUseAsHero,
 }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loadingAssets, setLoadingAssets] = useState(true);
@@ -328,6 +334,16 @@ export function ProductContentEditor({
                     <button type="button" className="btn-ghost btn-sm" onClick={() => void removeBg(asset)}>
                       {asset.status === "FAILED" ? "Reintentar quitar fondo" : "Quitar fondo"}
                     </button>
+                  ) : null}
+                  {/* Marcar esta foto como la imagen grande del hero de la PC. */}
+                  {onUseAsHero && asset.status === "READY" ? (
+                    heroAssetId === asset.id ? (
+                      <Pill tone="violet">Foto del hero</Pill>
+                    ) : (
+                      <button type="button" className="btn-ghost btn-sm" onClick={() => onUseAsHero(asset.id)}>
+                        Usar en el hero
+                      </button>
+                    )
                   ) : null}
                   <button type="button" className="btn-ghost btn-sm" onClick={() => void deleteAsset(asset)}>
                     Borrar

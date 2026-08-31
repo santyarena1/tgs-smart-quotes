@@ -66,6 +66,9 @@ function tgs_sq_collect_product_data( $product_id ) {
 		'permalink'    => get_permalink( $product_id ),
 		'model3d_url'  => $meta( TGS_SQ_META_MODEL3D ),
 		'thumbnail'    => $meta( TGS_SQ_META_THUMBNAIL ),
+		// La foto del hero es la marcada en los componentes; si no hay,
+		// se usa la miniatura para no dejar la ficha sin imagen.
+		'hero_image'   => $meta( TGS_SQ_META_HERO_IMAGE ) ?: $meta( TGS_SQ_META_THUMBNAIL ),
 		'items'        => $decode( TGS_SQ_META_ITEMS ),
 		'price_list'   => (int) $meta( TGS_SQ_META_PRICE_LIST ),
 		'price_cash'   => (int) $meta( TGS_SQ_META_PRICE_CASH ),
@@ -114,8 +117,8 @@ function tgs_sq_block_hero( array $d ) {
 	echo '<div class="tgs-viewer">';
 	if ( $d['model3d_url'] ) {
 		echo '<model-viewer src="' . esc_url( $d['model3d_url'] ) . '" camera-controls auto-rotate shadow-intensity="1"></model-viewer>';
-	} elseif ( $d['thumbnail'] ) {
-		echo '<img src="' . esc_url( $d['thumbnail'] ) . '" alt="' . esc_attr( $d['title'] ) . '">';
+	} elseif ( $d['hero_image'] ) {
+		echo '<img src="' . esc_url( $d['hero_image'] ) . '" alt="' . esc_attr( $d['title'] ) . '">';
 	}
 	echo '</div>';
 	echo '<div class="tgs-summary">';
@@ -455,8 +458,8 @@ function tgs_sq_placeholder_values( array $d ) {
 			. wp_kses_post( wc_price( ( (int) $best['installmentCents'] ) / 100 ) );
 	}
 
-	$imagen = $d['thumbnail']
-		? '<img src="' . esc_url( $d['thumbnail'] ) . '" alt="' . esc_attr( $d['title'] ) . '">'
+	$imagen = $d['hero_image']
+		? '<img src="' . esc_url( $d['hero_image'] ) . '" alt="' . esc_attr( $d['title'] ) . '">'
 		: '';
 	$modelo = $d['model3d_url']
 		? '<model-viewer src="' . esc_url( $d['model3d_url'] ) . '" camera-controls auto-rotate shadow-intensity="1"></model-viewer>'
@@ -473,7 +476,7 @@ function tgs_sq_placeholder_values( array $d ) {
 		'formas_de_pago'       => tgs_sq_payment_html( $d ),
 		'descripcion'          => wp_kses_post( $description ),
 		'imagen_destacada'     => $imagen,
-		'imagen_destacada_url' => esc_url( (string) $d['thumbnail'] ),
+		'imagen_destacada_url' => esc_url( (string) $d['hero_image'] ),
 		'modelo_3d'            => $modelo,
 		'modelo_3d_url'        => esc_url( (string) $d['model3d_url'] ),
 		'componentes'          => tgs_sq_capture_block( 'specs', $d ),

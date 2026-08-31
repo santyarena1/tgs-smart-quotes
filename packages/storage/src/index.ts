@@ -1,4 +1,4 @@
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -85,6 +85,17 @@ export function mediaFilePath(key: string): string {
     throw new Error("Key de archivo inválida");
   }
   return full;
+}
+
+/**
+ * Lee un archivo propio directamente del disco.
+ *
+ * Se usa para no tener que pedirse a uno mismo por HTTP un archivo que ya está
+ * en el disco de al lado: además de ser más rápido, evita depender de que la
+ * URL pública esté bien configurada.
+ */
+export async function readMedia(key: string): Promise<Buffer> {
+  return readFile(mediaFilePath(key));
 }
 
 export function createMediaStorage(): MediaStorage {

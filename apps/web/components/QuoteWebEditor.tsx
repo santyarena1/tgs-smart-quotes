@@ -74,6 +74,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   /** Fotos ya cargadas en los componentes, para poder elegir la del hero. */
   const [heroOptions, setHeroOptions] = useState<HeroOption[]>([]);
   const [settingHero, setSettingHero] = useState(false);
+  const [heroAssetId, setHeroAssetId] = useState<string | null>(null);
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
   /** Se incrementa al publicar/guardar para forzar que la vista previa se rearme. */
   const [previewNonce, setPreviewNonce] = useState(0);
@@ -120,6 +121,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           }),
         );
         setAssetCounts(Object.fromEntries(counts));
+        setHeroAssetId((q as { heroAssetId?: string | null }).heroAssetId ?? null);
         try {
           setHeroOptions(await api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`));
         } catch {
@@ -240,16 +242,13 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   };
 
   /** Usa una de las fotos ya cargadas como imagen del hero. */
-  const setHeroImage = async (assetId: string) => {
+  const setHeroImage = async (assetId: string | null) => {
     if (!quote) return;
     setSettingHero(true);
     setActionError(null);
     try {
-      const next = await api<{ thumbnailUrl: string | null }>(
-        `/external-module/quote-families/${quote.id}/hero-image`,
-        { method: "PUT", body: { assetId } },
-      );
-      setQuote((prev) => (prev ? { ...prev, thumbnailUrl: next.thumbnailUrl } : prev));
+      await api(`/external-module/quote-families/${quote.id}/hero-image`, { method: "PUT", body: { assetId } });
+      setHeroAssetId(assetId);
       setPreviewNonce((n) => n + 1);
       onChanged?.();
     } catch (err) {
@@ -299,6 +298,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   };
 
   const items = version?.items ?? [];
+  const heroImage = heroOptions.find((option) => option.id === heroAssetId) ?? null;
 
   /**
    * Qué falta para que la ficha salga completa. No bloquea la publicación
@@ -501,72 +501,29 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             />
 
             <Field
-              label="Imagen del hero"
-              hint="Es la foto grande de la ficha en la tienda, y también la imagen de esta PC en 'Recomendadas de la casa'."
+              label="Miniatura"
+              hint="Es la imagen chica que se ve en el listado de productos de la tienda y en 'Recomendadas de la casa'. La foto grande del hero se elige aparte, en el paso Componentes."
             >
-              <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  {quote.thumbnailUrl ? (
-                    <img
-                      src={quote.thumbnailUrl}
-                      alt="Imagen actual del hero"
-                      style={{ width: 72, height: 72, objectFit: "contain", background: "#fff", borderRadius: 8 }}
-                    />
-                  ) : (
-                    <span className="muted" style={{ fontSize: 12.5 }}>Todavía no elegiste ninguna.</span>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploadingThumb}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void uploadThumbnail(file);
-                    }}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                {quote.thumbnailUrl ? (
+                  <img
+                    src={quote.thumbnailUrl}
+                    alt="Miniatura actual"
+                    style={{ width: 64, height: 64, objectFit: "contain", background: "#fff", borderRadius: 8 }}
                   />
-                  {uploadingThumb ? <span className="muted">Subiendo…</span> : null}
-                </div>
-
-                {/* Elegir entre las fotos que ya están cargadas en los componentes,
-                    en vez de tener que subir una a mano sí o sí. */}
-                {heroOptions.length ? (
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <span className="muted" style={{ fontSize: 12.5 }}>
-                      O elegí una de las fotos ya cargadas:
-                    </span>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {heroOptions.map((option) => {
-                        const elegida = quote.thumbnailUrl === option.url;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            title={option.productName}
-                            disabled={settingHero}
-                            onClick={() => void setHeroImage(option.id)}
-                            style={{
-                              padding: 4,
-                              borderRadius: 10,
-                              cursor: "pointer",
-                              background: "#fff",
-                              border: elegida ? "2px solid var(--accent, #E31B23)" : "1px solid var(--border, #ddd)",
-                            }}
-                          >
-                            <img
-                              src={option.url ?? ""}
-                              alt={option.productName}
-                              style={{ width: 58, height: 58, objectFit: "contain", display: "block" }}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 ) : (
-                  <span className="muted" style={{ fontSize: 12.5 }}>
-                    Cuando los componentes tengan fotos cargadas, vas a poder elegir una acá sin subir nada.
-                  </span>
+                  <span className="muted" style={{ fontSize: 12.5 }}>Sin miniatura cargada.</span>
                 )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploadingThumb}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadThumbnail(file);
+                  }}
+                />
+                {uploadingThumb ? <span className="muted">Subiendo…</span> : null}
               </div>
             </Field>
           </section>
@@ -613,6 +570,38 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           <span className="muted">
             La foto y la descripción de cada componente se reutilizan en cualquier otra PC que lo incluya.
           </span>
+          {/* El hero se define acá, marcando una de estas fotos: es lo que
+              esperaba el usuario, en vez de un campo aparte más arriba. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "var(--surface-2, rgba(0,0,0,.04))",
+            }}
+          >
+            <strong style={{ fontSize: 13 }}>Foto grande de la ficha (hero):</strong>
+            {heroImage ? (
+              <>
+                <img
+                  src={heroImage.url ?? ""}
+                  alt=""
+                  style={{ width: 40, height: 40, objectFit: "contain", background: "#fff", borderRadius: 6 }}
+                />
+                <span className="muted" style={{ fontSize: 12.5 }}>{heroImage.productName}</span>
+                <button type="button" className="btn-ghost btn-sm" disabled={settingHero} onClick={() => void setHeroImage(null)}>
+                  Quitar
+                </button>
+              </>
+            ) : (
+              <span className="muted" style={{ fontSize: 12.5 }}>
+                Ninguna elegida — abrí un componente y marcá una foto con "Usar en el hero". Mientras tanto se usa la miniatura.
+              </span>
+            )}
+          </div>
           <div style={{ display: "grid", gap: 8, marginTop: 6 }}>
             {items.map((item, i) => {
               const itemKey = item.productId ?? item.id ?? String(i);
@@ -658,9 +647,16 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                           setProductsById((prev) => ({ ...prev, [pid]: { id: pid, description } }));
                           setPreviewNonce((n) => n + 1);
                         }}
+                        heroAssetId={heroAssetId}
+                        onUseAsHero={(assetId) => void setHeroImage(assetId)}
                         onAssetsChange={(assets) => {
                           const pid = item.productId as string;
                           setAssetCounts((prev) => ({ ...prev, [pid]: assets.length }));
+                          // Las fotos disponibles para el hero cambian con las
+                          // imágenes del componente.
+                          void api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`)
+                            .then(setHeroOptions)
+                            .catch(() => undefined);
                           setPreviewNonce((n) => n + 1);
                         }}
                       />

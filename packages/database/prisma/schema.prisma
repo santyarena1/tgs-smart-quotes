@@ -510,8 +510,14 @@ model QuoteFamily {
   customer             Customer?             @relation(fields: [customerId], references: [id])
   isBuiltPc            Boolean               @default(false)
   activeVersion        Int                   @default(1)
-  /// Miniatura de este presupuesto para la ficha web (se manda en cada publish).
+  /// Miniatura: la imagen chica que se ve en el listado de productos de la
+  /// tienda y en "Recomendadas de la casa". Se sube a mano.
   thumbnailUrl         String?
+  /// Imagen del hero: la foto grande de la ficha. Es una de las imágenes de
+  /// los componentes, marcada desde la lista de componentes. Si no hay
+  /// ninguna marcada, la ficha cae a la miniatura.
+  heroAssetId          String?
+  heroAsset            ProductAsset?         @relation(fields: [heroAssetId], references: [id], onDelete: SetNull)
   /// Si está prendido, un cambio de precio en el catálogo que afecte a esta PC
   /// recalcula el presupuesto y, si ya estaba publicada, la re-publica sola.
   autoRepublish        Boolean               @default(false)
@@ -1076,6 +1082,8 @@ model ProductAsset {
   lastError  String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+  /// Presupuestos que usan esta imagen como foto del hero.
+  heroDeQuotes QuoteFamily[]
 
   @@index([productId])
 }

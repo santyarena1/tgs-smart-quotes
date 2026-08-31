@@ -1,10 +1,10 @@
 import{BadGatewayException,BadRequestException,Body,Controller,Delete,Get,NotFoundException,Param,Patch,Post,Put,Query,Req,StreamableFile}from'@nestjs/common';
-import{createHmac,randomUUID}from'node:crypto';import{createReadStream,existsSync}from'node:fs';import path from'node:path';import{z}from'zod';import{db,enqueueJob}from'@tgs/database';import{assetFromUrlSchema,assetModeSchema,assetUpdateSchema,DEFAULT_LANDING_LAYOUT,idSchema,landingLayoutSchema,quoteEnrichmentUpdateSchema,thumbnailGenerateSchema,thumbnailRulesSchema,thumbnailTemplateCreateSchema,thumbnailTemplateUpdateSchema,productContentSchema,quoteFamilyPublishSettingsSchema,type ProductContentInput,type QuoteFamilyPublishSettingsInput,type AssetFromUrlInput,type AssetModeInput,type AssetUpdateInput,type LandingLayout,type QuoteEnrichmentUpdateInput,type ThumbnailGenerateInput,type ThumbnailRules,type ThumbnailTemplateCreateInput,type ThumbnailTemplateUpdateInput}from'@tgs/contracts';import{buildPublishPayload,generateBackground,getHiggsfieldKey,getSerperKey,publishQuote,searchImages,WordpressPublishError}from'@tgs/providers';import{loadMediaStorage,normalizeMediaUrl,ownStorageKeyFromUrl}from'@tgs/storage';import{AiTask,createAiClient,DEFAULT_AI_MODEL,describeOpenAiError,QuoteEnrichmentService,type AiCacheRepo}from'@tgs/ai';import{decryptSecret}from'@tgs/config';import{CurrentUser,jsonSafe,type RequestUser,ZodPipe}from'./infrastructure.js';import{renderThumbnail}from'./thumbnail-render.js';
+import{createHmac,randomUUID}from'node:crypto';import{createReadStream,existsSync}from'node:fs';import path from'node:path';import{z}from'zod';import{db,enqueueJob}from'@tgs/database';import{assetFromUrlSchema,assetModeSchema,assetUpdateSchema,DEFAULT_LANDING_LAYOUT,idSchema,landingLayoutSchema,quoteEnrichmentUpdateSchema,thumbnailGenerateSchema,thumbnailRulesSchema,thumbnailTemplateCreateSchema,thumbnailTemplateUpdateSchema,productContentSchema,quoteFamilyPublishSettingsSchema,type ProductContentInput,type QuoteFamilyPublishSettingsInput,type AssetFromUrlInput,type AssetModeInput,type AssetUpdateInput,type LandingLayout,type QuoteEnrichmentUpdateInput,type ThumbnailGenerateInput,type ThumbnailRules,type ThumbnailTemplateCreateInput,type ThumbnailTemplateUpdateInput}from'@tgs/contracts';import{buildPublishPayload,generateBackground,getHiggsfieldKey,getSerperKey,publishQuote,removeBackground,searchImages,WordpressPublishError}from'@tgs/providers';import{loadMediaStorage,normalizeMediaUrl,ownStorageKeyFromUrl,readMedia}from'@tgs/storage';import{AiTask,createAiClient,DEFAULT_AI_MODEL,describeOpenAiError,QuoteEnrichmentService,type AiCacheRepo}from'@tgs/ai';import{decryptSecret}from'@tgs/config';import{CurrentUser,jsonSafe,type RequestUser,ZodPipe}from'./infrastructure.js';import{renderThumbnail}from'./thumbnail-render.js';
 const serperQuerySchema=z.object({q:z.string().trim().min(1).max(300)}).strict();
 // Elegir como imagen del hero una de las fotos ya cargadas. Se recibe el id de
 // la imagen (no la URL) para que el servidor resuelva la dirección real y no
 // se pueda apuntar el hero a cualquier lado.
-const heroFromAssetSchema=z.object({assetId:idSchema}).strict();
+const heroFromAssetSchema=z.object({assetId:idSchema.nullable()}).strict();
 const audit=(tx:any,userId:string,entityId:string,action:string,previous:unknown,next:unknown,entityType='ProductAsset')=>tx.auditLog.create({data:{userId,entityType,entityId,action,previous:previous==null?null:jsonSafe(previous),next:next==null?null:jsonSafe(next)}});
 const ext=(filename:string,mimetype:string)=>{const found=/\.([a-zA-Z0-9]{2,5})$/.exec(filename)?.[1]?.toLowerCase();if(found&&['png','jpg','jpeg','webp','gif'].includes(found))return found;return mimetype==='image/png'?'png':mimetype==='image/webp'?'webp':'jpg';};
 const modelExt=(filename:string)=>/\.gltf$/i.test(filename)?'gltf':/\.glb$/i.test(filename)?'glb':null;
@@ -46,6 +46,47 @@ async function storeRemoteImage(productId:string,url:string){
  const extension=contentType==='image/png'?'png':contentType==='image/webp'?'webp':contentType==='image/gif'?'gif':'jpg';
  return (await loadMediaStorage()).put(`product-assets/${productId}/source-${randomUUID()}.${extension}`,buffer,contentType);
 }
+/**
+ * Quita el fondo de una imagen ya cargada y guarda el resultado.
+ *
+ * Corre acá, en la API, y no en el worker: el worker es un servicio aparte en
+ * Railway, con su propio disco, así que no podía leer las imágenes que guarda
+ * la API ni dejar el resultado donde la API lo sirve (de ahí el "fetch failed"
+ * al intentar bajarlas por HTTP). Acá está el disco y también sharp.
+ *
+ * El origen se lee del disco cuando es un archivo nuestro; si es una URL
+ * externa se descarga simulando un navegador.
+ */
+async function removeAssetBackground(assetId:string){
+ const asset=await db.productAsset.findUnique({where:{id:assetId}});
+ if(!asset)throw new NotFoundException('Imagen inexistente');
+ if(!asset.sourceUrl)throw new BadRequestException('La imagen no tiene origen');
+ const storage=await loadMediaStorage();
+ let source:Buffer;
+ const ownKey=ownStorageKeyFromUrl(asset.sourceUrl);
+ try{
+  if(ownKey){
+   source=await readMedia(ownKey);
+  }else{
+   const response=await fetch(asset.sourceUrl,{headers:{'user-agent':BROWSER_UA,accept:'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8'},signal:AbortSignal.timeout(25000)});
+   if(!response.ok)throw new Error(`el sitio de origen respondió HTTP ${response.status}`);
+   source=Buffer.from(await response.arrayBuffer());
+  }
+ }catch(error){
+  const detalle=error instanceof Error?error.message:'no se pudo leer';
+  await db.productAsset.update({where:{id:assetId},data:{status:'FAILED',lastError:`No se pudo leer la imagen de origen: ${detalle}`}});
+  throw new BadRequestException(`No se pudo leer la imagen de origen: ${detalle}`);
+ }
+ try{
+  const png=await removeBackground(source);
+  const stored=await storage.put(`product-assets/${asset.productId}/${asset.id}.png`,png,'image/png');
+  return db.productAsset.update({where:{id:asset.id},data:{url:stored.url,storageKey:stored.key,status:'READY',lastError:null}});
+ }catch(error){
+  const detalle=error instanceof Error?error.message:'No se pudo quitar el fondo';
+  await db.productAsset.update({where:{id:assetId},data:{status:'FAILED',lastError:detalle.slice(0,500)}});
+  throw new BadRequestException(detalle);
+ }
+}
 async function createAsset(productId:string,input:{url:string;origin:'UPLOAD'|'SERPER'|'OFFICIAL';mode:'remove-bg'|'as-is'},userId:string){
  await requireProduct(productId);return db.$transaction(async tx=>{
   // La primera imagen del producto queda como principal sola: si no, un
@@ -55,7 +96,7 @@ async function createAsset(productId:string,input:{url:string;origin:'UPLOAD'|'S
   // (el armado del payload solo mira status y url), así que pedir un paso de
   // "aprobar" aparte era solo un botón de más.
   const asset=await tx.productAsset.create({data:{productId,origin:input.origin,sourceUrl:input.url,url:input.mode==='as-is'?input.url:null,status:input.mode==='as-is'?'READY':'PENDING',approved:true,isPrimary:existing===0}});
-  await audit(tx,userId,asset.id,'CREATE',null,asset);if(input.mode==='remove-bg')await enqueueJob('product-asset:remove-bg',{assetId:asset.id},{entityType:'ProductAsset',entityId:asset.id});return asset;});
+  await audit(tx,userId,asset.id,'CREATE',null,asset);return asset;});
 }
 function resolveWpPluginZip(){const candidates=[process.env.WP_PLUGIN_ZIP_PATH,path.resolve(process.cwd(),'wordpress-plugin/tgs-smart-quotes.zip'),path.resolve(process.cwd(),'../../wordpress-plugin/tgs-smart-quotes.zip'),path.resolve(process.cwd(),'storage/wordpress-plugin/tgs-smart-quotes.zip'),path.resolve(process.cwd(),'../../storage/wordpress-plugin/tgs-smart-quotes.zip')].filter((value):value is string=>Boolean(value));return candidates.find(existsSync)??null;}
 function savedLandingLayout(value:unknown):LandingLayout{const parsed=landingLayoutSchema.safeParse(value);return parsed.success?parsed.data:DEFAULT_LANDING_LAYOUT;}
@@ -70,9 +111,9 @@ export class ExternalModuleController{
  @Get('products/:productId/assets')async list(@Param('productId',new ZodPipe(idSchema))productId:string){await requireProduct(productId);const rows=await db.productAsset.findMany({where:{productId},orderBy:[{isPrimary:'desc'},{createdAt:'desc'}]});return jsonSafe(rows.map(row=>({...row,url:normalizeMediaUrl(row.url),sourceUrl:normalizeMediaUrl(row.sourceUrl)})));}
  @Post('products/:productId/assets/upload')async upload(@Param('productId',new ZodPipe(idSchema))productId:string,@Query(new ZodPipe(assetModeSchema))input:AssetModeInput,@Req()req:any,@CurrentUser()u:RequestUser){
   await requireProduct(productId);if(typeof req.file!=='function')throw new BadRequestException('Upload multipart no disponible en el servidor');const part=await req.file();if(!part)throw new BadRequestException('Seleccioná una imagen');const mimetype=String(part.mimetype??'');if(!mimetype.startsWith('image/'))throw new BadRequestException('El archivo debe ser una imagen');const buffer=await part.toBuffer();if(!buffer.length)throw new BadRequestException('La imagen está vacía');
-  const key=`product-assets/${productId}/source-${randomUUID()}.${ext(String(part.filename??''),mimetype)}`;const stored=await(await loadMediaStorage()).put(key,buffer,mimetype);return jsonSafe(await createAsset(productId,{url:stored.url,origin:'UPLOAD',mode:input.mode},u.id));
+  const key=`product-assets/${productId}/source-${randomUUID()}.${ext(String(part.filename??''),mimetype)}`;const stored=await(await loadMediaStorage()).put(key,buffer,mimetype);const asset=await createAsset(productId,{url:stored.url,origin:'UPLOAD',mode:input.mode},u.id);return jsonSafe(input.mode==='remove-bg'?await removeAssetBackground(asset.id):asset);
  }
- @Post('products/:productId/assets/from-url')async fromUrl(@Param('productId',new ZodPipe(idSchema))productId:string,@Body(new ZodPipe(assetFromUrlSchema))input:AssetFromUrlInput,@CurrentUser()u:RequestUser){await requireProduct(productId);const stored=await storeRemoteImage(productId,input.url);return jsonSafe(await createAsset(productId,{url:stored.url,origin:input.origin??'SERPER',mode:input.mode},u.id));}
+ @Post('products/:productId/assets/from-url')async fromUrl(@Param('productId',new ZodPipe(idSchema))productId:string,@Body(new ZodPipe(assetFromUrlSchema))input:AssetFromUrlInput,@CurrentUser()u:RequestUser){await requireProduct(productId);const stored=await storeRemoteImage(productId,input.url);const asset=await createAsset(productId,{url:stored.url,origin:input.origin??'SERPER',mode:input.mode},u.id);return jsonSafe(input.mode==='remove-bg'?await removeAssetBackground(asset.id):asset);}
  @Put('products/:productId/content')async updateContent(@Param('productId',new ZodPipe(idSchema))productId:string,@Body(new ZodPipe(productContentSchema))body:ProductContentInput,@CurrentUser()u:RequestUser){await requireProduct(productId);return jsonSafe(await db.$transaction(async tx=>{const old=await tx.product.findUnique({where:{id:productId}});const next=await tx.product.update({where:{id:productId},data:{description:body.description}});await audit(tx,u.id,productId,'UPDATE_CONTENT',old,next,'Product');return next;}));}
  @Post('products/:productId/content/generate')async generateContent(@Param('productId',new ZodPipe(idSchema))productId:string,@CurrentUser()u:RequestUser){const product=await db.product.findUnique({where:{id:productId}});if(!product)throw new NotFoundException('Producto inexistente');const description=await generateProductDescription(product.name);return jsonSafe(await db.$transaction(async tx=>{const old=await tx.product.findUnique({where:{id:productId}});const next=await tx.product.update({where:{id:productId},data:{description}});await audit(tx,u.id,productId,'GENERATE_CONTENT',old,next,'Product');return next;}));}
  @Put('quote-families/:familyId/publish-settings')async updatePublishSettings(@Param('familyId',new ZodPipe(idSchema))familyId:string,@Body(new ZodPipe(quoteFamilyPublishSettingsSchema))body:QuoteFamilyPublishSettingsInput,@CurrentUser()u:RequestUser){const old=await db.quoteFamily.findUnique({where:{id:familyId}});if(!old)throw new NotFoundException('Presupuesto inexistente');const next=await db.$transaction(async tx=>{const saved=await tx.quoteFamily.update({where:{id:familyId},data:{autoRepublish:body.autoRepublish}});await audit(tx,u.id,familyId,'UPDATE_PUBLISH_SETTINGS',old,saved,'QuoteFamily');return saved;});return jsonSafe(next);}
@@ -95,14 +136,19 @@ export class ExternalModuleController{
   const nameById=new Map(products.map(product=>[product.id,product.name]));
   return jsonSafe(assets.map(asset=>({id:asset.id,url:normalizeMediaUrl(asset.url),productId:asset.productId,productName:nameById.get(asset.productId)??''})));
  }
- @Put('quote-families/:familyId/hero-image')async setHeroImage(@Param('familyId',new ZodPipe(idSchema))familyId:string,@Body(new ZodPipe(heroFromAssetSchema))body:{assetId:string},@CurrentUser()u:RequestUser){
+ /**
+  * Marca una imagen de un componente como la foto grande del hero. Mandar
+  * `assetId: null` la desmarca y la ficha vuelve a usar la miniatura.
+  */
+ @Put('quote-families/:familyId/hero-image')async setHeroImage(@Param('familyId',new ZodPipe(idSchema))familyId:string,@Body(new ZodPipe(heroFromAssetSchema))body:{assetId:string|null},@CurrentUser()u:RequestUser){
   const family=await db.quoteFamily.findUnique({where:{id:familyId}});
   if(!family)throw new NotFoundException('Presupuesto inexistente');
-  const asset=await db.productAsset.findUnique({where:{id:body.assetId}});
-  if(!asset||!asset.url)throw new NotFoundException('Imagen inexistente');
-  if(asset.status!=='READY')throw new BadRequestException('Esa imagen todavía se está procesando.');
-  const url=normalizeMediaUrl(asset.url);
-  const next=await db.$transaction(async tx=>{const saved=await tx.quoteFamily.update({where:{id:familyId},data:{thumbnailUrl:url}});await audit(tx,u.id,familyId,'UPDATE_THUMBNAIL',{thumbnailUrl:family.thumbnailUrl},saved,'QuoteFamily');return saved;});
+  if(body.assetId){
+   const asset=await db.productAsset.findUnique({where:{id:body.assetId}});
+   if(!asset||!asset.url)throw new NotFoundException('Imagen inexistente');
+   if(asset.status!=='READY')throw new BadRequestException('Esa imagen todavía se está procesando.');
+  }
+  const next=await db.$transaction(async tx=>{const saved=await tx.quoteFamily.update({where:{id:familyId},data:{heroAssetId:body.assetId}});await audit(tx,u.id,familyId,'UPDATE_HERO_IMAGE',{heroAssetId:family.heroAssetId},saved,'QuoteFamily');return saved;});
   return jsonSafe(next);
  }
  @Get('serper/images')async images(@Query(new ZodPipe(serperQuerySchema))query:{q:string}){
@@ -110,7 +156,10 @@ export class ExternalModuleController{
   try{key=await getSerperKey();}catch(error){throw new BadRequestException(error instanceof Error?error.message:'Falta configurar la API key de Serper');}
   try{return{images:await searchImages(query.q,key)};}catch(error){throw new BadGatewayException(error instanceof Error?error.message:'Serper no pudo buscar imágenes');}
  }
- @Post('assets/:id/remove-bg')async removeBg(@Param('id',new ZodPipe(idSchema))id:string,@CurrentUser()u:RequestUser){return jsonSafe(await db.$transaction(async tx=>{const old=await tx.productAsset.findUnique({where:{id}});if(!old)throw new NotFoundException('Imagen inexistente');if(!old.sourceUrl)throw new BadRequestException('La imagen no tiene origen');const next=await tx.productAsset.update({where:{id},data:{status:'PENDING'}});await enqueueJob('product-asset:remove-bg',{assetId:id},{entityType:'ProductAsset',entityId:id});await audit(tx,u.id,id,'REMOVE_BG',old,next);return next;}));}
+ // El recorte se hace en el momento (ver removeAssetBackground): sharp tarda
+ // menos de un segundo, así que no hace falta dejar la imagen "procesando" ni
+ // que el usuario recargue para saber si salió bien.
+ @Post('assets/:id/remove-bg')async removeBg(@Param('id',new ZodPipe(idSchema))id:string,@CurrentUser()u:RequestUser){const old=await db.productAsset.findUnique({where:{id}});if(!old)throw new NotFoundException('Imagen inexistente');const next=await removeAssetBackground(id);await db.$transaction(tx=>audit(tx,u.id,id,'REMOVE_BG',old,next));return jsonSafe(next);}
  @Post('assets/:id/confirm-as-is')async asIs(@Param('id',new ZodPipe(idSchema))id:string,@CurrentUser()u:RequestUser){return jsonSafe(await db.$transaction(async tx=>{const old=await tx.productAsset.findUnique({where:{id}});if(!old)throw new NotFoundException('Imagen inexistente');if(!old.sourceUrl)throw new BadRequestException('La imagen no tiene origen');const next=await tx.productAsset.update({where:{id},data:{url:old.sourceUrl,approved:true,status:'READY'}});await audit(tx,u.id,id,'CONFIRM_AS_IS',old,next);return next;}));}
  @Patch('assets/:id')async update(@Param('id',new ZodPipe(idSchema))id:string,@Body(new ZodPipe(assetUpdateSchema))body:AssetUpdateInput,@CurrentUser()u:RequestUser){return jsonSafe(await db.$transaction(async tx=>{const old=await tx.productAsset.findUnique({where:{id}});if(!old)throw new NotFoundException('Imagen inexistente');if(body.isPrimary)await tx.productAsset.updateMany({where:{productId:old.productId,id:{not:id}},data:{isPrimary:false}});const next=await tx.productAsset.update({where:{id},data:body});await audit(tx,u.id,id,'UPDATE',old,next);return next;}));}
  @Delete('assets/:id')async delete(@Param('id',new ZodPipe(idSchema))id:string,@CurrentUser()u:RequestUser){const asset=await db.productAsset.findUnique({where:{id}});if(!asset)throw new NotFoundException('Imagen inexistente');await db.$transaction(async tx=>{await tx.productAsset.delete({where:{id}});

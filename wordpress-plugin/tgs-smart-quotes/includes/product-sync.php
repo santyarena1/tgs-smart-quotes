@@ -146,6 +146,7 @@ function tgs_sq_sync_product( array $payload ) {
 		TGS_SQ_META_MANAGED         => '1',
 		TGS_SQ_META_MODEL3D         => tgs_sq_meta_text( esc_url_raw( $payload['model3dUrl'] ?? '' ) ),
 		TGS_SQ_META_THUMBNAIL       => tgs_sq_meta_text( esc_url_raw( $thumbnail_source ) ),
+		TGS_SQ_META_HERO_IMAGE      => tgs_sq_meta_text( esc_url_raw( $payload['heroImageUrl'] ?? '' ) ),
 		TGS_SQ_META_PRICE_LIST      => (string) (int) ( $payload['priceListCents'] ?? 0 ),
 		TGS_SQ_META_PRICE_CASH      => (string) (int) ( $payload['priceCashCents'] ?? 0 ),
 		TGS_SQ_META_PRICE_TRANSFER  => (string) (int) ( $payload['priceTransferCents'] ?? 0 ),
