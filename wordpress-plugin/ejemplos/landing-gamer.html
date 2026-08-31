@@ -359,32 +359,45 @@
 	color: var(--gx-text) !important;
 }
 
-/* --- Garantías: tres líneas finas, no tres tarjetas iguales --- */
-.gx-trust {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 0;
-	margin: var(--gx-xs) 0 0;
-	padding: 0;
-	list-style: none;
-	border-top: 1px solid var(--gx-line);
+/* --- CTA secundario: pedir la PC con otra configuración por WhatsApp ---
+   No compite con el botón de compra (no usa el color de acento), pero tampoco
+   es un ícono suelto: el texto explica para qué sirve tocarlo. */
+.gx-ask {
+	display: flex;
+	align-items: center;
+	gap: var(--gx-sm);
+	flex-wrap: wrap;
+	margin-top: var(--gx-xs);
+	padding: var(--gx-sm);
+	border: 1px solid var(--gx-line);
+	border-left: 2px solid #25D366;
+	border-radius: var(--gx-r);
+	background: color-mix(in srgb, #25D366 6%, transparent);
 }
-.gx-trust li {
-	margin: 0;
-	padding: var(--gx-sm) var(--gx-sm) 0 0;
+.gx-ask__txt { flex: 1 1 240px; display: grid; gap: 3px; min-width: 0; }
+.gx-ask__txt strong {
+	font-size: clamp(14px, 1.5vw, 16px);
+	font-weight: 700;
+	line-height: 1.25;
+}
+.gx-ask__txt span {
 	font-size: var(--gx-f-sm);
 	color: var(--gx-dim);
-	line-height: 1.35;
+	line-height: 1.45;
 }
-.gx-trust li + li {
-	padding-left: var(--gx-sm);
-	border-left: 1px solid var(--gx-line);
-}
-.gx-trust strong {
-	display: block;
-	color: var(--gx-text);
+/* El botón de WhatsApp del plugin, acá con presencia de CTA. */
+.tgs-landing.tgs-custom .gx-ask .tgs-whatsapp-btn {
+	flex: 0 0 auto;
+	width: auto;
+	min-height: 46px;
+	padding: 12px 20px;
 	font-weight: 700;
-	font-size: var(--gx-f-sm);
+	background: #25D366;
+	color: #06231a;
+	border-color: #25D366;
+}
+.tgs-landing.tgs-custom .gx-ask .tgs-whatsapp-btn:hover {
+	filter: brightness(1.06);
 }
 
 /* ---------------------------------------------------------------------
@@ -979,12 +992,19 @@
 	box-shadow: 0 0 0 1px var(--gx-accent),
 		0 14px 34px -12px color-mix(in srgb, var(--gx-accent) 95%, transparent);
 }
+/* Mismo tratamiento que el CTA de WhatsApp del hero: relleno verde y texto
+   visible, para que también acá se lea como una acción y no como un ícono. */
 .tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
 	width: auto;
-	min-height: 52px;
-	padding: 13px 18px;
+	min-height: 58px;
+	padding: 13px 20px;
 	gap: 8px;
+	font-weight: 700;
+	background: #25D366;
+	color: #06231a;
+	border-color: #25D366;
 }
+.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn:hover { filter: brightness(1.06); }
 
 /* ---------------------------------------------------------------------
    CELULAR
@@ -1009,13 +1029,8 @@
 @media (max-width: 620px) {
 	.gx { gap: var(--gx-lg); }
 	.gx-title { font-size: clamp(27px, 8vw, 38px); }
-	.gx-trust { grid-template-columns: 1fr; }
-	.gx-trust li { padding-right: 0; }
-	.gx-trust li + li {
-		padding-left: 0;
-		border-left: 0;
-		border-top: 1px solid var(--gx-line-soft);
-	}
+	/* El CTA de WhatsApp pasa a dos filas: texto arriba, botón a lo ancho. */
+	.tgs-landing.tgs-custom .gx-ask .tgs-whatsapp-btn { width: 100%; }
 	.gx-frame::before,
 	.gx-frame::after { width: 18px; height: 18px; }
 
@@ -1104,14 +1119,18 @@
 
 			<div class="gx-actions">
 				{{boton_carrito}}
-				{{boton_whatsapp}}
 			</div>
 
-			<ul class="gx-trust">
-				<li><strong>Envíos a todo el país</strong>Embalaje reforzado</li>
-				<li><strong>Garantía con soporte</strong>Nos hacemos cargo nosotros</li>
-				<li><strong>Lista para enchufar</strong>Windows y drivers listos</li>
-			</ul>
+			<!-- Segunda salida para el que no quiere exactamente esta PC: en vez
+			     de irse, pide una a medida. El botón de WhatsApp va acompañado
+			     del motivo, que es lo que lo vuelve un CTA y no un ícono suelto. -->
+			<div class="gx-ask">
+				<div class="gx-ask__txt">
+					<strong>¿La querés con otra configuración?</strong>
+					<span>Cambiamos placa de video, memoria, almacenamiento o gabinete y te pasamos el precio actualizado.</span>
+				</div>
+				{{boton_whatsapp}}
+			</div>
 		</div>
 
 	</header>
