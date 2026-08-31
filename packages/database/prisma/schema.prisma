@@ -1042,19 +1042,18 @@ model ExternalModuleSettings {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
+/// Configuración de las integraciones externas.
+///
+/// Photoroom y Cloudflare R2 se eliminaron: el fondo de las imágenes ahora se
+/// quita en el propio servidor (sharp) y los archivos se guardan en el disco
+/// persistente de Railway, así que ya no hay credenciales que cargar para eso.
 model ExternalModuleConfig {
   id                   String   @id @default("singleton")
-  photoroomKeyEnc      String?
   tripoKeyEnc          String?
   higgsfieldKeyEnc     String?
   higgsfieldSecretEnc  String?
   serperKeyEnc         String?
-  r2SecretAccessKeyEnc String?
   wpHmacSecretEnc      String?
-  r2Endpoint           String?
-  r2Bucket             String?
-  r2AccessKeyId        String?
-  r2PublicBaseUrl      String?
   wpBaseUrl            String   @default("https://www.thegamershop.com.ar")
   autoRepublish        Boolean  @default(true)
   landingLayoutJson    Json?
@@ -1072,6 +1071,9 @@ model ProductAsset {
   isPrimary  Boolean     @default(false)
   approved   Boolean     @default(false)
   status     String      @default("READY")
+  /// Motivo del último fallo al quitar el fondo, para poder mostrarlo en la
+  /// pantalla en vez de dejar la imagen en "falló" sin explicación.
+  lastError  String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 

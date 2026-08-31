@@ -413,11 +413,10 @@ export class SettingsController {
   private externalConfigView(row: Awaited<ReturnType<typeof db.externalModuleConfig.upsert>>): ExternalModuleConfigView {
     return {
       id: 'singleton',
-      photoroomKeySet: Boolean(row.photoroomKeyEnc), tripoKeySet: Boolean(row.tripoKeyEnc),
+      tripoKeySet: Boolean(row.tripoKeyEnc),
       higgsfieldKeySet: Boolean(row.higgsfieldKeyEnc), higgsfieldSecretSet: Boolean(row.higgsfieldSecretEnc),
-      serperKeySet: Boolean(row.serperKeyEnc), r2SecretAccessKeySet: Boolean(row.r2SecretAccessKeyEnc),
-      wpHmacSecretSet: Boolean(row.wpHmacSecretEnc), r2Endpoint: row.r2Endpoint,
-      r2Bucket: row.r2Bucket, r2AccessKeyId: row.r2AccessKeyId, r2PublicBaseUrl: row.r2PublicBaseUrl,
+      serperKeySet: Boolean(row.serperKeyEnc),
+      wpHmacSecretSet: Boolean(row.wpHmacSecretEnc),
       wpBaseUrl: row.wpBaseUrl, autoRepublish: row.autoRepublish, updatedAt: row.updatedAt,
     };
   }
@@ -440,21 +439,19 @@ export class SettingsController {
       const old=await tx.externalModuleConfig.findUnique({where:{id:'singleton'}});
       const secret=(clear:boolean|undefined,value:string|undefined)=>clear?null:value?.trim()?encryptSecret(value.trim()):undefined;
       const next=await tx.externalModuleConfig.upsert({where:{id:'singleton'},create:{
-        id:'singleton',r2Endpoint:body.r2Endpoint,r2Bucket:body.r2Bucket,r2AccessKeyId:body.r2AccessKeyId,
-        r2PublicBaseUrl:body.r2PublicBaseUrl,wpBaseUrl:body.wpBaseUrl,autoRepublish:body.autoRepublish,
-        photoroomKeyEnc:secret(body.clearPhotoroomKey,body.photoroomKey),tripoKeyEnc:secret(body.clearTripoKey,body.tripoKey),
+        id:'singleton',wpBaseUrl:body.wpBaseUrl,autoRepublish:body.autoRepublish,
+        tripoKeyEnc:secret(body.clearTripoKey,body.tripoKey),
         higgsfieldKeyEnc:secret(body.clearHiggsfieldKey,body.higgsfieldKey),higgsfieldSecretEnc:secret(body.clearHiggsfieldSecret,body.higgsfieldSecret),
-        serperKeyEnc:secret(body.clearSerperKey,body.serperKey),r2SecretAccessKeyEnc:secret(body.clearR2SecretAccessKey,body.r2SecretAccessKey),
+        serperKeyEnc:secret(body.clearSerperKey,body.serperKey),
         wpHmacSecretEnc:secret(body.clearWpHmacSecret,body.wpHmacSecret),
       },update:{
-        r2Endpoint:body.r2Endpoint,r2Bucket:body.r2Bucket,r2AccessKeyId:body.r2AccessKeyId,r2PublicBaseUrl:body.r2PublicBaseUrl,
         wpBaseUrl:body.wpBaseUrl,autoRepublish:body.autoRepublish,
-        photoroomKeyEnc:secret(body.clearPhotoroomKey,body.photoroomKey),tripoKeyEnc:secret(body.clearTripoKey,body.tripoKey),
+        tripoKeyEnc:secret(body.clearTripoKey,body.tripoKey),
         higgsfieldKeyEnc:secret(body.clearHiggsfieldKey,body.higgsfieldKey),higgsfieldSecretEnc:secret(body.clearHiggsfieldSecret,body.higgsfieldSecret),
-        serperKeyEnc:secret(body.clearSerperKey,body.serperKey),r2SecretAccessKeyEnc:secret(body.clearR2SecretAccessKey,body.r2SecretAccessKey),
+        serperKeyEnc:secret(body.clearSerperKey,body.serperKey),
         wpHmacSecretEnc:secret(body.clearWpHmacSecret,body.wpHmacSecret),
       }});
-      const redact=(v:typeof next|null)=>v&&({...v,photoroomKeyEnc:v.photoroomKeyEnc?'[CIFRADA]':null,tripoKeyEnc:v.tripoKeyEnc?'[CIFRADA]':null,higgsfieldKeyEnc:v.higgsfieldKeyEnc?'[CIFRADA]':null,higgsfieldSecretEnc:v.higgsfieldSecretEnc?'[CIFRADA]':null,serperKeyEnc:v.serperKeyEnc?'[CIFRADA]':null,r2SecretAccessKeyEnc:v.r2SecretAccessKeyEnc?'[CIFRADA]':null,wpHmacSecretEnc:v.wpHmacSecretEnc?'[CIFRADA]':null});
+      const redact=(v:typeof next|null)=>v&&({...v,tripoKeyEnc:v.tripoKeyEnc?'[CIFRADA]':null,higgsfieldKeyEnc:v.higgsfieldKeyEnc?'[CIFRADA]':null,higgsfieldSecretEnc:v.higgsfieldSecretEnc?'[CIFRADA]':null,serperKeyEnc:v.serperKeyEnc?'[CIFRADA]':null,wpHmacSecretEnc:v.wpHmacSecretEnc?'[CIFRADA]':null});
       await audit(tx,u.id,'ExternalModuleConfig','singleton','UPDATE',redact(old),redact(next));
     });
     return this.externalConfigView(await this.externalConfig());
@@ -462,8 +459,8 @@ export class SettingsController {
 
   @Post('external-module/config/test/:provider')
   async testExternalModuleConfig(@Param('provider') provider:string) {
-    if(!['photoroom','tripo','higgsfield','serper','r2','wordpress'].includes(provider))throw new BadRequestException('Proveedor inválido');
-    if(['tripo','higgsfield','r2'].includes(provider))return {ok:false,detail:'Test no implementado aún'};
+    if(!['tripo','higgsfield','serper','wordpress'].includes(provider))throw new BadRequestException('Proveedor inválido');
+    if(['tripo','higgsfield'].includes(provider))return {ok:false,detail:'Test no implementado aún'};
     const row=await this.externalConfig();
     const request=async(url:string,init?:RequestInit)=>{
       try{
@@ -478,10 +475,6 @@ export class SettingsController {
     if(provider==='serper'){
       if(!row.serperKeyEnc)return {ok:false,detail:'No hay una credencial guardada'};
       return request('https://google.serper.dev/search',{method:'POST',headers:{'X-API-KEY':decryptSecret(row.serperKeyEnc),'Content-Type':'application/json'},body:JSON.stringify({q:'The Gamer Shop',num:1})});
-    }
-    if(provider==='photoroom'){
-      if(!row.photoroomKeyEnc)return {ok:false,detail:'No hay una credencial guardada'};
-      return request('https://image-api.photoroom.com/v2/account',{headers:{'x-api-key':decryptSecret(row.photoroomKeyEnc)}});
     }
     // Diagnostico de WordPress en dos pasos, para poder decir exactamente que
     // falla en vez de un generico "no se pudo conectar":

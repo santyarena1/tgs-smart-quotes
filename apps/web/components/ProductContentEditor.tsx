@@ -12,6 +12,8 @@ type Asset = {
   isPrimary: boolean;
   approved: boolean;
   status: "PENDING" | "READY" | "FAILED";
+  /** Motivo del último fallo al quitar el fondo, para poder explicarlo. */
+  lastError?: string | null;
 };
 
 type SearchImage = { url: string; title?: string; source?: string };
@@ -303,8 +305,15 @@ export function ProductContentEditor({
                 <img src={asset.url ?? asset.sourceUrl ?? ""} alt="Componente" style={{ width: "100%", height: compact ? 100 : 160, objectFit: "contain" }} />
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {asset.isPrimary ? <Pill tone="violet">Principal</Pill> : null}
-                  <Pill tone={asset.status === "READY" ? "ok" : asset.status === "FAILED" ? "bad" : "warn"}>{asset.status}</Pill>
+                  <Pill tone={asset.status === "READY" ? "ok" : asset.status === "FAILED" ? "bad" : "warn"}>
+                    {asset.status === "READY" ? "Lista" : asset.status === "FAILED" ? "Falló" : "Procesando"}
+                  </Pill>
                 </div>
+                {asset.status === "FAILED" && asset.lastError ? (
+                  <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.4 }}>
+                    {asset.lastError}
+                  </p>
+                ) : null}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {!asset.isPrimary ? (
                     <button type="button" className="btn-ghost btn-sm" onClick={() => void setPrimary(asset)}>

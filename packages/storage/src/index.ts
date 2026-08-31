@@ -1,31 +1,108 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { decryptSecret } from "@tgs/config";
-import { db } from "@tgs/database";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 
-export type R2Credentials = { endpoint: string; bucket: string; accessKeyId: string; secretAccessKey: string; publicBaseUrl: string };
-export type R2Storage = { put(key: string, body: Buffer, contentType?: string): Promise<{ url: string; key: string }>; delete(key: string): Promise<void>; publicUrl(key: string): string };
+/**
+ * Almacenamiento de medios (imágenes de productos, miniaturas, modelos 3D).
+ *
+ * Vive en el disco del servidor, bajo el volumen persistente que Railway monta
+ * en `/data` (`UPLOADS_DIR`), y se sirve por la propia API en
+ * `/api/uploads/media/<key>`. Reemplaza a Cloudflare R2: una integración
+ * externa menos que configurar, y los archivos quedan al lado del resto de los
+ * uploads (PDFs, logos) en vez de en un bucket aparte.
+ *
+ * IMPORTANTE: en Railway hay que tener un Volume montado en `/data`, o los
+ * archivos se pierden en cada redeploy (el filesystem del contenedor es
+ * efímero). El Dockerfile ya define `UPLOADS_DIR=/data/uploads`.
+ */
 
-export function createR2Storage(creds: R2Credentials): R2Storage {
-  const client = new S3Client({ region: "auto", forcePathStyle: true, endpoint: creds.endpoint, credentials: { accessKeyId: creds.accessKeyId, secretAccessKey: creds.secretAccessKey } });
-  const publicUrl = (key: string) => `${creds.publicBaseUrl.replace(/\/$/, "")}/${key}`;
+export type StoredFile = { url: string; key: string };
+export type MediaStorage = {
+  put(key: string, body: Buffer, contentType?: string): Promise<StoredFile>;
+  delete(key: string): Promise<void>;
+  publicUrl(key: string): string;
+};
+
+/** Carpeta raíz de uploads, compartida con branding/calculadora/chatbot. */
+export const UPLOADS_ROOT = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : path.resolve(process.cwd(), "storage", "uploads");
+
+/** Subcarpeta propia para no mezclarse con los otros uploads. */
+export const MEDIA_DIR = path.join(UPLOADS_ROOT, "media");
+
+/** Base pública de la API. WordPress descarga las imágenes desde acá, así que
+ *  tiene que ser una URL absoluta y alcanzable desde afuera. */
+export const apiPublicUrl = () =>
+  (process.env.API_PUBLIC_URL ?? "http://localhost:3001/api").replace(/\/$/, "");
+
+/**
+ * Valida una key antes de tocar el disco: solo subcarpetas simples, sin
+ * `..` ni rutas absolutas, para que nunca se pueda escribir o borrar fuera
+ * de la carpeta de medios.
+ */
+export function assertSafeKey(key: string): string {
+  const clean = key.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!clean || clean.length > 400) throw new Error("Key de archivo inválida");
+  if (!/^[A-Za-z0-9._/-]+$/.test(clean)) throw new Error("Key de archivo inválida");
+  if (clean.split("/").some((part) => !part || part === "." || part === "..")) {
+    throw new Error("Key de archivo inválida");
+  }
+  return clean;
+}
+
+export function mediaFilePath(key: string): string {
+  const full = path.resolve(MEDIA_DIR, assertSafeKey(key));
+  // Defensa en profundidad: aunque la key ya se validó, se confirma que la
+  // ruta resuelta siga cayendo adentro de MEDIA_DIR.
+  const root = path.resolve(MEDIA_DIR);
+  if (full !== root && !full.startsWith(root + path.sep)) {
+    throw new Error("Key de archivo inválida");
+  }
+  return full;
+}
+
+export function createMediaStorage(): MediaStorage {
+  const publicUrl = (key: string) => `${apiPublicUrl()}/uploads/media/${assertSafeKey(key)}`;
   return {
     publicUrl,
-    async delete(key) { await client.send(new DeleteObjectCommand({ Bucket: creds.bucket, Key: key })); },
-    async put(key, body, contentType) {
-      await client.send(new PutObjectCommand({ Bucket: creds.bucket, Key: key, Body: body, ContentType: contentType }));
-      return { url: publicUrl(key), key };
+    async put(key, body) {
+      const safe = assertSafeKey(key);
+      const full = mediaFilePath(safe);
+      await mkdir(path.dirname(full), { recursive: true });
+      await writeFile(full, body);
+      return { url: publicUrl(safe), key: safe };
+    },
+    async delete(key) {
+      // Borrar algo que ya no está no es un error: el objetivo es que no quede.
+      await unlink(mediaFilePath(key)).catch(() => undefined);
     },
   };
 }
 
-export async function loadR2FromModuleConfig(): Promise<R2Storage> {
-  const config = await db.externalModuleConfig.findUnique({ where: { id: "singleton" } });
-  if (!config) throw new Error("No existe la configuración del módulo externo");
-  const missing = [
-    ["endpoint", config.r2Endpoint], ["bucket", config.r2Bucket], ["accessKeyId", config.r2AccessKeyId],
-    ["secretAccessKey", config.r2SecretAccessKeyEnc], ["publicBaseUrl", config.r2PublicBaseUrl],
-  ].filter(([, value]) => !value).map(([name]) => name);
-  if (missing.length) throw new Error(`Falta configurar R2: ${missing.join(", ")}`);
-  return createR2Storage({ endpoint: config.r2Endpoint!, bucket: config.r2Bucket!, accessKeyId: config.r2AccessKeyId!, secretAccessKey: decryptSecret(config.r2SecretAccessKeyEnc!), publicBaseUrl: config.r2PublicBaseUrl! });
+/**
+ * Antes esto cargaba las credenciales de R2 desde la base y fallaba si faltaba
+ * alguna. Ahora no hay nada que configurar, pero se mantiene asíncrona para no
+ * tener que cambiar los llamados (`await (await loadMediaStorage()).put(...)`).
+ */
+export async function loadMediaStorage(): Promise<MediaStorage> {
+  return createMediaStorage();
 }
 
+/**
+ * Si la URL apunta a un archivo servido por nosotros, devuelve su key; si es
+ * una URL externa (por ejemplo una imagen de Serper que se usó "tal cual"),
+ * devuelve null. Se usa para borrar del disco solo lo que subimos nosotros.
+ */
+export function ownStorageKeyFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const marker = "/uploads/media/";
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  const key = url.slice(index + marker.length).split(/[?#]/)[0];
+  if (!key) return null;
+  try {
+    return assertSafeKey(decodeURIComponent(key));
+  } catch {
+    return null;
+  }
+}

@@ -409,19 +409,19 @@ export const externalModuleToggleSchema = z
   })
   .strict();
 export type ExternalModuleToggleInput = z.infer<typeof externalModuleToggleSchema>;
+// Photoroom y Cloudflare R2 se eliminaron: el fondo se quita en el propio
+// servidor y los archivos van al disco persistente, así que ya no hay
+// credenciales que cargar para eso.
 export const externalModuleConfigInputSchema = z.object({
-  photoroomKey:z.string().optional(),clearPhotoroomKey:z.boolean().optional(),
   tripoKey:z.string().optional(),clearTripoKey:z.boolean().optional(),
   higgsfieldKey:z.string().optional(),clearHiggsfieldKey:z.boolean().optional(),
   higgsfieldSecret:z.string().optional(),clearHiggsfieldSecret:z.boolean().optional(),
   serperKey:z.string().optional(),clearSerperKey:z.boolean().optional(),
-  r2SecretAccessKey:z.string().optional(),clearR2SecretAccessKey:z.boolean().optional(),
   wpHmacSecret:z.string().optional(),clearWpHmacSecret:z.boolean().optional(),
-  r2Endpoint:z.string().optional(),r2Bucket:z.string().optional(),r2AccessKeyId:z.string().optional(),
-  r2PublicBaseUrl:z.string().optional(),wpBaseUrl:z.string().url().optional(),autoRepublish:z.boolean().optional(),
+  wpBaseUrl:z.string().url().optional(),autoRepublish:z.boolean().optional(),
 }).strict();
 export type ExternalModuleConfigInput=z.infer<typeof externalModuleConfigInputSchema>;
-export type ExternalModuleConfigView={id:'singleton';photoroomKeySet:boolean;tripoKeySet:boolean;higgsfieldKeySet:boolean;higgsfieldSecretSet:boolean;serperKeySet:boolean;r2SecretAccessKeySet:boolean;wpHmacSecretSet:boolean;r2Endpoint:string|null;r2Bucket:string|null;r2AccessKeyId:string|null;r2PublicBaseUrl:string|null;wpBaseUrl:string;autoRepublish:boolean;updatedAt:Date};
+export type ExternalModuleConfigView={id:'singleton';tripoKeySet:boolean;higgsfieldKeySet:boolean;higgsfieldSecretSet:boolean;serperKeySet:boolean;wpHmacSecretSet:boolean;wpBaseUrl:string;autoRepublish:boolean;updatedAt:Date};
 export const landingLayoutBlockTypeSchema=z.enum(['hero3d','gallery','priceBox','addToCartSticky','specs','description','power','games','compatibility']);
 export const landingLayoutSchema=z.object({version:z.literal(1),tokens:z.object({accent:z.string(),bg:z.string(),text:z.string(),radius:z.number(),font:z.string().optional()}).strict(),blocks:z.array(z.object({type:landingLayoutBlockTypeSchema,visible:z.boolean()}).strict())}).strict();
 export type LandingLayout=z.infer<typeof landingLayoutSchema>;
