@@ -324,6 +324,7 @@
 .tgs-landing.tgs-custom .single_add_to_cart_button {
 	flex: 1 1 auto;
 	min-height: 58px;
+	height: 100%;
 	border-radius: var(--gx-r) !important;
 	padding: 17px 26px !important;
 	font-family: var(--gx-sans) !important;
@@ -836,15 +837,21 @@
 		transparent 2px 7px
 	);
 }
+/* `stretch` en vez de `center`: así el bloque de financiación, el botón de
+   compra y el de WhatsApp miden todos lo mismo de alto. La altura la marca el
+   contenido más alto (la financiación) y los botones se estiran a esa medida,
+   en vez de quedar tres cajas de tamaños distintos. */
 .gx-buybar__inner {
 	max-width: 1280px;
 	margin-inline: auto;
 	display: flex;
-	align-items: center;
+	align-items: stretch;
 	justify-content: space-between;
 	gap: var(--gx-md);
 	padding: var(--gx-sm) clamp(14px, 4vw, 40px);
 }
+/* El precio no es una caja: se centra respecto de las que sí lo son. */
+.gx-buybar__price { align-self: center; }
 .gx-buybar__price { display: grid; gap: 1px; min-width: 0; }
 .gx-buybar__label {
 	font-family: var(--gx-mono);
@@ -953,10 +960,13 @@
 }
 .gx-buybar__cta {
 	display: flex;
-	align-items: center;
+	align-items: stretch;
 	gap: var(--gx-xs);
 	flex: 0 1 auto;
 }
+/* El contenedor del boton de compra se estira para que el boton pueda ocupar
+   toda la altura de la fila. El de WhatsApp se estira solo con height:100%. */
+.tgs-landing.tgs-custom .gx-buybar__cta .tgs-sticky { align-items: stretch; }
 
 /* La barra del plugin (.tgs-sticky) viene fija y escondida hasta que se
    scrollea: acá se la ancla adentro de la barra propia y se la deja visible
@@ -1001,19 +1011,24 @@
 	box-shadow: 0 0 0 1px var(--gx-accent),
 		0 14px 34px -12px color-mix(in srgb, var(--gx-accent) 95%, transparent);
 }
-/* Mismo tratamiento que el CTA de WhatsApp del hero: relleno verde y texto
-   visible, para que también acá se lea como una acción y no como un ícono. */
+/* Acá el WhatsApp va neutro, no verde: el verde ya se usa en el CTA del hero
+   y en la barra tiene que haber un solo color fuerte, el del botón de comprar. */
 .tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
 	width: auto;
 	min-height: 58px;
+	height: 100%;
 	padding: 13px 20px;
 	gap: 8px;
 	font-weight: 700;
-	background: #25D366;
-	color: #06231a;
-	border-color: #25D366;
+	background: transparent;
+	color: var(--gx-text);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
 }
-.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn:hover { filter: brightness(1.06); }
+.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn:hover {
+	border-color: var(--gx-text);
+	background: color-mix(in srgb, var(--gx-text) 8%, transparent);
+}
 
 /* ---------------------------------------------------------------------
    CELULAR
