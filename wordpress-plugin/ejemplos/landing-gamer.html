@@ -1,0 +1,1081 @@
+<style>
+/* =====================================================================
+   LANDING GAMER — THE GAMER SHOP
+   Pegar entera en: TGS Smart Quotes → Variantes → modo "Diseño propio".
+
+   Idea de diseño: ficha técnica de tienda de hardware + cartel de esports.
+   Paneles planos con líneas de 1px (nada de burbujas ni vidrio), secciones
+   numeradas, un acento diagonal rojo y números grandes con presencia.
+   Todos los colores salen de la variante (--tgs-accent, --tgs-bg,
+   --tgs-text, --tgs-radius, --tgs-font), siempre con valor de respaldo.
+
+   Prefijo propio: .gx-*  (para no chocar con las clases .tgs-* del plugin,
+   que igual se restilan más abajo para que entren en este diseño).
+   ===================================================================== */
+
+.gx {
+	/* --- Color: todo derivado de las 3 variables de la variante --- */
+	--gx-accent: var(--tgs-accent, #E31B23);
+	--gx-bg: var(--tgs-bg, #08090C);
+	--gx-text: var(--tgs-text, #F5F6F8);
+
+	--gx-dim: color-mix(in srgb, var(--gx-text) 62%, transparent);
+	--gx-faint: color-mix(in srgb, var(--gx-text) 42%, transparent);
+	--gx-line: color-mix(in srgb, var(--gx-text) 12%, transparent);
+	--gx-line-soft: color-mix(in srgb, var(--gx-text) 7%, transparent);
+	--gx-panel: color-mix(in srgb, var(--gx-text) 4%, var(--gx-bg));
+	--gx-panel-2: color-mix(in srgb, var(--gx-text) 8%, var(--gx-bg));
+	--gx-accent-dim: color-mix(in srgb, var(--gx-accent) 16%, transparent);
+	--gx-accent-line: color-mix(in srgb, var(--gx-accent) 55%, transparent);
+
+	/* Radio: chico y parejo. Sale del radio de la variante, pero recortado:
+	   este diseño es de cantos vivos, no de cápsulas. */
+	--gx-r: clamp(2px, calc(var(--tgs-radius, 24px) * 0.22), 8px);
+
+	/* --- Una sola escala de espaciado (unidad + múltiplos) --- */
+	--gx-u: clamp(14px, 1.7vw, 20px);
+	--gx-xs: calc(var(--gx-u) * 0.4);
+	--gx-sm: calc(var(--gx-u) * 0.7);
+	--gx-md: var(--gx-u);
+	--gx-lg: calc(var(--gx-u) * 1.6);
+	--gx-xl: calc(var(--gx-u) * 2.6);
+
+	/* --- Una sola escala tipográfica --- */
+	--gx-f-label: clamp(10px, 0.75vw, 11.5px);
+	--gx-f-sm: clamp(12.5px, 1vw, 13.5px);
+	--gx-f-body: clamp(14.5px, 1.15vw, 16px);
+	--gx-f-md: clamp(16.5px, 1.5vw, 19px);
+	--gx-f-lg: clamp(20px, 2.1vw, 26px);
+	--gx-f-xl: clamp(30px, 4.6vw, 54px);
+	--gx-f-price: clamp(34px, 5vw, 58px);
+
+	/* Dos roles tipográficos, no más: display para lo que se lee,
+	   monoespaciada para etiquetas, numeración y códigos. */
+	--gx-sans: var(--tgs-font, "Inter", "Segoe UI", system-ui, -apple-system, sans-serif);
+	--gx-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+
+	font-family: var(--gx-sans);
+	color: var(--gx-text);
+	font-size: var(--gx-f-body);
+	line-height: 1.6;
+	display: grid;
+	gap: var(--gx-xl);
+}
+
+.gx *,
+.gx *::before,
+.gx *::after { box-sizing: border-box; }
+
+/* El plugin centra los hijos directos a 1180px; acá se usa un poco más de
+   ancho porque el hero es a dos columnas. */
+.tgs-custom > .gx {
+	max-width: 1280px;
+	margin-inline: auto;
+}
+
+/* Espacio abajo para que la barra fija de compra no tape el final de la
+   página. El alto real lo mide el <script> del pie; 132px es el respaldo. */
+.tgs-landing.tgs-custom {
+	padding-bottom: calc(var(--gx-barh, 132px) + 32px);
+}
+
+/* ---------------------------------------------------------------------
+   PIEZAS COMPARTIDAS
+   ------------------------------------------------------------------- */
+
+/* Etiqueta chica: monoespaciada, en mayúsculas y con aire entre letras. */
+.gx-label {
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--gx-faint);
+	line-height: 1.4;
+}
+
+/* Acento diagonal: la única "decoración" del diseño. Se usa dos veces. */
+.gx-slash {
+	height: 5px;
+	background-image: repeating-linear-gradient(
+		115deg,
+		var(--gx-accent) 0 2px,
+		transparent 2px 7px
+	);
+}
+
+/* Si un dato no está cargado, su caja no deja un hueco vacío. */
+.gx-fin:empty,
+.gx-buybar__fin:empty,
+.gx-price__alt li:has(> :last-child:empty) { display: none; }
+
+/* ---------------------------------------------------------------------
+   HERO
+   ------------------------------------------------------------------- */
+.gx-hero {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+	gap: clamp(20px, 3vw, 56px);
+	align-items: stretch;
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	background: var(--gx-panel);
+	overflow: hidden;
+}
+
+/* Escenario de la foto: grilla técnica de fondo + halo rojo bajo el equipo */
+.gx-stage {
+	position: relative;
+	isolation: isolate;
+	display: grid;
+	place-items: center;
+	padding: clamp(22px, 3vw, 46px);
+	min-height: clamp(260px, 34vw, 460px);
+	border-right: 1px solid var(--gx-line);
+	background-color: color-mix(in srgb, var(--gx-text) 2%, var(--gx-bg));
+	background-image:
+		linear-gradient(var(--gx-line-soft) 1px, transparent 1px),
+		linear-gradient(90deg, var(--gx-line-soft) 1px, transparent 1px);
+	background-size: 34px 34px, 34px 34px;
+}
+.gx-stage::before {
+	content: "";
+	position: absolute;
+	z-index: -1;
+	left: 50%;
+	bottom: 4%;
+	width: 78%;
+	height: 46%;
+	transform: translateX(-50%);
+	background: radial-gradient(ellipse at center, var(--gx-accent) 0%, transparent 70%);
+	opacity: 0.32;
+	filter: blur(30px);
+}
+
+/* La misma foto, muy desenfocada y tenue, apoyada sobre la grilla: da
+   profundidad sin tapar el equipo. Sale de {{imagen_destacada_url}}. */
+.gx-stage::after {
+	content: "";
+	position: absolute;
+	z-index: -1;
+	inset: 0;
+	background-image: var(--gx-shot);
+	background-size: cover;
+	background-position: center;
+	opacity: 0.1;
+	filter: blur(34px) saturate(1.3);
+}
+
+/* Marco con esquineros: lenguaje de visor/HUD, no de tarjeta redondeada. */
+.gx-frame {
+	position: relative;
+	width: 100%;
+	display: grid;
+	place-items: center;
+	padding: clamp(10px, 1.6vw, 20px);
+}
+.gx-frame::before,
+.gx-frame::after {
+	content: "";
+	position: absolute;
+	width: 26px;
+	height: 26px;
+	border: 2px solid var(--gx-accent);
+}
+.gx-frame::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.gx-frame::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.gx-frame img,
+.gx-frame model-viewer {
+	display: block;
+	width: 100%;
+	height: clamp(210px, 30vw, 390px);
+	object-fit: contain;
+}
+
+/* Chapita de estado, arriba a la izquierda del escenario. */
+.gx-stage__flag {
+	position: absolute;
+	top: clamp(12px, 1.6vw, 18px);
+	left: clamp(12px, 1.6vw, 18px);
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--gx-text);
+	background: color-mix(in srgb, var(--gx-bg) 70%, transparent);
+	border: 1px solid var(--gx-line);
+	padding: 6px 10px;
+}
+.gx-stage__flag::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	background: var(--gx-accent);
+}
+
+/* Columna de compra */
+.gx-panel {
+	display: grid;
+	align-content: center;
+	gap: var(--gx-md);
+	padding: clamp(22px, 3vw, 46px);
+}
+
+.gx-kicker {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--gx-dim);
+}
+.gx-kicker b {
+	background: var(--gx-accent);
+	color: #fff;
+	font-weight: 700;
+	padding: 4px 8px;
+	letter-spacing: 0.14em;
+}
+
+.gx-title {
+	margin: 0;
+	font-size: var(--gx-f-xl);
+	font-weight: 800;
+	line-height: 1.02;
+	letter-spacing: -0.035em;
+	text-transform: uppercase;
+	text-wrap: balance;
+}
+
+/* --- Precio --- */
+.gx-price {
+	display: grid;
+	gap: var(--gx-xs);
+	padding: var(--gx-md) 0 0;
+	border-top: 1px solid var(--gx-line);
+}
+.gx-price__value {
+	display: block;
+	font-size: var(--gx-f-price);
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.045em;
+	font-variant-numeric: tabular-nums;
+}
+.gx-price__alt {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--gx-xs) var(--gx-md);
+	margin: var(--gx-xs) 0 0;
+	padding: 0;
+	list-style: none;
+}
+.gx-price__alt li {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin: 0;
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+	font-variant-numeric: tabular-nums;
+}
+.gx-price__alt s { text-decoration-thickness: 1px; }
+
+.gx-fin {
+	display: inline-flex;
+	align-self: start;
+	align-items: center;
+	gap: 8px;
+	margin: var(--gx-xs) 0 0;
+	padding: 8px 12px;
+	font-size: var(--gx-f-sm);
+	font-weight: 600;
+	color: var(--gx-text);
+	background: var(--gx-accent-dim);
+	border-left: 3px solid var(--gx-accent);
+	border-radius: 0 var(--gx-r) var(--gx-r) 0;
+	font-variant-numeric: tabular-nums;
+}
+
+/* --- Acciones del hero (formulario real de WooCommerce) --- */
+.gx-actions { display: grid; gap: var(--gx-sm); }
+
+.tgs-landing.tgs-custom .gx-actions .cart {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: var(--gx-xs);
+	margin: 0;
+}
+.tgs-landing.tgs-custom .gx-actions .quantity .qty {
+	width: 74px;
+	height: 58px;
+	border-radius: var(--gx-r);
+	border: 1px solid var(--gx-line);
+	background: var(--gx-panel-2);
+	color: var(--gx-text);
+	font-family: var(--gx-mono);
+	font-size: 15px;
+}
+.tgs-landing.tgs-custom .single_add_to_cart_button {
+	flex: 1 1 auto;
+	min-height: 58px;
+	border-radius: var(--gx-r) !important;
+	padding: 17px 26px !important;
+	font-family: var(--gx-sans) !important;
+	font-size: 15px !important;
+	font-weight: 800 !important;
+	letter-spacing: 0.1em;
+	text-transform: uppercase !important;
+	box-shadow: none;
+}
+.tgs-landing.tgs-custom .single_add_to_cart_button:hover {
+	transform: none;
+	filter: brightness(1.12);
+	box-shadow: inset 0 0 0 2px color-mix(in srgb, #fff 35%, transparent);
+}
+
+/* WhatsApp: acción secundaria, cuadrada y en línea con el resto. */
+.tgs-landing.tgs-custom .tgs-whatsapp-btn {
+	width: 100%;
+	min-height: 50px;
+	border-radius: var(--gx-r);
+	background: transparent;
+	border: 1px solid var(--gx-line);
+	color: var(--gx-text) !important;
+	font-size: var(--gx-f-sm);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.tgs-landing.tgs-custom .tgs-whatsapp-btn:hover {
+	transform: none;
+	background: color-mix(in srgb, var(--gx-text) 8%, transparent);
+	border-color: color-mix(in srgb, var(--gx-text) 30%, transparent);
+	color: var(--gx-text) !important;
+}
+
+/* --- Garantías: tres líneas finas, no tres tarjetas iguales --- */
+.gx-trust {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0;
+	margin: var(--gx-xs) 0 0;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var(--gx-line);
+}
+.gx-trust li {
+	margin: 0;
+	padding: var(--gx-sm) var(--gx-sm) 0 0;
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+	line-height: 1.35;
+}
+.gx-trust li + li {
+	padding-left: var(--gx-sm);
+	border-left: 1px solid var(--gx-line);
+}
+.gx-trust strong {
+	display: block;
+	color: var(--gx-text);
+	font-weight: 700;
+	font-size: var(--gx-f-sm);
+}
+
+/* ---------------------------------------------------------------------
+   FRANJA DE DATOS (debajo del hero)
+   ------------------------------------------------------------------- */
+.gx-strip {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 1px;
+	background: var(--gx-line);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+}
+.gx-strip div {
+	background: var(--gx-bg);
+	padding: var(--gx-md);
+	display: grid;
+	gap: 4px;
+}
+.gx-strip b {
+	font-size: var(--gx-f-md);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+.gx-strip span:last-child {
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+}
+
+/* ---------------------------------------------------------------------
+   SECCIONES
+   El plugin inyecta <section class="tgs-section-card"><h2>…</h2>…</section>
+   por cada placeholder de contenido. Acá se les cambia la piel: panel plano,
+   título en mayúsculas y numeración automática (01, 02, 03…) con contador
+   CSS, así el orden se mantiene solo aunque alguna sección venga vacía.
+   ------------------------------------------------------------------- */
+.gx-sections {
+	counter-reset: gx;
+	display: grid;
+	gap: var(--gx-lg);
+}
+
+.tgs-landing.tgs-custom .tgs-section-card {
+	counter-increment: gx;
+	margin: 0;
+	background: var(--gx-panel);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	box-shadow: none;
+	padding: clamp(20px, 2.6vw, 38px);
+}
+.tgs-landing.tgs-custom .tgs-section-card > h2:first-child {
+	display: flex;
+	align-items: baseline;
+	gap: 14px;
+	margin: 0 0 var(--gx-md);
+	padding: 0 0 var(--gx-sm);
+	font-size: var(--gx-f-lg);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	text-transform: uppercase;
+	color: var(--gx-text);
+	border-bottom: 1px solid var(--gx-line);
+}
+.tgs-landing.tgs-custom .tgs-section-card > h2:first-child::before {
+	content: counter(gx, decimal-leading-zero);
+	width: auto;
+	height: auto;
+	border-radius: 0;
+	background: none;
+	color: var(--gx-accent);
+	font-family: var(--gx-mono);
+	font-size: 0.62em;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+}
+
+/* --- Descripción: etiqueta a la izquierda, texto a la derecha --- */
+.gx-about {
+	display: grid;
+	grid-template-columns: minmax(0, 0.28fr) minmax(0, 1fr);
+	gap: clamp(16px, 2.4vw, 40px);
+	align-items: start;
+}
+.gx-about .gx-label { padding-top: 6px; }
+.tgs-landing.tgs-custom .gx-about .tgs-prose,
+.gx-about__text {
+	font-size: var(--gx-f-md);
+	line-height: 1.65;
+	color: color-mix(in srgb, var(--gx-text) 86%, transparent);
+}
+.gx-about__text p { margin: 0 0 0.8em; }
+.gx-about__text p:last-child { margin-bottom: 0; }
+
+/* --- Visor 3D: si esta PC no tiene modelo, la sección se esconde sola --- */
+.gx-3d:not(:has(model-viewer, img, iframe)) { display: none; }
+.gx-3d__slot model-viewer,
+.gx-3d__slot img {
+	width: 100%;
+	height: clamp(280px, 40vw, 460px);
+	display: block;
+	border-radius: var(--gx-r);
+	background:
+		linear-gradient(var(--gx-line-soft) 1px, transparent 1px) 0 0 / 34px 34px,
+		linear-gradient(90deg, var(--gx-line-soft) 1px, transparent 1px) 0 0 / 34px 34px,
+		var(--gx-panel-2);
+}
+.gx-3d__hint {
+	margin: var(--gx-sm) 0 0;
+	font-size: var(--gx-f-sm);
+	color: var(--gx-faint);
+}
+
+/* --- Componentes: tabla de specs con líneas de 1px, no tarjetas sueltas --- */
+.tgs-landing.tgs-custom .tgs-items {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 1px;
+	background: var(--gx-line);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+}
+.tgs-landing.tgs-custom .tgs-item {
+	display: flex;
+	align-items: center;
+	gap: var(--gx-md);
+	margin: 0;
+	padding: var(--gx-md);
+	background: var(--gx-bg);
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	transition: background-color .15s ease;
+}
+.tgs-landing.tgs-custom .tgs-item:hover {
+	transform: none;
+	background: var(--gx-panel-2);
+}
+.tgs-landing.tgs-custom .tgs-item-media {
+	flex: 0 0 auto;
+	width: 62px;
+	height: 62px;
+	display: grid;
+	place-items: center;
+	background: color-mix(in srgb, var(--gx-text) 5%, var(--gx-bg));
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+}
+.tgs-landing.tgs-custom .tgs-item-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	padding: 6px;
+}
+.tgs-landing.tgs-custom .tgs-item-info {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+.tgs-landing.tgs-custom .tgs-item-part {
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--gx-accent);
+}
+.tgs-landing.tgs-custom .tgs-item-name {
+	font-size: var(--gx-f-body);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: var(--gx-text);
+}
+.tgs-landing.tgs-custom .tgs-item-desc {
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+}
+
+/* --- Juegos: se lee como una planilla de rendimiento --- */
+.tgs-landing.tgs-custom .tgs-games {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 1px;
+	background: var(--gx-line);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+}
+.tgs-landing.tgs-custom .tgs-game {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--gx-sm);
+	margin: 0;
+	padding: var(--gx-sm) var(--gx-md);
+	background: var(--gx-bg);
+	border: 0;
+	border-radius: 0;
+}
+.tgs-landing.tgs-custom .tgs-game-name {
+	font-size: var(--gx-f-sm);
+	font-weight: 600;
+	color: var(--gx-text);
+}
+.tgs-landing.tgs-custom .tgs-game-tier {
+	flex: 0 0 auto;
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--gx-accent);
+	background: transparent;
+	border: 1px solid var(--gx-accent-line);
+	border-radius: 0;
+	padding: 4px 8px;
+}
+
+/* --- Compatibilidad: lista con una marca angular en rojo --- */
+.tgs-landing.tgs-custom .tgs-compat {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: var(--gx-xs) var(--gx-lg);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.tgs-landing.tgs-custom .tgs-compat li {
+	position: relative;
+	margin: 0;
+	padding: var(--gx-xs) 0 var(--gx-xs) 26px;
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+	border-bottom: 1px solid var(--gx-line-soft);
+}
+.tgs-landing.tgs-custom .tgs-compat li::before {
+	content: "//";
+	position: absolute;
+	left: 0;
+	top: var(--gx-xs);
+	width: auto;
+	height: auto;
+	background: none;
+	border-radius: 0;
+	font-family: var(--gx-mono);
+	font-size: 11px;
+	color: var(--gx-accent);
+	letter-spacing: -0.05em;
+}
+
+/* --- Formas de pago: planes con los importes en grande y alineados --- */
+.tgs-landing.tgs-custom .tgs-payment-methods {
+	margin: 0 0 var(--gx-md);
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+}
+.tgs-landing.tgs-custom .tgs-installments {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 1px;
+	background: var(--gx-line);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+}
+.tgs-landing.tgs-custom .tgs-installment-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--gx-sm);
+	margin: 0;
+	padding: var(--gx-sm) var(--gx-md);
+	background: var(--gx-bg);
+	border: 0;
+	border-radius: 0;
+}
+.tgs-landing.tgs-custom .tgs-installment-bank {
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--gx-faint);
+}
+.tgs-landing.tgs-custom .tgs-installment-plan {
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+.tgs-landing.tgs-custom .tgs-installment-count {
+	color: var(--gx-text);
+	font-weight: 700;
+}
+.tgs-landing.tgs-custom .tgs-installment-amount {
+	color: var(--gx-text);
+	font-weight: 800;
+}
+
+/* --- Recomendadas --- */
+.tgs-landing.tgs-custom .tgs-recommended-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: var(--gx-sm);
+}
+.tgs-landing.tgs-custom .tgs-recommended-card {
+	display: grid;
+	gap: 0;
+	background: var(--gx-bg);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+	text-decoration: none;
+	transition: border-color .15s ease;
+}
+.tgs-landing.tgs-custom .tgs-recommended-card:hover {
+	transform: none;
+	border-color: var(--gx-accent-line);
+}
+.tgs-landing.tgs-custom .tgs-recommended-media {
+	display: grid;
+	place-items: center;
+	aspect-ratio: 4 / 3;
+	background:
+		linear-gradient(var(--gx-line-soft) 1px, transparent 1px) 0 0 / 26px 26px,
+		linear-gradient(90deg, var(--gx-line-soft) 1px, transparent 1px) 0 0 / 26px 26px,
+		var(--gx-panel);
+	border-bottom: 1px solid var(--gx-line);
+}
+.tgs-landing.tgs-custom .tgs-recommended-card img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	padding: 10px;
+}
+.tgs-landing.tgs-custom .tgs-recommended-body {
+	display: grid;
+	gap: 4px;
+	padding: var(--gx-sm) var(--gx-md) var(--gx-md);
+}
+.tgs-landing.tgs-custom .tgs-recommended-name {
+	font-size: var(--gx-f-sm);
+	font-weight: 700;
+	line-height: 1.3;
+	color: var(--gx-text);
+}
+.tgs-landing.tgs-custom .tgs-recommended-price {
+	font-size: var(--gx-f-sm);
+	font-weight: 800;
+	color: var(--gx-accent);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------
+   CIERRE
+   ------------------------------------------------------------------- */
+.gx-closer {
+	display: grid;
+	gap: var(--gx-md);
+	padding: clamp(24px, 3.4vw, 46px);
+	border: 1px solid var(--gx-line);
+	border-radius: var(--gx-r);
+	background:
+		linear-gradient(100deg, var(--gx-accent-dim), transparent 62%),
+		var(--gx-panel);
+}
+.gx-closer h2 {
+	margin: 0;
+	font-size: var(--gx-f-lg);
+	font-weight: 800;
+	letter-spacing: -0.025em;
+	text-transform: uppercase;
+	max-width: 22ch;
+}
+.gx-closer p {
+	margin: 0;
+	max-width: 62ch;
+	color: var(--gx-dim);
+	font-size: var(--gx-f-sm);
+}
+.gx-closer a {
+	justify-self: start;
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--gx-text);
+	text-decoration: none;
+	border-bottom: 1px solid var(--gx-accent);
+	padding-bottom: 3px;
+}
+.gx-closer a:hover { color: var(--gx-accent); }
+
+/* ---------------------------------------------------------------------
+   BARRA DE COMPRA FIJA — visible desde que carga la página, siempre.
+   Adentro va {{barra_flotante}} (el enlace real de "agregar al carrito"
+   del plugin), más el precio, la financiación y el WhatsApp.
+   ------------------------------------------------------------------- */
+.gx-buybar {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 9998;
+	background: color-mix(in srgb, var(--gx-bg) 92%, #fff);
+	border-top: 1px solid var(--gx-line);
+	box-shadow: 0 -18px 40px -30px #000;
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.gx-buybar::before {
+	content: "";
+	display: block;
+	height: 3px;
+	background-image: repeating-linear-gradient(
+		115deg,
+		var(--gx-accent) 0 2px,
+		transparent 2px 7px
+	);
+}
+.gx-buybar__inner {
+	max-width: 1280px;
+	margin-inline: auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--gx-md);
+	padding: var(--gx-sm) clamp(14px, 4vw, 40px);
+}
+.gx-buybar__price { display: grid; gap: 1px; min-width: 0; }
+.gx-buybar__value {
+	font-size: clamp(19px, 2.4vw, 26px);
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	line-height: 1.1;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+.gx-buybar__fin {
+	margin: 0;
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-variant-numeric: tabular-nums;
+}
+.gx-buybar__cta {
+	display: flex;
+	align-items: center;
+	gap: var(--gx-xs);
+	flex: 0 1 auto;
+}
+
+/* La barra del plugin (.tgs-sticky) viene fija y escondida hasta que se
+   scrollea: acá se la ancla adentro de la barra propia y se la deja visible
+   siempre. Su bloque de nombre + precio se oculta porque esa información ya
+   está a la izquierda; lo que se aprovecha es su botón de compra real. */
+.tgs-landing.tgs-custom .gx-buybar .tgs-sticky {
+	position: static;
+	transform: none;
+	opacity: 1;
+	visibility: visible;
+	background: none;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+	border: 0;
+	border-radius: 0;
+	padding: 0;
+	margin: 0;
+	max-width: none;
+	box-shadow: none;
+	transition: none;
+	display: flex;
+}
+.tgs-landing.tgs-custom .gx-buybar .tgs-sticky-info { display: none; }
+.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
+	min-height: 52px;
+	border-radius: var(--gx-r) !important;
+	padding: 15px clamp(18px, 3vw, 40px) !important;
+	font-weight: 800 !important;
+	font-size: 14px !important;
+	letter-spacing: 0.1em;
+	text-transform: uppercase !important;
+	box-shadow: none;
+	white-space: nowrap;
+}
+.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
+	width: auto;
+	min-height: 52px;
+	padding: 13px 18px;
+	gap: 8px;
+}
+
+/* ---------------------------------------------------------------------
+   CELULAR
+   ------------------------------------------------------------------- */
+@media (max-width: 900px) {
+	.gx-hero { grid-template-columns: 1fr; }
+	.gx-stage { border-right: 0; border-bottom: 1px solid var(--gx-line); }
+	.gx-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.gx-about { grid-template-columns: 1fr; gap: var(--gx-sm); }
+}
+
+@media (max-width: 620px) {
+	.gx { gap: var(--gx-lg); }
+	.gx-title { font-size: clamp(27px, 8vw, 38px); }
+	.gx-trust { grid-template-columns: 1fr; }
+	.gx-trust li { padding-right: 0; }
+	.gx-trust li + li {
+		padding-left: 0;
+		border-left: 0;
+		border-top: 1px solid var(--gx-line-soft);
+	}
+	.gx-frame::before,
+	.gx-frame::after { width: 18px; height: 18px; }
+
+	/* Barra fija en mobile: precio arriba a la izquierda, botón grande a la
+	   derecha y WhatsApp reducido al ícono para que entre todo sin apretar. */
+	.gx-buybar__inner {
+		gap: var(--gx-sm);
+		padding: var(--gx-xs) 12px;
+	}
+	.gx-buybar__value { font-size: 19px; }
+	.gx-buybar__fin { font-size: 11.5px; max-width: 40vw; }
+	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
+		min-height: 48px;
+		padding: 14px 20px !important;
+		font-size: 13px !important;
+	}
+	.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
+		min-height: 48px;
+		padding: 12px;
+	}
+	.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn span { display: none; }
+}
+
+/* Pantallas muy angostas: en la barra manda el botón de compra. El precio se
+   achica y la línea de cuotas se guarda (sigue arriba, en el hero). */
+@media (max-width: 400px) {
+	.gx-buybar__inner { gap: 8px; padding: 8px 10px; }
+	.gx-buybar__value { font-size: 17px; }
+	.gx-buybar__fin { display: none; }
+	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
+		padding: 13px 14px !important;
+		font-size: 12px !important;
+		letter-spacing: 0.06em;
+	}
+	.tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn { padding: 12px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.gx *, .gx-buybar * { transition: none !important; }
+}
+</style>
+
+<div class="gx">
+
+	<!-- ================== 1. HERO ================== -->
+	<header class="gx-hero">
+
+		<div class="gx-stage" style="--gx-shot: url('{{imagen_destacada_url}}')">
+			<span class="gx-stage__flag">Armada y testeada</span>
+			<div class="gx-frame">
+				<!-- La foto principal, ya como <img> lista. -->
+				{{imagen_destacada}}
+			</div>
+		</div>
+
+		<div class="gx-panel">
+			<p class="gx-kicker"><b>TGS</b> The Gamer Shop · PC armada</p>
+
+			<h1 class="gx-title">{{titulo}}</h1>
+
+			<div class="gx-slash" aria-hidden="true"></div>
+
+			<div class="gx-price">
+				<span class="gx-label">Precio por transferencia</span>
+				<span class="gx-price__value">{{precio_transferencia}}</span>
+				<ul class="gx-price__alt">
+					<li><span class="gx-label">Efectivo</span><span>{{precio_efectivo}}</span></li>
+					<li><span class="gx-label">Lista</span><s>{{precio_lista}}</s></li>
+				</ul>
+				<p class="gx-fin">{{cuotas}}</p>
+			</div>
+			<!-- Alternativa: si en algún momento preferís la caja de precios que
+			     arma el plugin (mismos datos, diseño propio del plugin), borrá el
+			     bloque .gx-price de arriba y dejá esta línea sola:
+			{{caja_precios}}
+			-->
+
+			<div class="gx-actions">
+				{{boton_carrito}}
+				{{boton_whatsapp}}
+			</div>
+
+			<ul class="gx-trust">
+				<li><strong>Envíos a todo el país</strong>Embalaje reforzado</li>
+				<li><strong>Garantía con soporte</strong>Nos hacemos cargo nosotros</li>
+				<li><strong>Lista para enchufar</strong>Windows y drivers listos</li>
+			</ul>
+		</div>
+
+	</header>
+
+	<!-- ================== 2. FRANJA DE DATOS ================== -->
+	<div class="gx-strip">
+		<div><span class="gx-label">Armado</span><b>48 hs</b><span>Ensamblada y probada acá</span></div>
+		<div><span class="gx-label">Testeo</span><b>Stress + temps</b><span>Antes de salir del taller</span></div>
+		<div><span class="gx-label">Cableado</span><b>Prolijo</b><span>Flujo de aire pensado</span></div>
+		<div><span class="gx-label">Post venta</span><b>Directo</b><span>Hablás con quien la armó</span></div>
+	</div>
+
+	<!-- ================== 3. SECCIONES ==================
+	     Todo lo que entra acá se numera solo (01, 02, 03…) con un contador CSS.
+	     Las secciones que el plugin devuelve vacías no ocupan lugar ni número. -->
+	<div class="gx-sections">
+
+		<section class="tgs-section-card">
+			<h2>La PC</h2>
+			<div class="gx-about">
+				<span class="gx-label">De qué se trata</span>
+				<div class="gx-about__text">{{descripcion}}</div>
+			</div>
+		</section>
+
+		<!-- Visor 3D del gabinete: si esta PC no tiene modelo cargado, la
+		     sección entera se esconde sola y no queda un título huérfano. -->
+		<section class="tgs-section-card gx-3d" data-modelo="{{modelo_3d_url}}">
+			<h2>Girala en 3D</h2>
+			<div class="gx-3d__slot">{{modelo_3d}}</div>
+			<p class="gx-3d__hint">Arrastrá para girar el gabinete y verlo de todos los ángulos.</p>
+		</section>
+
+		{{componentes}}
+
+		{{juegos}}
+
+		{{compatibilidad}}
+
+		{{formas_de_pago}}
+
+		{{recomendadas}}
+
+	</div>
+
+	<!-- ================== 4. CIERRE ================== -->
+	<section class="gx-closer">
+		<div class="gx-slash" aria-hidden="true" style="width:64px"></div>
+		<h2>¿La querés distinta?</h2>
+		<p>Cambiamos placa, memoria, almacenamiento o gabinete y te pasamos el precio actualizado. Escribinos y la armamos como la necesitás.</p>
+		<a href="{{permalink}}">Compartir esta PC</a>
+	</section>
+
+	<!-- ================== BARRA DE COMPRA FIJA ==================
+	     Fija abajo desde que carga la página (no aparece recién al scrollear).
+	     {{barra_flotante}} aporta el botón real de agregar al carrito. -->
+	<div class="gx-buybar">
+		<div class="gx-buybar__inner">
+			<div class="gx-buybar__price">
+				<span class="gx-buybar__value">{{precio_transferencia}}</span>
+				<p class="gx-buybar__fin">{{cuotas}}</p>
+			</div>
+			<div class="gx-buybar__cta">
+				{{barra_flotante}}
+				{{boton_whatsapp}}
+			</div>
+		</div>
+	</div>
+
+</div>
+
+<script>
+/* Dos cosas, nada más:
+   1) La barra del plugin viene con aria-hidden="true" porque nace escondida.
+      Acá se muestra siempre, así que se corrige para lectores de pantalla.
+   2) Se mide el alto real de la barra fija y se le deja ese espacio abajo a
+      la página, para que nunca tape el final del contenido. */
+(function () {
+	var bar = document.querySelector('.gx-buybar');
+	if (!bar) { return; }
+
+	var sticky = bar.querySelector('.tgs-sticky');
+	if (sticky) { sticky.setAttribute('aria-hidden', 'false'); }
+
+	var page = bar.closest('.tgs-custom') || document.body;
+	function medir() {
+		page.style.setProperty('--gx-barh', bar.offsetHeight + 'px');
+	}
+	medir();
+	window.addEventListener('resize', medir);
+	window.addEventListener('load', medir);
+	if (window.ResizeObserver) { new ResizeObserver(medir).observe(bar); }
+})();
+</script>
