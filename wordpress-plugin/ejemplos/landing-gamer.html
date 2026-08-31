@@ -848,7 +848,7 @@
 	align-items: stretch;
 	justify-content: space-between;
 	gap: var(--gx-md);
-	padding: var(--gx-sm) clamp(14px, 4vw, 40px);
+	padding: 10px clamp(14px, 4vw, 40px);
 }
 /* El precio no es una caja: se centra respecto de las que sí lo son. */
 .gx-buybar__price { align-self: center; }
@@ -861,7 +861,7 @@
 	color: var(--gx-dim);
 }
 .gx-buybar__value {
-	font-size: clamp(19px, 2.4vw, 26px);
+	font-size: clamp(20px, 2.2vw, 27px);
 	font-weight: 800;
 	letter-spacing: -0.03em;
 	line-height: 1.1;
@@ -871,15 +871,14 @@
 
 /* ---- Bloque de financiación: el gancho de la barra ---- */
 .gx-barfin {
-	flex: 1 1 260px;
+	flex: 1 1 240px;
 	min-width: 0;
 	display: grid;
-	gap: 2px;
+	gap: 1px;
 	align-content: center;
-	padding: 10px 18px;
-	border-radius: var(--gx-r);
-	background: color-mix(in srgb, var(--gx-accent) 13%, transparent);
-	border: 1px solid color-mix(in srgb, var(--gx-accent) 40%, transparent);
+	align-self: center;
+	padding-left: var(--gx-md);
+	border-left: 1px solid var(--gx-line);
 }
 .gx-barfin__tag {
 	font-family: var(--gx-mono);
@@ -890,10 +889,11 @@
 }
 /* La línea de cuotas es lo más grande después del precio. */
 .gx-barfin__line {
-	font-size: clamp(15px, 1.8vw, 19px);
+	font-size: clamp(14px, 1.6vw, 17px);
 	font-weight: 800;
-	line-height: 1.15;
+	line-height: 1.2;
 	letter-spacing: -0.015em;
+	color: var(--gx-accent);
 	font-variant-numeric: tabular-nums;
 	text-wrap: balance;
 }
@@ -1015,9 +1015,9 @@
    y en la barra tiene que haber un solo color fuerte, el del botón de comprar. */
 .tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
 	width: auto;
-	min-height: 58px;
+	min-height: 48px;
 	height: 100%;
-	padding: 13px 20px;
+	padding: 12px 18px;
 	gap: 8px;
 	font-weight: 700;
 	background: transparent;

@@ -138,11 +138,23 @@ function tgs_sq_block_hero( array $d ) {
 }
 
 /**
- * Plan de cuotas "titular" para el hero: el de más cuotas disponible.
- * Devuelve null si la variante no tiene cuotas cargadas.
+ * ¿Este plan es sin interés? Lo decide el dato y no un texto escrito a mano:
+ * `interestBps` es el recargo en puntos básicos, así que 0 = sin interés.
+ */
+function tgs_sq_plan_sin_interes( $plan ) {
+	return is_array( $plan ) && 0 === (int) ( $plan['interestBps'] ?? 0 );
+}
+
+/**
+ * Plan "titular" para el hero y la barra de compra.
+ *
+ * Gana el de más cuotas SIN INTERÉS, que es el que mejor vende; solo si no hay
+ * ninguno sin interés se cae al de más cuotas. Devuelve null si el presupuesto
+ * no tiene cuotas cargadas.
  */
 function tgs_sq_best_installment_plan( $plans ) {
-	$best = null;
+	$best     = null;
+	$best_sin = null;
 	foreach ( (array) $plans as $plan ) {
 		if ( ! is_array( $plan ) || empty( $plan['installments'] ) || empty( $plan['installmentCents'] ) ) {
 			continue;
@@ -150,8 +162,35 @@ function tgs_sq_best_installment_plan( $plans ) {
 		if ( null === $best || (int) $plan['installments'] > (int) $best['installments'] ) {
 			$best = $plan;
 		}
+		if ( tgs_sq_plan_sin_interes( $plan )
+			&& ( null === $best_sin || (int) $plan['installments'] > (int) $best_sin['installments'] ) ) {
+			$best_sin = $plan;
+		}
 	}
-	return $best;
+	return $best_sin ?: $best;
+}
+
+/**
+ * Línea de financiación lista para mostrar, por ejemplo:
+ * "Hasta 12 cuotas sin interés de $157.148 con BBVA".
+ *
+ * Tanto el "sin interés" como el banco salen del plan cargado, así la ficha
+ * nunca promete una condición que el presupuesto no tenga.
+ */
+function tgs_sq_installment_line( $plan ) {
+	if ( ! is_array( $plan ) || empty( $plan['installments'] ) || empty( $plan['installmentCents'] ) ) {
+		return '';
+	}
+	$linea = 'Hasta ' . (int) $plan['installments'] . ' cuotas';
+	if ( tgs_sq_plan_sin_interes( $plan ) ) {
+		$linea .= ' sin interés';
+	}
+	$linea .= ' de ' . wp_kses_post( wc_price( ( (int) $plan['installmentCents'] ) / 100 ) );
+	$banco = trim( (string) ( $plan['bank'] ?? '' ) );
+	if ( '' !== $banco ) {
+		$linea .= ' con ' . esc_html( $banco );
+	}
+	return $linea;
 }
 
 /**
@@ -166,8 +205,7 @@ function tgs_sq_price_html( array $d ) {
 	echo '<span class="tgs-price-cash">Efectivo ' . wp_kses_post( wc_price( $d['price_cash'] / 100 ) ) . '</span>';
 	$best = tgs_sq_best_installment_plan( $d['installments'] );
 	if ( $best ) {
-		echo '<span class="tgs-price-financing">Hasta <strong>' . esc_html( (int) $best['installments'] ) . ' cuotas</strong> de '
-			. wp_kses_post( wc_price( ( (int) $best['installmentCents'] ) / 100 ) ) . '</span>';
+		echo '<span class="tgs-price-financing">' . wp_kses_post( tgs_sq_installment_line( $best ) ) . '</span>';
 	}
 	echo '</div>';
 	return ob_get_clean();
@@ -280,6 +318,9 @@ function tgs_sq_payment_html( array $d ) {
 				echo '<span class="tgs-installment-bank">' . esc_html( $bank ) . '</span>';
 			}
 			echo '<span class="tgs-installment-plan"><span class="tgs-installment-count">' . esc_html( $installments ) . ' cuotas</span>';
+			if ( tgs_sq_plan_sin_interes( $plan ) ) {
+				echo ' <span class="tgs-installment-free">sin interés</span>';
+			}
 			if ( $per ) {
 				echo ' de <span class="tgs-installment-amount">' . wp_kses_post( $per ) . '</span>';
 			}
@@ -454,8 +495,7 @@ function tgs_sq_placeholder_values( array $d ) {
 	$best    = tgs_sq_best_installment_plan( $d['installments'] );
 	$cuotas  = '';
 	if ( $best ) {
-		$cuotas = 'Hasta ' . (int) $best['installments'] . ' cuotas de '
-			. wp_kses_post( wc_price( ( (int) $best['installmentCents'] ) / 100 ) );
+		$cuotas = tgs_sq_installment_line( $best );
 	}
 
 	$imagen = $d['hero_image']
