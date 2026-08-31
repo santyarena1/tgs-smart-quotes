@@ -1,0 +1,366 @@
+<style>
+/* =====================================================================
+   FICHA DE PC — THE GAMER SHOP
+   Pegar entera en: TGS Smart Quotes → Variantes → modo "Diseño propio".
+   Usa los colores de la variante (--tgs-accent, --tgs-bg, --tgs-text).
+   ===================================================================== */
+
+.tgs-x {
+	/* Colores: salen de la variante, con respaldo por si falta alguno */
+	--x-accent: var(--tgs-accent, #E31B23);
+	--x-bg: var(--tgs-bg, #080B12);
+	--x-text: var(--tgs-text, #F8FAFC);
+	--x-muted: color-mix(in srgb, var(--x-text) 58%, transparent);
+	--x-soft: color-mix(in srgb, var(--x-text) 7%, transparent);
+	--x-line: color-mix(in srgb, var(--x-text) 13%, transparent);
+	--x-card: color-mix(in srgb, var(--x-text) 4%, transparent);
+	--x-r: 18px;
+
+	/* Escala de espaciado: un solo ritmo para toda la ficha */
+	--x-gap: clamp(18px, 2.6vw, 30px);
+	--x-pad: clamp(20px, 3vw, 40px);
+
+	color: var(--x-text);
+	font-family: var(--tgs-font, "Inter", "Segoe UI", system-ui, -apple-system, sans-serif);
+	line-height: 1.6;
+	display: grid;
+	gap: var(--x-gap);
+	max-width: 1240px;
+	margin-inline: auto;
+	padding-inline: clamp(14px, 3vw, 24px);
+}
+
+.tgs-x *,
+.tgs-x *::before,
+.tgs-x *::after { box-sizing: border-box; }
+
+/* ---------- Tipografía ---------- */
+.tgs-x h1,
+.tgs-x h2,
+.tgs-x h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 800; }
+.tgs-x h1 { font-size: clamp(28px, 4.2vw, 46px); }
+.tgs-x h2 { font-size: clamp(19px, 2.2vw, 25px); }
+.tgs-x p { margin: 0; }
+
+.tgs-x__kicker {
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--x-accent);
+}
+
+/* ---------- Hero ---------- */
+.tgs-x__hero {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	display: grid;
+	grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+	gap: clamp(20px, 3vw, 44px);
+	align-items: center;
+	background: linear-gradient(160deg,
+		color-mix(in srgb, var(--x-accent) 12%, transparent),
+		transparent 55%), var(--x-card);
+	border: 1px solid var(--x-line);
+	border-radius: calc(var(--x-r) + 6px);
+	padding: var(--x-pad);
+}
+/* La misma foto, borroneada de fondo, para dar profundidad */
+.tgs-x__hero::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background-image: var(--x-foto);
+	background-size: cover;
+	background-position: center;
+	opacity: 0.14;
+	filter: blur(26px) saturate(1.2);
+}
+
+/* Foto con halo, para que el recorte no flote sobre un rectángulo plano */
+.tgs-x__foto {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: clamp(240px, 34vw, 420px);
+	border-radius: var(--x-r);
+	overflow: hidden;
+}
+.tgs-x__foto::before {
+	content: "";
+	position: absolute;
+	inset: 8%;
+	background: radial-gradient(circle at 50% 55%,
+		color-mix(in srgb, var(--x-accent) 42%, transparent), transparent 68%);
+	filter: blur(38px);
+}
+.tgs-x__foto img,
+.tgs-x__foto model-viewer {
+	position: relative;
+	width: 100%;
+	height: clamp(230px, 32vw, 400px);
+	object-fit: contain;
+	display: block;
+}
+
+.tgs-x__info { display: grid; gap: 16px; align-content: center; }
+
+/* ---------- Precio ---------- */
+.tgs-x__precio {
+	background: var(--x-soft);
+	border: 1px solid var(--x-line);
+	border-radius: var(--x-r);
+	padding: clamp(16px, 2vw, 22px);
+	display: grid;
+	gap: 4px;
+}
+.tgs-x__precio-label {
+	font-size: 11.5px;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--x-muted);
+}
+.tgs-x__precio-valor {
+	font-size: clamp(30px, 4.4vw, 46px);
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.05;
+}
+.tgs-x__precio-extra { font-size: 14px; color: var(--x-muted); }
+.tgs-x__cuotas {
+	margin-top: 10px;
+	display: inline-block;
+	align-self: start;
+	justify-self: start;
+	font-size: 13.5px;
+	font-weight: 600;
+	padding: 7px 14px;
+	border-radius: 999px;
+	color: var(--x-accent);
+	background: color-mix(in srgb, var(--x-accent) 14%, transparent);
+	border: 1px solid color-mix(in srgb, var(--x-accent) 40%, transparent);
+}
+
+/* ---------- Botones ---------- */
+.tgs-x__acciones { display: grid; gap: 10px; }
+/* El botón de Woo trae su propio markup: se le da forma sin romperlo */
+.tgs-x__acciones .cart { display: grid; gap: 10px; margin: 0; }
+.tgs-x__acciones .quantity input {
+	background: var(--x-soft);
+	border: 1px solid var(--x-line);
+	color: var(--x-text);
+	border-radius: 12px;
+	padding: 12px;
+	width: 90px;
+	font-size: 15px;
+}
+.tgs-x__acciones button,
+.tgs-x__acciones .button {
+	width: 100%;
+	background: var(--x-accent);
+	color: #fff;
+	border: 0;
+	border-radius: 14px;
+	padding: 16px 22px;
+	font-size: 16px;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+	cursor: pointer;
+	transition: transform .12s ease, filter .12s ease;
+}
+.tgs-x__acciones button:hover,
+.tgs-x__acciones .button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.tgs-x__acciones button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* WhatsApp como acción secundaria: no le compite al botón de compra */
+.tgs-x .tgs-whatsapp-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	width: 100%;
+	padding: 14px 22px;
+	border-radius: 14px;
+	font-weight: 700;
+	font-size: 15px;
+	text-decoration: none;
+	color: #25D366;
+	background: color-mix(in srgb, #25D366 12%, transparent);
+	border: 1px solid color-mix(in srgb, #25D366 45%, transparent);
+	transition: background .15s ease, color .15s ease;
+}
+.tgs-x .tgs-whatsapp-btn:hover { background: #25D366; color: #06231a; }
+
+/* ---------- Sellos de confianza ---------- */
+.tgs-x__sellos {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 2px;
+}
+.tgs-x__sello {
+	background: var(--x-soft);
+	border: 1px solid var(--x-line);
+	border-radius: 12px;
+	padding: 12px 10px;
+	text-align: center;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--x-muted);
+	line-height: 1.35;
+}
+.tgs-x__sello strong { display: block; color: var(--x-text); font-size: 13.5px; }
+
+/* ---------- Secciones del plugin ----------
+   {{componentes}}, {{juegos}}, {{compatibilidad}}, {{formas_de_pago}} y
+   {{recomendadas}} traen su propio HTML. Acá se les da el mismo aire y la
+   misma tarjeta que el resto de la ficha. */
+.tgs-x .tgs-section-card {
+	background: var(--x-card);
+	border: 1px solid var(--x-line);
+	border-radius: calc(var(--x-r) + 4px);
+	padding: var(--x-pad);
+	margin: 0;
+}
+.tgs-x .tgs-section-card > h2 {
+	margin: 0 0 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--x-line);
+	font-size: clamp(18px, 2vw, 23px);
+}
+
+.tgs-x__bloque { display: grid; gap: var(--x-gap); }
+
+/* Visor 3D: si la PC no tiene modelo cargado, el hueco queda vacío y la
+   sección entera se esconde, para no dejar un título sin contenido. */
+.tgs-x__3d:not(:has(model-viewer, img, iframe)) { display: none; }
+.tgs-x__3d-slot model-viewer,
+.tgs-x__3d-slot img {
+	width: 100%;
+	height: clamp(280px, 42vw, 480px);
+	border-radius: var(--x-r);
+	background: var(--x-soft);
+	display: block;
+}
+
+/* Descripción */
+.tgs-x__desc {
+	background: var(--x-card);
+	border: 1px solid var(--x-line);
+	border-left: 3px solid var(--x-accent);
+	border-radius: calc(var(--x-r) + 4px);
+	padding: var(--x-pad);
+	font-size: clamp(15px, 1.5vw, 17px);
+	color: color-mix(in srgb, var(--x-text) 88%, transparent);
+}
+.tgs-x__desc p + p { margin-top: 12px; }
+
+/* Pie */
+.tgs-x__pie {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	justify-content: space-between;
+	padding: 18px 4px 8px;
+	border-top: 1px solid var(--x-line);
+	font-size: 13px;
+	color: var(--x-muted);
+}
+.tgs-x__pie a { color: var(--x-accent); text-decoration: none; font-weight: 600; }
+.tgs-x__pie a:hover { text-decoration: underline; }
+
+/* ---------- Celular ---------- */
+@media (max-width: 900px) {
+	.tgs-x__hero { grid-template-columns: 1fr; }
+	.tgs-x__foto { min-height: 220px; }
+	.tgs-x__info { order: 2; }
+}
+@media (max-width: 480px) {
+	.tgs-x__sellos { grid-template-columns: 1fr; }
+	.tgs-x__sello { display: flex; gap: 8px; justify-content: center; }
+	.tgs-x__sello strong { display: inline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tgs-x * { transition: none !important; }
+}
+</style>
+
+<div class="tgs-x">
+
+	<!-- ================= HERO =================
+	     El fondo del hero usa la misma foto, borroneada, para dar profundidad. -->
+	<section class="tgs-x__hero" style="--x-foto: url('{{imagen_destacada_url}}')">
+		<div class="tgs-x__foto">
+			{{imagen_destacada}}
+		</div>
+
+		<div class="tgs-x__info">
+			<span class="tgs-x__kicker">The Gamer Shop</span>
+			<h1>{{titulo}}</h1>
+
+			<div class="tgs-x__precio">
+				<span class="tgs-x__precio-label">Precio por transferencia</span>
+				<span class="tgs-x__precio-valor">{{precio_transferencia}}</span>
+				<span class="tgs-x__precio-extra">Efectivo {{precio_efectivo}} · Lista {{precio_lista}}</span>
+				<span class="tgs-x__cuotas">{{cuotas}}</span>
+			</div>
+			<!-- Alternativa: si preferís la caja de precios que arma el plugin
+			     (mismo dato, diseño propio del plugin), borrá el bloque de
+			     arriba y descomentá esta línea:
+			{{caja_precios}}
+			-->
+
+			<div class="tgs-x__acciones">
+				{{boton_carrito}}
+				{{boton_whatsapp}}
+			</div>
+
+			<div class="tgs-x__sellos">
+				<div class="tgs-x__sello"><strong>Armada y testeada</strong>Lista para enchufar</div>
+				<div class="tgs-x__sello"><strong>Garantía oficial</strong>Con soporte nuestro</div>
+				<div class="tgs-x__sello"><strong>Envíos a todo el país</strong>Embalaje reforzado</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ================= CONTENIDO ================= -->
+	<div class="tgs-x__bloque">
+
+		<div class="tgs-x__desc">
+			{{descripcion}}
+		</div>
+
+		<!-- Visor 3D del gabinete. Si esta PC no tiene modelo cargado, la
+		     sección se oculta sola (no queda un título huérfano). -->
+		<section class="tgs-x__3d tgs-section-card" data-modelo="{{modelo_3d_url}}">
+			<h2>Mirala en 3D</h2>
+			<div class="tgs-x__3d-slot">{{modelo_3d}}</div>
+		</section>
+
+		{{componentes}}
+
+		{{juegos}}
+
+		{{compatibilidad}}
+
+		{{formas_de_pago}}
+
+		{{recomendadas}}
+
+	</div>
+
+	<footer class="tgs-x__pie">
+		<span>¿Querés que la armemos distinta? Escribinos y la adaptamos a lo que necesites.</span>
+		<a href="{{permalink}}">Compartir esta PC</a>
+	</footer>
+
+</div>
+
+<!-- Barra fija de compra en el celular -->
+{{barra_flotante}}
