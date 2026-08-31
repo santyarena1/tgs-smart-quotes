@@ -142,20 +142,19 @@ function tgs_sq_sync_product( array $payload ) {
 	tgs_sq_maybe_set_featured_image( $product_id, $thumbnail_source );
 
 	$meta = array(
-		TGS_SQ_META_EXTERNAL_ID     => $external_id,
+		TGS_SQ_META_EXTERNAL_ID     => tgs_sq_meta_text( $external_id ),
 		TGS_SQ_META_MANAGED         => '1',
-		TGS_SQ_META_MODEL3D         => esc_url_raw( $payload['model3dUrl'] ?? '' ),
-		TGS_SQ_META_THUMBNAIL       => esc_url_raw( $thumbnail_source ),
-		TGS_SQ_META_GALLERY         => wp_json_encode( $payload['gallery'] ?? array() ),
+		TGS_SQ_META_MODEL3D         => tgs_sq_meta_text( esc_url_raw( $payload['model3dUrl'] ?? '' ) ),
+		TGS_SQ_META_THUMBNAIL       => tgs_sq_meta_text( esc_url_raw( $thumbnail_source ) ),
 		TGS_SQ_META_PRICE_LIST      => (string) (int) ( $payload['priceListCents'] ?? 0 ),
 		TGS_SQ_META_PRICE_CASH      => (string) (int) ( $payload['priceCashCents'] ?? 0 ),
 		TGS_SQ_META_PRICE_TRANSFER  => (string) (int) ( $payload['priceTransferCents'] ?? 0 ),
-		TGS_SQ_META_INSTALLMENTS    => wp_json_encode( $payload['installments'] ?? array() ),
-		TGS_SQ_META_ITEMS           => wp_json_encode( tgs_sq_sanitize_items( $payload['items'] ?? array() ) ),
-		TGS_SQ_META_DESCRIPTION     => wp_kses_post( $payload['descriptionHtml'] ?? '' ),
-		TGS_SQ_META_POWER           => wp_json_encode( $payload['power'] ?? array() ),
-		TGS_SQ_META_GAMES           => wp_json_encode( $payload['games'] ?? array() ),
-		TGS_SQ_META_COMPATIBILITY   => wp_json_encode( $payload['compatibility'] ?? array() ),
+		TGS_SQ_META_INSTALLMENTS    => tgs_sq_json( $payload['installments'] ?? array() ),
+		TGS_SQ_META_ITEMS           => tgs_sq_json( tgs_sq_sanitize_items( $payload['items'] ?? array() ) ),
+		TGS_SQ_META_DESCRIPTION     => tgs_sq_meta_text( wp_kses_post( $payload['descriptionHtml'] ?? '' ) ),
+		TGS_SQ_META_POWER           => tgs_sq_json( $payload['power'] ?? array() ),
+		TGS_SQ_META_GAMES           => tgs_sq_json( $payload['games'] ?? array() ),
+		TGS_SQ_META_COMPATIBILITY   => tgs_sq_json( $payload['compatibility'] ?? array() ),
 	);
 	foreach ( $meta as $key => $value ) {
 		update_post_meta( $product_id, $key, $value );
@@ -169,6 +168,27 @@ function tgs_sq_sync_product( array $payload ) {
 	}
 
 	return $product_id;
+}
+
+/**
+ * JSON listo para guardar en un meta de WordPress.
+ *
+ * Dos cuidados, los dos necesarios:
+ *
+ *  - `JSON_UNESCAPED_UNICODE`: sin esto los acentos se guardan escapados
+ *    (`ó`). Como `update_post_meta()` aplica `wp_unslash()` por dentro,
+ *    esa barra invertida se pierde y en la ficha terminaba apareciendo
+ *    "ediciu00f3n" en vez de "edición".
+ *  - `wp_slash()`: WordPress espera recibir el valor "slashed" porque lo
+ *    des-escapa al guardarlo. Sin esto se comería las comillas del JSON.
+ */
+function tgs_sq_json( $value ) {
+	return wp_slash( wp_json_encode( $value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+}
+
+/** Texto plano listo para guardar en meta (ver tgs_sq_json). */
+function tgs_sq_meta_text( $value ) {
+	return wp_slash( (string) $value );
 }
 
 /**
