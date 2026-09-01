@@ -416,6 +416,7 @@ export type NavId =
   | "editor-pdf"
   | "usuarios"
   | "empleados"
+  | "gastos"
   | "publicacion-web"
   | "fichas-componentes"
   | "mi-cuenta"

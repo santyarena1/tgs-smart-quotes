@@ -1106,3 +1106,32 @@ export const navPreferencesSchema = z
     });
   });
 export type NavPreferences = z.infer<typeof navPreferencesSchema>;
+
+// --- Gastos mensuales recurrentes -------------------------------------------
+// El gasto es solo el concepto (no tiene monto propio); lo pagado se carga por
+// mes. Los importes viajan como centavos en string, igual que en el resto.
+export const expenseCreateSchema = z.object({
+  name: z.string().trim().min(1).max(150),
+  note: z.string().trim().max(500).nullable().optional(),
+}).strict();
+export const expenseUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(150).optional(),
+  note: z.string().trim().max(500).nullable().optional(),
+  active: z.boolean().optional(),
+}).strict().refine((v) => Object.keys(v).length > 0, 'Se requiere al menos un campo');
+export const expensePaymentSchema = z.object({
+  /// Vacío o null borra el pago de ese mes (queda "sin cargar", que no es lo
+  /// mismo que "pagué $0").
+  amountCents: moneyCentsSchema.nullable(),
+  note: z.string().trim().max(500).nullable().optional(),
+}).strict();
+export const expensesQuerySchema = z.object({
+  period: z.string().regex(/^\d{6}$/, 'El período debe tener formato YYYYMM').optional(),
+  includeArchived: z.enum(['0', '1']).optional(),
+}).strict();
+export const expensesUnlockSchema = z.object({ key: z.string().min(1).max(200) }).strict();
+export type ExpenseCreateInput = z.infer<typeof expenseCreateSchema>;
+export type ExpenseUpdateInput = z.infer<typeof expenseUpdateSchema>;
+export type ExpensePaymentInput = z.infer<typeof expensePaymentSchema>;
+export type ExpensesQuery = z.infer<typeof expensesQuerySchema>;
+export type ExpensesUnlockInput = z.infer<typeof expensesUnlockSchema>;

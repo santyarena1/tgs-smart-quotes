@@ -293,6 +293,7 @@ model User {
   employeeRequestsCreated  EmployeeRequest[] @relation("EmployeeRequestCreatedBy")
   employeeRequestsReviewed EmployeeRequest[] @relation("EmployeeRequestReviewedBy")
   employeePeriodsConfirmed EmployeePeriod[]  @relation("EmployeePeriodConfirmedBy")
+  recurringExpensesCreated RecurringExpense[]
 
   @@index([branchId])
   @@index([role, active])
@@ -1443,4 +1444,40 @@ model AuditLog {
 
   @@index([entityType, entityId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// Gasto fijo que se repite todos los meses (alquiler, internet, contador…).
+/// No se ajusta por IPC ni por nada: es solo el concepto. Lo que efectivamente
+/// se pagó cada mes vive en RecurringExpensePayment.
+model RecurringExpense {
+  id          String                    @id @default(uuid())
+  name        String
+  note        String?
+  /// Los gastos que dejan de existir se archivan en vez de borrarse, para no
+  /// perder el historial de lo ya pagado.
+  active      Boolean                   @default(true)
+  position    Int                       @default(0)
+  createdById String?
+  createdBy   User?                     @relation(fields: [createdById], references: [id])
+  payments    RecurringExpensePayment[]
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  @@index([active, position])
+}
+
+/// Lo pagado de un gasto en un mes puntual. Un registro por gasto y período.
+model RecurringExpensePayment {
+  id         String           @id @default(uuid())
+  expenseId  String
+  expense    RecurringExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  /// Período YYYYMM, igual que en el módulo de empleados.
+  period     String
+  amountCents BigInt          @default(0)
+  note       String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([expenseId, period])
+  @@index([period])
 }
