@@ -85,6 +85,9 @@ export function GastosView() {
   const [guardando, setGuardando] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState("");
   const [creando, setCreando] = useState(false);
+  /** Gasto cuyo nombre se está editando, y el texto en curso. */
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [nombres, setNombres] = useState<Record<string, string>>({});
   const [verArchivados, setVerArchivados] = useState(false);
 
   const entrar = async (e: React.FormEvent) => {
@@ -156,6 +159,48 @@ export function GastosView() {
       setError(errorMessage(err));
     } finally {
       setCreando(false);
+    }
+  };
+
+  /** Cambia el nombre del gasto (el historial de pagos no se toca). */
+  const renombrar = async (gasto: Gasto) => {
+    const nombre = (nombres[gasto.id] ?? "").trim();
+    if (!nombre || nombre === gasto.name) {
+      setEditandoId(null);
+      return;
+    }
+    setError(null);
+    setAviso(null);
+    try {
+      await api(`/expenses/${gasto.id}`, { method: "PUT", body: { name: nombre } });
+      setEditandoId(null);
+      await cargar();
+      setAviso("Nombre actualizado.");
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  };
+
+  /**
+   * Borra el gasto y todo lo cargado en él. Se avisa fuerte porque, a
+   * diferencia de archivar, esto no se puede deshacer.
+   */
+  const eliminar = async (gasto: Gasto) => {
+    if (
+      !confirm(
+        `¿Eliminar "${gasto.name}" definitivamente?\n\nSe borra también todo lo que cargaste de este gasto en meses anteriores. Si solo querés que deje de aparecer, usá Archivar.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setAviso(null);
+    try {
+      await api(`/expenses/${gasto.id}`, { method: "DELETE" });
+      await cargar();
+      setAviso(`"${gasto.name}" se eliminó junto con su historial.`);
+    } catch (err) {
+      setError(errorMessage(err));
     }
   };
 
@@ -274,7 +319,28 @@ export function GastosView() {
                   style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", opacity: gasto.active ? 1 : 0.6 }}
                 >
                   <div style={{ display: "grid", gap: 2, flex: "1 1 200px", minWidth: 0 }}>
-                    <strong>{gasto.name}</strong>
+                    {editandoId === gasto.id ? (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <input
+                          value={nombres[gasto.id] ?? gasto.name}
+                          autoFocus
+                          onChange={(e) => setNombres((prev) => ({ ...prev, [gasto.id]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void renombrar(gasto);
+                            if (e.key === "Escape") setEditandoId(null);
+                          }}
+                          style={{ flex: "1 1 160px" }}
+                        />
+                        <button type="button" className="btn-dark btn-sm" onClick={() => void renombrar(gasto)}>
+                          Guardar
+                        </button>
+                        <button type="button" className="btn-ghost btn-sm" onClick={() => setEditandoId(null)}>
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <strong>{gasto.name}</strong>
+                    )}
                     <span className="muted" style={{ fontSize: 12.5 }}>
                       {gasto.active
                         ? gasto.amountCents === null
@@ -302,8 +368,21 @@ export function GastosView() {
                     >
                       {guardando === gasto.id ? "Guardando…" : "Guardar"}
                     </button>
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      onClick={() => {
+                        setNombres((prev) => ({ ...prev, [gasto.id]: gasto.name }));
+                        setEditandoId(editandoId === gasto.id ? null : gasto.id);
+                      }}
+                    >
+                      Renombrar
+                    </button>
                     <button type="button" className="btn-ghost btn-sm" onClick={() => void archivar(gasto)}>
                       {gasto.active ? "Archivar" : "Reactivar"}
+                    </button>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => void eliminar(gasto)}>
+                      Eliminar
                     </button>
                   </div>
                 </div>
