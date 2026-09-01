@@ -49,20 +49,26 @@ export function Field({
 }
 
 /**
- * Input de monto en pesos enteros ARS. Los dígitos se agrupan con miles
- * (ej. "5" → "5", "50000" → "50.000"). Compatible con `parseArsToCents`/`centsToInput`.
+ * Input de monto en pesos ARS **enteros**: sin centavos y sin coma.
+ *
+ * Se escribe y se edita como cualquier campo de texto —se puede parar el cursor
+ * en el medio, borrar con Backspace o Delete, seleccionar un pedazo y
+ * reemplazarlo—; lo único que hace el componente es dejar solo los dígitos y
+ * agrupar los miles con punto ("1500000" → "1.500.000").
+ *
+ * La versión anterior interceptaba cada tecla y reconstruía el valor desde un
+ * buffer propio: eso mandaba el cursor siempre al final (no se podía corregir
+ * un dígito del medio, había que borrar todo) y además interpretaba lo tecleado
+ * como centavos, así que agregaba ",00" y con cada tecla el número se corría
+ * un lugar.
  */
-function moneyDigitsOf(text: string): string {
-  return text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+function agruparMiles(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
-function formatMoneyDigits(digits: string): string {
-  if (!digits) return "";
-  const cents = BigInt(digits);
-  const whole = cents / 100n;
-  const frac = cents % 100n;
-  const wholeFmt = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${wholeFmt},${frac.toString().padStart(2, "0")}`;
+/** Deja solo dígitos y saca los ceros a la izquierda ("007" → "7"). */
+function soloDigitos(text: string): string {
+  return text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 }
 
 export function MoneyInput({
@@ -73,41 +79,42 @@ export function MoneyInput({
   value: string;
   onChange: (value: string) => void;
 } & Omit<ComponentPropsWithoutRef<"input">, "value" | "onChange" | "type" | "inputMode">) {
-  // Buffer de dígitos propio (no se re-deriva del texto ya formateado): reformatear "0,00" a
-  // partir del texto renderizado siempre reconstruye 3 dígitos ("000"), así que borrar nunca
-  // bajaba de "0,00" — con este buffer, backspace saca un dígito genuino cada vez.
-  const digitsRef = useRef(moneyDigitsOf(value));
-  useEffect(() => {
-    digitsRef.current = moneyDigitsOf(value);
-  }, [value]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  /** Posición del cursor a restaurar después de reformatear. */
+  const caretRef = useRef<number | null>(null);
 
-  function commit(nextDigits: string) {
-    digitsRef.current = nextDigits;
-    onChange(formatMoneyDigits(nextDigits));
-  }
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el && caretRef.current !== null) {
+      el.setSelectionRange(caretRef.current, caretRef.current);
+      caretRef.current = null;
+    }
+  });
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode="numeric"
+      autoComplete="off"
       value={value}
-      onKeyDown={(e) => {
-        if (/^[0-9]$/.test(e.key)) {
-          e.preventDefault();
-          commit((digitsRef.current + e.key).slice(-15));
-        } else if (e.key === "Backspace" || e.key === "Delete") {
-          e.preventDefault();
-          const el = e.currentTarget;
-          if (el.selectionStart !== el.selectionEnd) {
-            commit("");
-          } else {
-            commit(digitsRef.current.slice(0, -1));
-          }
-        }
-      }}
       onChange={(e) => {
-        // Fallback para pegar (paste) u otros métodos que no disparan onKeyDown.
-        commit(moneyDigitsOf(e.target.value));
+        const el = e.target;
+        // Se cuenta cuántos dígitos había antes del cursor y se lo vuelve a
+        // dejar después de esos mismos dígitos: así los puntos de miles que se
+        // agregan o se van no le mueven el cursor al usuario.
+        const digitosAntes = (el.value.slice(0, el.selectionStart ?? 0).match(/\d/g) ?? []).length;
+        const formateado = agruparMiles(soloDigitos(el.value).slice(0, 15));
+
+        let posicion = 0;
+        let vistos = 0;
+        while (posicion < formateado.length && vistos < digitosAntes) {
+          if (/\d/.test(formateado[posicion] as string)) vistos += 1;
+          posicion += 1;
+        }
+        caretRef.current = digitosAntes === 0 ? 0 : posicion;
+
+        onChange(formateado);
       }}
       {...rest}
     />
