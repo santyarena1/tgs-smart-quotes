@@ -1,6 +1,6 @@
 import {BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, Query, UnauthorizedException} from '@nestjs/common';
 import {db} from '@tgs/database';
-import {expenseCreateSchema, expensePaymentSchema, expensesQuerySchema, expensesUnlockSchema, expenseUpdateSchema, idSchema, periodParamSchema, type ExpenseCreateInput, type ExpensePaymentInput, type ExpensesQuery, type ExpensesUnlockInput, type ExpenseUpdateInput} from '@tgs/contracts';
+import {expenseCreateSchema, expensePaymentSchema, expensePaidSchema, expensesQuerySchema, expensesUnlockSchema, expenseUpdateSchema, idSchema, periodParamSchema, type ExpenseCreateInput, type ExpensePaymentInput, type ExpensePaidInput, type ExpensesQuery, type ExpensesUnlockInput, type ExpenseUpdateInput} from '@tgs/contracts';
 import {CurrentUser, jsonSafe, Roles, type RequestUser, ZodPipe} from './infrastructure.js';
 
 /**
@@ -58,11 +58,16 @@ export class ExpensesController {
       ...gasto,
       // `null` significa "todavía no lo cargué", que no es lo mismo que $0.
       amountCents: payments[0] ? payments[0].amountCents.toString() : null,
+      paid: payments[0]?.paid ?? false,
+      paidAt: payments[0]?.paidAt ?? null,
       paymentNote: payments[0]?.note ?? null,
     }));
     const totalCents = items.reduce((suma, item) => suma + BigInt(item.amountCents ?? '0'), 0n);
+    const pagadoCents = items.reduce((suma, item) => suma + (item.paid ? BigInt(item.amountCents ?? '0') : 0n), 0n);
     const cargados = items.filter((item) => item.amountCents !== null).length;
-    return jsonSafe({period, items, totalCents, cargados, pendientes: items.filter((i) => i.active).length - cargados});
+    const pagados = items.filter((item) => item.paid).length;
+    const activos = items.filter((i) => i.active).length;
+    return jsonSafe({period, items, totalCents, pagadoCents, pendienteCents: totalCents - pagadoCents, cargados, pagados, sinCargar: activos - cargados});
   }
 
   /** Totales por mes, para ver la evolución del gasto fijo. */
@@ -135,6 +140,35 @@ export class ExpensesController {
         update: {amountCents, note: body.note ?? null},
       });
       await auditar(tx, u.id, guardado.id, anterior ? 'UPDATE' : 'CREATE', anterior, guardado, 'RecurringExpensePayment');
+      return guardado;
+    });
+    return jsonSafe(pago);
+  }
+
+  /**
+   * Confirma (o da de baja) el pago de un gasto en un mes.
+   *
+   * Es una acción aparte de guardar el importe a propósito: primero se carga
+   * cuánto es y después se confirma que se pagó, que son dos momentos
+   * distintos. Por eso no se puede marcar como pagado algo sin importe.
+   */
+  @Put(':id/payments/:period/paid') async setPaid(
+    @Param('id', new ZodPipe(idSchema)) id: string,
+    @Param('period', new ZodPipe(periodParamSchema)) period: string,
+    @Body(new ZodPipe(expensePaidSchema)) body: ExpensePaidInput,
+    @CurrentUser() u: RequestUser,
+  ) {
+    await requerirGasto(id);
+    const anterior = await db.recurringExpensePayment.findUnique({where: {expenseId_period: {expenseId: id, period}}});
+    if (!anterior) {
+      throw new BadRequestException('Primero guardá el importe de este mes y después confirmá el pago.');
+    }
+    const pago = await db.$transaction(async (tx) => {
+      const guardado = await tx.recurringExpensePayment.update({
+        where: {id: anterior.id},
+        data: {paid: body.paid, paidAt: body.paid ? new Date() : null},
+      });
+      await auditar(tx, u.id, guardado.id, body.paid ? 'MARK_PAID' : 'UNMARK_PAID', anterior, guardado, 'RecurringExpensePayment');
       return guardado;
     });
     return jsonSafe(pago);

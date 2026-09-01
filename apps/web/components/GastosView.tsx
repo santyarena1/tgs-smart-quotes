@@ -34,6 +34,9 @@ type Gasto = {
   active: boolean;
   /** null = todavía no se cargó este mes (distinto de haber pagado $0). */
   amountCents: string | null;
+  /** El importe puede estar cargado y el gasto todavia no estar pago. */
+  paid: boolean;
+  paidAt: string | null;
   paymentNote: string | null;
 };
 
@@ -41,8 +44,11 @@ type Respuesta = {
   period: string;
   items: Gasto[];
   totalCents: string;
+  pagadoCents: string;
+  pendienteCents: string;
   cargados: number;
-  pendientes: number;
+  pagados: number;
+  sinCargar: number;
 };
 
 const MESES = [
@@ -83,6 +89,7 @@ export function GastosView() {
   /** Texto que se está editando en cada fila, por id de gasto. */
   const [montos, setMontos] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState<string | null>(null);
+  const [marcando, setMarcando] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState("");
   const [creando, setCreando] = useState(false);
   /** Gasto cuyo nombre se está editando, y el texto en curso. */
@@ -142,6 +149,25 @@ export function GastosView() {
       setError(errorMessage(err));
     } finally {
       setGuardando(null);
+    }
+  };
+
+  /**
+   * Confirma o da de baja el pago. Es una acción aparte de guardar el importe:
+   * primero se carga cuánto es y después se confirma que se pagó.
+   */
+  const marcarPago = async (gasto: Gasto, pagado: boolean) => {
+    setMarcando(gasto.id);
+    setError(null);
+    setAviso(null);
+    try {
+      await api(`/expenses/${gasto.id}/payments/${period}/paid`, { method: "PUT", body: { paid: pagado } });
+      await cargar();
+      setAviso(pagado ? `${gasto.name}: confirmado como pagado.` : `${gasto.name}: vuelve a quedar pendiente de pago.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setMarcando(null);
     }
   };
 
@@ -289,9 +315,10 @@ export function GastosView() {
 
         {datos ? (
           <StatStrip>
-            <Stat label="Total del mes" value={formatArs(total)} />
-            <Stat label="Cargados" value={String(datos.cargados)} hint={`de ${datos.items.filter((i) => i.active).length} gastos activos`} />
-            <Stat label="Sin cargar" value={String(Math.max(0, datos.pendientes))} />
+            <Stat label="Total del mes" value={formatArs(total)} hint="Todo lo cargado, pagado o no" />
+            <Stat label="Ya pagado" value={formatArs(datos.pagadoCents)} hint={`${datos.pagados} de ${datos.cargados} cargados`} />
+            <Stat label="Falta pagar" value={formatArs(datos.pendienteCents)} />
+            <Stat label="Sin cargar" value={String(Math.max(0, datos.sinCargar))} hint="Gastos sin importe este mes" />
           </StatStrip>
         ) : null}
       </section>
@@ -342,15 +369,24 @@ export function GastosView() {
                       <strong>{gasto.name}</strong>
                     )}
                     <span className="muted" style={{ fontSize: 12.5 }}>
-                      {gasto.active
-                        ? gasto.amountCents === null
+                      {!gasto.active
+                        ? "Archivado"
+                        : gasto.amountCents === null
                           ? "Sin cargar este mes"
-                          : `Cargado: ${formatArs(gasto.amountCents)}`
-                        : "Archivado"}
+                          : gasto.paid
+                            ? `Pagado: ${formatArs(gasto.amountCents)}`
+                            : `Cargado: ${formatArs(gasto.amountCents)} — falta confirmar el pago`}
                     </span>
                   </div>
 
-                  {gasto.amountCents !== null ? <Pill tone="ok">Pagado</Pill> : <Pill tone="warn">Pendiente</Pill>}
+                  {/* Tres estados distintos: sin cargar, cargado sin pagar y pagado. */}
+                  {gasto.amountCents === null ? (
+                    <Pill tone="neutral">Sin cargar</Pill>
+                  ) : gasto.paid ? (
+                    <Pill tone="ok">Pagado</Pill>
+                  ) : (
+                    <Pill tone="warn">A pagar</Pill>
+                  )}
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <MoneyInput
@@ -362,11 +398,33 @@ export function GastosView() {
                     />
                     <button
                       type="button"
-                      className="btn-dark btn-sm"
+                      className="btn-ghost btn-sm"
                       disabled={guardando === gasto.id || !editado}
+                      title="Guarda el importe del mes, sin darlo por pagado"
                       onClick={() => void guardarMonto(gasto)}
                     >
-                      {guardando === gasto.id ? "Guardando…" : "Guardar"}
+                      {guardando === gasto.id ? "Guardando…" : "Guardar importe"}
+                    </button>
+                    {/* Confirmar el pago es una acción aparte: se puede tener el
+                        importe cargado y todavía no haberlo pagado. */}
+                    <button
+                      type="button"
+                      className={gasto.paid ? "btn-ghost btn-sm" : "btn-dark btn-sm"}
+                      disabled={marcando === gasto.id || gasto.amountCents === null || editado}
+                      title={
+                        gasto.amountCents === null
+                          ? "Primero guardá el importe de este mes"
+                          : editado
+                            ? "Guardá el importe antes de confirmar el pago"
+                            : undefined
+                      }
+                      onClick={() => void marcarPago(gasto, !gasto.paid)}
+                    >
+                      {marcando === gasto.id
+                        ? "Guardando…"
+                        : gasto.paid
+                          ? "Marcar como no pagado"
+                          : "Confirmar pago"}
                     </button>
                     <button
                       type="button"

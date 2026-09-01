@@ -1135,3 +1135,5 @@ export type ExpenseUpdateInput = z.infer<typeof expenseUpdateSchema>;
 export type ExpensePaymentInput = z.infer<typeof expensePaymentSchema>;
 export type ExpensesQuery = z.infer<typeof expensesQuerySchema>;
 export type ExpensesUnlockInput = z.infer<typeof expensesUnlockSchema>;
+export const expensePaidSchema = z.object({ paid: z.boolean() }).strict();
+export type ExpensePaidInput = z.infer<typeof expensePaidSchema>;
