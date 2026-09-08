@@ -496,6 +496,53 @@ La revalidación previa al autoenvío de recontacto es la más estricta de todo 
 
 ---
 
+## 3bis. Capa comercial del panel
+
+> Esta sección faltaba en la primera versión del documento, que cubrió a fondo la automatización
+> pero apenas mencionó el panel comercial. Es la parte que se portó al CRM en el bloque siguiente.
+
+### Barra de acciones
+
+| Botón | Qué hacía | Equivalente en el CRM |
+|---|---|---|
+| ✨ Sugerir | Genera una respuesta del bot a pedido sobre el último entrante | Botón Sugerir de la barra |
+| ➕ Solicitud rápida | Crea una solicitud y, si hace falta, el cliente | Modal Solicitud |
+| 🔍 Buscar presupuesto | Buscador por número/cliente/producto + colecciones | Modal Presupuesto |
+| 🛒 Producto | Busca en el catálogo y manda foto + precio | Modal Producto |
+| 🔎 Buscar web | Arma el link de búsqueda de la tienda | Modal Buscar web |
+| 🔔 Notificaciones | Campana con las del chat activo | Campana de la barra |
+| ⚙️ Configuración | Config completa del bot dentro del chat | Link a Configuración |
+
+### Barra del presupuesto asociado
+
+Aparece cuando el chat tiene un presupuesto vinculado (`ChatbotConversation.lastQuoteFamilyId`).
+Muestra número, selector de versión vigente, estado, total y una vista previa de los componentes.
+Acciones: Aprobar (solo sobre la versión activa), 📤 Enviar, 🔄 Solicitar otro, 🔍 Elegir otro,
+✏️ Nueva versión y 🕘 Historial. Todo eso está portado en `QuoteBar` del CRM.
+
+### Envío de presupuesto
+
+El flujo de la extensión era: generar el PDF, bajarlo por el service worker, insertar el texto en
+el composer, pegar el archivo con `ClipboardEvent`, y observar el DOM para confirmar. El mensaje
+que acompaña al PDF lo redacta la IA leyendo la conversación
+(`POST /chatbot/quotes/:id/send-message`) y es editable antes de mandar.
+
+> **Cloud API:** el mensaje sigue igual —mismo endpoint, mismo prompt—, pero el resto colapsa:
+> se genera el PDF y se encolan dos salidas (texto y documento). Desaparecen la descarga, el pegado
+> y el observador; la confirmación llega por el webhook de `statuses`.
+
+### Tabs del panel
+
+- **Chat:** detección y confianza del chat, cliente coincidente, modal para buscar/crear/vincular
+  clientes, solicitudes listas de ese teléfono, creación rápida y notificaciones del número.
+- **Presupuesto:** buscador, solicitudes y colecciones cuando no hay selección; con uno elegido,
+  resumen, editor rápido de ítems, total objetivo, config de PDF, intentos de envío y estados.
+- **Historial:** timeline unificado con filtro por tipo de evento y restaurar a una versión.
+
+> **Cloud API:** el CRM porta la barra, los modales y el historial. **El editor rápido de ítems no
+> se portó a propósito:** editar un presupuesto es una tarea de escritorio y ya vive completa en
+> `/presupuestos`, a un click desde la barra. Duplicarlo en el CRM sería mantener dos editores.
+
 ## 4. Contrato con la API — lo que se conserva sin cambios
 
 Endpoints consumidos (`apps/extension/src/lib/api.ts`), todos vía el service worker:

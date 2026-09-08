@@ -23,6 +23,18 @@ import { ConversationThread } from "./ConversationThread";
 import { Composer } from "./Composer";
 import { ContextPanel } from "./ContextPanel";
 import { SuggestionCard } from "./SuggestionCard";
+import { CrmToolbar } from "./CrmToolbar";
+import { QuoteBar } from "./QuoteBar";
+import {
+  ProductSearchModal,
+  QuickRequestModal,
+  QuoteSearchModal,
+  SendQuoteModal,
+  TimelineModal,
+  WebSearchModal,
+} from "./modals";
+import { getConversationQuote, getCrmQuote, requestWhatsappSuggestion } from "../../lib/api";
+import type { Quote } from "../../lib/types";
 
 /**
  * Bandeja del CRM.
@@ -54,6 +66,16 @@ export function CrmInbox() {
   const [threadLoading, setThreadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteVersion, setQuoteVersion] = useState(1);
+  const [suggesting, setSuggesting] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [quickRequestOpen, setQuickRequestOpen] = useState(false);
+  const [quoteSearchOpen, setQuoteSearchOpen] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
+  const [webSearchOpen, setWebSearchOpen] = useState(false);
+  const [sendQuoteOpen, setSendQuoteOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const selectedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -170,6 +192,49 @@ export function CrmInbox() {
     return last && last.direction === "OUTBOUND" && last.status === "SUGGESTED" ? last : null;
   }, [messages]);
 
+  const loadQuote = useCallback(async (chatKey: string) => {
+    try {
+      const associated = await getConversationQuote(chatKey);
+      if (selectedKeyRef.current !== chatKey) return;
+      setQuote(associated);
+      setQuoteVersion(associated?.version?.version ?? associated?.activeVersion ?? 1);
+    } catch {
+      setQuote(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedKey) { setQuote(null); return; }
+    void loadQuote(selectedKey);
+  }, [selectedKey, loadQuote]);
+
+  async function handleSuggest() {
+    if (!selectedKey) return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const result = await requestWhatsappSuggestion(selectedKey);
+      await loadThread(selectedKey, true);
+      if (result.action === "ESCALATED") setNotice("El bot marcó que esta conversación necesita atención humana.");
+      else if (result.action === "SUGGESTED") setNotice("Sugerencia lista para revisar.");
+      else setNotice(`El bot terminó con estado ${result.action}.`);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  async function pickQuote(picked: Quote, version: number) {
+    // Se recarga completo para tener todas las versiones e ítems, que el
+    // resultado de búsqueda trae recortados.
+    const full = await getCrmQuote(picked.id).catch(() => picked);
+    setQuote(full);
+    setQuoteVersion(version);
+    setQuoteSearchOpen(false);
+    setNotice(`Presupuesto ${full.visibleNumber} vinculado a la conversación.`);
+  }
+
   return (
     <div className="crm-inbox">
       <ConversationList
@@ -203,6 +268,28 @@ export function CrmInbox() {
           </div>
         ) : (
           <>
+            <CrmToolbar
+              conversation={selected}
+              suggesting={suggesting}
+              onSuggest={() => void handleSuggest()}
+              onQuickRequest={() => setQuickRequestOpen(true)}
+              onQuoteSearch={() => setQuoteSearchOpen(true)}
+              onProduct={() => setProductOpen(true)}
+              onWebSearch={() => setWebSearchOpen(true)}
+            />
+            {quote ? (
+              <QuoteBar
+                quote={quote}
+                version={quoteVersion}
+                conversation={selected}
+                onVersionChange={setQuoteVersion}
+                onSend={() => setSendQuoteOpen(true)}
+                onHistory={() => setTimelineOpen(true)}
+                onPickAnother={() => setQuoteSearchOpen(true)}
+                onChanged={async () => { await loadQuote(selected.chatKey); }}
+                onNotice={setNotice}
+              />
+            ) : null}
             <ConversationThread
               conversation={selected}
               messages={messages}
@@ -219,6 +306,8 @@ export function CrmInbox() {
             <Composer
               conversation={selected}
               templates={templates}
+              draft={draft}
+              onDraftChange={setDraft}
               onSend={handleSend}
               onRecontact={handleRecontact}
             />
@@ -227,6 +316,49 @@ export function CrmInbox() {
       </section>
 
       <ContextPanel conversation={selected} onAssign={handleAssign} />
+
+      {selected ? (
+        <>
+          <QuickRequestModal
+            open={quickRequestOpen}
+            chatKey={selected.chatKey}
+            phone={selected.chatKey.replace(/^tel:/, "")}
+            name={selected.displayName ?? selected.waContactName ?? ""}
+            onClose={() => setQuickRequestOpen(false)}
+            onCreated={(title) => setNotice(`Solicitud creada: ${title}`)}
+          />
+          <QuoteSearchModal
+            open={quoteSearchOpen}
+            phone={selected.chatKey.replace(/^tel:/, "")}
+            onClose={() => setQuoteSearchOpen(false)}
+            onPick={(picked, version) => void pickQuote(picked, version)}
+          />
+          <ProductSearchModal
+            open={productOpen}
+            chatKey={selected.chatKey}
+            onClose={() => setProductOpen(false)}
+            onSent={(title) => { setNotice(`Producto enviado: ${title}`); void loadThread(selected.chatKey, true); }}
+          />
+          <WebSearchModal
+            open={webSearchOpen}
+            onClose={() => setWebSearchOpen(false)}
+            // El enlace se deja escrito en el composer: lo revisa y manda una persona.
+            onLink={(url) => { setDraft((current) => (current ? `${current}\n${url}` : url)); setNotice("Enlace listo en el mensaje."); }}
+          />
+          <SendQuoteModal
+            open={sendQuoteOpen}
+            quote={quote}
+            version={quoteVersion}
+            chatKey={selected.chatKey}
+            onClose={() => setSendQuoteOpen(false)}
+            onSent={(visibleNumber) => {
+              setNotice(`Presupuesto ${visibleNumber} encolado con su PDF.`);
+              void loadThread(selected.chatKey, true);
+            }}
+          />
+          <TimelineModal open={timelineOpen} quote={quote} onClose={() => setTimelineOpen(false)} />
+        </>
+      ) : null}
     </div>
   );
 }

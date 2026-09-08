@@ -49,7 +49,8 @@ import {
   markAsRead,
   verifyNumber,
 } from './whatsapp-client.js';
-import {handleInboundMessage, handleStatusUpdate, type MetaValue} from './whatsapp-inbound.js';
+import {handleInboundMessage, handleStatusUpdate, loadRecentMessages, type MetaValue} from './whatsapp-inbound.js';
+import {runChatbotResponse} from './chatbot-engine.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
 
@@ -57,6 +58,20 @@ import {describeWindow, windowState} from './whatsapp-window.js';
 const suggestionSendSchema = z.object({
   text: z.string().trim().min(1).max(4096).optional(),
 }).strict();
+
+const sendQuoteSchema = z.object({
+  familyId: z.string().trim().min(1).max(200),
+  version: z.number().int().min(1),
+  kind: z.enum(['SIMPLE', 'DETALLADO']).default('SIMPLE'),
+  message: z.string().trim().min(1).max(4096),
+}).strict();
+type SendQuoteInput = z.infer<typeof sendQuoteSchema>;
+
+const sendProductSchema = z.object({
+  mpn: z.string().trim().min(1).max(200),
+  text: z.string().trim().min(1).max(1024),
+}).strict();
+type SendProductInput = z.infer<typeof sendProductSchema>;
 
 @Controller('whatsapp')
 export class WhatsappController {
@@ -577,6 +592,137 @@ export class WhatsappController {
       {kind: 'TEMPLATE', payload: {templateId: template.id, variables}},
     ]);
     return jsonSafe({logId: log.id, template: template.name, preview});
+  }
+
+  /**
+   * Envía un presupuesto: mensaje de presentación + PDF adjunto.
+   *
+   * El PDF tiene que estar generado. No se genera acá porque su encabezado depende
+   * del local desde el que se imprime, y adivinarlo cambiaría el documento; el CRM
+   * lo genera antes con los endpoints de siempre.
+   */
+  @Post('conversations/:chatKey/send-quote')
+  async sendQuote(
+    @Param('chatKey') chatKey: string,
+    @Body(new ZodPipe(sendQuoteSchema)) body: SendQuoteInput,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+    if (!windowState(conversation.windowExpiresAt).open) {
+      throw new ConflictException('La ventana de 24 h está cerrada: no se puede adjuntar un presupuesto.');
+    }
+    const family = await db.quoteFamily.findUnique({
+      where: {id: body.familyId},
+      select: {id: true, visibleNumber: true},
+    });
+    if (!family) throw new NotFoundException('El presupuesto no existe');
+
+    const log = await db.chatbotMessageLog.create({data: {
+      conversationKey: chatKey,
+      direction: 'OUTBOUND',
+      actor: 'HUMAN',
+      status: 'SEND_PENDING',
+      channel: 'CLOUD_API',
+      text: body.message,
+      decisionMetadata: {
+        manual: true,
+        sentByUserId: actor.id,
+        quote: {familyId: family.id, version: body.version, kind: body.kind},
+      } as Prisma.InputJsonValue,
+    }});
+
+    await enqueueOutbound(chatKey, log.id, [
+      {kind: 'TEXT', payload: {text: body.message}},
+      {
+        kind: 'DOCUMENT',
+        payload: {
+          quote: {familyId: family.id, version: body.version, kind: body.kind},
+          filename: `${family.visibleNumber}-V${body.version}-${body.kind}.pdf`,
+          label: `presupuesto ${family.visibleNumber} V${body.version}`,
+        },
+        delaySeconds: 1,
+      },
+    ]);
+
+    // Queda asociado al chat para que la barra del CRM lo muestre al volver.
+    await db.chatbotConversation.update({
+      where: {chatKey},
+      data: {lastQuoteFamilyId: family.id, lastQuoteVersion: body.version},
+    });
+    return jsonSafe({logId: log.id, visibleNumber: family.visibleNumber});
+  }
+
+  /** Envía un producto del catálogo: foto + texto con nombre y precio. */
+  @Post('conversations/:chatKey/send-product')
+  async sendProduct(
+    @Param('chatKey') chatKey: string,
+    @Body(new ZodPipe(sendProductSchema)) body: SendProductInput,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+    if (!windowState(conversation.windowExpiresAt).open) {
+      throw new ConflictException('La ventana de 24 h está cerrada: no se puede enviar un producto.');
+    }
+    const product = await db.acustockProduct.findUnique({
+      where: {mpn: body.mpn},
+      select: {mpn: true, title: true, imageUrl: true},
+    });
+    if (!product) throw new NotFoundException('El producto no existe en el catálogo');
+
+    const log = await db.chatbotMessageLog.create({data: {
+      conversationKey: chatKey,
+      direction: 'OUTBOUND',
+      actor: 'HUMAN',
+      status: 'SEND_PENDING',
+      channel: 'CLOUD_API',
+      text: body.text,
+      decisionMetadata: {manual: true, sentByUserId: actor.id, productMpn: product.mpn} as Prisma.InputJsonValue,
+    }});
+
+    // Con imagen va en una sola burbuja con pie de foto; sin imagen, solo texto.
+    await enqueueOutbound(chatKey, log.id, product.imageUrl
+      ? [{kind: 'IMAGE', payload: {productMpn: product.mpn, caption: body.text, label: `producto ${product.title}`}}]
+      : [{kind: 'TEXT', payload: {text: body.text}}]);
+    return jsonSafe({logId: log.id, product: product.title});
+  }
+
+  /**
+   * Genera una sugerencia a pedido sobre el último mensaje del cliente.
+   *
+   * Es el botón "Sugerir" de la barra de la extensión. El loop nunca sugiere solo
+   * en modo SUGGEST: siempre es una acción deliberada de una persona.
+   */
+  @Post('conversations/:chatKey/suggest')
+  async suggest(@Param('chatKey') chatKey: string, @CurrentUser() actor: RequestUser) {
+    const lastInbound = await db.chatbotMessageLog.findFirst({
+      where: {conversationKey: chatKey, direction: 'INBOUND'},
+      orderBy: {createdAt: 'desc'},
+      select: {text: true, decisionMetadata: true},
+    });
+    if (!lastInbound) throw new ConflictException('La conversación no tiene mensajes del cliente para responder.');
+
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}, select: {displayName: true}});
+    const metadata = (lastInbound.decisionMetadata ?? {}) as Record<string, unknown>;
+    const messageType = metadata.messageType === 'AUDIO' ? 'AUDIO' as const : 'TEXT' as const;
+    const settings = await db.chatbotSettings.findUniqueOrThrow({
+      where: {id: 'singleton'},
+      select: {maxRecentSnippets: true},
+    });
+
+    const result = await runChatbotResponse({
+      chatKey,
+      displayName: conversation?.displayName ?? undefined,
+      message: lastInbound.text,
+      messageType,
+      // Sufijo único: regenerar a pedido no debe chocar con el índice de deduplicación.
+      messageFingerprint: `manual:${chatKey}:${Date.now()}`,
+      manualSuggestion: true,
+      simulation: false,
+      recentMessages: await loadRecentMessages(chatKey, settings.maxRecentSnippets),
+    }, actor.id);
+    return jsonSafe(result);
   }
 
   // ------------------------------------------------------------------- plantillas

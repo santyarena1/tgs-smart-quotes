@@ -1,4 +1,12 @@
-import type { RecontactCandidate, RecontactHistoryItem } from "./types";
+import type {
+  Collection,
+  Customer,
+  Quote,
+  QuoteRequest,
+  RecontactCandidate,
+  RecontactHistoryItem,
+  TimelineEvent,
+} from "./types";
 
 /**
  * Por defecto usamos same-origin `/api` (proxy de Next → backend).
@@ -277,6 +285,141 @@ export function sendWhatsappRecontact(
     method: 'POST',
     body: {templateId, templateVariables},
   });
+}
+
+// ---------------------------------------------------------------------------
+// Capa comercial del CRM. Reemplaza a la barra de acciones y los tabs que la
+// extensión inyectaba dentro de WhatsApp Web. Los endpoints son los mismos que
+// consumía el plugin: acá solo cambia desde dónde se los llama.
+// ---------------------------------------------------------------------------
+
+export type CrmCatalogProduct = {
+  mpn: string;
+  title: string;
+  priceCents: string;
+  salePriceCents: string | null;
+  stockQuantity: number;
+  availability: string;
+  brand: string | null;
+  imageUrl: string | null;
+};
+
+/** Presupuesto asociado a la conversación, o null si todavía no hay ninguno. */
+export function getConversationQuote(chatKey: string): Promise<Quote | null> {
+  return api(`/chatbot/conversations/${encodeURIComponent(chatKey)}/quote`);
+}
+
+export function searchCrmQuotes(params: {
+  q?: string;
+  phone?: string;
+  customerId?: string;
+}): Promise<{items: Quote[]}> {
+  return api('/quotes/search', {query: params});
+}
+
+export function getCrmQuote(id: string): Promise<Quote> {
+  return api(`/quotes/${encodeURIComponent(id)}`);
+}
+
+export function getCrmTimeline(id: string): Promise<{events: TimelineEvent[]}> {
+  return api(`/quotes/${encodeURIComponent(id)}/timeline`);
+}
+
+export function listCrmCollections(): Promise<Collection[]> {
+  return api('/collections');
+}
+
+export function changeCrmQuoteState(
+  id: string,
+  state: string,
+  reason?: string | null,
+): Promise<Quote> {
+  return api(`/quotes/${encodeURIComponent(id)}/state`, {method: 'POST', body: {state, reason}});
+}
+
+export function createCrmQuoteVersion(
+  id: string,
+  reason?: string | null,
+  sourceVersion?: number,
+): Promise<Quote> {
+  return api(`/quotes/${encodeURIComponent(id)}/version`, {method: 'POST', body: {reason, sourceVersion}});
+}
+
+/** Genera (o reutiliza) el PDF de una versión concreta antes de adjuntarlo. */
+export function generateCrmVersionPdf(
+  id: string,
+  version: number,
+  kind: 'SIMPLE' | 'DETALLADO' = 'SIMPLE',
+): Promise<{reused?: boolean}> {
+  return api(`/quotes/${encodeURIComponent(id)}/versions/${version}/pdf`, {method: 'POST', body: {kind}});
+}
+
+/** Redacta con IA el mensaje que acompaña al presupuesto, según la conversación. */
+export function generateQuoteSendMessage(
+  id: string,
+  body: {chatKey: string; version?: number; recentMessages: Array<{direction: 'INBOUND' | 'OUTBOUND'; text: string}>},
+): Promise<{text: string; usedAi: boolean}> {
+  return api(`/chatbot/quotes/${encodeURIComponent(id)}/send-message`, {method: 'POST', body});
+}
+
+export function sendWhatsappQuote(
+  chatKey: string,
+  body: {familyId: string; version: number; kind: 'SIMPLE' | 'DETALLADO'; message: string},
+): Promise<{logId: string; visibleNumber: string}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/send-quote`, {method: 'POST', body});
+}
+
+export function searchCrmProducts(q: string): Promise<{items: CrmCatalogProduct[]}> {
+  return api('/catalog', {query: {q, pageSize: 20, sort: 'price-asc'}});
+}
+
+export function crmProductImagePath(mpn: string): string {
+  return `/api/catalog/${encodeURIComponent(mpn)}/image`;
+}
+
+export function sendWhatsappProduct(
+  chatKey: string,
+  body: {mpn: string; text: string},
+): Promise<{logId: string; product: string}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/send-product`, {method: 'POST', body});
+}
+
+export function getStoreSearchUrl(q: string): Promise<{url: string}> {
+  return api('/catalog/web-search', {query: {q}});
+}
+
+/** Pide una sugerencia del bot sobre el último mensaje del cliente. */
+export function requestWhatsappSuggestion(chatKey: string): Promise<{action: string; reply?: string; logId?: string}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/suggest`, {method: 'POST'});
+}
+
+export function listCrmRequests(): Promise<QuoteRequest[]> {
+  return api('/requests');
+}
+
+export function createCrmQuickRequest(body: {
+  title: string;
+  originalText: string;
+  detectedPhone: string | null;
+}): Promise<QuoteRequest> {
+  // La solicitud rápida usa el mismo POST /requests que la vista de Solicitudes.
+  return api('/requests', {method: 'POST', body: {...body, state: 'PENDIENTE'}});
+}
+
+export function updateCrmRequest(id: string, body: Record<string, unknown>): Promise<QuoteRequest> {
+  return api(`/requests/${encodeURIComponent(id)}`, {method: 'PUT', body});
+}
+
+export function createCustomerQuick(phone: string): Promise<Customer & {created: boolean}> {
+  return api('/customers/quick', {method: 'POST', body: {phone}});
+}
+
+export function createCrmCustomer(body: {
+  name: string;
+  phone?: string | null;
+  dni?: string | null;
+}): Promise<Customer> {
+  return api('/customers', {method: 'POST', body});
 }
 
 /** Aprueba una sugerencia del bot (opcionalmente editada) y la envía. */

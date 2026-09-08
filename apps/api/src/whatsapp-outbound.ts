@@ -43,6 +43,8 @@ export type QueuePayload = {
   text?: string;
   /** URL interna de una imagen de regla (`/api/uploads/chatbot-rules/...`). */
   imageUrl?: string;
+  /** Producto del catálogo: la imagen se baja de AcuStock al momento de enviar. */
+  productMpn?: string;
   /** PDF de un presupuesto ya generado. Se lee del almacenamiento, no por HTTP. */
   quote?: {familyId: string; version: number; kind?: string};
   filename?: string;
@@ -171,6 +173,22 @@ async function resolveAttachmentBytes(payload: QueuePayload): Promise<{bytes: Bu
     const filename = payload.imageUrl.split('/').pop() ?? '';
     const filePath = chatbotRuleImagePath(filename);
     return {bytes: await readFile(filePath), mimeType: chatbotRuleImageMime(filename), filename};
+  }
+  if (payload.productMpn) {
+    const product = await db.acustockProduct.findUnique({
+      where: {mpn: payload.productMpn},
+      select: {imageUrl: true, title: true},
+    });
+    if (!product?.imageUrl) throw new Error('El producto no tiene imagen disponible.');
+    const response = await fetch(product.imageUrl, {signal: AbortSignal.timeout(10_000)});
+    if (!response.ok) throw new Error(`No se pudo descargar la imagen del producto: HTTP ${response.status}`);
+    const mimeType = response.headers.get('content-type') ?? 'image/jpeg';
+    if (!mimeType.toLowerCase().startsWith('image/')) throw new Error('El catálogo devolvió un archivo que no es una imagen.');
+    return {
+      bytes: Buffer.from(await response.arrayBuffer()),
+      mimeType,
+      filename: `${payload.productMpn.replace(/[^\w.-]+/g, '-')}.jpg`,
+    };
   }
   if (payload.quote) {
     const pdf = await db.quotePdf.findFirst({

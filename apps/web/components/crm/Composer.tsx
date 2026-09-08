@@ -18,15 +18,20 @@ import { Alert, errorMessage } from "../shared";
 export function Composer({
   conversation,
   templates,
+  draft,
+  onDraftChange,
   onSend,
   onRecontact,
 }: {
   conversation: WhatsappConversation;
   templates: WhatsappTemplate[];
+  /** El texto vive en el contenedor para que otras acciones —como pegar el
+   *  enlace de una búsqueda en la tienda— puedan escribir en el cuadro. */
+  draft: string;
+  onDraftChange: (value: string) => void;
   onSend: (body: { text?: string; templateId?: string; templateVariables?: string[] }) => Promise<void>;
   onRecontact: (templateId: string, variables: string[]) => Promise<void>;
 }) {
-  const [text, setText] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [variables, setVariables] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -36,6 +41,8 @@ export function Composer({
     () => templates.filter((template) => template.status === "APPROVED"),
     [templates],
   );
+  const text = draft;
+  const setText = onDraftChange;
   const template = approved.find((item) => item.id === templateId) ?? null;
   const windowOpen = conversation.window.open;
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { api, listCrmRequests } from "../../lib/api";
 import type { WhatsappConversation } from "../../lib/api";
-import type { AuthUser } from "../../lib/types";
+import type { AuthUser, QuoteRequest } from "../../lib/types";
 import { conversationTitle, relativeTime } from "./format";
 
 /**
@@ -19,6 +19,7 @@ export function ContextPanel({
   onAssign: (userId: string | null) => Promise<void>;
 }) {
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [readyRequests, setReadyRequests] = useState<QuoteRequest[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -26,6 +27,20 @@ export function ContextPanel({
       .then((response) => setUsers(response.items.filter((user) => user.id)))
       .catch(() => setUsers([]));
   }, []);
+
+  // Solicitudes de este teléfono que ya están listas o pendientes de cotizar:
+  // es el atajo que la extensión mostraba en el tab de Chat.
+  useEffect(() => {
+    if (!conversation) { setReadyRequests([]); return; }
+    const digits = conversation.chatKey.replace(/^tel:/, "");
+    void listCrmRequests()
+      .then((all) => setReadyRequests(all.filter((request) => {
+        if (request.state === "CERRADA") return false;
+        const phone = (request.detectedPhone ?? "").replace(/\D/g, "");
+        return Boolean(phone) && (phone.endsWith(digits.slice(-8)) || digits.endsWith(phone.slice(-8)));
+      }).slice(0, 5)))
+      .catch(() => setReadyRequests([]));
+  }, [conversation?.chatKey]);
 
   if (!conversation) {
     return <aside className="crm-context crm-context-empty" aria-hidden="true" />;
@@ -75,6 +90,19 @@ export function ContextPanel({
           <p className="crm-context-strong">{conversation.activeRequest.title}</p>
           <p className="crm-hint">Estado: {conversation.activeRequest.state}</p>
           <a className="crm-link" href="/solicitudes">Ver en Solicitudes →</a>
+        </div>
+      ) : null}
+
+      {readyRequests.length ? (
+        <div className="crm-context-block">
+          <h3>Listas para cotizar</h3>
+          {readyRequests.map((request) => (
+            <div key={request.id} className="crm-ready-request">
+              <p className="crm-context-strong">{request.title}</p>
+              <p className="crm-hint">{request.state}</p>
+            </div>
+          ))}
+          <a className="crm-link" href="/solicitudes">Abrir Solicitudes →</a>
         </div>
       ) : null}
 

@@ -269,3 +269,96 @@
   .crm-template-new-row { grid-template-columns: 1fr; }
   .crm-topbar-nav { justify-content: flex-start; }
 }
+
+/* ---------- Barra de acciones de la conversación ---------- */
+.crm-toolbar {
+  display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;
+  padding: 0.45rem 0.9rem; background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.crm-toolbar-spacer { flex: 1 1 auto; }
+.crm-toolbar-btn {
+  border: 1px solid var(--line-2); background: var(--canvas-2); color: var(--ink-2);
+  border-radius: var(--r-sm); padding: 0.25rem 0.55rem; font-size: 0.8rem;
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;
+  position: relative; white-space: nowrap;
+}
+.crm-toolbar-btn:hover:not(:disabled) { background: var(--canvas); border-color: var(--line-2); }
+.crm-toolbar-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.crm-toolbar-btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.crm-toolbar-btn.primary:hover:not(:disabled) { background: #000; }
+
+.crm-bell-wrap { position: relative; }
+.crm-bell-dot {
+  position: absolute; top: -5px; right: -5px; background: var(--red); color: #fff;
+  border-radius: 999px; font-size: 0.62rem; min-width: 15px; height: 15px;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0 3px;
+}
+.crm-bell-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+  width: 300px; max-height: 340px; overflow-y: auto;
+  background: var(--paper); border: 1px solid var(--line-2);
+  border-radius: var(--r); box-shadow: var(--sh-2); padding: 0.5rem; display: grid; gap: 0.3rem;
+}
+.crm-bell-item {
+  display: grid; gap: 0.1rem; text-align: left; width: 100%;
+  background: transparent; border: 0; border-bottom: 1px solid var(--line);
+  padding: 0.4rem 0.2rem; cursor: pointer; font: inherit; color: inherit;
+}
+.crm-bell-item:last-child { border-bottom: 0; }
+.crm-bell-item:hover { background: var(--canvas-2); }
+
+/* ---------- Barra del presupuesto asociado ---------- */
+.crm-quotebar {
+  background: var(--canvas-2); border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.9rem; display: grid; gap: 0.35rem;
+}
+.crm-quotebar-main { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.crm-quotebar-num { font-weight: 700; font-family: var(--brand); }
+.crm-quotebar-ver { width: auto; min-width: 150px; padding: 0.2rem 0.4rem; font-size: 0.82rem; }
+.crm-quotebar-total { margin-left: auto; font-size: 1rem; }
+.crm-quotebar-items {
+  margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.crm-quotebar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+.crm-quotebar-error { margin: 0; color: var(--red-deep); font-size: 0.8rem; }
+
+/* ---------- Modales del CRM ---------- */
+.crm-modal-stack { display: grid; gap: 0.7rem; }
+.crm-modal-stack label { display: grid; gap: 0.2rem; }
+.crm-modal-stack label > span { font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
+.crm-modal-list { display: grid; gap: 0.5rem; max-height: 52vh; overflow-y: auto; }
+.crm-chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+.crm-quote-card {
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 0.6rem 0.7rem; display: grid; gap: 0.35rem; background: var(--paper);
+}
+.crm-quote-card-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
+.crm-quote-card-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; }
+.crm-quote-card-row .crm-select { width: auto; min-width: 150px; }
+
+.crm-product-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.6rem; max-height: 52vh; overflow-y: auto;
+}
+.crm-product-card {
+  border: 1px solid var(--line); border-radius: var(--r);
+  overflow: hidden; background: var(--paper); display: grid;
+  grid-template-rows: 120px auto;
+}
+.crm-product-card img { width: 100%; height: 120px; object-fit: contain; background: #fff; }
+.crm-product-noimg {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--canvas); color: var(--faint); font-size: 0.78rem;
+}
+.crm-product-body { padding: 0.5rem; display: grid; gap: 0.25rem; align-content: start; }
+.crm-product-title {
+  margin: 0; font-size: 0.82rem; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.crm-timeline-item {
+  border-left: 2px solid var(--line-2); padding: 0.15rem 0 0.5rem 0.6rem;
+}
+.crm-ready-request { padding-bottom: 0.4rem; }
