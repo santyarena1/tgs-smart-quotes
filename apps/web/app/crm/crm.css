@@ -259,6 +259,10 @@
 }
 .crm-toolbar-btn.primary:hover:not(:disabled) { background: #272c35; }
 .crm-toolbar-btn.only-icon { padding: 0.4rem 0.5rem; }
+.crm-toolbar-note {
+  flex-basis: 100%; display: flex; align-items: center; gap: 0.35rem;
+  margin: 0.35rem 0 0; font-size: 0.78rem; color: var(--warn);
+}
 
 .crm-bell-wrap { position: relative; }
 .crm-bell-dot {

@@ -122,3 +122,7 @@ export const IconChat = (props: IconProps) => (
 export const IconInfo = (props: IconProps) => (
   <Svg {...props}><circle cx="12" cy="12" r="8.5" /><path d="M12 8v5M12 16h.01" /></Svg>
 );
+
+export const IconPaperclip = (props: IconProps) => (
+  <Svg {...props}><path d="M20 11l-8.5 8.5a4.5 4.5 0 01-6.4-6.4l9-9a3 3 0 014.3 4.3l-9 9a1.5 1.5 0 01-2.2-2.1l8-8" /></Svg>
+);

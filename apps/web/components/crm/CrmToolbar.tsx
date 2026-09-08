@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { WhatsappConversation } from "../../lib/api";
 import { relativeTime } from "./format";
-import { IconBell, IconCart, IconDocument, IconGear, IconGlobe, IconPlus, IconSparkle } from "./icons";
+import { IconBell, IconCart, IconDocument, IconGear, IconGlobe, IconLock, IconPlus, IconSparkle } from "./icons";
 
 type NotificationRow = {
   id: string;
@@ -140,6 +140,15 @@ export function CrmToolbar({
       <a className="crm-toolbar-btn only-icon" href="/configuracion" title="Configuración del bot" aria-label="Configuración del bot">
         <IconGear size={16} />
       </a>
+
+      {/* Un botón gris sin explicación se lee como "está roto". Se dice por qué. */}
+      {!windowOpen ? (
+        <p className="crm-toolbar-note">
+          <IconLock size={13} />
+          Enviar un producto requiere la ventana de 24 h abierta. Podés retomar con una plantilla
+          desde el cuadro de abajo.
+        </p>
+      ) : null}
     </div>
   );
 }

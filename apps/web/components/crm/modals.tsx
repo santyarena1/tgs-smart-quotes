@@ -176,7 +176,9 @@ export function QuoteSearchModal({
     if (!open || !q.trim()) return;
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void searchCrmQuotes({ q: q.trim(), phone: phone || undefined, customerId: customerId || undefined })
+      // Sin filtro de teléfono: el del chat viene normalizado y casi nunca coincide
+      // con el cargado en el cliente, así que dejaba la búsqueda siempre vacía.
+      void searchCrmQuotes({ q: q.trim(), customerId: customerId || undefined })
         .then((result) => {
           setItems(result.items);
           setSearched(true);

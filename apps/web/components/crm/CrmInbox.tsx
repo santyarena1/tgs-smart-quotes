@@ -384,7 +384,17 @@ export function CrmInbox() {
             open={webSearchOpen}
             onClose={() => setWebSearchOpen(false)}
             // El enlace se deja escrito en el composer: lo revisa y manda una persona.
-            onLink={(url) => { setDraft((current) => (current ? `${current}\n${url}` : url)); setNotice("Enlace listo en el mensaje."); }}
+            onLink={(url) => {
+              // Con la ventana cerrada no existe el cuadro de mensaje donde escribirlo,
+              // así que el enlace se copia y se avisa, en vez de perderse en silencio.
+              if (selected.window.open) {
+                setDraft((current) => (current ? `${current}\n${url}` : url));
+                setNotice("Enlace listo en el cuadro de mensaje.");
+              } else {
+                void navigator.clipboard?.writeText(url).catch(() => undefined);
+                setNotice(`La ventana está cerrada: el enlace se copió al portapapeles. ${url}`);
+              }
+            }}
           />
           <SendQuoteModal
             open={sendQuoteOpen}

@@ -13,7 +13,7 @@ import {
   phoneLabel,
   windowCountdown,
 } from "./format";
-import { IconClock, IconLock } from "./icons";
+import { IconClock, IconLock, IconPaperclip } from "./icons";
 
 export function ConversationThread({
   conversation,
@@ -39,15 +39,21 @@ export function ConversationThread({
     return () => window.clearInterval(timer);
   }, [conversation.window.expiresAt]);
 
+  // Un borrador no es un mensaje: una sugerencia sin aprobar y una descartada no
+  // van al hilo. Dibujarlas como burbuja saliente hacía creer que ya se enviaron.
+  const sent = messages.filter(
+    (message) => message.status !== "SUGGESTED" && message.status !== "DISMISSED",
+  );
+
   useEffect(() => {
-    const lastId = messages[messages.length - 1]?.id ?? null;
+    const lastId = sent[sent.length - 1]?.id ?? null;
     // Solo baja cuando llega algo nuevo: si no, cada refresco de 10 s te tiraría
     // al final mientras estás leyendo mensajes viejos.
     if (lastId && lastId !== lastIdRef.current) {
       lastIdRef.current = lastId;
       bottomRef.current?.scrollIntoView({ block: "end" });
     }
-  }, [messages]);
+  }, [sent]);
 
   let lastDay = "";
 
@@ -81,12 +87,12 @@ export function ConversationThread({
       </header>
 
       <div className="crm-thread-body">
-        {loading && messages.length === 0 ? (
+        {loading && sent.length === 0 ? (
           <Loading label="Cargando conversación…" />
-        ) : messages.length === 0 ? (
+        ) : sent.length === 0 ? (
           <p className="crm-list-empty">Todavía no hay mensajes en esta conversación.</p>
         ) : (
-          messages.map((message) => {
+          sent.map((message) => {
             const day = dayLabel(message.createdAt);
             const showDay = day !== lastDay;
             lastDay = day;
@@ -101,7 +107,7 @@ export function ConversationThread({
                     {outbound ? <div className="crm-bubble-actor">{actorLabel(message)}</div> : null}
                     <p className="crm-bubble-text">{message.text}</p>
                     {message.mediaFilename ? (
-                      <p className="crm-bubble-media">📎 {message.mediaFilename}</p>
+                      <p className="crm-bubble-media"><IconPaperclip size={13} /> {message.mediaFilename}</p>
                     ) : null}
                     <div className="crm-bubble-meta">
                       <span>{clockTime(message.createdAt)}</span>
