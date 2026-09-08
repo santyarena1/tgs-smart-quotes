@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { WhatsappConversation } from "../../lib/api";
 import { relativeTime } from "./format";
+import { IconBell, IconCart, IconDocument, IconGear, IconGlobe, IconPlus, IconSparkle } from "./icons";
 
 type NotificationRow = {
   id: string;
@@ -19,9 +20,9 @@ type NotificationRow = {
 /**
  * Barra de acciones de la conversación.
  *
- * Porta la barra que la extensión inyectaba arriba de WhatsApp Web: sugerir,
- * solicitud rápida, buscar presupuesto, mandar producto, buscar en la tienda,
- * notificaciones y acceso a la configuración del bot.
+ * Una sola acción principal —Sugerir respuesta— y el resto en secundario, para
+ * que se lea qué se espera que hagas. La versión de la extensión eran siete
+ * botones del mismo peso con emojis.
  */
 export function CrmToolbar({
   conversation,
@@ -42,6 +43,7 @@ export function CrmToolbar({
 }) {
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [open, setOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,12 +58,21 @@ export function CrmToolbar({
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [conversation.chatKey]);
 
-  // Solo las de este chat: el resto vive en la vista de Notificaciones del sistema.
-  const mine = notifications.filter((item) => !item.actedAt);
-  const unread = mine.filter((item) => !item.readAt).length;
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (event: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const pending = notifications.filter((item) => !item.actedAt);
+  const unread = pending.filter((item) => !item.readAt).length;
 
   async function markRead(id: string) {
-    await api(`/notifications/${encodeURIComponent(id)}/mark`, { method: "POST", body: { read: true } }).catch(() => undefined);
+    await api(`/notifications/${encodeURIComponent(id)}/mark`, { method: "POST", body: { read: true } })
+      .catch(() => undefined);
     setNotifications((current) =>
       current.map((item) => (item.id === id ? { ...item, readAt: new Date().toISOString() } : item)));
   }
@@ -70,20 +81,18 @@ export function CrmToolbar({
 
   return (
     <div className="crm-toolbar">
-      <button
-        type="button"
-        className="crm-toolbar-btn primary"
-        onClick={onSuggest}
-        disabled={suggesting}
-        title="Generar una respuesta con el bot sobre el último mensaje del cliente"
-      >
-        {suggesting ? "⏳ Generando…" : "✨ Sugerir"}
+      <button type="button" className="crm-toolbar-btn primary" onClick={onSuggest} disabled={suggesting}>
+        <IconSparkle size={15} />
+        {suggesting ? "Generando…" : "Sugerir respuesta"}
       </button>
+
+      <span className="crm-toolbar-sep" aria-hidden="true" />
+
       <button type="button" className="crm-toolbar-btn" onClick={onQuickRequest}>
-        ➕ Solicitud
+        <IconPlus size={15} /> Solicitud
       </button>
       <button type="button" className="crm-toolbar-btn" onClick={onQuoteSearch}>
-        🔍 Presupuesto
+        <IconDocument size={15} /> Presupuesto
       </button>
       <button
         type="button"
@@ -92,30 +101,31 @@ export function CrmToolbar({
         disabled={!windowOpen}
         title={windowOpen ? "" : "La ventana de 24 h está cerrada"}
       >
-        🛒 Producto
+        <IconCart size={15} /> Producto
       </button>
       <button type="button" className="crm-toolbar-btn" onClick={onWebSearch}>
-        🔎 Buscar web
+        <IconGlobe size={15} /> Tienda
       </button>
 
-      <div className="crm-toolbar-spacer" />
+      <span className="crm-toolbar-spacer" />
 
-      <div className="crm-bell-wrap">
+      <div className="crm-bell-wrap" ref={bellRef}>
         <button
           type="button"
-          className="crm-toolbar-btn"
+          className="crm-toolbar-btn only-icon"
           onClick={() => setOpen((value) => !value)}
-          aria-label="Notificaciones de este chat"
+          aria-label={`Notificaciones de este chat${unread ? ` (${unread} sin leer)` : ""}`}
           aria-expanded={open}
         >
-          🔔{unread > 0 ? <span className="crm-bell-dot">{unread}</span> : null}
+          <IconBell size={16} />
+          {unread > 0 ? <span className="crm-bell-dot">{unread}</span> : null}
         </button>
         {open ? (
-          <aside className="crm-bell-panel" role="dialog" aria-label="Notificaciones del chat">
-            {mine.length === 0 ? (
-              <p className="crm-hint">Sin notificaciones para este chat.</p>
+          <div className="crm-menu wide" role="dialog" aria-label="Notificaciones del chat">
+            {pending.length === 0 ? (
+              <p className="crm-hint crm-menu-empty">Sin notificaciones para este chat.</p>
             ) : (
-              mine.map((item) => (
+              pending.map((item) => (
                 <button key={item.id} type="button" className="crm-bell-item" onClick={() => void markRead(item.id)}>
                   <strong>{item.title}</strong>
                   <span className="crm-hint">{item.body}</span>
@@ -123,16 +133,12 @@ export function CrmToolbar({
                 </button>
               ))
             )}
-          </aside>
+          </div>
         ) : null}
       </div>
 
-      <a
-        className="crm-toolbar-btn"
-        href="/configuracion"
-        title="Configuración del bot"
-      >
-        ⚙️
+      <a className="crm-toolbar-btn only-icon" href="/configuracion" title="Configuración del bot" aria-label="Configuración del bot">
+        <IconGear size={16} />
       </a>
     </div>
   );

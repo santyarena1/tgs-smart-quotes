@@ -41,7 +41,7 @@ import {
 } from '@tgs/contracts';
 import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
-import {CurrentUser, jsonSafe, Public, type RequestUser, SkipRateLimit, ZodPipe} from './infrastructure.js';
+import {CurrentUser, jsonSafe, Public, type RequestUser, Roles, SkipRateLimit, ZodPipe} from './infrastructure.js';
 import {
   countTemplateVariables,
   listTemplates,
@@ -72,6 +72,21 @@ const sendProductSchema = z.object({
   text: z.string().trim().min(1).max(1024),
 }).strict();
 type SendProductInput = z.infer<typeof sendProductSchema>;
+
+/** Notificaciones que genera el chatbot y que quedan huérfanas al borrar un chat. */
+const CHATBOT_NOTIFICATION_TYPES = [
+  'CHATBOT_ESCALATION',
+  'CHATBOT_SUGGESTION',
+  'CHATBOT_REQUEST_CREATED',
+];
+
+/** Frase exacta que hay que tipear para confirmar la limpieza masiva. */
+const PURGE_PHRASE = 'BORRAR TODO';
+
+const purgeSchema = z.object({
+  confirm: z.string().max(50),
+}).strict();
+type PurgeInput = z.infer<typeof purgeSchema>;
 
 @Controller('whatsapp')
 export class WhatsappController {
@@ -406,6 +421,79 @@ export class WhatsappController {
       include: {assignedUser: {select: {id: true, username: true, displayName: true}}},
     });
     return jsonSafe({chatKey: row.chatKey, assignedUser: row.assignedUser});
+  }
+
+  // ------------------------------------------------------------------- borrado CRM
+
+  /**
+   * Borra una conversación con todo su historial.
+   *
+   * Los mensajes y la cola de salida caen por cascada; las notificaciones del chat
+   * se borran a mano porque no tienen clave foránea. Las solicitudes y presupuestos
+   * que hayan salido de la conversación NO se tocan: son datos comerciales.
+   *
+   * Es irreversible, así que queda registrado en AuditLog con lo que se borró.
+   */
+  @Delete('conversations/:chatKey')
+  async deleteConversation(@Param('chatKey') chatKey: string, @CurrentUser() actor: RequestUser) {
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+
+    const result = await db.$transaction(async (tx) => {
+      const messages = await tx.chatbotMessageLog.count({where: {conversationKey: chatKey}});
+      const notifications = await tx.notification.deleteMany({
+        where: {chatPhone: chatKey, type: {in: CHATBOT_NOTIFICATION_TYPES}},
+      });
+      await tx.chatbotConversation.delete({where: {chatKey}});
+      await tx.auditLog.create({data: {
+        userId: actor.id,
+        entityType: 'ChatbotConversation',
+        entityId: chatKey,
+        action: 'DELETE',
+        previous: jsonSafe(conversation),
+        next: Prisma.JsonNull,
+      }});
+      return {messages, notifications: notifications.count};
+    });
+    return jsonSafe({chatKey, deleted: result});
+  }
+
+  /**
+   * Limpieza masiva: borra TODAS las conversaciones y las notificaciones del chatbot.
+   *
+   * Pensada para dejar el CRM en cero antes de conectar Cloud API, sacando lo que
+   * quedó de la etapa de la extensión. Exige rol ADMIN y confirmación escrita para
+   * que no pueda dispararse por accidente ni desde una llamada suelta.
+   */
+  @Roles('ADMIN')
+  @Post('conversations/purge')
+  async purgeConversations(
+    @Body(new ZodPipe(purgeSchema)) body: PurgeInput,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    if (body.confirm !== PURGE_PHRASE) {
+      throw new BadRequestException(`Para confirmar hay que escribir exactamente "${PURGE_PHRASE}".`);
+    }
+    const result = await db.$transaction(async (tx) => {
+      const conversations = await tx.chatbotConversation.count();
+      const messages = await tx.chatbotMessageLog.count();
+      const notifications = await tx.notification.deleteMany({
+        where: {type: {in: CHATBOT_NOTIFICATION_TYPES}},
+      });
+      // Los mensajes y la cola caen por cascada desde la conversación.
+      await tx.chatbotConversation.deleteMany({});
+      await tx.auditLog.create({data: {
+        userId: actor.id,
+        entityType: 'ChatbotConversation',
+        entityId: 'purge',
+        action: 'PURGE',
+        previous: jsonSafe({conversations, messages, notifications: notifications.count}),
+        next: Prisma.JsonNull,
+      }});
+      return {conversations, messages, notifications: notifications.count};
+    });
+    this.logger.warn(JSON.stringify({event: 'whatsapp_conversations_purged', by: actor.id, ...result}));
+    return jsonSafe({deleted: result});
   }
 
   // -------------------------------------------------------------------- envío CRM

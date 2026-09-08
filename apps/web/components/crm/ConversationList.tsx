@@ -2,7 +2,8 @@
 
 import type { WhatsappConversation, WhatsappConversationFilter } from "../../lib/api";
 import { Loading } from "../shared";
-import { relativeTime, conversationTitle } from "./format";
+import { avatarInitials, conversationTitle, relativeTime, rowPriority } from "./format";
+import { IconLock, IconSearch, IconTrash } from "./icons";
 
 export function ConversationList({
   conversations,
@@ -15,6 +16,7 @@ export function ConversationList({
   onSearch,
   loading,
   totalUnread,
+  onPurge,
 }: {
   conversations: WhatsappConversation[];
   selectedKey: string | null;
@@ -26,32 +28,53 @@ export function ConversationList({
   onSearch: (value: string) => void;
   loading: boolean;
   totalUnread: number;
+  /** Solo se pasa a un ADMIN: limpieza masiva de conversaciones. */
+  onPurge?: () => void;
 }) {
+  const escalated = conversations.filter((item) => item.escalatedAt).length;
+
   return (
     <aside className="crm-list">
       <div className="crm-list-head">
         <div className="crm-list-title">
           <strong>Conversaciones</strong>
           {totalUnread > 0 ? <span className="crm-count">{totalUnread}</span> : null}
-        </div>
-        <input
-          className="crm-search"
-          value={search}
-          onChange={(event) => onSearch(event.target.value)}
-          placeholder="Buscar por nombre, número o mensaje…"
-          aria-label="Buscar conversaciones"
-        />
-        <div className="crm-filters">
-          {filters.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={item.id === filter ? "crm-filter active" : "crm-filter"}
-              onClick={() => onFilter(item.id)}
-            >
-              {item.label}
+          {onPurge ? (
+            <button type="button" className="crm-list-purge" onClick={onPurge} title="Borrar todas las conversaciones" aria-label="Borrar todas las conversaciones">
+              <IconTrash size={14} />
             </button>
-          ))}
+          ) : null}
+        </div>
+        <div className="crm-search-wrap">
+          <IconSearch size={15} />
+          <input
+            className="crm-search"
+            value={search}
+            onChange={(event) => onSearch(event.target.value)}
+            placeholder="Buscar por nombre, número o mensaje"
+            aria-label="Buscar conversaciones"
+          />
+        </div>
+        <div className="crm-filters">
+          {filters.map((item) => {
+            // El contador va en el propio filtro: dice cuánto hay antes de tocarlo.
+            const count = item.id === "NO_LEIDAS"
+              ? conversations.filter((row) => row.unreadCount > 0).length
+              : item.id === "ESCALADAS"
+                ? escalated
+                : null;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={item.id === filter ? "crm-filter active" : "crm-filter"}
+                onClick={() => onFilter(item.id)}
+              >
+                {item.label}
+                {count ? <span className="crm-filter-count">{count}</span> : null}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -62,43 +85,50 @@ export function ConversationList({
           <p className="crm-list-empty">No hay conversaciones para este filtro.</p>
         ) : (
           conversations.map((conversation) => {
-            const preview = conversation.lastInboundAt && (!conversation.lastOutboundAt
-              || new Date(conversation.lastInboundAt) > new Date(conversation.lastOutboundAt))
-              ? conversation.lastInboundText
-              : conversation.lastOutboundText;
+            const inboundIsLast = conversation.lastInboundAt
+              && (!conversation.lastOutboundAt
+                || new Date(conversation.lastInboundAt) > new Date(conversation.lastOutboundAt));
+            const preview = inboundIsLast ? conversation.lastInboundText : conversation.lastOutboundText;
             const stamp = conversation.lastInboundAt && conversation.lastOutboundAt
               ? (new Date(conversation.lastInboundAt) > new Date(conversation.lastOutboundAt)
                 ? conversation.lastInboundAt
                 : conversation.lastOutboundAt)
               : conversation.lastInboundAt ?? conversation.lastOutboundAt ?? conversation.updatedAt;
+            const priority = rowPriority(conversation);
+            const active = conversation.chatKey === selectedKey;
 
             return (
               <button
                 key={conversation.chatKey}
                 type="button"
-                className={conversation.chatKey === selectedKey ? "crm-row active" : "crm-row"}
+                className={`crm-row prio-${priority}${active ? " active" : ""}`}
                 onClick={() => onSelect(conversation.chatKey)}
               >
-                <div className="crm-row-top">
-                  <span className="crm-row-name">{conversationTitle(conversation)}</span>
-                  <span className="crm-row-time">{relativeTime(stamp)}</span>
-                </div>
-                <div className="crm-row-preview">{preview || "Sin mensajes"}</div>
-                <div className="crm-row-tags">
-                  {conversation.unreadCount > 0 ? (
-                    <span className="crm-tag unread">{conversation.unreadCount}</span>
-                  ) : null}
-                  {conversation.escalatedAt ? <span className="crm-tag warn">Escalada</span> : null}
-                  {/* La ventana cerrada es la información más accionable de la fila:
-                      determina si se puede contestar o hay que usar una plantilla. */}
-                  {!conversation.window.open ? <span className="crm-tag closed">Ventana cerrada</span> : null}
-                  {conversation.modeOverride === "OFF" ? <span className="crm-tag muted">Bot apagado</span> : null}
-                  {conversation.assignedUser ? (
-                    <span className="crm-tag info">
-                      {conversation.assignedUser.displayName || conversation.assignedUser.username}
-                    </span>
-                  ) : null}
-                </div>
+                <span className="crm-row-bar" aria-hidden="true" />
+                <span className={`crm-avatar prio-${priority}`}>{avatarInitials(conversation)}</span>
+                <span className="crm-row-body">
+                  <span className="crm-row-top">
+                    <span className="crm-row-name">{conversationTitle(conversation)}</span>
+                    <span className="crm-row-time">{relativeTime(stamp)}</span>
+                  </span>
+                  <span className="crm-row-preview">{preview || "Sin mensajes"}</span>
+                  <span className="crm-row-tags">
+                    {conversation.escalatedAt ? <span className="crm-tag warn">Escalada</span> : null}
+                    {conversation.unreadCount > 0 ? (
+                      <span className="crm-tag unread">{conversation.unreadCount}</span>
+                    ) : null}
+                    {conversation.assignedUser ? (
+                      <span className="crm-tag info">
+                        {conversation.assignedUser.displayName || conversation.assignedUser.username}
+                      </span>
+                    ) : null}
+                    {!conversation.window.open ? (
+                      <span className="crm-row-closed">
+                        <IconLock size={12} /> Ventana cerrada
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
               </button>
             );
           })

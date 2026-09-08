@@ -6,6 +6,46 @@ export function conversationTitle(conversation: WhatsappConversation): string {
     || conversation.chatKey.replace(/^tel:/, "+");
 }
 
+export function phoneLabel(chatKey: string): string {
+  return chatKey.replace(/^tel:/, "+");
+}
+
+/** Iniciales para el avatar. Un número queda con sus dos últimos dígitos. */
+export function avatarInitials(conversation: WhatsappConversation): string {
+  const name = (conversation.displayName || conversation.waContactName || "").trim();
+  if (!name || /^\+?\d+$/.test(name)) return conversation.chatKey.replace(/\D/g, "").slice(-2) || "?";
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+}
+
+/** Cuenta regresiva de la ventana. Se calcula en el cliente para que avance sola. */
+export function windowCountdown(expiresAt: string | null): string | null {
+  if (!expiresAt) return null;
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  if (remaining <= 0) return null;
+  const hours = Math.floor(remaining / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+}
+
+/** Porcentaje restante de la ventana, para la barra de progreso del panel. */
+export function windowProgress(expiresAt: string | null): number {
+  if (!expiresAt) return 0;
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  return Math.max(0, Math.min(100, (remaining / (24 * 60 * 60 * 1000)) * 100));
+}
+
+/** Prioridad de una fila de la bandeja: define la barra de color de la izquierda. */
+export function rowPriority(conversation: WhatsappConversation): "escalated" | "unread" | "closed" | "none" {
+  if (conversation.escalatedAt) return "escalated";
+  if (conversation.unreadCount > 0) return "unread";
+  if (!conversation.window.open) return "closed";
+  return "none";
+}
+
 export function relativeTime(value: string | null | undefined): string {
   if (!value) return "";
   const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));

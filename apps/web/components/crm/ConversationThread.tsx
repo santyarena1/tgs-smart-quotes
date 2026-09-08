@@ -1,9 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WhatsappConversation, WhatsappMessage } from "../../lib/api";
 import { Loading } from "../shared";
-import { actorLabel, clockTime, conversationTitle, dayLabel, deliveryLabel } from "./format";
+import {
+  actorLabel,
+  avatarInitials,
+  clockTime,
+  conversationTitle,
+  dayLabel,
+  deliveryLabel,
+  phoneLabel,
+  windowCountdown,
+} from "./format";
+import { IconClock, IconLock } from "./icons";
 
 export function ConversationThread({
   conversation,
@@ -16,6 +26,18 @@ export function ConversationThread({
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
+  const [countdown, setCountdown] = useState(() => windowCountdown(conversation.window.expiresAt));
+
+  // La cuenta regresiva avanza sola: si dependiera del refresco de 10 s, el
+  // número quedaría congelado justo cuando importa mirarlo.
+  useEffect(() => {
+    setCountdown(windowCountdown(conversation.window.expiresAt));
+    const timer = window.setInterval(
+      () => setCountdown(windowCountdown(conversation.window.expiresAt)),
+      30_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [conversation.window.expiresAt]);
 
   useEffect(() => {
     const lastId = messages[messages.length - 1]?.id ?? null;
@@ -32,9 +54,12 @@ export function ConversationThread({
   return (
     <div className="crm-thread">
       <header className="crm-thread-head">
-        <div>
-          <strong>{conversationTitle(conversation)}</strong>
-          <span className="crm-thread-phone">{conversation.chatKey.replace(/^tel:/, "+")}</span>
+        <div className="crm-thread-who">
+          <span className="crm-avatar">{avatarInitials(conversation)}</span>
+          <div>
+            <strong>{conversationTitle(conversation)}</strong>
+            <span className="crm-thread-phone">{phoneLabel(conversation.chatKey)}</span>
+          </div>
         </div>
         <div className="crm-thread-state">
           {conversation.escalatedAt ? (
@@ -42,9 +67,16 @@ export function ConversationThread({
               Escalada
             </span>
           ) : null}
-          <span className={conversation.window.open ? "crm-window open" : "crm-window closed"}>
-            {conversation.window.description}
-          </span>
+          {/* La ventana define si podés escribir: va como dato de primer nivel. */}
+          {countdown ? (
+            <span className="crm-window open" title={conversation.window.description}>
+              <IconClock size={14} /> {countdown} de ventana
+            </span>
+          ) : (
+            <span className="crm-window closed" title={conversation.window.description}>
+              <IconLock size={14} /> Ventana cerrada
+            </span>
+          )}
         </div>
       </header>
 

@@ -9,6 +9,7 @@ import {
   type WhatsappTemplate,
 } from "../../lib/api";
 import { Alert, Loading, errorMessage } from "../shared";
+import { IconCheck, IconClock, IconPlus } from "./icons";
 
 /**
  * Plantillas aprobadas por Meta.
@@ -33,6 +34,14 @@ const STATUS_LABEL: Record<string, string> = {
   PAUSED: "Pausada",
   DISABLED: "Deshabilitada",
 };
+
+/** Resalta los placeholders {{n}} para que se distingan del texto fijo aprobado. */
+function highlightVariables(body: string) {
+  return body.split(/(\{\{\s*\d+\s*\}\})/g).map((chunk, index) =>
+    /^\{\{\s*\d+\s*\}\}$/.test(chunk)
+      ? <span key={index} className="crm-template-var">{chunk}</span>
+      : <span key={index}>{chunk}</span>);
+}
 
 const EMPTY = {
   name: "",
@@ -141,7 +150,7 @@ export function TemplatesManager() {
           </p>
         ) : (
           templates.map((template) => (
-            <article key={template.id} className="crm-template-card">
+            <article key={template.id} className={template.status === "REJECTED" ? "crm-template-card rejected" : "crm-template-card"}>
               <div className="crm-template-card-head">
                 <strong>{template.name}</strong>
                 <span className={`crm-tag ${STATUS_TONE[template.status] ?? "muted"}`}>
@@ -150,7 +159,7 @@ export function TemplatesManager() {
                 <span className="crm-tag muted">{template.language}</span>
                 {template.useForRecontact ? <span className="crm-tag info">Recontactos</span> : null}
               </div>
-              <p className="crm-template-body">{template.body}</p>
+              <p className="crm-template-body">{highlightVariables(template.body)}</p>
               {template.usageHint ? <p className="crm-hint">{template.usageHint}</p> : null}
               <div className="crm-template-card-foot">
                 <span className="crm-hint">

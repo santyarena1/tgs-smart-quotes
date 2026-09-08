@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { WhatsappConversation, WhatsappMessage } from "../../lib/api";
 import { Alert, errorMessage } from "../shared";
+import { IconSend, IconSparkle } from "./icons";
 
 /**
  * Sugerencia del bot pendiente de aprobación (modo SUGGEST).
@@ -50,6 +51,7 @@ export function SuggestionCard({
   return (
     <div className="crm-suggestion">
       <div className="crm-suggestion-head">
+        <IconSparkle size={15} />
         <strong>El bot sugiere una respuesta</strong>
         {edited ? <span className="crm-tag info">Editada</span> : null}
       </div>
@@ -79,7 +81,7 @@ export function SuggestionCard({
           disabled={busy || !text.trim() || !windowOpen}
           onClick={() => void run(() => onSend(suggestion.id, text.trim()))}
         >
-          {busy ? "Enviando…" : edited ? "Enviar editada" : "Aprobar y enviar"}
+          <IconSend size={15} /> {busy ? "Enviando…" : edited ? "Enviar editada" : "Aprobar y enviar"}
         </button>
         <button
           type="button"

@@ -1,17 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { createCrmQuoteVersion, type WhatsappConversation } from "../../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, createCrmQuoteVersion, type WhatsappConversation } from "../../lib/api";
 import { formatArs } from "../../lib/money";
 import type { Quote } from "../../lib/types";
 import { errorMessage } from "../shared";
 import { approveQuote, quoteAtVersion, quoteItemsPreview } from "./modals";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconClock,
+  IconClose,
+  IconDots,
+  IconExternal,
+  IconPencil,
+  IconSearch,
+  IconSend,
+} from "./icons";
 
 /**
- * Barra del presupuesto asociado a la conversación.
+ * Barra del presupuesto vinculado a la conversación.
  *
- * Es el equivalente a la franja que la extensión dibujaba sobre WhatsApp Web:
- * número, versión vigente, estado, total y las acciones de siempre.
+ * Tres zonas alineadas —identidad, total, acciones— con una sola acción
+ * principal. El resto vive en el menú: cuatro botones compitiendo hacían que la
+ * fila se pisara con nombres largos y no dejaban claro qué se espera que hagas.
  */
 export function QuoteBar({
   quote,
@@ -23,6 +35,7 @@ export function QuoteBar({
   onPickAnother,
   onChanged,
   onNotice,
+  onUnlink,
 }: {
   quote: Quote;
   version: number;
@@ -33,19 +46,33 @@ export function QuoteBar({
   onPickAnother: () => void;
   onChanged: () => Promise<void>;
   onNotice: (message: string) => void;
+  onUnlink: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
 
   const selected = quoteAtVersion(quote, version);
   const state = selected.version?.state ?? "—";
   const versions = quote.versions?.length ? quote.versions : quote.version ? [quote.version] : [];
-  // Aprobar solo tiene sentido sobre la versión activa: las anteriores están congeladas.
+  // Aprobar solo aplica a la versión activa: las anteriores están congeladas.
   const isActiveVersion = version === quote.activeVersion;
+  const windowOpen = conversation.window.open;
 
   async function run(action: () => Promise<unknown>, notice: string) {
     setBusy(true);
     setError(null);
+    setMenuOpen(false);
     try {
       await action();
       await onChanged();
@@ -58,66 +85,93 @@ export function QuoteBar({
   }
 
   return (
-    <div className="crm-quotebar">
-      <div className="crm-quotebar-main">
-        <span className="crm-quotebar-num">{quote.visibleNumber}</span>
-        <select
-          className="crm-select crm-quotebar-ver"
-          value={version}
-          onChange={(event) => onVersionChange(Number(event.target.value))}
-          aria-label="Versión vigente para este chat"
-        >
-          {versions.map((item) => (
-            <option key={item.id} value={item.version}>V{item.version} · {item.state}</option>
-          ))}
-        </select>
-        <span className="crm-tag">{state}</span>
-        <strong className="crm-quotebar-total">{formatArs(selected.version?.totalSaleCents)}</strong>
+    <div className={`crm-quotebar${isActiveVersion ? "" : " historical"}`}>
+      <div className="crm-quotebar-info">
+        <div className="crm-quotebar-line">
+          <span className="crm-quotebar-num">{quote.visibleNumber}</span>
+          <label className="crm-quotebar-ver">
+            <select
+              value={version}
+              onChange={(event) => onVersionChange(Number(event.target.value))}
+              aria-label="Versión vigente para este chat"
+            >
+              {versions.map((item) => (
+                <option key={item.id} value={item.version}>V{item.version}</option>
+              ))}
+            </select>
+            <IconChevronDown size={11} />
+          </label>
+          <span className={`crm-tag ${isActiveVersion ? "violet" : "muted"}`}>
+            {isActiveVersion ? state : "Versión anterior"}
+          </span>
+        </div>
+        <p className="crm-quotebar-items" title={quoteItemsPreview(selected)}>
+          {quoteItemsPreview(selected)}
+        </p>
       </div>
 
-      <p className="crm-hint crm-quotebar-items" title={quoteItemsPreview(selected)}>
-        {quoteItemsPreview(selected)}
-      </p>
+      <div className="crm-quotebar-total">
+        <span className="crm-quotebar-total-label">Total</span>
+        <strong>{formatArs(selected.version?.totalSaleCents)}</strong>
+      </div>
 
-      <div className="crm-quotebar-actions">
+      <div className="crm-quotebar-actions" ref={menuRef}>
         <button
           type="button"
-          className="btn-dark btn-sm"
+          className="btn-dark btn-sm crm-icon-btn"
           onClick={onSend}
-          disabled={busy || !conversation.window.open}
-          title={conversation.window.open ? "" : "La ventana de 24 h está cerrada"}
+          disabled={busy || !windowOpen}
+          title={windowOpen ? "" : "La ventana de 24 h está cerrada"}
         >
-          📤 Enviar
+          <IconSend size={14} /> Enviar
         </button>
         <button
           type="button"
-          className="btn-ghost btn-sm"
-          disabled={busy || state === "ACEPTADO" || !isActiveVersion}
-          title={isActiveVersion ? "" : "Solo se puede aprobar la versión activa"}
-          onClick={() => void run(() => approveQuote(quote), "Presupuesto marcado como aceptado.")}
-        >
-          ✓ Aprobar
-        </button>
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
+          className={menuOpen ? "btn-dark btn-sm crm-only-icon" : "btn-ghost btn-sm crm-only-icon"}
+          onClick={() => setMenuOpen((value) => !value)}
+          aria-label="Más acciones del presupuesto"
+          aria-expanded={menuOpen}
           disabled={busy}
-          onClick={() => void run(
-            () => createCrmQuoteVersion(quote.id, `Nueva versión desde el CRM (base V${version})`, version),
-            "Versión nueva creada en borrador.",
-          )}
         >
-          ✏️ Nueva versión
+          <IconDots size={15} />
         </button>
-        <button type="button" className="btn-ghost btn-sm" onClick={onHistory} disabled={busy}>
-          🕘 Historial
-        </button>
-        <button type="button" className="btn-ghost btn-sm" onClick={onPickAnother} disabled={busy}>
-          🔍 Elegir otro
-        </button>
-        <a className="crm-link" href={`/presupuestos?quote=${encodeURIComponent(quote.id)}`}>
-          Abrir completo →
-        </a>
+
+        {menuOpen ? (
+          <div className="crm-menu" role="menu">
+            {isActiveVersion && state !== "ACEPTADO" ? (
+              <button type="button" className="crm-menu-item ok" onClick={() => void run(() => approveQuote(quote), "Presupuesto marcado como aceptado.")}>
+                <IconCheck size={15} /> Aprobar presupuesto
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="crm-menu-item"
+              onClick={() => void run(
+                () => createCrmQuoteVersion(quote.id, `Nueva versión desde el CRM (base V${version})`, version),
+                "Versión nueva creada en borrador.",
+              )}
+            >
+              <IconPencil size={15} /> Crear versión nueva
+            </button>
+            <button type="button" className="crm-menu-item" onClick={() => { setMenuOpen(false); onHistory(); }}>
+              <IconClock size={15} /> Historial de cambios
+            </button>
+            <button type="button" className="crm-menu-item" onClick={() => { setMenuOpen(false); onPickAnother(); }}>
+              <IconSearch size={15} /> Elegir otro presupuesto
+            </button>
+            <div className="crm-menu-sep" />
+            <a className="crm-menu-item" href={`/presupuestos?quote=${encodeURIComponent(quote.id)}`}>
+              <IconExternal size={15} /> Abrir en Presupuestos
+            </a>
+            <button
+              type="button"
+              className="crm-menu-item danger"
+              onClick={() => void run(onUnlink, "El presupuesto se desvinculó de la conversación.")}
+            >
+              <IconClose size={15} /> Desvincular del chat
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {error ? <p className="crm-quotebar-error">{error}</p> : null}

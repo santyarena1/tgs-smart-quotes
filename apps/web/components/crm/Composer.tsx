@@ -3,17 +3,15 @@
 import { useMemo, useState } from "react";
 import type { WhatsappConversation, WhatsappTemplate } from "../../lib/api";
 import { Alert, errorMessage } from "../shared";
+import { IconInfo, IconLock, IconSend } from "./icons";
 
 /**
  * Cuadro de escritura del CRM.
  *
- * Reemplaza al composer de WhatsApp Web que la extensión manipulaba con el puente
- * Lexical. Al ser propio, desaparecen la protección del texto humano y el rastreo
- * del envío manual: acá el envío lo hace el sistema y se registra directo.
- *
- * La ventana de 24 h decide qué se puede mandar, y se bloquea en la UI antes de
- * intentar el envío para que el operador entienda por qué, en vez de recibir un
- * rechazo de Meta sin contexto.
+ * Cuando la ventana de 24 h está cerrada no desaparece en silencio: en el mismo
+ * lugar aparece la explicación y el flujo de plantilla, con vista previa de cómo
+ * lo recibe el cliente. El objetivo es que se entienda el porqué, en vez de que
+ * Meta devuelva un rechazo sin contexto después de escribir.
  */
 export function Composer({
   conversation,
@@ -41,8 +39,6 @@ export function Composer({
     () => templates.filter((template) => template.status === "APPROVED"),
     [templates],
   );
-  const text = draft;
-  const setText = onDraftChange;
   const template = approved.find((item) => item.id === templateId) ?? null;
   const windowOpen = conversation.window.open;
 
@@ -52,18 +48,25 @@ export function Composer({
     setVariables(found ? Array.from({ length: found.variableCount }, () => "") : []);
   }
 
-  const preview = template
-    ? template.body.replace(/\{\{\s*(\d+)\s*\}\}/g, (_match, index) => variables[Number(index) - 1] || `{{${index}}}`)
-    : "";
+  const previewParts = useMemo(() => {
+    if (!template) return null;
+    // Se parte el cuerpo por los placeholders para poder resaltar los valores.
+    return template.body.split(/(\{\{\s*\d+\s*\}\})/g).map((chunk) => {
+      const match = chunk.match(/^\{\{\s*(\d+)\s*\}\}$/);
+      if (!match) return { text: chunk, filled: false };
+      const value = variables[Number(match[1]) - 1];
+      return { text: value || chunk, filled: Boolean(value) };
+    });
+  }, [template, variables]);
 
   async function submitText() {
-    const value = text.trim();
+    const value = draft.trim();
     if (!value) return;
     setBusy(true);
     setError(null);
     try {
       await onSend({ text: value });
-      setText("");
+      onDraftChange("");
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -74,7 +77,7 @@ export function Composer({
   async function submitTemplate() {
     if (!template) return;
     if (variables.some((value) => !value.trim())) {
-      setError("Completá todas las variables de la plantilla antes de enviarla.");
+      setError("Completá todas las variables antes de enviar la plantilla.");
       return;
     }
     setBusy(true);
@@ -97,87 +100,153 @@ export function Composer({
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       {windowOpen ? (
-        <div className="crm-composer-text">
-          <textarea
-            className="crm-textarea"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => {
-              // Enter envía, Shift+Enter hace salto de línea: la convención de todo chat.
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void submitText();
-              }
-            }}
-            placeholder="Escribí un mensaje… (Enter para enviar, Shift+Enter para saltar de línea)"
-            rows={3}
-            disabled={busy}
-          />
-          <button type="button" className="btn-dark" onClick={() => void submitText()} disabled={busy || !text.trim()}>
-            {busy ? "Enviando…" : "Enviar"}
-          </button>
-        </div>
-      ) : (
-        <div className="crm-window-blocked">
-          <strong>La ventana de 24 h está cerrada.</strong>
-          <p>
-            WhatsApp no permite mandar texto libre después de 24 h sin respuesta del cliente.
-            Para retomar la conversación hay que usar una plantilla aprobada por Meta.
-          </p>
-        </div>
-      )}
-
-      <details className="crm-template-box" open={!windowOpen}>
-        <summary>{windowOpen ? "Enviar una plantilla" : "Retomar con una plantilla"}</summary>
-        {approved.length === 0 ? (
-          <p className="crm-hint">
-            No hay plantillas aprobadas todavía. Se cargan y sincronizan desde la sección Plantillas.
-          </p>
-        ) : (
-          <div className="crm-template-form">
-            <select
-              className="crm-select"
-              value={templateId}
-              onChange={(event) => pickTemplate(event.target.value)}
-              aria-label="Plantilla"
-            >
-              <option value="">Elegí una plantilla…</option>
-              {approved.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} {item.usageHint ? `— ${item.usageHint}` : ""}
-                </option>
-              ))}
-            </select>
-
-            {template && template.variableCount > 0 ? (
-              <div className="crm-template-vars">
-                {variables.map((value, index) => (
-                  <input
-                    key={index}
-                    className="crm-input"
-                    value={value}
-                    onChange={(event) => setVariables((current) =>
-                      current.map((item, position) => (position === index ? event.target.value : item)))}
-                    placeholder={`Variable {{${index + 1}}}`}
-                    aria-label={`Variable ${index + 1}`}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {template ? <p className="crm-template-preview">{preview}</p> : null}
-
-            <button
-              type="button"
-              className="btn-dark"
-              onClick={() => void submitTemplate()}
-              disabled={busy || !template}
-            >
-              {busy ? "Enviando…" : "Enviar plantilla"}
+        <>
+          <div className="crm-composer-text">
+            <textarea
+              className="crm-textarea"
+              value={draft}
+              onChange={(event) => onDraftChange(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter envía, Shift+Enter salta de línea: la convención de todo chat.
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void submitText();
+                }
+              }}
+              placeholder="Escribí un mensaje…"
+              rows={2}
+              disabled={busy}
+            />
+            <button type="button" className="crm-send" onClick={() => void submitText()} disabled={busy || !draft.trim()}>
+              <IconSend size={15} /> {busy ? "Enviando…" : "Enviar"}
             </button>
           </div>
-        )}
-      </details>
+          {approved.length > 0 ? (
+            <details className="crm-template-box">
+              <summary>Enviar una plantilla</summary>
+              <TemplateForm
+                approved={approved}
+                template={template}
+                templateId={templateId}
+                variables={variables}
+                previewParts={previewParts}
+                busy={busy}
+                onPick={pickTemplate}
+                onVariable={(index, value) =>
+                  setVariables((current) => current.map((item, position) => (position === index ? value : item)))}
+                onSubmit={() => void submitTemplate()}
+              />
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <div className="crm-window-blocked">
+          <div className="crm-window-blocked-head">
+            <IconLock size={19} />
+            <div>
+              <strong>No se puede escribir libremente</strong>
+              <p>
+                Pasaron más de 24 h desde el último mensaje del cliente. WhatsApp solo permite
+                retomar con una plantilla aprobada por Meta.
+              </p>
+            </div>
+          </div>
+
+          {approved.length === 0 ? (
+            <p className="crm-hint">
+              Todavía no hay plantillas aprobadas. Se cargan y sincronizan en la sección Plantillas.
+            </p>
+          ) : (
+            <>
+              <div className="crm-section-label">Retomar con una plantilla</div>
+              <TemplateForm
+                approved={approved}
+                template={template}
+                templateId={templateId}
+                variables={variables}
+                previewParts={previewParts}
+                busy={busy}
+                onPick={pickTemplate}
+                onVariable={(index, value) =>
+                  setVariables((current) => current.map((item, position) => (position === index ? value : item)))}
+                onSubmit={() => void submitTemplate()}
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemplateForm({
+  approved,
+  template,
+  templateId,
+  variables,
+  previewParts,
+  busy,
+  onPick,
+  onVariable,
+  onSubmit,
+}: {
+  approved: WhatsappTemplate[];
+  template: WhatsappTemplate | null;
+  templateId: string;
+  variables: string[];
+  previewParts: { text: string; filled: boolean }[] | null;
+  busy: boolean;
+  onPick: (id: string) => void;
+  onVariable: (index: number, value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="crm-template-form">
+      <select className="crm-select" value={templateId} onChange={(event) => onPick(event.target.value)} aria-label="Plantilla">
+        <option value="">Elegí una plantilla…</option>
+        {approved.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.name}{item.usageHint ? ` — ${item.usageHint}` : ""}
+          </option>
+        ))}
+      </select>
+
+      {template && template.variableCount > 0 ? (
+        <div className="crm-template-vars">
+          {variables.map((value, index) => (
+            <label key={index}>
+              <span>Variable {index + 1}</span>
+              <input
+                className="crm-input"
+                value={value}
+                onChange={(event) => onVariable(index, event.target.value)}
+                placeholder={`Valor de {{${index + 1}}}`}
+              />
+            </label>
+          ))}
+        </div>
+      ) : null}
+
+      {template && previewParts ? (
+        <div className="crm-template-preview">
+          <div className="crm-section-label">Así lo va a recibir</div>
+          <p>
+            {previewParts.map((part, index) =>
+              part.filled
+                ? <strong key={index}>{part.text}</strong>
+                : <span key={index}>{part.text}</span>)}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="crm-template-foot">
+        <span className="crm-hint">
+          <IconInfo size={14} /> Las plantillas de marketing se cobran por conversación.
+        </span>
+        <button type="button" className="crm-send" onClick={onSubmit} disabled={busy || !template}>
+          <IconSend size={15} /> {busy ? "Enviando…" : "Enviar plantilla"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,8 @@ import {
   sendWhatsappMessage,
   sendWhatsappRecontact,
   sendWhatsappSuggestion,
+  deleteWhatsappConversation,
+  unlinkConversationQuote,
   type WhatsappConversation,
   type WhatsappConversationFilter,
   type WhatsappMessage,
@@ -23,6 +25,9 @@ import { ConversationThread } from "./ConversationThread";
 import { Composer } from "./Composer";
 import { ContextPanel } from "./ContextPanel";
 import { SuggestionCard } from "./SuggestionCard";
+import { EmptyInbox } from "./EmptyInbox";
+import { PurgeDialog } from "./PurgeDialog";
+import { useSession } from "../SessionProvider";
 import { CrmToolbar } from "./CrmToolbar";
 import { QuoteBar } from "./QuoteBar";
 import {
@@ -35,6 +40,7 @@ import {
 } from "./modals";
 import { getConversationQuote, getCrmQuote, requestWhatsappSuggestion } from "../../lib/api";
 import type { Quote } from "../../lib/types";
+import { IconChat, IconTrash } from "./icons";
 
 /**
  * Bandeja del CRM.
@@ -55,6 +61,7 @@ const FILTERS: { id: WhatsappConversationFilter; label: string }[] = [
 ];
 
 export function CrmInbox() {
+  const { user } = useSession();
   const [conversations, setConversations] = useState<WhatsappConversation[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<WhatsappConversation | null>(null);
@@ -76,6 +83,7 @@ export function CrmInbox() {
   const [webSearchOpen, setWebSearchOpen] = useState(false);
   const [sendQuoteOpen, setSendQuoteOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
   const selectedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -147,6 +155,11 @@ export function CrmInbox() {
     () => conversations.reduce((sum, item) => sum + item.unreadCount, 0),
     [conversations],
   );
+
+  const showEmptyState = !listLoading
+    && conversations.length === 0
+    && filter === "TODAS"
+    && !search.trim();
 
   async function handleSend(body: Parameters<typeof sendWhatsappMessage>[1]) {
     if (!selectedKey) return;
@@ -225,6 +238,20 @@ export function CrmInbox() {
     }
   }
 
+  async function handleDeleteConversation() {
+    if (!selectedKey) return;
+    await deleteWhatsappConversation(selectedKey);
+    setSelectedKey(null);
+    setNotice("Conversación borrada.");
+    await loadConversations(true);
+  }
+
+  async function handleUnlinkQuote() {
+    if (!selectedKey) return;
+    await unlinkConversationQuote(selectedKey);
+    setQuote(null);
+  }
+
   async function pickQuote(picked: Quote, version: number) {
     // Se recarga completo para tener todas las versiones e ítems, que el
     // resultado de búsqueda trae recortados.
@@ -248,6 +275,9 @@ export function CrmInbox() {
         onSearch={setSearch}
         loading={listLoading}
         totalUnread={totalUnread}
+        // La limpieza masiva es destructiva: solo la ve un ADMIN, y el servidor
+        // vuelve a validar el rol además de pedir la frase de confirmación.
+        onPurge={user?.role === "ADMIN" && conversations.length > 0 ? () => setPurgeOpen(true) : undefined}
       />
 
       <section className="crm-thread-pane">
@@ -262,10 +292,14 @@ export function CrmInbox() {
         ) : null}
 
         {!selected ? (
-          <div className="crm-placeholder">
-            <div className="crm-placeholder-mark">💬</div>
-            <p>Elegí una conversación para verla.</p>
-          </div>
+          // Sin conversaciones y sin filtro activo la bandeja está vacía de verdad:
+          // ahí conviene explicar qué falta, no pedir que elijan algo que no existe.
+          showEmptyState ? <EmptyInbox /> : (
+            <div className="crm-placeholder">
+              <IconChat size={30} />
+              <p>Elegí una conversación para verla.</p>
+            </div>
+          )
         ) : (
           <>
             <CrmToolbar
@@ -288,6 +322,7 @@ export function CrmInbox() {
                 onPickAnother={() => setQuoteSearchOpen(true)}
                 onChanged={async () => { await loadQuote(selected.chatKey); }}
                 onNotice={setNotice}
+                onUnlink={handleUnlinkQuote}
               />
             ) : null}
             <ConversationThread
@@ -315,7 +350,13 @@ export function CrmInbox() {
         )}
       </section>
 
-      <ContextPanel conversation={selected} onAssign={handleAssign} />
+      <ContextPanel conversation={selected} onAssign={handleAssign} onDelete={handleDeleteConversation} />
+
+      <PurgeDialog
+        open={purgeOpen}
+        onClose={() => setPurgeOpen(false)}
+        onDone={(summary) => { setNotice(summary); setSelectedKey(null); void loadConversations(true); }}
+      />
 
       {selected ? (
         <>

@@ -422,6 +422,29 @@ export function createCrmCustomer(body: {
   return api('/customers', {method: 'POST', body});
 }
 
+/** Borra una conversación con todo su historial. Irreversible. */
+export function deleteWhatsappConversation(chatKey: string): Promise<{
+  chatKey: string;
+  deleted: {messages: number; notifications: number};
+}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}`, {method: 'DELETE'});
+}
+
+/** Limpieza masiva. Solo ADMIN y con la frase de confirmación exacta. */
+export function purgeWhatsappConversations(confirm: string): Promise<{
+  deleted: {conversations: number; messages: number; notifications: number};
+}> {
+  return api('/whatsapp/conversations/purge', {method: 'POST', body: {confirm}});
+}
+
+/** Desvincula el presupuesto asociado a la conversación. */
+export function unlinkConversationQuote(chatKey: string): Promise<unknown> {
+  return api(`/chatbot/conversations/${encodeURIComponent(chatKey)}`, {
+    method: 'PUT',
+    body: {lastQuoteFamilyId: null, lastQuoteVersion: null},
+  });
+}
+
 /** Aprueba una sugerencia del bot (opcionalmente editada) y la envía. */
 export function sendWhatsappSuggestion(logId: string, text?: string): Promise<{logId: string; text: string}> {
   return api(`/whatsapp/suggestions/${encodeURIComponent(logId)}/send`, {
