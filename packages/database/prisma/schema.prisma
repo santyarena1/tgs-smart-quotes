@@ -122,6 +122,28 @@ enum ChatbotMessageStatus {
   SEND_FAILED
   DISMISSED
   ESCALATED
+  /// Cloud API confirmó la entrega en el dispositivo del cliente.
+  DELIVERED
+  /// Cloud API confirmó que el cliente abrió el mensaje.
+  READ
+}
+
+/// Estado de una salida encolada. La cola vive en el servidor: reemplaza a la
+/// cola en memoria que corría dentro del navegador con la extensión.
+enum WhatsappQueueStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+/// Tipo de contenido de una salida encolada.
+enum WhatsappQueueKind {
+  TEXT
+  IMAGE
+  DOCUMENT
+  TEMPLATE
 }
 
 enum ChatbotMessageActor {
@@ -294,6 +316,7 @@ model User {
   employeeRequestsReviewed EmployeeRequest[] @relation("EmployeeRequestReviewedBy")
   employeePeriodsConfirmed EmployeePeriod[]  @relation("EmployeePeriodConfirmedBy")
   recurringExpensesCreated RecurringExpense[]
+  conversationsAssigned    ChatbotConversation[] @relation("ConversationAssignee")
 
   @@index([branchId])
   @@index([role, active])
@@ -912,6 +935,8 @@ model AiSettings {
   updatedAt                  DateTime       @updatedAt
 }
 
+/// Credenciales y estado de la integración con WhatsApp Cloud API.
+/// Los secretos se guardan cifrados con `encryptSecret` y nunca se devuelven en claro.
 model WhatsappCloudSettings {
   id                   String   @id @default("singleton")
   enabled              Boolean  @default(false)
@@ -921,7 +946,66 @@ model WhatsappCloudSettings {
   appSecretEncrypted   String?
   webhookVerifyToken   String?
   apiVersion           String   @default("v21.0")
+  /// Datos informativos que devuelve Meta al verificar credenciales.
+  displayPhoneNumber   String?
+  verifiedName         String?
+  lastVerifiedAt       DateTime?
   updatedAt            DateTime @updatedAt
+}
+
+/// Plantillas aprobadas por Meta. Son el único contenido que se puede enviar
+/// cuando la ventana de 24 h está cerrada, así que sostienen los recontactos.
+model WhatsappTemplate {
+  id             String   @id @default(uuid())
+  /// Nombre exacto registrado en Meta; junto al idioma identifica la plantilla.
+  name           String
+  language       String   @default("es_AR")
+  category       String   @default("MARKETING")
+  /// APPROVED | PENDING | REJECTED | PAUSED | DISABLED, tal cual lo informa Meta.
+  status         String   @default("PENDING")
+  /// Cuerpo con los placeholders {{1}}, {{2}}… tal como fue aprobado.
+  body           String
+  /// Cantidad de variables que espera el cuerpo. Se valida antes de enviar.
+  variableCount  Int      @default(0)
+  /// Descripción interna para que la IA sepa cuándo conviene cada plantilla.
+  usageHint      String   @default("")
+  /// Habilita la plantilla como candidata para recontactos automáticos.
+  useForRecontact Boolean @default(false)
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([name, language])
+  @@index([status, useForRecontact])
+}
+
+/// Cola de salida. Traslada al servidor las demoras humanas, las barreras de
+/// autorización y los reintentos que antes vivían en el navegador.
+model WhatsappOutboundQueue {
+  id              String              @id @default(uuid())
+  conversationKey String
+  conversation    ChatbotConversation @relation(fields: [conversationKey], references: [chatKey], onDelete: Cascade)
+  /// Log que originó el envío; permite marcar SENT/SEND_FAILED sobre la respuesta correcta.
+  logId           String?
+  kind            WhatsappQueueKind   @default(TEXT)
+  /// Texto plano, o {mediaUrl, filename, caption}, o {templateId, variables}.
+  payload         Json
+  /// Orden dentro de una respuesta multi-burbuja. Se envía en secuencia.
+  bubbleIndex     Int                 @default(0)
+  /// Momento a partir del cual puede salir: acá se materializan los delays aleatorios.
+  scheduledAt     DateTime            @default(now())
+  status          WhatsappQueueStatus @default(PENDING)
+  attempts        Int                 @default(0)
+  lastError       String?
+  waMessageId     String?
+  /// Marca de la corrida de simulación; una salida simulada nunca se envía.
+  simulationRunId String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([conversationKey, bubbleIndex])
+  @@index([logId])
 }
 
 /// Configuración operativa y editorial del chatbot. El JSON validado permite ampliar reglas sin redeploy.
@@ -986,14 +1070,32 @@ model ChatbotConversation {
   recontactCount         Int                 @default(0)
   lastRecontactAt        DateTime?
   recontactOptOut        Boolean             @default(false)
+  /// Vencimiento de la ventana de 24 h de Meta: `lastInboundAt + 24h`.
+  /// Vencida, solo se pueden enviar plantillas aprobadas. null = nunca escribió.
+  windowExpiresAt        DateTime?
+  /// Nombre del perfil de WhatsApp. Se guarda aparte de `displayName`,
+  /// que es editable por el equipo y no debe pisarse con el de Meta.
+  waContactName          String?
+  /// Identificador exacto que usa Meta para este contacto. `chatKey` guarda el
+  /// teléfono normalizado al formato argentino (sin el 9), pero para responder
+  /// hay que usar el `wa_id` tal cual lo mandó Meta.
+  waId                   String?
+  unreadCount            Int                 @default(0)
+  lastReadAt             DateTime?
+  /// Vendedor a cargo de la conversación en el CRM.
+  assignedUserId         String?
+  assignedUser           User?               @relation("ConversationAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   messages               ChatbotMessageLog[]
+  outboundQueue          WhatsappOutboundQueue[]
 
   @@index([escalatedAt])
   @@index([updatedAt])
   @@index([activeRequestId])
   @@index([lastQuoteFamilyId])
+  @@index([windowExpiresAt])
+  @@index([assignedUserId, updatedAt])
 }
 
 /// Registro inmutable de entradas, decisiones, sugerencias e intentos de envío del chatbot.
@@ -1021,6 +1123,17 @@ model ChatbotMessageLog {
   decisionMetadata   Json?
   error              String?
   sentAt             DateTime?
+  /// Confirmaciones de entrega que informa el webhook `statuses[]` de Meta.
+  /// Antes no existían: la extensión solo podía inferirlas mirando el DOM.
+  deliveredAt        DateTime?
+  readAt             DateTime?
+  failedAt           DateTime?
+  /// Código de error de Meta, para diagnosticar rechazos sin adivinar.
+  waErrorCode        Int?
+  /// Referencia al medio de Meta, tanto de entrantes como de adjuntos enviados.
+  mediaId            String?
+  mediaMimeType      String?
+  mediaFilename      String?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 

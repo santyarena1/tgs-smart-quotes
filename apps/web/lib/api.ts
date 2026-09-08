@@ -126,11 +126,15 @@ export type WhatsappSettings = {
   apiVersion: string;
   webhookVerifyToken: string | null;
   webhookUrl: string;
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+  lastVerifiedAt: string | null;
   accessTokenMasked: string;
   appSecretMasked: string;
   hasAccessToken: boolean;
   hasAppSecret: boolean;
   updatedAt: string | null;
+  qualityRating?: string | null;
 };
 
 export type WhatsappSettingsInput = {
@@ -142,6 +146,69 @@ export type WhatsappSettingsInput = {
   appSecret?: string;
 };
 
+/** Estado de la ventana de 24 h de Meta para una conversación. */
+export type WhatsappWindow = {
+  open: boolean;
+  expiresAt: string | null;
+  remainingMs: number;
+  description: string;
+};
+
+export type WhatsappConversation = {
+  chatKey: string;
+  displayName: string | null;
+  waContactName: string | null;
+  waId: string | null;
+  lastInboundText: string | null;
+  lastInboundAt: string | null;
+  lastOutboundText: string | null;
+  lastOutboundAt: string | null;
+  unreadCount: number;
+  escalatedAt: string | null;
+  escalationReason: string | null;
+  modeOverride: 'OFF' | 'SUGGEST' | 'AUTO' | null;
+  assignedUser: {id: string; username: string; displayName: string | null} | null;
+  activeRequest: {id: string; title: string; state: string} | null;
+  updatedAt: string;
+  window: WhatsappWindow;
+};
+
+export type WhatsappMessage = {
+  id: string;
+  conversationKey: string;
+  direction: 'INBOUND' | 'OUTBOUND';
+  actor: 'CUSTOMER' | 'BOT' | 'HUMAN' | 'SYSTEM';
+  status: string;
+  text: string;
+  waMessageId: string | null;
+  mediaId: string | null;
+  mediaMimeType: string | null;
+  mediaFilename: string | null;
+  error: string | null;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  readAt: string | null;
+  failedAt: string | null;
+  waErrorCode: number | null;
+  escalationReason: string | null;
+  createdAt: string;
+};
+
+export type WhatsappTemplate = {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  body: string;
+  variableCount: number;
+  usageHint: string;
+  useForRecontact: boolean;
+  lastSyncedAt: string | null;
+};
+
+export type WhatsappConversationFilter = 'TODAS' | 'NO_LEIDAS' | 'ESCALADAS' | 'MIAS' | 'VENTANA_ABIERTA';
+
 export function getWhatsappSettings(): Promise<WhatsappSettings> {
   return api<WhatsappSettings>('/whatsapp/settings');
 }
@@ -150,8 +217,101 @@ export function updateWhatsappSettings(body: WhatsappSettingsInput): Promise<Wha
   return api<WhatsappSettings>('/whatsapp/settings', {method: 'PUT', body});
 }
 
-export function sendWhatsappTestMessage(to: string, text: string): Promise<{id: string; waMessageId: string | null}> {
-  return api('/whatsapp/send-test', {method: 'POST', body: {to, text}});
+/** Verifica las credenciales contra Meta y devuelve los datos públicos del número. */
+export function verifyWhatsappNumber(): Promise<WhatsappSettings> {
+  return api<WhatsappSettings>('/whatsapp/settings/verify', {method: 'POST'});
+}
+
+export function listWhatsappConversations(params: {
+  q?: string;
+  filter?: WhatsappConversationFilter;
+  limit?: number;
+  cursor?: string;
+}): Promise<{items: WhatsappConversation[]; nextCursor: string | null}> {
+  return api('/whatsapp/conversations', {query: params});
+}
+
+export function getWhatsappConversation(chatKey: string): Promise<WhatsappConversation> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}`);
+}
+
+export function listWhatsappMessages(
+  chatKey: string,
+  params: {limit?: number; before?: string} = {},
+): Promise<{items: WhatsappMessage[]; nextCursor: string | null}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/messages`, {query: params});
+}
+
+export function sendWhatsappMessage(
+  chatKey: string,
+  body: {
+    text?: string;
+    templateId?: string;
+    templateVariables?: string[];
+    quote?: {familyId: string; version: number};
+  },
+): Promise<{logId: string; queued: number}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/send`, {method: 'POST', body});
+}
+
+export function markWhatsappRead(chatKey: string): Promise<{chatKey: string; unreadCount: number}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/read`, {method: 'POST'});
+}
+
+export function assignWhatsappConversation(
+  chatKey: string,
+  assignedUserId: string | null,
+): Promise<{chatKey: string; assignedUser: WhatsappConversation['assignedUser']}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/assign`, {
+    method: 'POST',
+    body: {assignedUserId},
+  });
+}
+
+export function sendWhatsappRecontact(
+  chatKey: string,
+  templateId: string,
+  templateVariables: string[],
+): Promise<{logId: string; template: string; preview: string}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/recontact`, {
+    method: 'POST',
+    body: {templateId, templateVariables},
+  });
+}
+
+/** Aprueba una sugerencia del bot (opcionalmente editada) y la envía. */
+export function sendWhatsappSuggestion(logId: string, text?: string): Promise<{logId: string; text: string}> {
+  return api(`/whatsapp/suggestions/${encodeURIComponent(logId)}/send`, {
+    method: 'POST',
+    body: text ? {text} : {},
+  });
+}
+
+export function dismissWhatsappSuggestion(logId: string): Promise<{logId: string; status: string}> {
+  return api(`/whatsapp/suggestions/${encodeURIComponent(logId)}/dismiss`, {method: 'POST'});
+}
+
+export function listWhatsappTemplates(): Promise<WhatsappTemplate[]> {
+  return api('/whatsapp/templates');
+}
+
+export function saveWhatsappTemplate(body: {
+  name: string;
+  language: string;
+  category: string;
+  body: string;
+  usageHint: string;
+  useForRecontact: boolean;
+}): Promise<WhatsappTemplate> {
+  return api('/whatsapp/templates', {method: 'POST', body});
+}
+
+export function deleteWhatsappTemplate(id: string): Promise<{ok: boolean}> {
+  return api(`/whatsapp/templates/${encodeURIComponent(id)}`, {method: 'DELETE'});
+}
+
+export function syncWhatsappTemplates(): Promise<{synced: number}> {
+  return api('/whatsapp/templates/sync', {method: 'POST'});
 }
 
 /** ID fijo de la extensión TGS (manifest key). */

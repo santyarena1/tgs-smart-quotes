@@ -666,6 +666,60 @@ export const whatsappCloudSettingsInputSchema = z.object({
   webhookVerifyToken: z.string().trim().max(500).optional(),
   apiVersion: z.string().trim().regex(/^v\d+\.\d+$/).default('v21.0'),
 }).strict();
+
+/// Envío manual desde el CRM. `text` va dentro de la ventana de 24 h;
+/// `templateId` es la única vía permitida cuando la ventana está cerrada.
+export const whatsappSendSchema = z.object({
+  text: z.string().trim().min(1).max(4096).optional(),
+  templateId: z.string().trim().min(1).max(200).optional(),
+  templateVariables: z.array(z.string().trim().max(1000)).max(20).optional(),
+  quote: z.object({
+    familyId: z.string().trim().min(1).max(200),
+    version: z.number().int().min(1),
+  }).strict().optional(),
+})
+  .strict()
+  .refine(
+    (value) => Boolean(value.text) || Boolean(value.templateId) || Boolean(value.quote),
+    'Hay que enviar un texto, una plantilla o un presupuesto',
+  )
+  .refine(
+    (value) => !(value.text && value.templateId),
+    'Un mensaje no puede ser texto libre y plantilla a la vez',
+  );
+
+export const whatsappConversationsQuerySchema = z.object({
+  q: z.string().trim().max(200).optional(),
+  filter: z.enum(['TODAS', 'NO_LEIDAS', 'ESCALADAS', 'MIAS', 'VENTANA_ABIERTA']).default('TODAS'),
+  limit: z.coerce.number().int().min(1).max(100).default(40),
+  cursor: z.string().trim().max(200).optional(),
+}).strict();
+
+export const whatsappMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(60),
+  before: z.string().trim().max(200).optional(),
+}).strict();
+
+export const whatsappAssignSchema = z.object({
+  assignedUserId: z.string().trim().min(1).max(200).nullable(),
+}).strict();
+
+/// Alta/edición local de una plantilla. El texto real lo aprueba Meta:
+/// acá se registra para poder elegirla y completar sus variables.
+export const whatsappTemplateInputSchema = z.object({
+  name: z.string().trim().min(1).max(200).regex(/^[a-z0-9_]+$/, 'Meta solo acepta minúsculas, números y guiones bajos'),
+  language: z.string().trim().min(2).max(20).default('es_AR'),
+  category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']).default('MARKETING'),
+  body: z.string().trim().min(1).max(2000),
+  usageHint: z.string().trim().max(1000).default(''),
+  useForRecontact: z.boolean().default(false),
+}).strict();
+
+export type WhatsappSendInput = z.infer<typeof whatsappSendSchema>;
+export type WhatsappConversationsQuery = z.infer<typeof whatsappConversationsQuerySchema>;
+export type WhatsappMessagesQuery = z.infer<typeof whatsappMessagesQuerySchema>;
+export type WhatsappAssignInput = z.infer<typeof whatsappAssignSchema>;
+export type WhatsappTemplateInput = z.infer<typeof whatsappTemplateInputSchema>;
 export const chatbotConversationUpdateSchema = z
   .object({
     displayName: z.string().trim().max(200).nullable().optional(),

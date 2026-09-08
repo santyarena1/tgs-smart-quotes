@@ -29,6 +29,7 @@ import type {
   QuoteVersion,
   TimelineEvent,
 } from "../lib/types";
+import { useSuite } from "./SuiteContext";
 import { getActiveVersion, getQuoteItems } from "../lib/types";
 import {
   Alert,
@@ -317,16 +318,13 @@ function validateItems(items: ItemDraft[]): string | null {
 }
 
 export function QuotesView({
-  seedFromRequest = null,
-  onSeedConsumed,
   initialSelectedId = null,
   onInitialSelectedConsumed,
 }: {
-  seedFromRequest?: QuoteFromRequestSeed | null;
-  onSeedConsumed?: () => void;
   initialSelectedId?: string | null;
   onInitialSelectedConsumed?: () => void;
 } = {}) {
+  const { quoteSeed: seedFromRequest, consumeQuoteSeed: onSeedConsumed } = useSuite();
   const [list, setList] = useState<Quote[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);

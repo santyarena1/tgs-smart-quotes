@@ -3,8 +3,8 @@
 import {FormEvent, useEffect, useState} from "react";
 import {
   getWhatsappSettings,
-  sendWhatsappTestMessage,
   updateWhatsappSettings,
+  verifyWhatsappNumber,
   type WhatsappSettings,
 } from "../lib/api";
 import {Alert, Checkbox, Field, Loading, errorMessage} from "./shared";
@@ -17,9 +17,7 @@ export function WhatsappSettingsSection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [testTo, setTestTo] = useState("");
-  const [testText, setTestText] = useState("Hola, este es un mensaje de prueba de TGS Smart Quotes.");
-  const [testing, setTesting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     getWhatsappSettings()
@@ -57,14 +55,15 @@ export function WhatsappSettingsSection() {
     finally { setSaving(false); }
   }
 
-  async function sendTest(event: FormEvent) {
-    event.preventDefault();
-    setTesting(true); setError(null); setNotice(null);
+  /** Comprueba contra Meta que las credenciales sirven, sin mandarle nada a un cliente. */
+  async function verify() {
+    setVerifying(true); setError(null); setNotice(null);
     try {
-      const result = await sendWhatsappTestMessage(testTo, testText);
-      setNotice(`Mensaje enviado correctamente${result.waMessageId ? ` (${result.waMessageId})` : ""}.`);
+      const next = await verifyWhatsappNumber();
+      setSettings(next);
+      setNotice(`Credenciales verificadas: ${next.verifiedName ?? "sin nombre"} (${next.displayPhoneNumber ?? "sin número"}).`);
     } catch (reason) { setError(errorMessage(reason)); }
-    finally { setTesting(false); }
+    finally { setVerifying(false); }
   }
 
   if (loading) return <Loading label="Cargando configuración de WhatsApp…"/>;
@@ -115,13 +114,40 @@ export function WhatsappSettingsSection() {
       </Field>
     </section>
 
-    <form className="card card-pad form-grid" onSubmit={sendTest}>
-      <div><h3 className="panel-title">Enviar mensaje de prueba</h3><p className="section-note">Usa el número y las credenciales guardadas arriba.</p></div>
-      <Field label="Teléfono argentino" hint="Ej.: 11 5555-4444 o 541155554444.">
-        <input required value={testTo} onChange={event => setTestTo(event.target.value)}/>
-      </Field>
-      <Field label="Mensaje"><textarea required rows={4} maxLength={4096} value={testText} onChange={event => setTestText(event.target.value)}/></Field>
-      <div className="form-actions"><button type="submit" disabled={testing}>{testing ? "Enviando…" : "Enviar prueba"}</button></div>
-    </form>
+    <section className="card card-pad form-grid">
+      <div>
+        <h3 className="panel-title">Verificar la conexión</h3>
+        <p className="section-note">
+          Consulta a Meta con las credenciales guardadas y devuelve los datos públicos del número.
+          No le manda ningún mensaje a nadie.
+        </p>
+      </div>
+      {settings.lastVerifiedAt ? (
+        <p className="section-note">
+          Última verificación: {new Date(settings.lastVerifiedAt).toLocaleString("es-AR")}
+          {settings.verifiedName ? ` · ${settings.verifiedName}` : ""}
+          {settings.displayPhoneNumber ? ` · ${settings.displayPhoneNumber}` : ""}
+        </p>
+      ) : null}
+      <div className="form-actions">
+        <button type="button" disabled={verifying} onClick={() => void verify()}>
+          {verifying ? "Verificando…" : "Verificar credenciales"}
+        </button>
+      </div>
+    </section>
+
+    <section className="card card-pad form-grid">
+      <div>
+        <h3 className="panel-title">Plantillas y ventana de 24 horas</h3>
+        <p className="section-note">
+          WhatsApp solo permite texto libre mientras el cliente escribió hace menos de 24 horas.
+          Pasado ese plazo, únicamente se pueden enviar plantillas aprobadas por Meta: son las que
+          sostienen los recontactos. Se cargan y sincronizan desde el CRM.
+        </p>
+      </div>
+      <div className="form-actions">
+        <a className="btn-ghost" href="/crm">Ir al CRM →</a>
+      </div>
+    </section>
   </div>;
 }

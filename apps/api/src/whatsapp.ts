@@ -1,11 +1,21 @@
+/**
+ * Endpoints de WhatsApp Cloud API: credenciales, webhook, bandeja del CRM,
+ * envío manual y plantillas.
+ *
+ * El webhook es público y su autenticación ES la firma HMAC de Meta: sin
+ * `appSecret` configurado se rechaza todo, nunca se acepta un evento sin verificar.
+ */
 import {
-  BadGatewayException,
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
+  Delete,
   Get,
   Headers,
   Logger,
+  NotFoundException,
+  Param,
   Post,
   Put,
   Query,
@@ -16,48 +26,56 @@ import {
 import {createHmac, randomBytes, timingSafeEqual} from 'node:crypto';
 import {decryptSecret, encryptSecret, maskSecret} from '@tgs/config';
 import {
+  whatsappAssignSchema,
   whatsappCloudSettingsInputSchema,
+  whatsappConversationsQuerySchema,
+  whatsappMessagesQuerySchema,
+  whatsappSendSchema,
+  whatsappTemplateInputSchema,
+  type WhatsappAssignInput,
   type WhatsappCloudSettingsInput,
+  type WhatsappConversationsQuery,
+  type WhatsappMessagesQuery,
+  type WhatsappSendInput,
+  type WhatsappTemplateInput,
 } from '@tgs/contracts';
-import {db} from '@tgs/database';
-import {normalizePhone} from '@tgs/validation';
+import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
-import {CurrentUser, jsonSafe, Public, type RequestUser, ZodPipe} from './infrastructure.js';
+import {CurrentUser, jsonSafe, Public, type RequestUser, SkipRateLimit, ZodPipe} from './infrastructure.js';
+import {
+  countTemplateVariables,
+  listTemplates,
+  loadCredentials,
+  markAsRead,
+  verifyNumber,
+} from './whatsapp-client.js';
+import {handleInboundMessage, handleStatusUpdate, type MetaValue} from './whatsapp-inbound.js';
+import {enqueueOutbound} from './whatsapp-outbound.js';
+import {describeWindow, windowState} from './whatsapp-window.js';
 
-const sendTestSchema = z.object({
-  to: z.string().trim().min(1).max(100),
-  text: z.string().trim().min(1).max(4096),
+/** El operador puede editar la sugerencia antes de aprobarla. */
+const suggestionSendSchema = z.object({
+  text: z.string().trim().min(1).max(4096).optional(),
 }).strict();
-type SendTestInput = z.infer<typeof sendTestSchema>;
-
-type MetaMessage = {
-  id?: string;
-  from?: string;
-  type?: string;
-  text?: {body?: string};
-};
-type MetaValue = {
-  contacts?: Array<{wa_id?: string; profile?: {name?: string}}>;
-  messages?: MetaMessage[];
-};
 
 @Controller('whatsapp')
 export class WhatsappController {
   private readonly logger = new Logger(WhatsappController.name);
 
-  private async settings() {
+  private settings() {
     return db.whatsappCloudSettings.findUnique({where: {id: 'singleton'}});
   }
 
   private settingsView(row: Awaited<ReturnType<WhatsappController['settings']>>) {
-    let accessTokenMasked = '';
-    let appSecretMasked = '';
-    if (row?.accessTokenEncrypted) {
-      try { accessTokenMasked = maskSecret(decryptSecret(row.accessTokenEncrypted)); } catch { accessTokenMasked = '••••'; }
-    }
-    if (row?.appSecretEncrypted) {
-      try { appSecretMasked = maskSecret(decryptSecret(row.appSecretEncrypted)); } catch { appSecretMasked = '••••'; }
-    }
+    const mask = (encrypted: string | null | undefined) => {
+      if (!encrypted) return '';
+      try {
+        return maskSecret(decryptSecret(encrypted));
+      } catch {
+        // Un secreto que no descifra suele significar que cambió SETTINGS_ENC_KEY.
+        return '••••';
+      }
+    };
     const apiBase = (process.env.API_PUBLIC_URL ?? 'http://localhost:3001/api').replace(/\/$/, '');
     return {
       id: 'singleton' as const,
@@ -67,17 +85,22 @@ export class WhatsappController {
       apiVersion: row?.apiVersion ?? 'v21.0',
       webhookVerifyToken: row?.webhookVerifyToken ?? null,
       webhookUrl: `${apiBase}/whatsapp/webhook`,
-      accessTokenMasked,
-      appSecretMasked,
+      displayPhoneNumber: row?.displayPhoneNumber ?? null,
+      verifiedName: row?.verifiedName ?? null,
+      lastVerifiedAt: row?.lastVerifiedAt ?? null,
+      accessTokenMasked: mask(row?.accessTokenEncrypted),
+      appSecretMasked: mask(row?.appSecretEncrypted),
       hasAccessToken: Boolean(row?.accessTokenEncrypted),
       hasAppSecret: Boolean(row?.appSecretEncrypted),
       updatedAt: row?.updatedAt ?? null,
     };
   }
 
+  // ---------------------------------------------------------------- configuración
+
   @Get('settings')
   async getSettings(@CurrentUser() _user: RequestUser) {
-    return this.settingsView(await this.settings());
+    return jsonSafe(this.settingsView(await this.settings()));
   }
 
   @Put('settings')
@@ -86,30 +109,54 @@ export class WhatsappController {
     @CurrentUser() _user: RequestUser,
   ) {
     const existing = await this.settings();
-    const webhookVerifyToken = body.webhookVerifyToken?.trim()
-      || existing?.webhookVerifyToken
-      || randomBytes(24).toString('hex');
     const common = {
       enabled: body.enabled,
       phoneNumberId: body.phoneNumberId?.trim() || null,
       businessAccountId: body.businessAccountId?.trim() || null,
       apiVersion: body.apiVersion,
-      webhookVerifyToken,
+      // El token de verificación se autogenera una sola vez y después se conserva:
+      // cambiarlo obligaría a reconfigurar el webhook en Meta.
+      webhookVerifyToken: body.webhookVerifyToken?.trim()
+        || existing?.webhookVerifyToken
+        || randomBytes(24).toString('hex'),
     };
-    const accessTokenEncrypted = body.accessToken?.trim()
-      ? encryptSecret(body.accessToken.trim())
-      : undefined;
-    const appSecretEncrypted = body.appSecret?.trim()
-      ? encryptSecret(body.appSecret.trim())
-      : undefined;
     const row = await db.whatsappCloudSettings.upsert({
       where: {id: 'singleton'},
-      create: {...common, accessTokenEncrypted, appSecretEncrypted},
-      update: {...common, accessTokenEncrypted, appSecretEncrypted},
+      create: {
+        ...common,
+        accessTokenEncrypted: body.accessToken?.trim() ? encryptSecret(body.accessToken.trim()) : null,
+        appSecretEncrypted: body.appSecret?.trim() ? encryptSecret(body.appSecret.trim()) : null,
+      },
+      update: {
+        ...common,
+        // Campo vacío = "no lo cambies". Así se puede editar la config sin reescribir secretos.
+        ...(body.accessToken?.trim() ? {accessTokenEncrypted: encryptSecret(body.accessToken.trim())} : {}),
+        ...(body.appSecret?.trim() ? {appSecretEncrypted: encryptSecret(body.appSecret.trim())} : {}),
+      },
     });
-    return this.settingsView(row);
+    return jsonSafe(this.settingsView(row));
   }
 
+  @Post('settings/verify')
+  async verify(@CurrentUser() _user: RequestUser) {
+    const credentials = await loadCredentials();
+    const info = await verifyNumber(credentials);
+    const row = await db.whatsappCloudSettings.update({
+      where: {id: 'singleton'},
+      data: {
+        displayPhoneNumber: info.displayPhoneNumber,
+        verifiedName: info.verifiedName,
+        lastVerifiedAt: new Date(),
+      },
+    });
+    return jsonSafe({...this.settingsView(row), qualityRating: info.qualityRating});
+  }
+
+  // ---------------------------------------------------------------------- webhook
+
+  // Meta manda todos los webhooks desde pocas IPs y en ráfagas: el rate limit por IP
+  // los rechazaría con 429 y se perderían mensajes. La autenticación acá es la firma HMAC.
+  @SkipRateLimit()
   @Public()
   @Get('webhook')
   async verifyWebhook(@Query() query: Record<string, string | undefined>, @Res() reply: any) {
@@ -124,26 +171,43 @@ export class WhatsappController {
     return reply.status(403).type('text/plain').send('Forbidden');
   }
 
+  /**
+   * Recepción de eventos.
+   *
+   * Se responde 200 de inmediato y el procesamiento sigue en segundo plano:
+   * si tardamos, Meta reintenta y llegan duplicados. La idempotencia por
+   * `message.id` cubre igual el caso, pero conviene no provocarlo.
+   */
+  @SkipRateLimit()
   @Public()
   @Post('webhook')
   async receiveWebhook(
     @Req() req: any,
     @Headers('x-hub-signature-256') signature: string | undefined,
+    @Res() reply: any,
   ) {
     const row = await this.settings();
     if (!row?.appSecretEncrypted || !this.validSignature(req.rawBody, signature, row.appSecretEncrypted)) {
       throw new UnauthorizedException('Firma de Meta inválida');
     }
+    reply.status(200).send({ok: true});
+    void this.processWebhookBody(req.body).catch((error: unknown) => {
+      this.logger.error(JSON.stringify({
+        event: 'whatsapp_webhook_processing_failed',
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    });
+  }
 
-    const entries = Array.isArray(req.body?.entry) ? req.body.entry : [];
+  private async processWebhookBody(body: any): Promise<void> {
+    const entries = Array.isArray(body?.entry) ? body.entry : [];
     for (const entry of entries) {
-      const changes = Array.isArray(entry?.changes) ? entry.changes : [];
-      for (const change of changes) {
+      for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
         const value = change?.value as MetaValue | undefined;
         if (!value) continue;
-        for (const message of value?.messages ?? []) {
+        for (const message of value.messages ?? []) {
           try {
-            await this.persistInboundMessage(value, message);
+            await handleInboundMessage(value, message);
           } catch (error) {
             this.logger.error(JSON.stringify({
               event: 'whatsapp_inbound_message_failed',
@@ -152,73 +216,19 @@ export class WhatsappController {
             }));
           }
         }
+        for (const status of value.statuses ?? []) {
+          try {
+            await handleStatusUpdate(status);
+          } catch (error) {
+            this.logger.error(JSON.stringify({
+              event: 'whatsapp_status_update_failed',
+              waMessageId: status.id,
+              error: error instanceof Error ? error.message : String(error),
+            }));
+          }
+        }
       }
     }
-    return {ok: true};
-  }
-
-  @Post('send-test')
-  async sendTest(
-    @Body(new ZodPipe(sendTestSchema)) body: SendTestInput,
-    @CurrentUser() _user: RequestUser,
-  ) {
-    const chatKey = normalizePhone(body.to);
-    if (!chatKey) throw new BadRequestException('El teléfono no tiene un formato argentino válido');
-    const row = await this.settings();
-    if (!row?.enabled || !row.phoneNumberId || !row.accessTokenEncrypted) {
-      throw new BadRequestException('WhatsApp Cloud API no está habilitada o le faltan credenciales');
-    }
-
-    let response: Response;
-    try {
-      response = await fetch(
-        `https://graph.facebook.com/${encodeURIComponent(row.apiVersion)}/${encodeURIComponent(row.phoneNumberId)}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${decryptSecret(row.accessTokenEncrypted)}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: chatKey,
-            type: 'text',
-            text: {body: body.text},
-          }),
-          signal: AbortSignal.timeout(15000),
-        },
-      );
-    } catch (error) {
-      throw new BadGatewayException(`No se pudo conectar con Meta: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    const payload = await response.json().catch(() => null) as {
-      messages?: Array<{id?: string}>;
-      error?: {message?: string};
-    } | null;
-    if (!response.ok) {
-      throw new BadGatewayException(payload?.error?.message || `Meta respondió HTTP ${response.status}`);
-    }
-
-    const now = new Date();
-    const waMessageId = payload?.messages?.[0]?.id ?? null;
-    const log = await db.$transaction(async tx => {
-      await tx.chatbotConversation.upsert({
-        where: {chatKey},
-        create: {chatKey, lastOutboundText: body.text, lastOutboundAt: now},
-        update: {lastOutboundText: body.text, lastOutboundAt: now},
-      });
-      return tx.chatbotMessageLog.create({data: {
-        conversationKey: chatKey,
-        direction: 'OUTBOUND',
-        actor: 'HUMAN',
-        status: 'SENT',
-        channel: 'CLOUD_API',
-        text: body.text,
-        waMessageId,
-        sentAt: now,
-      }});
-    });
-    return jsonSafe(log);
   }
 
   private validSignature(rawBody: Buffer | undefined, signature: string | undefined, encryptedSecret: string) {
@@ -226,52 +236,406 @@ export class WhatsappController {
     try {
       const received = Buffer.from(signature.slice(7), 'hex');
       const expected = createHmac('sha256', decryptSecret(encryptedSecret)).update(rawBody).digest();
+      // Comparación en tiempo constante: una comparación normal filtra la firma byte a byte.
       return received.length === expected.length && timingSafeEqual(received, expected);
     } catch {
       return false;
     }
   }
 
-  private async persistInboundMessage(value: MetaValue, message: MetaMessage) {
-    const chatKey = normalizePhone(message.from);
-    if (!chatKey) {
-      this.logger.warn(JSON.stringify({event: 'whatsapp_invalid_phone', from: message.from, waMessageId: message.id}));
-      return;
-    }
-    if (!message.id) {
-      this.logger.warn(JSON.stringify({event: 'whatsapp_missing_message_id', from: message.from}));
-      return;
-    }
-    const type = message.type || 'unknown';
-    const text = type === 'text' && typeof message.text?.body === 'string'
-      ? message.text.body
-      : `[tipo_no_soportado: ${type}]`;
-    const displayName = value.contacts?.find(contact => contact.wa_id === message.from)?.profile?.name?.trim() || null;
-    const existing = await db.chatbotConversation.findUnique({where: {chatKey}, select: {displayName: true}});
+  // ------------------------------------------------------------------ bandeja CRM
+
+  @Get('conversations')
+  async conversations(
+    @Query(new ZodPipe(whatsappConversationsQuerySchema)) query: WhatsappConversationsQuery,
+    @CurrentUser() user: RequestUser,
+  ) {
     const now = new Date();
-    await db.chatbotConversation.upsert({
-      where: {chatKey},
-      create: {chatKey, displayName, lastInboundText: text, lastInboundAt: now},
-      update: {
-        lastInboundText: text,
-        lastInboundAt: now,
-        ...(!existing?.displayName && displayName ? {displayName} : {}),
+    const where: Prisma.ChatbotConversationWhereInput = {};
+    if (query.filter === 'NO_LEIDAS') where.unreadCount = {gt: 0};
+    if (query.filter === 'ESCALADAS') where.escalatedAt = {not: null};
+    if (query.filter === 'MIAS') where.assignedUserId = user.id;
+    if (query.filter === 'VENTANA_ABIERTA') where.windowExpiresAt = {gt: now};
+    if (query.q) {
+      where.OR = [
+        {displayName: {contains: query.q, mode: 'insensitive'}},
+        {waContactName: {contains: query.q, mode: 'insensitive'}},
+        {chatKey: {contains: query.q}},
+        {lastInboundText: {contains: query.q, mode: 'insensitive'}},
+      ];
+    }
+
+    const rows = await db.chatbotConversation.findMany({
+      where,
+      orderBy: {updatedAt: 'desc'},
+      take: query.limit + 1,
+      ...(query.cursor ? {skip: 1, cursor: {chatKey: query.cursor}} : {}),
+      include: {
+        assignedUser: {select: {id: true, username: true, displayName: true}},
+        activeRequest: {select: {id: true, title: true, state: true}},
       },
     });
-    try {
-      await db.chatbotMessageLog.create({data: {
-        conversationKey: chatKey,
-        direction: 'INBOUND',
-        actor: 'CUSTOMER',
-        status: 'OBSERVED',
-        channel: 'CLOUD_API',
-        text,
-        waMessageId: message.id,
-        inboundFingerprint: message.id,
-      }});
-    } catch (error) {
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') return;
-      throw error;
+    const items = rows.slice(0, query.limit);
+    return jsonSafe({
+      items: items.map((row) => this.conversationView(row, now)),
+      nextCursor: rows.length > query.limit ? items[items.length - 1]?.chatKey ?? null : null,
+    });
+  }
+
+  private conversationView(row: any, now: Date) {
+    const state = windowState(row.windowExpiresAt, now);
+    return {
+      chatKey: row.chatKey,
+      displayName: row.displayName,
+      waContactName: row.waContactName,
+      waId: row.waId,
+      lastInboundText: row.lastInboundText,
+      lastInboundAt: row.lastInboundAt,
+      lastOutboundText: row.lastOutboundText,
+      lastOutboundAt: row.lastOutboundAt,
+      unreadCount: row.unreadCount,
+      escalatedAt: row.escalatedAt,
+      escalationReason: row.escalationReason,
+      modeOverride: row.modeOverride,
+      assignedUser: row.assignedUser ?? null,
+      activeRequest: row.activeRequest ?? null,
+      updatedAt: row.updatedAt,
+      window: {
+        open: state.open,
+        expiresAt: state.expiresAt,
+        remainingMs: state.remainingMs,
+        description: describeWindow(state),
+      },
+    };
+  }
+
+  @Get('conversations/:chatKey')
+  async conversation(@Param('chatKey') chatKey: string, @CurrentUser() _user: RequestUser) {
+    const row = await db.chatbotConversation.findUnique({
+      where: {chatKey},
+      include: {
+        assignedUser: {select: {id: true, username: true, displayName: true}},
+        activeRequest: {select: {id: true, title: true, state: true}},
+      },
+    });
+    if (!row) throw new NotFoundException('La conversación no existe');
+    return jsonSafe(this.conversationView(row, new Date()));
+  }
+
+  @Get('conversations/:chatKey/messages')
+  async messages(
+    @Param('chatKey') chatKey: string,
+    @Query(new ZodPipe(whatsappMessagesQuerySchema)) query: WhatsappMessagesQuery,
+    @CurrentUser() _user: RequestUser,
+  ) {
+    const rows = await db.chatbotMessageLog.findMany({
+      where: {conversationKey: chatKey},
+      orderBy: {createdAt: 'desc'},
+      take: query.limit + 1,
+      ...(query.before ? {skip: 1, cursor: {id: query.before}} : {}),
+    });
+    const items = rows.slice(0, query.limit);
+    return jsonSafe({
+      // Se devuelven en orden cronológico, que es como los lee la conversación.
+      items: items.slice().reverse(),
+      nextCursor: rows.length > query.limit ? items[items.length - 1]?.id ?? null : null,
+    });
+  }
+
+  @Post('conversations/:chatKey/read')
+  async markRead(@Param('chatKey') chatKey: string, @CurrentUser() _user: RequestUser) {
+    const before = await db.chatbotConversation.findUnique({
+      where: {chatKey},
+      select: {unreadCount: true},
+    });
+    if (!before) throw new NotFoundException('La conversación no existe');
+    const conversation = await db.chatbotConversation.update({
+      where: {chatKey},
+      data: {unreadCount: 0, lastReadAt: new Date()},
+    });
+    // Solo se le avisa a Meta si de verdad había algo sin leer: abrir un chat ya
+    // leído no debería gastar una llamada a la API en cada clic.
+    if (before.unreadCount === 0) {
+      return jsonSafe({chatKey: conversation.chatKey, unreadCount: 0});
     }
+    // Además del contador interno, se le avisa a Meta para que el cliente vea el tilde azul.
+    const lastInbound = await db.chatbotMessageLog.findFirst({
+      where: {conversationKey: chatKey, direction: 'INBOUND', waMessageId: {not: null}},
+      orderBy: {createdAt: 'desc'},
+      select: {waMessageId: true},
+    });
+    if (lastInbound?.waMessageId) {
+      try {
+        await markAsRead(await loadCredentials(), lastInbound.waMessageId);
+      } catch (error) {
+        // No poder avisarle a Meta no debe romper la acción del operador.
+        this.logger.warn(JSON.stringify({
+          event: 'whatsapp_mark_read_failed',
+          chatKey,
+          error: error instanceof Error ? error.message : String(error),
+        }));
+      }
+    }
+    return jsonSafe({chatKey: conversation.chatKey, unreadCount: conversation.unreadCount});
+  }
+
+  @Post('conversations/:chatKey/assign')
+  async assign(
+    @Param('chatKey') chatKey: string,
+    @Body(new ZodPipe(whatsappAssignSchema)) body: WhatsappAssignInput,
+    @CurrentUser() _user: RequestUser,
+  ) {
+    const row = await db.chatbotConversation.update({
+      where: {chatKey},
+      data: {assignedUserId: body.assignedUserId},
+      include: {assignedUser: {select: {id: true, username: true, displayName: true}}},
+    });
+    return jsonSafe({chatKey: row.chatKey, assignedUser: row.assignedUser});
+  }
+
+  // -------------------------------------------------------------------- envío CRM
+
+  @Post('conversations/:chatKey/send')
+  async send(
+    @Param('chatKey') chatKey: string,
+    @Body(new ZodPipe(whatsappSendSchema)) body: WhatsappSendInput,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+
+    const state = windowState(conversation.windowExpiresAt);
+    // Se bloquea ANTES de intentar: no mandamos a Meta algo que sabemos que va a fallar.
+    if (!state.open && !body.templateId) {
+      throw new ConflictException(
+        'La ventana de 24 h está cerrada. Solo se puede enviar una plantilla aprobada por Meta.',
+      );
+    }
+
+    const text = body.text?.trim();
+    const log = await db.chatbotMessageLog.create({data: {
+      conversationKey: chatKey,
+      direction: 'OUTBOUND',
+      actor: 'HUMAN',
+      status: 'SEND_PENDING',
+      channel: 'CLOUD_API',
+      text: text ?? (body.templateId ? '[plantilla]' : '[presupuesto]'),
+      decisionMetadata: {manual: true, sentByUserId: actor.id},
+    }});
+
+    const items = [] as Parameters<typeof enqueueOutbound>[2];
+    if (text) items.push({kind: 'TEXT', payload: {text}});
+    if (body.templateId) {
+      items.push({kind: 'TEMPLATE', payload: {templateId: body.templateId, variables: body.templateVariables ?? []}});
+    }
+    if (body.quote) {
+      items.push({
+        kind: 'DOCUMENT',
+        payload: {quote: {familyId: body.quote.familyId, version: body.quote.version}, label: 'presupuesto'},
+        delaySeconds: 1,
+      });
+    }
+    await enqueueOutbound(chatKey, log.id, items);
+    return jsonSafe({logId: log.id, queued: items.length});
+  }
+
+  /**
+   * Aprueba una sugerencia del bot y la envía.
+   *
+   * Es el modo `SUGGEST`: el bot redacta, una persona revisa y decide. Antes esto
+   * pasaba insertando el texto en el composer de WhatsApp Web y esperando a que el
+   * vendedor tocara Enviar; ahora el CRM lo manda directo y lo registra sin ambigüedad.
+   * El texto se puede editar antes de enviar.
+   */
+  @Post('suggestions/:logId/send')
+  async sendSuggestion(
+    @Param('logId') logId: string,
+    @Body(new ZodPipe(suggestionSendSchema)) body: {text?: string},
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const log = await db.chatbotMessageLog.findUnique({where: {id: logId}});
+    if (!log) throw new NotFoundException('La sugerencia no existe');
+    if (log.direction !== 'OUTBOUND' || log.status !== 'SUGGESTED') {
+      throw new ConflictException('Esa sugerencia ya fue enviada o descartada.');
+    }
+
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey: log.conversationKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+    if (!windowState(conversation.windowExpiresAt).open) {
+      throw new ConflictException(
+        'La ventana de 24 h está cerrada: esta sugerencia ya no se puede enviar como texto libre.',
+      );
+    }
+
+    const text = body.text?.trim() || log.text;
+    if (!text) throw new BadRequestException('La sugerencia no tiene texto para enviar.');
+
+    const updated = await db.chatbotMessageLog.update({
+      where: {id: logId},
+      data: {
+        text,
+        status: 'SEND_PENDING',
+        // Se registra como humana: la decisión de enviar la tomó una persona.
+        actor: 'HUMAN',
+        decisionMetadata: {
+          ...((log.decisionMetadata ?? {}) as Record<string, unknown>),
+          approvedByUserId: actor.id,
+          editedBeforeSending: text !== log.text,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    await enqueueOutbound(log.conversationKey, updated.id, [{kind: 'TEXT', payload: {text}}]);
+    return jsonSafe({logId: updated.id, text});
+  }
+
+  @Post('suggestions/:logId/dismiss')
+  async dismissSuggestion(@Param('logId') logId: string, @CurrentUser() actor: RequestUser) {
+    const log = await db.chatbotMessageLog.findUnique({where: {id: logId}});
+    if (!log) throw new NotFoundException('La sugerencia no existe');
+    if (log.status !== 'SUGGESTED') throw new ConflictException('Esa sugerencia ya fue resuelta.');
+    const updated = await db.chatbotMessageLog.update({
+      where: {id: logId},
+      data: {
+        status: 'DISMISSED',
+        decisionMetadata: {
+          ...((log.decisionMetadata ?? {}) as Record<string, unknown>),
+          dismissedByUserId: actor.id,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    return jsonSafe({logId: updated.id, status: updated.status});
+  }
+
+  /**
+   * Recontacto por plantilla.
+   *
+   * Los recontactos buscan conversaciones de hace `recontactDays` (30 por defecto),
+   * así que caen siempre fuera de la ventana de 24 h: el texto libre generado por IA
+   * que usaba la extensión ya no puede salir. Se reemplaza por una plantilla aprobada
+   * con variables, conservando los topes y el opt-out que ya existían.
+   */
+  @Post('conversations/:chatKey/recontact')
+  async recontact(
+    @Param('chatKey') chatKey: string,
+    @Body(new ZodPipe(whatsappSendSchema)) body: WhatsappSendInput,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    if (!body.templateId) {
+      throw new BadRequestException('Un recontacto requiere una plantilla aprobada por Meta.');
+    }
+    const settings = await db.chatbotSettings.findUniqueOrThrow({
+      where: {id: 'singleton'},
+      select: {recontactEnabled: true, recontactMaxAttempts: true},
+    });
+    if (!settings.recontactEnabled) throw new ConflictException('Los recontactos están desactivados.');
+
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+    if (conversation.recontactOptOut) throw new ConflictException('La conversación rechazó recontactos.');
+    if (conversation.recontactCount >= settings.recontactMaxAttempts) {
+      throw new ConflictException(
+        `Se alcanzó el máximo de ${settings.recontactMaxAttempts} recontactos para esta conversación.`,
+      );
+    }
+
+    const template = await db.whatsappTemplate.findUnique({where: {id: body.templateId}});
+    if (!template) throw new NotFoundException('La plantilla no existe');
+    if (template.status !== 'APPROVED') {
+      throw new ConflictException(`La plantilla "${template.name}" todavía no está aprobada por Meta.`);
+    }
+    const variables = body.templateVariables ?? [];
+    if (variables.length !== template.variableCount) {
+      throw new BadRequestException(
+        `La plantilla espera ${template.variableCount} variables y llegaron ${variables.length}.`,
+      );
+    }
+
+    // El contador se incrementa condicionalmente para que dos pedidos simultáneos
+    // no puedan pasarse del máximo configurado.
+    const claimed = await db.chatbotConversation.updateMany({
+      where: {chatKey, recontactOptOut: false, recontactCount: {lt: settings.recontactMaxAttempts}},
+      data: {recontactCount: {increment: 1}, lastRecontactAt: new Date()},
+    });
+    if (claimed.count === 0) throw new ConflictException('El recontacto no pudo registrarse: cambió el estado de la conversación.');
+
+    const preview = template.body.replace(/\{\{\s*(\d+)\s*\}\}/g, (_match, index) => variables[Number(index) - 1] ?? '');
+    const log = await db.chatbotMessageLog.create({data: {
+      conversationKey: chatKey,
+      direction: 'OUTBOUND',
+      actor: 'HUMAN',
+      status: 'SEND_PENDING',
+      channel: 'CLOUD_API',
+      text: preview,
+      decisionMetadata: {
+        recontact: true,
+        recontactAttempt: conversation.recontactCount + 1,
+        templateName: template.name,
+        sentByUserId: actor.id,
+      },
+    }});
+    await enqueueOutbound(chatKey, log.id, [
+      {kind: 'TEMPLATE', payload: {templateId: template.id, variables}},
+    ]);
+    return jsonSafe({logId: log.id, template: template.name, preview});
+  }
+
+  // ------------------------------------------------------------------- plantillas
+
+  @Get('templates')
+  async templates(@CurrentUser() _user: RequestUser) {
+    return jsonSafe(await db.whatsappTemplate.findMany({orderBy: [{status: 'asc'}, {name: 'asc'}]}));
+  }
+
+  @Post('templates')
+  async createTemplate(
+    @Body(new ZodPipe(whatsappTemplateInputSchema)) body: WhatsappTemplateInput,
+    @CurrentUser() _user: RequestUser,
+  ) {
+    const row = await db.whatsappTemplate.upsert({
+      where: {name_language: {name: body.name, language: body.language}},
+      create: {...body, variableCount: countTemplateVariables(body.body)},
+      update: {...body, variableCount: countTemplateVariables(body.body)},
+    });
+    return jsonSafe(row);
+  }
+
+  @Delete('templates/:id')
+  async deleteTemplate(@Param('id') id: string, @CurrentUser() _user: RequestUser) {
+    await db.whatsappTemplate.delete({where: {id}}).catch(() => {
+      throw new NotFoundException('La plantilla no existe');
+    });
+    return {ok: true};
+  }
+
+  /**
+   * Trae de Meta el estado real de las plantillas.
+   *
+   * El cuerpo y el estado los manda Meta: acá solo se conservan los campos internos
+   * (`usageHint`, `useForRecontact`) que no existen del otro lado.
+   */
+  @Post('templates/sync')
+  async syncTemplates(@CurrentUser() _user: RequestUser) {
+    const settings = await this.settings();
+    if (!settings?.businessAccountId) {
+      throw new BadRequestException('Falta configurar el Business Account ID para sincronizar plantillas.');
+    }
+    const credentials = await loadCredentials();
+    const remote = await listTemplates(credentials, settings.businessAccountId);
+    let updated = 0;
+    for (const template of remote) {
+      await db.whatsappTemplate.upsert({
+        where: {name_language: {name: template.name, language: template.language}},
+        create: {...template, lastSyncedAt: new Date()},
+        update: {
+          status: template.status,
+          category: template.category,
+          body: template.body,
+          variableCount: template.variableCount,
+          lastSyncedAt: new Date(),
+        },
+      });
+      updated += 1;
+    }
+    return jsonSafe({synced: updated});
   }
 }

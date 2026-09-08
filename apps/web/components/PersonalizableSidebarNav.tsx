@@ -2,6 +2,7 @@
 
 import {useEffect, useMemo, useState} from "react";
 import {createPortal} from "react-dom";
+import {usePathname, useRouter} from "next/navigation";
 import {api} from "../lib/api";
 import type {NavId} from "../lib/types";
 import {Alert, Checkbox, Field, Modal} from "./shared";
@@ -19,7 +20,7 @@ export type SidebarNavGroup = {
   ungrouped?: boolean;
   items: {id: NavId; label: string; icon: string}[];
 };
-type Props = {userId: string; groups: SidebarNavGroup[]; active: NavId; onNavigate: (id: NavId) => void};
+type Props = {userId: string; groups: SidebarNavGroup[]; onNavigated?: () => void};
 
 function defaults(groups: SidebarNavGroup[]): NavPreferences {
   return {
@@ -60,13 +61,21 @@ function normalize(prefs: NavPreferences): NavPreferences {
   return {...prefs, items};
 }
 
-export function PersonalizableSidebarNav({userId, groups, active, onNavigate}: Props) {
+export function PersonalizableSidebarNav({userId, groups, onNavigated}: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const active = pathname.split("/").filter(Boolean)[0] as NavId | undefined;
   const [stored, setStored] = useState<NavPreferences | null>(null);
   const [openGroup, setOpenGroup] = useState<string | null>(null); // acordeón: un solo grupo abierto
   const [draft, setDraft] = useState<NavPreferences | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  function onNavigate(id: NavId) {
+    router.push(`/${id}`);
+    onNavigated?.();
+  }
 
   useEffect(() => setMounted(true), []);
 

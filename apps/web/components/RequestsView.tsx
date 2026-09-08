@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "../lib/api";
 import { centsToInput, formatArs, parseArsToCents } from "../lib/money";
 import type { Customer, Quote, QuoteFromRequestSeed, QuoteRequest, RequestState } from "../lib/types";
+import { useSuite } from "./SuiteContext";
 import {
   Alert,
   Field,
@@ -71,11 +73,9 @@ const NEXT_STATE: Partial<Record<RequestState, RequestState>> = {
   ENVIADA: "CERRADA",
 };
 
-export function RequestsView({
-  onCreateAndAssociateQuote,
-}: {
-  onCreateAndAssociateQuote?: (seed: QuoteFromRequestSeed) => void;
-} = {}) {
+export function RequestsView() {
+  const router = useRouter();
+  const { setQuoteSeed } = useSuite();
   const [items, setItems] = useState<QuoteRequest[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,7 +259,6 @@ export function RequestsView({
   }
 
   async function createAndAssociate(req: QuoteRequest) {
-    if (!onCreateAndAssociateQuote) return;
     setStartingId(req.id);
     setError(null);
     setNotice(null);
@@ -273,14 +272,16 @@ export function RequestsView({
           prepared.customer.phone ? ` (${prepared.customer.phone})` : ""
         }.`,
       );
-      onCreateAndAssociateQuote(prepared.seed);
+      setQuoteSeed(prepared.seed);
+      router.push("/presupuestos");
     } catch (err) {
       console.warn("prepare-quote falló, abriendo con datos locales", err);
-      onCreateAndAssociateQuote({
+      setQuoteSeed({
         requestId: req.id,
         customerId: req.customerId,
         internalName: req.title.trim() || `Solicitud ${req.id.slice(0, 8)}`,
       });
+      router.push("/presupuestos");
     } finally {
       setStartingId(null);
     }
@@ -430,7 +431,7 @@ export function RequestsView({
                             </div>
                           ) : null}
                           <div className="kcard-actions" onClick={(e) => e.stopPropagation()}>
-                            {canLinkQuote && onCreateAndAssociateQuote ? (
+                            {canLinkQuote ? (
                               <button
                                 type="button"
                                 className="btn-sm"

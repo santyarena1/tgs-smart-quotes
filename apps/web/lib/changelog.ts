@@ -8,6 +8,19 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.0",
+    date: "2026-09-08",
+    title: "CRM propio y WhatsApp por API oficial",
+    items: [
+      "Nuevo CRM en /crm: bandeja de conversaciones, historial, envío y estados reales de entrega",
+      "WhatsApp pasa a la API oficial de Meta: se terminan el escaneo del navegador y la extensión",
+      "Ahora se ve si el cliente recibió y leyó cada mensaje, algo que antes había que adivinar",
+      "Aviso claro de la ventana de 24 h: pasado ese plazo solo se puede escribir con plantillas",
+      "Plantillas de WhatsApp con variables, para retomar conversaciones frías",
+      "El sistema ahora usa páginas de verdad: cada sección carga solo su código y abre más rápido",
+    ],
+  },
+  {
     version: "0.3.11",
     date: "2026-08-28",
     title: "Calculadora más ordenada para capturar",

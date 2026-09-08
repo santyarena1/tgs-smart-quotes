@@ -1,7 +1,5 @@
-"use client";
-
-import { App } from "../components/App";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <App />;
+  redirect("/dashboard");
 }

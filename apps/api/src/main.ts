@@ -6,6 +6,7 @@ import {FastifyAdapter, NestFastifyApplication} from '@nestjs/platform-fastify';
 import {DocumentBuilder, SwaggerModule} from '@nestjs/swagger';
 import multipart from '@fastify/multipart';
 import {AppModule} from './module.js';
+import {startOutboundWorker} from './whatsapp-outbound.js';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({logger: true});
@@ -53,6 +54,10 @@ async function bootstrap() {
     .build();
   SwaggerModule.setup('openapi', app, SwaggerModule.createDocument(app, cfg));
   await app.listen(Number(process.env.PORT ?? 3001), '::');
+  // El drenador de la cola de WhatsApp vive en este proceso a propósito: la API es
+  // la que con seguridad está desplegada (sirve el webhook), y una cola que no drena
+  // sería un fallo silencioso. La toma de trabajo es segura con varias instancias.
+  startOutboundWorker();
   Logger.log(
     JSON.stringify({event: 'api_started', port: Number(process.env.PORT ?? 3001)}),
     'Bootstrap',
