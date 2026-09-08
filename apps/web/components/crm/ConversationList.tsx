@@ -40,8 +40,8 @@ export function ConversationList({
           <strong>Conversaciones</strong>
           {totalUnread > 0 ? <span className="crm-count">{totalUnread}</span> : null}
           {onPurge ? (
-            <button type="button" className="crm-list-purge" onClick={onPurge} title="Borrar todas las conversaciones" aria-label="Borrar todas las conversaciones">
-              <IconTrash size={14} />
+            <button type="button" className="crm-list-purge" onClick={onPurge} title="Borrar todas las conversaciones">
+              <IconTrash size={14} /> Limpiar
             </button>
           ) : null}
         </div>

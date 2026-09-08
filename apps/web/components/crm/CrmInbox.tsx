@@ -277,7 +277,7 @@ export function CrmInbox() {
         totalUnread={totalUnread}
         // La limpieza masiva es destructiva: solo la ve un ADMIN, y el servidor
         // vuelve a validar el rol además de pedir la frase de confirmación.
-        onPurge={user?.role === "ADMIN" && conversations.length > 0 ? () => setPurgeOpen(true) : undefined}
+        onPurge={user?.role === "ADMIN" ? () => setPurgeOpen(true) : undefined}
       />
 
       <section className="crm-thread-pane">

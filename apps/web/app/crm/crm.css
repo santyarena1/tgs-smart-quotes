@@ -77,10 +77,12 @@
   font-family: var(--brand); font-size: 0.7rem; padding: 0.05rem 0.42rem; font-weight: 650;
 }
 .crm-list-purge {
-  margin-left: auto; background: transparent; border: 0; padding: 0.25rem;
-  color: var(--faint); border-radius: var(--r-sm); display: inline-flex;
+  margin-left: auto; background: transparent; border: 1px solid var(--line-2);
+  padding: 0.15rem 0.45rem; color: var(--muted); border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font: inherit; font-size: 0.75rem; cursor: pointer;
 }
-.crm-list-purge:hover { background: var(--red-soft); color: var(--red-deep); }
+.crm-list-purge:hover { background: var(--red-soft); color: var(--red-deep); border-color: var(--red-line); }
 
 .crm-search-wrap {
   display: flex; align-items: center; gap: 0.45rem;
