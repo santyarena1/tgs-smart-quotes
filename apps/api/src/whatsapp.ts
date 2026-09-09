@@ -25,6 +25,7 @@ import {
 } from '@nestjs/common';
 import {createHmac, randomBytes, timingSafeEqual} from 'node:crypto';
 import {decryptSecret, encryptSecret, maskSecret} from '@tgs/config';
+import {apiPublicUrl} from '@tgs/storage';
 import {
   whatsappAssignSchema,
   whatsappCloudSettingsInputSchema,
@@ -106,7 +107,10 @@ export class WhatsappController {
         return '••••';
       }
     };
-    const apiBase = (process.env.API_PUBLIC_URL ?? 'http://localhost:3001/api').replace(/\/$/, '');
+    // La Callback URL se copia y pega en Meta, así que no puede salir apuntando a
+    // localhost si falta la variable: `apiPublicUrl()` cae al dominio público que
+    // Railway expone solo, igual que hacen las URLs de imágenes.
+    const apiBase = apiPublicUrl();
     return {
       id: 'singleton' as const,
       enabled: row?.enabled ?? false,
