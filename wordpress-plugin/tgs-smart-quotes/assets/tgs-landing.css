@@ -479,7 +479,7 @@
    ========================================================================== */
 .tgs-landing .tgs-items {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
 	gap: 10px;
 }
 .tgs-landing .tgs-item {
@@ -586,7 +586,7 @@
    ========================================================================== */
 .tgs-landing .tgs-games {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	gap: 8px;
 }
 .tgs-landing .tgs-game {
@@ -767,7 +767,7 @@
 	transform: translateY(-50%);
 }
 .tgs-landing .tgs-compat {
-	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
 }
 
 /* ==========================================================================
@@ -780,7 +780,7 @@
 }
 .tgs-landing .tgs-installments {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
 	gap: 8px;
 }
 .tgs-landing .tgs-installment-row {
@@ -826,7 +826,7 @@
    ========================================================================== */
 .tgs-landing .tgs-recommended-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
 	gap: 12px;
 }
 .tgs-landing .tgs-recommended-card {
