@@ -8,35 +8,32 @@ import { Alert, Checkbox, Field, Loading, Pill, Tabs, errorMessage } from "./sha
 import { ProductContentEditor } from "./ProductContentEditor";
 import { QuoteItemContentEditor } from "./QuoteItemContentEditor";
 import { QuotePreview } from "./QuotePreview";
+import {
+  loadPublication,
+  publicationStatusLabel,
+  publicationStatusTone,
+  PublishRunPanel,
+  usePublishRun,
+  type Publication,
+} from "./publication";
 
 type ProductSummary = { id: string; description: string | null };
 type HeroOption = { id: string; url: string | null; productId: string; productName: string };
 
-type PublicationStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "FAILED";
-type Publication = { status: PublicationStatus; url: string | null; lastError: string | null };
-
-type Game = { name: string; tier: string };
+type Game = { name: string; tier: string; resolution?: string | null; settings?: string | null; note?: string | null };
 type Enrichment = {
   descriptionHtml: string | null;
   gamesJson?: Game[] | null;
   programsJson?: unknown[] | null;
   compatibilityJson?: string[] | null;
+  title?: string | null;
+  tagline?: string | null;
+  shortDescription?: string | null;
+  highlightsJson?: string[] | null;
+  audience?: string | null;
 } | null;
 
 type StepId = "contenido" | "componentes" | "preview";
-
-function statusLabel(status: PublicationStatus | undefined): string {
-  if (status === "PUBLISHED") return "Publicado";
-  if (status === "FAILED") return "Error al publicar";
-  if (status === "UNPUBLISHED") return "Despublicado";
-  return "Sin publicar";
-}
-
-function statusTone(status: PublicationStatus | undefined): "ok" | "bad" | "neutral" {
-  if (status === "PUBLISHED") return "ok";
-  if (status === "FAILED") return "bad";
-  return "neutral";
-}
 
 type Props = {
   quoteId: string;
@@ -61,7 +58,9 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [busyPublish, setBusyPublish] = useState(false);
   const [step, setStep] = useState<StepId>("contenido");
 
+  /** Título y bajada con los que sale en la tienda (no es el nombre interno). */
   const [titleDraft, setTitleDraft] = useState("");
+  const [taglineDraft, setTaglineDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
@@ -70,6 +69,9 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [gamesDraft, setGamesDraft] = useState<Game[]>([]);
   const [compatDraft, setCompatDraft] = useState<string[]>([]);
+  const [shortDescriptionDraft, setShortDescriptionDraft] = useState("");
+  const [highlightsDraft, setHighlightsDraft] = useState("");
+  const [audienceDraft, setAudienceDraft] = useState("");
   const [loadingEnrichment, setLoadingEnrichment] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [savingEnrichment, setSavingEnrichment] = useState(false);
@@ -91,9 +93,16 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
   const version = quote ? getActiveVersion(quote) : null;
 
+  const refreshPublication = useCallback(async () => {
+    setPublication(await loadPublication(quoteId));
+  }, [quoteId]);
+
   const applyEnrichment = (value: Enrichment) => {
     setEnrichment(value);
     setDescriptionDraft(value?.descriptionHtml ?? "");
+    setShortDescriptionDraft(value?.shortDescription ?? "");
+    setHighlightsDraft(Array.isArray(value?.highlightsJson) ? value.highlightsJson.join("\n") : "");
+    setAudienceDraft(value?.audience ?? "");
     // Lo que genera la IA se deja editable a propósito: son estimaciones y
     // conviene poder corregirlas antes de que salgan publicadas.
     setGamesDraft(Array.isArray(value?.gamesJson) ? value.gamesJson : []);
@@ -109,16 +118,12 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
         api<ProductSummary[]>("/products"),
       ]);
       setQuote(q);
-      setTitleDraft(q.internalName);
+      setTitleDraft(q.webTitle ?? "");
+      setTaglineDraft(q.webTagline ?? "");
       setProductsById(Object.fromEntries(products.map((p) => [p.id, p])));
       const v = getActiveVersion(q);
+      setPublication(await loadPublication(quoteId));
       if (v) {
-        try {
-          const pub = await api<Publication | null>(`/external-module/quotes/${v.id}/publication`);
-          setPublication(pub ?? { status: "DRAFT", url: null, lastError: null });
-        } catch {
-          setPublication({ status: "DRAFT", url: null, lastError: null });
-        }
         // Se cuentan las imágenes de cada componente por adelantado para que el
         // checklist diga la verdad sin tener que abrir ficha por ficha.
         const productIds = Array.from(
@@ -174,6 +179,14 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     }
   }, []);
 
+  /* Al terminar "Preparar y publicar" se recarga todo: el pipeline pudo haber
+     agregado fotos, textos, título y miniatura. */
+  const pipeline = usePublishRun(quoteId, () => {
+    void load();
+    if (version) void loadEnrichment(version.id);
+    onChanged?.();
+  });
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -183,27 +196,33 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version?.id]);
 
-  const publish = async () => {
-    if (!version) return;
+  /** Publica (o actualiza) en la tienda la versión activa, sin preparar nada. */
+  const publish = async (versionId?: string | null) => {
+    if (!quote) return;
     setBusyPublish(true);
     setActionError(null);
     try {
-      const next = await api<Publication>(`/external-module/quotes/${version.id}/publish`, { method: "POST" });
+      const next = await api<Publication>(`/external-module/quote-families/${quote.id}/publish`, {
+        method: "POST",
+        body: { versionId: versionId ?? version?.id ?? null },
+      });
       setPublication(next);
+      setPreviewNonce((n) => n + 1);
       onChanged?.();
     } catch (err) {
       setActionError(errorMessage(err));
+      await refreshPublication();
     } finally {
       setBusyPublish(false);
     }
   };
 
   const unpublish = async () => {
-    if (!version) return;
+    if (!quote) return;
     setBusyPublish(true);
     setActionError(null);
     try {
-      const next = await api<Publication>(`/external-module/quotes/${version.id}/unpublish`, { method: "POST" });
+      const next = await api<Publication>(`/external-module/quote-families/${quote.id}/unpublish`, { method: "POST" });
       setPublication(next);
       onChanged?.();
     } catch (err) {
@@ -213,15 +232,20 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     }
   };
 
-  const saveTitle = async () => {
+  const saveTitle = async (override?: { webTitle?: string; webTagline?: string }) => {
     if (!quote) return;
-    const nextTitle = titleDraft.trim();
-    if (!nextTitle || nextTitle === quote.internalName) return;
+    const webTitle = (override?.webTitle ?? titleDraft).trim();
+    const webTagline = (override?.webTagline ?? taglineDraft).trim();
     setSavingTitle(true);
     setActionError(null);
     try {
-      await api(`/quotes/${quote.id}`, { method: "PUT", body: { internalName: nextTitle } });
-      setQuote((prev) => (prev ? { ...prev, internalName: nextTitle } : prev));
+      await api(`/external-module/quote-families/${quote.id}/publish-settings`, {
+        method: "PUT",
+        body: { webTitle: webTitle || null, webTagline: webTagline || null },
+      });
+      setTitleDraft(webTitle);
+      setTaglineDraft(webTagline);
+      setQuote((prev) => (prev ? { ...prev, webTitle: webTitle || null, webTagline: webTagline || null } : prev));
       setPreviewNonce((n) => n + 1);
       onChanged?.();
     } catch (err) {
@@ -316,10 +340,19 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           descriptionHtml: descriptionDraft.trim() || null,
           // Se descartan las filas vacías para no publicar juegos sin nombre.
           games: gamesDraft
-            .map((game) => ({ name: game.name.trim(), tier: game.tier.trim() }))
+            .map((game) => ({
+              name: game.name.trim(),
+              tier: game.tier.trim(),
+              resolution: game.resolution?.trim() || null,
+              settings: game.settings?.trim() || null,
+              note: game.note?.trim() || null,
+            }))
             .filter((game) => game.name && game.tier),
           compatibility: compatDraft.map((line) => line.trim()).filter(Boolean),
           programs: (enrichment?.programsJson as { name: string; note: string }[] | undefined) ?? [],
+          shortDescription: shortDescriptionDraft.trim() || null,
+          highlights: highlightsDraft.split("\n").map((line) => line.trim()).filter(Boolean),
+          audience: audienceDraft.trim() || null,
         },
       });
       applyEnrichment(value);
@@ -356,9 +389,11 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     return [
       {
         id: "titulo",
-        label: "Título de la publicación",
-        ok: Boolean(quote?.internalName?.trim()),
-        detail: quote?.internalName?.trim() ? quote.internalName : "Ponele un nombre comercial a la PC",
+        label: "Título en la tienda",
+        ok: Boolean(quote?.webTitle?.trim()),
+        detail: quote?.webTitle?.trim()
+          ? quote.webTitle
+          : "Sin título comercial: se publica con el nombre interno. \"Preparar y publicar\" propone uno con IA",
       },
       {
         id: "descripcion",
@@ -389,7 +424,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           : "No hay componentes",
       },
     ];
-  }, [items, assetCounts, productsById, itemContent, quote?.internalName, quote?.thumbnailUrl, enrichment?.descriptionHtml]);
+  }, [items, assetCounts, productsById, itemContent, quote?.webTitle, quote?.thumbnailUrl, enrichment?.descriptionHtml]);
 
   const pending = checklist.filter((entry) => !entry.ok).length;
 
@@ -415,6 +450,11 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   }
 
   const isPublished = publication?.status === "PUBLISHED";
+  const isStale = Boolean(isPublished && publication?.isStale);
+  const busy = busyPublish || pipeline.starting || pipeline.running;
+  const publishedLabel = isPublished && publication?.publishedVersionNumber
+    ? `En la tienda: v${publication.publishedVersionNumber}${isStale ? ` · esta es la v${version.version}` : ""}`
+    : null;
 
   return (
     <div>
@@ -428,44 +468,64 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
         style={{ marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}
       >
         <div style={{ display: "grid", gap: 4, minWidth: 220 }}>
-          <h2 style={{ margin: 0, fontSize: 20 }}>{quote.internalName || quote.visibleNumber}</h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>{quote.webTitle || quote.internalName || quote.visibleNumber}</h2>
           <span className="muted">
-            {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
+            {quote.internalName} · {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
           </span>
+          {publishedLabel ? <span className="muted" style={{ fontSize: 12.5 }}>{publishedLabel}</span> : null}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <Pill tone={statusTone(publication?.status)}>{statusLabel(publication?.status)}</Pill>
+          <Pill tone={publicationStatusTone(publication)}>{publicationStatusLabel(publication)}</Pill>
           {isPublished && publication?.url ? (
             <a href={publication.url} target="_blank" rel="noreferrer">
               Ver en la tienda
             </a>
           ) : null}
+          {/* La acción principal completa lo que falta y publica. Publicar
+              "a secas" queda como opción secundaria para cuando ya está todo. */}
+          <button
+            type="button"
+            className="btn-dark btn-sm"
+            disabled={busy}
+            onClick={() => void pipeline.start({ versionId: version.id, publish: true })}
+            title="Busca imágenes que falten, genera textos y título con IA, arma la miniatura y publica"
+          >
+            {pipeline.running ? "Preparando…" : isStale ? `Preparar y actualizar a v${version.version}` : isPublished ? "Preparar y actualizar" : "Preparar y publicar"}
+          </button>
+          <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(version.id)}>
+            {busyPublish ? "Publicando…" : isStale ? `Actualizar a v${version.version} sin preparar` : isPublished ? "Actualizar sin preparar" : "Publicar sin preparar"}
+          </button>
           {isPublished ? (
-            <>
-              <button type="button" className="btn-dark btn-sm" disabled={busyPublish} onClick={() => void publish()}>
-                {busyPublish ? "Actualizando…" : "Actualizar en la tienda"}
-              </button>
-              <button type="button" className="btn-ghost btn-sm" disabled={busyPublish} onClick={() => void unpublish()}>
-                {busyPublish ? "Despublicando…" : "Despublicar"}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn-dark btn-sm" disabled={busyPublish} onClick={() => void publish()}>
-              {busyPublish ? "Publicando…" : "Publicar en la tienda"}
+            <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void unpublish()}>
+              Despublicar
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {actionError ? (
+      {isStale ? (
         <div style={{ marginTop: 12 }}>
-          <Alert tone="error">{actionError}</Alert>
-        </div>
-      ) : publication?.status === "FAILED" && publication.lastError ? (
-        <div style={{ marginTop: 12 }}>
-          <Alert tone="error">{publication.lastError}</Alert>
+          <Alert tone="info">
+            La tienda sigue mostrando la v{publication?.publishedVersionNumber} tal como se publicó. La v{version.version} no se
+            envía hasta que la actualices desde acá.
+          </Alert>
         </div>
       ) : null}
+
+      {actionError || pipeline.error ? (
+        <div style={{ marginTop: 12 }}>
+          <Alert tone="error">{actionError ?? pipeline.error}</Alert>
+        </div>
+      ) : publication?.lastError ? (
+        <div style={{ marginTop: 12 }}>
+          <Alert tone="error">
+            {publication.status === "PUBLISHED" ? "La última actualización falló (el producto sigue publicado): " : ""}
+            {publication.lastError}
+          </Alert>
+        </div>
+      ) : null}
+
+      {pipeline.run ? <PublishRunPanel run={pipeline.run} onDismiss={pipeline.dismiss} /> : null}
 
       {/* Checklist: qué falta antes de publicar */}
       <section className="card card-pad" style={{ marginTop: 16, display: "grid", gap: 10 }}>
@@ -522,19 +582,61 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
         <>
           <section className="card card-pad" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             <h3 className="panel-title">Datos generales</h3>
-            <Field label="Título" hint="Es el nombre con el que se publica la PC en la tienda.">
-              <div style={{ display: "flex", gap: 8 }}>
-                <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} />
-                <button
-                  type="button"
-                  className="btn-dark btn-sm"
-                  disabled={savingTitle || titleDraft.trim() === quote.internalName}
-                  onClick={() => void saveTitle()}
-                >
-                  {savingTitle ? "Guardando…" : "Guardar"}
-                </button>
+            <Field
+              label="Título en la tienda"
+              hint={`Es el nombre comercial con el que se publica. El nombre interno (${quote.internalName}) no cambia. Si lo dejás vacío, se publica con el nombre interno.`}
+            >
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  value={titleDraft}
+                  style={{ flex: "1 1 260px" }}
+                  placeholder="Ej: PC Gamer RTX 4060 · 1080p Ultra sin vueltas"
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                />
+                {enrichment?.title && enrichment.title !== titleDraft.trim() ? (
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm"
+                    disabled={savingTitle}
+                    title={enrichment.title}
+                    onClick={() => void saveTitle({ webTitle: enrichment.title ?? "" })}
+                  >
+                    Usar propuesta de la IA
+                  </button>
+                ) : null}
               </div>
             </Field>
+            <Field label="Bajada" hint="Una oración debajo del título, con el beneficio principal.">
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  value={taglineDraft}
+                  style={{ flex: "1 1 260px" }}
+                  placeholder="Ej: Juegos actuales en alto sin bajar la resolución."
+                  onChange={(e) => setTaglineDraft(e.target.value)}
+                />
+                {enrichment?.tagline && enrichment.tagline !== taglineDraft.trim() ? (
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm"
+                    disabled={savingTitle}
+                    title={enrichment.tagline}
+                    onClick={() => void saveTitle({ webTagline: enrichment.tagline ?? "" })}
+                  >
+                    Usar propuesta de la IA
+                  </button>
+                ) : null}
+              </div>
+            </Field>
+            <div>
+              <button
+                type="button"
+                className="btn-dark btn-sm"
+                disabled={savingTitle || (titleDraft.trim() === (quote.webTitle ?? "") && taglineDraft.trim() === (quote.webTagline ?? ""))}
+                onClick={() => void saveTitle()}
+              >
+                {savingTitle ? "Guardando…" : "Guardar título y bajada"}
+              </button>
+            </div>
 
             <Checkbox
               label="Actualizar precio automáticamente desde el catálogo (y re-publicar sola si ya estaba en la tienda)"
@@ -588,17 +690,29 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                 {aiNotice ? <Alert tone="ok">{aiNotice}</Alert> : null}
                 <Field label="Texto que se muestra en la ficha">
                   <textarea
-                    rows={4}
+                    rows={5}
                     value={descriptionDraft}
                     onChange={(e) => setDescriptionDraft(e.target.value)}
                     placeholder="Se completa al generar con IA, o escribila vos."
                   />
                 </Field>
+                <Field
+                  label="Descripción corta"
+                  hint="1 o 2 oraciones. La usan los buscadores y los catálogos de redes (Google, Instagram, Facebook)."
+                >
+                  <textarea rows={2} value={shortDescriptionDraft} onChange={(e) => setShortDescriptionDraft(e.target.value)} />
+                </Field>
+                <Field label="Puntos fuertes" hint="Uno por línea. Salen como lista con tilde debajo del título.">
+                  <textarea rows={4} value={highlightsDraft} onChange={(e) => setHighlightsDraft(e.target.value)} />
+                </Field>
+                <Field label="Para quién es" hint="Una oración. Se muestra arriba de la sección de juegos.">
+                  <input value={audienceDraft} onChange={(e) => setAudienceDraft(e.target.value)} />
+                </Field>
                 {/* Juegos y compatibilidad: la IA los estima, así que se
                     muestran para revisarlos y corregirlos antes de publicar. */}
                 <Field
                   label="Juegos y rendimiento"
-                  hint="Los estima la IA a partir de los componentes: no son mediciones reales. Revisalos y corregí lo que no te cierre; lo que borres no se publica."
+                  hint="Los estima la IA a partir de los componentes: no son mediciones reales. Por juego: nombre, resolución, calidad y el texto que se muestra. Lo que borres no se publica."
                 >
                   <div style={{ display: "grid", gap: 8 }}>
                     {gamesDraft.length === 0 ? (
@@ -619,8 +733,28 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                             }
                           />
                           <input
+                            value={game.resolution ?? ""}
+                            placeholder="1080p"
+                            style={{ flex: "0 1 90px" }}
+                            onChange={(e) =>
+                              setGamesDraft((prev) =>
+                                prev.map((row, i) => (i === index ? { ...row, resolution: e.target.value } : row)),
+                              )
+                            }
+                          />
+                          <input
+                            value={game.settings ?? ""}
+                            placeholder="Alto"
+                            style={{ flex: "0 1 90px" }}
+                            onChange={(e) =>
+                              setGamesDraft((prev) =>
+                                prev.map((row, i) => (i === index ? { ...row, settings: e.target.value } : row)),
+                              )
+                            }
+                          />
+                          <input
                             value={game.tier}
-                            placeholder="Ej: Alto 1080p (estimado)"
+                            placeholder="Ej: 1080p Alto (estimado)"
                             style={{ flex: "1 1 180px" }}
                             onChange={(e) =>
                               setGamesDraft((prev) =>
@@ -642,7 +776,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                       <button
                         type="button"
                         className="btn-ghost btn-sm"
-                        onClick={() => setGamesDraft((prev) => [...prev, { name: "", tier: "" }])}
+                        onClick={() => setGamesDraft((prev) => [...prev, { name: "", tier: "", resolution: "", settings: "", note: "" }])}
                       >
                         + Agregar juego
                       </button>
@@ -858,7 +992,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
               los define la variante de diseño en WordPress.
             </span>
           </div>
-          <QuotePreview key={`${version.id}-${previewNonce}`} versionId={version.id} />
+          <QuotePreview key={`${version.id}-${previewNonce}`} familyId={quote.id} versionId={version.id} />
         </section>
       ) : null}
     </div>

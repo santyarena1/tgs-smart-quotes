@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.10.0
+ * Version: 2.11.0
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.10.0' );
+define( 'TGS_SQ_VERSION', '2.11.0' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -30,6 +30,13 @@ define( 'TGS_SQ_META_THUMBNAIL', '_tgs_thumbnail_url' );
 // hay ninguna elegida, la ficha cae a la miniatura.
 define( 'TGS_SQ_META_HERO_IMAGE', '_tgs_hero_image_url' );
 define( 'TGS_SQ_META_GALLERY', '_tgs_gallery' );
+// Bajada, puntos fuertes y público: los propone la IA del sistema al
+// preparar la publicación; la ficha los muestra debajo del título.
+define( 'TGS_SQ_META_TAGLINE', '_tgs_tagline' );
+define( 'TGS_SQ_META_HIGHLIGHTS', '_tgs_highlights' );
+define( 'TGS_SQ_META_AUDIENCE', '_tgs_audience' );
+// Número de versión del presupuesto que está publicada (informativo).
+define( 'TGS_SQ_META_VERSION', '_tgs_quote_version' );
 define( 'TGS_SQ_META_PRICE_LIST', '_tgs_price_list_cents' );
 define( 'TGS_SQ_META_PRICE_CASH', '_tgs_price_cash_cents' );
 define( 'TGS_SQ_META_PRICE_TRANSFER', '_tgs_price_transfer_cents' );

@@ -84,7 +84,8 @@ function tgs_sq_rest_unpublish( WP_REST_Request $request ) {
 	if ( '' === $external_id ) {
 		return new WP_Error( 'tgs_missing_external_id', 'externalId es obligatorio', array( 'status' => 400 ) );
 	}
-	$product_id = tgs_sq_unpublish_product( $external_id );
+	$legacy_ids = is_array( $payload['legacyExternalIds'] ?? null ) ? $payload['legacyExternalIds'] : array();
+	$product_id = tgs_sq_unpublish_product( $external_id, $legacy_ids );
 	return array(
 		'ok'        => true,
 		'productId' => $product_id ?: null,

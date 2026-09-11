@@ -1,7 +1,15 @@
 import { z } from "zod";
 
-export const quoteEnrichmentInputSchema=z.object({items:z.array(z.object({name:z.string().min(1),quantity:z.number().int().positive()}).strict()).min(1)}).strict();
-export const quoteEnrichmentOutputSchema=z.object({descriptionHtml:z.string(),games:z.array(z.object({name:z.string(),tier:z.string()}).strict()),programs:z.array(z.object({name:z.string(),note:z.string()}).strict()),compatibility:z.array(z.string())}).strict();
+// `line` es la parte (CPU, GPU, Mother...) cuando el ítem viene del catálogo:
+// le da contexto al modelo para el análisis de rendimiento sin que tenga que
+// adivinar qué es cada cosa por el nombre.
+export const quoteEnrichmentInputSchema=z.object({items:z.array(z.object({name:z.string().min(1),quantity:z.number().int().positive(),line:z.string().nullable().optional()}).strict()).min(1)}).strict();
+// Salida del enriquecimiento "profundo". Los campos nuevos (título, bajada,
+// descripción corta, puntos fuertes, público, y resolución/calidad por juego)
+// son nullable y no opcionales porque OpenAI structured outputs exige que
+// todas las claves estén presentes.
+export const quoteEnrichmentGameOutputSchema=z.object({name:z.string(),tier:z.string(),resolution:z.string().nullable(),settings:z.string().nullable(),note:z.string().nullable()}).strict();
+export const quoteEnrichmentOutputSchema=z.object({title:z.string(),tagline:z.string(),shortDescription:z.string(),descriptionHtml:z.string(),highlights:z.array(z.string()),audience:z.string(),games:z.array(quoteEnrichmentGameOutputSchema),programs:z.array(z.object({name:z.string(),note:z.string()}).strict()),compatibility:z.array(z.string())}).strict();
 export type QuoteEnrichmentInput=z.infer<typeof quoteEnrichmentInputSchema>;
 export type QuoteEnrichmentOutput=z.infer<typeof quoteEnrichmentOutputSchema>;
 

@@ -45,6 +45,7 @@ function tgs_sq_block_types() {
 		'specs'          => 'Componentes de la PC (foto + nombre)',
 		'description'    => 'Descripción',
 		'games'          => 'Juegos recomendados',
+		'gallery'        => 'Galería de fotos de los componentes',
 		'compatibility'  => 'Notas de compatibilidad',
 		'payment'        => 'Formas de pago y cuotas',
 		'recommended'    => 'Recomendadas de la casa (PCs de precio similar)',
@@ -63,7 +64,7 @@ function tgs_sq_default_blocks() {
 			// Los bloques nuevos (payment/whatsapp/recommended) arrancan
 			// apagados por default: hay que cargar número de WhatsApp,
 			// etc. antes de que tenga sentido mostrarlos.
-			$visible = ! in_array( $type, array( 'payment', 'recommended' ), true );
+			$visible = ! in_array( $type, array( 'payment', 'recommended', 'gallery' ), true );
 			return array( 'type' => $type, 'visible' => $visible );
 		},
 		$types
@@ -125,6 +126,9 @@ function tgs_sq_placeholder_docs() {
 		'modelo_3d_url'          => 'Solo la URL del modelo 3D.',
 		'componentes'            => 'Sección con los componentes de la PC (foto + nombre + detalle).',
 		'juegos'                 => 'Sección de juegos recomendados con el rendimiento estimado.',
+		'bajada'                 => 'Bajada corta debajo del título (la propone la IA del sistema).',
+		'puntos_fuertes'         => 'Lista de puntos fuertes de la PC (3 a 5 líneas).',
+		'galeria'                => 'Galería con las fotos de los componentes.',
 		'compatibilidad'         => 'Sección con las notas de compatibilidad del armado.',
 		'recomendadas'           => 'Sección de "Recomendadas de la casa" (otras PCs de precio similar).',
 		'boton_carrito'          => 'Botón de agregar al carrito de WooCommerce (con cantidad y stock).',

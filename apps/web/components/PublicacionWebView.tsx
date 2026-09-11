@@ -18,6 +18,7 @@ import {
 } from "./shared";
 import { IntegrationsCard } from "./IntegrationsCard";
 import { QuoteWebEditor } from "./QuoteWebEditor";
+import { loadPublication, publicationStatusLabel, publicationStatusTone, type Publication } from "./publication";
 
 type WordpressConfig = {
   wpBaseUrl: string;
@@ -32,14 +33,6 @@ type ConfigDraft = {
   autoRepublish: boolean;
 };
 
-type PublicationStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "FAILED";
-
-type Publication = {
-  status: PublicationStatus;
-  url: string | null;
-  lastError: string | null;
-};
-
 /** El test de conexión ahora informa además la versión del plugin instalado. */
 type TestResult = { ok: boolean; detail?: string; version?: string | null };
 
@@ -51,19 +44,6 @@ const emptyDraft: ConfigDraft = {
   clearWpHmacSecret: false,
   autoRepublish: true,
 };
-
-function statusLabel(status: PublicationStatus | undefined): string {
-  if (status === "PUBLISHED") return "Publicado";
-  if (status === "FAILED") return "Error al publicar";
-  if (status === "UNPUBLISHED") return "Despublicado";
-  return "Sin publicar";
-}
-
-function statusTone(status: PublicationStatus | undefined): "ok" | "bad" | "neutral" {
-  if (status === "PUBLISHED") return "ok";
-  if (status === "FAILED") return "bad";
-  return "neutral";
-}
 
 /**
  * Publicación de PCs armadas en la tienda online.
@@ -86,12 +66,14 @@ export function PublicacionWebView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  /** Publicaciones por presupuesto (familia), no por versión: si se crea una
+      versión nueva, la publicación sigue estando y avisa que quedó atrás. */
   const [publications, setPublications] = useState<Record<string, Publication>>({});
   const [quotesLoading, setQuotesLoading] = useState(true);
   const [quotesError, setQuotesError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterId>("todos");
-  const [busyVersionId, setBusyVersionId] = useState<string | null>(null);
+  const [busyQuoteId, setBusyQuoteId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
 
@@ -122,17 +104,7 @@ export function PublicacionWebView() {
       const pcQuotes = rows.filter((quote) => quote.isBuiltPc && getActiveVersion(quote));
       setQuotes(pcQuotes);
       const entries = await Promise.all(
-        pcQuotes.map(async (quote) => {
-          const versionId = getActiveVersion(quote)!.id;
-          try {
-            const publication = await api<Publication | null>(
-              `/external-module/quotes/${versionId}/publication`,
-            );
-            return [versionId, publication ?? { status: "DRAFT" as const, url: null, lastError: null }] as const;
-          } catch {
-            return [versionId, { status: "DRAFT" as const, url: null, lastError: null }] as const;
-          }
-        }),
+        pcQuotes.map(async (quote) => [quote.id, await loadPublication(quote.id)] as const),
       );
       setPublications(Object.fromEntries(entries));
     } catch (err) {
@@ -211,37 +183,37 @@ export function PublicacionWebView() {
     }
   };
 
+  /** Publica (o actualiza a) la versión activa, sin preparar nada. */
   const publish = async (quote: Quote) => {
     const versionId = getActiveVersion(quote)?.id;
     if (!versionId) return;
-    setBusyVersionId(versionId);
-    setRowError((prev) => ({ ...prev, [versionId]: "" }));
+    setBusyQuoteId(quote.id);
+    setRowError((prev) => ({ ...prev, [quote.id]: "" }));
     try {
-      const next = await api<Publication>(`/external-module/quotes/${versionId}/publish`, {
+      const next = await api<Publication>(`/external-module/quote-families/${quote.id}/publish`, {
         method: "POST",
+        body: { versionId },
       });
-      setPublications((prev) => ({ ...prev, [versionId]: next }));
+      setPublications((prev) => ({ ...prev, [quote.id]: next }));
     } catch (err) {
-      setRowError((prev) => ({ ...prev, [versionId]: errorMessage(err) }));
+      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
+      setPublications((prev) => ({ ...prev, [quote.id]: prev[quote.id] ?? { status: "FAILED", url: null, lastError: null } }));
+      void loadPublication(quote.id).then((pub) => setPublications((prev) => ({ ...prev, [quote.id]: pub })));
     } finally {
-      setBusyVersionId(null);
+      setBusyQuoteId(null);
     }
   };
 
   const unpublish = async (quote: Quote) => {
-    const versionId = getActiveVersion(quote)?.id;
-    if (!versionId) return;
-    setBusyVersionId(versionId);
-    setRowError((prev) => ({ ...prev, [versionId]: "" }));
+    setBusyQuoteId(quote.id);
+    setRowError((prev) => ({ ...prev, [quote.id]: "" }));
     try {
-      const next = await api<Publication>(`/external-module/quotes/${versionId}/unpublish`, {
-        method: "POST",
-      });
-      setPublications((prev) => ({ ...prev, [versionId]: next }));
+      const next = await api<Publication>(`/external-module/quote-families/${quote.id}/unpublish`, { method: "POST" });
+      setPublications((prev) => ({ ...prev, [quote.id]: next }));
     } catch (err) {
-      setRowError((prev) => ({ ...prev, [versionId]: errorMessage(err) }));
+      setRowError((prev) => ({ ...prev, [quote.id]: errorMessage(err) }));
     } finally {
-      setBusyVersionId(null);
+      setBusyQuoteId(null);
     }
   };
 
@@ -249,7 +221,7 @@ export function PublicacionWebView() {
     let publicados = 0;
     let errores = 0;
     for (const quote of quotes) {
-      const status = publications[getActiveVersion(quote)!.id]?.status;
+      const status = publications[quote.id]?.status;
       if (status === "PUBLISHED") publicados += 1;
       else if (status === "FAILED") errores += 1;
     }
@@ -259,8 +231,8 @@ export function PublicacionWebView() {
   const filteredQuotes = useMemo(() => {
     const term = search.trim().toLowerCase();
     return quotes.filter((quote) => {
-      if (term && !`${quote.internalName} ${quote.visibleNumber}`.toLowerCase().includes(term)) return false;
-      const status = publications[getActiveVersion(quote)!.id]?.status;
+      if (term && !`${quote.internalName} ${quote.webTitle ?? ""} ${quote.visibleNumber}`.toLowerCase().includes(term)) return false;
+      const status = publications[quote.id]?.status;
       if (filter === "publicados") return status === "PUBLISHED";
       if (filter === "errores") return status === "FAILED";
       if (filter === "pendientes") return status !== "PUBLISHED" && status !== "FAILED";
@@ -411,10 +383,11 @@ export function PublicacionWebView() {
           <div style={{ display: "grid", gap: 10 }}>
             {filteredQuotes.map((quote) => {
               const version = getActiveVersion(quote)!;
-              const publication = publications[version.id];
-              const busy = busyVersionId === version.id;
-              const rowErr = rowError[version.id];
+              const publication = publications[quote.id];
+              const busy = busyQuoteId === quote.id;
+              const rowErr = rowError[quote.id];
               const isPublished = publication?.status === "PUBLISHED";
+              const isStale = Boolean(isPublished && publication?.isStale);
               return (
                 <article key={quote.id} className="card card-pad">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -444,29 +417,38 @@ export function PublicacionWebView() {
                         </span>
                       )}
                       <div style={{ display: "grid", gap: 4 }}>
-                        <strong>{quote.internalName || quote.visibleNumber}</strong>
+                        <strong>{quote.webTitle || quote.internalName || quote.visibleNumber}</strong>
                         <span className="muted">
+                          {quote.webTitle ? `${quote.internalName} · ` : ""}
                           {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
+                          {isPublished && publication?.publishedVersionNumber
+                            ? ` · en la tienda: v${publication.publishedVersionNumber}`
+                            : ""}
                         </span>
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <Pill tone={statusTone(publication?.status)}>{statusLabel(publication?.status)}</Pill>
+                      <Pill tone={publicationStatusTone(publication)}>{publicationStatusLabel(publication)}</Pill>
                       {isPublished && publication?.url ? (
                         <a href={publication.url} target="_blank" rel="noreferrer">
                           Ver en la tienda
                         </a>
                       ) : null}
                       <button type="button" className="btn-dark btn-sm" onClick={() => setEditingQuoteId(quote.id)}>
-                        Preparar y publicar
+                        {isPublished ? "Abrir" : "Preparar y publicar"}
                       </button>
+                      {isStale ? (
+                        <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(quote)}>
+                          {busy ? "Actualizando…" : `Actualizar a v${version.version}`}
+                        </button>
+                      ) : null}
                       {isPublished ? (
                         <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void unpublish(quote)}>
                           {busy ? "Despublicando…" : "Despublicar"}
                         </button>
                       ) : (
                         <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(quote)}>
-                          {busy ? "Publicando…" : "Publicar ya"}
+                          {busy ? "Publicando…" : "Publicar sin preparar"}
                         </button>
                       )}
                     </div>
@@ -476,9 +458,12 @@ export function PublicacionWebView() {
                     <div style={{ marginTop: 10 }}>
                       <Alert tone="error">{rowErr}</Alert>
                     </div>
-                  ) : publication?.status === "FAILED" && publication.lastError ? (
+                  ) : publication?.lastError ? (
                     <div style={{ marginTop: 10 }}>
-                      <Alert tone="error">{publication.lastError}</Alert>
+                      <Alert tone="error">
+                        {publication.status === "PUBLISHED" ? "La última actualización falló (sigue publicada): " : ""}
+                        {publication.lastError}
+                      </Alert>
                     </div>
                   ) : null}
                 </article>

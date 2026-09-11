@@ -29,6 +29,11 @@ type PreviewItem = {
 
 type PreviewPayload = {
   title: string;
+  tagline: string | null;
+  highlights: string[];
+  audience: string | null;
+  heroImageUrl: string | null;
+  versionNumber: number;
   priceListCents: string;
   priceCashCents: string;
   priceTransferCents: string;
@@ -66,7 +71,7 @@ function textOf(value: unknown): string | null {
   return null;
 }
 
-export function QuotePreview({ versionId }: { versionId: string }) {
+export function QuotePreview({ familyId, versionId }: { familyId: string; versionId?: string | null }) {
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,13 +80,14 @@ export function QuotePreview({ versionId }: { versionId: string }) {
     setLoading(true);
     setError(null);
     try {
-      setPayload(await api<PreviewPayload>(`/external-module/quotes/${versionId}/publish-preview`));
+      const query = versionId ? `?versionId=${encodeURIComponent(versionId)}` : "";
+      setPayload(await api<PreviewPayload>(`/external-module/quote-families/${familyId}/publish-preview${query}`));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [versionId]);
+  }, [familyId, versionId]);
 
   useEffect(() => {
     void load();
@@ -100,7 +106,7 @@ export function QuotePreview({ versionId }: { versionId: string }) {
   const bg = "#080B12";
   const text = "#F8FAFC";
   const radius = 18;
-  const heroImage = payload.thumbnailUrl ?? payload.items.find((item) => item.imageUrl)?.imageUrl ?? null;
+  const heroImage = payload.heroImageUrl ?? payload.thumbnailUrl ?? payload.items.find((item) => item.imageUrl)?.imageUrl ?? null;
   const games = payload.games.map(textOf).filter((value): value is string => Boolean(value));
   const compatibility = payload.compatibility.map(textOf).filter((value): value is string => Boolean(value));
 
@@ -146,6 +152,19 @@ export function QuotePreview({ versionId }: { versionId: string }) {
         <div style={{ display: "grid", gap: 12 }}>
           <span style={{ fontSize: 11, letterSpacing: ".18em", color: accent, fontWeight: 700 }}>THE GAMER SHOP</span>
           <h2 style={{ margin: 0, fontSize: 26, lineHeight: 1.15 }}>{payload.title}</h2>
+          {payload.tagline ? (
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.4, color: "rgba(255,255,255,.75)" }}>{payload.tagline}</p>
+          ) : null}
+          {payload.highlights?.length ? (
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 4 }}>
+              {payload.highlights.map((line, index) => (
+                <li key={index} style={{ fontSize: 13.5 }}>
+                  <span style={{ color: accent, fontWeight: 800, marginRight: 8 }}>✓</span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)" }}>Transferencia</div>
             <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-.02em" }}>

@@ -549,6 +549,17 @@ model QuoteFamily {
   /// Si está prendido, un cambio de precio en el catálogo que afecte a esta PC
   /// recalcula el presupuesto y, si ya estaba publicada, la re-publica sola.
   autoRepublish        Boolean               @default(false)
+  /// Título con el que se publica en la tienda. Es independiente del nombre
+  /// interno (`internalName`), que sigue siendo el de uso diario en el sistema.
+  /// Lo propone la IA al preparar la publicación y se puede editar a mano.
+  webTitle             String?
+  /// Bajada corta que acompaña al título en la ficha (una oración).
+  webTagline           String?
+  /// La publicación en la tienda es una por presupuesto: si se crea una versión
+  /// nueva, la tienda sigue mostrando la versión que se publicó hasta que
+  /// alguien decida actualizarla (ver WebPublication.quoteVersionId).
+  webPublication       WebPublication?
+  webPublishRuns       WebPublishRun[]
   /// Local donde se creó el presupuesto (snapshot fijo, no varía). Es solo informativo para
   /// listado/estadísticas: la impresión usa el local de quien imprime (ver QuotePdf.branchId).
   branchId             String?
@@ -623,6 +634,18 @@ model QuoteEnrichment {
   gamesJson Json @default("[]")
   programsJson Json @default("[]")
   compatibilityJson Json @default("[]")
+  /// Propuesta de título comercial, bajada y descripción corta (para la
+  /// tienda, buscadores y catálogos de redes). Se copian a QuoteFamily.webTitle
+  /// y webTagline al preparar la publicación si todavía no había uno.
+  title String?
+  tagline String?
+  shortDescription String?
+  /// Puntos fuertes de la PC en una línea cada uno, y para quién está pensada.
+  highlightsJson Json @default("[]")
+  audience String?
+  /// Hash de los ítems con los que se generó, para saber si quedó desactualizado
+  /// cuando cambian los componentes.
+  itemsHash String?
   updatedAt DateTime @default(now()) @updatedAt
   createdAt DateTime @default(now())
 }
@@ -1243,19 +1266,47 @@ model ThumbnailTemplate {
   updatedAt        DateTime @updatedAt
 }
 
+/// Publicación de un presupuesto en la tienda. Es una por presupuesto
+/// (`quoteFamilyId`), y `quoteVersionId` es la versión cuyo contenido está
+/// publicado: puede no ser la activa si después se crearon versiones nuevas.
+/// El producto en WordPress se identifica por el id del presupuesto.
 model WebPublication {
   id              String            @id @default(uuid())
+  quoteFamilyId   String            @unique
+  quoteFamily     QuoteFamily       @relation(fields: [quoteFamilyId], references: [id], onDelete: Cascade)
   quoteVersionId  String            @unique
-  quoteVersion    QuoteVersion      @relation(fields: [quoteVersionId], references: [id], onDelete: Cascade)
+  quoteVersion    QuoteVersion      @relation(fields: [quoteVersionId], references: [id], onDelete: Restrict)
   status          PublicationStatus @default(DRAFT)
   wpProductId     String?
   url             String?
   thumbnailUrl    String?
   payloadSnapshot Json?
+  /// Último error, incluso si el producto sigue publicado (una republicación
+  /// que falló no baja el producto de la tienda).
   lastError       String?
+  lastErrorAt     DateTime?
   publishedAt     DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+}
+
+/// Corrida de "Preparar y publicar": completa lo que falta (imágenes,
+/// enriquecimiento, título, miniatura) y publica. Corre en la API en segundo
+/// plano; la pantalla la consulta por id para mostrar el progreso paso a paso.
+model WebPublishRun {
+  id             String           @id @default(uuid())
+  quoteFamilyId  String
+  quoteFamily    QuoteFamily      @relation(fields: [quoteFamilyId], references: [id], onDelete: Cascade)
+  quoteVersionId String
+  status         ProcessingStatus @default(RUNNING)
+  /// Lista de pasos con su estado: [{id, label, status, detail}].
+  stepsJson      Json             @default("[]")
+  error          String?
+  startedById    String?
+  startedAt      DateTime         @default(now())
+  finishedAt     DateTime?
+
+  @@index([quoteFamilyId, startedAt])
 }
 
 model ProcessingJob {

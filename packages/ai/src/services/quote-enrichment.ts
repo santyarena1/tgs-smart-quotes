@@ -1,17 +1,51 @@
 import {runAiTask} from "../runner.js";
 import {quoteEnrichmentInputSchema,quoteEnrichmentOutputSchema,type QuoteEnrichmentInput,type QuoteEnrichmentOutput} from "../schemas.js";
 import {AiTask,type AiRunOptions,type AiServiceDeps,type AiServiceResult} from "../types.js";
-const SYSTEM=`Sos un asistente comercial de The Gamer Shop, Argentina. Redactá en español HTML simple y seguro sobre la configuración cotizada, sin inventar precios ni especificaciones. Para juegos y programas usá solo niveles cualitativos. Todo tier de juego y toda nota de programa debe incluir literalmente "(estimado)". Nunca des FPS ni métricas numéricas inventadas. La compatibilidad es orientativa y debe basarse solamente en los nombres provistos. Respondé solo JSON estructurado.`;
+
+/**
+ * Enriquecimiento "profundo" de una PC armada para la tienda.
+ *
+ * Además de la descripción, el modelo propone el título comercial, la bajada,
+ * la descripción corta, los puntos fuertes y para quién es la PC, y hace un
+ * análisis de juegos por resolución y calidad estimadas. Las reglas de
+ * siempre se mantienen: nada de FPS ni números inventados, todo rendimiento
+ * lleva "(estimado)", y solo se razona sobre los nombres que se le dan.
+ */
+const SYSTEM=`Sos el redactor comercial senior de The Gamer Shop, tienda de PC gamer de Argentina. Recibís la lista de componentes de una PC armada y devolvés SOLO JSON estructurado, en español rioplatense, con:
+
+- title: título comercial llamativo para la ficha de la tienda, máximo 60 caracteres. Tiene que decir para qué sirve la PC y nombrar la pieza que más vende (normalmente la placa de video, si no el procesador). Ejemplos de estilo: "PC Gamer RTX 4060 · 1080p Ultra sin vueltas", "PC Ryzen 5 + RX 7600 lista para 1440p". Sin emojis, sin signos de exclamación, sin la palabra "presupuesto".
+- tagline: una oración corta (máximo 110 caracteres) que complemente al título con el beneficio principal.
+- shortDescription: 1 a 2 oraciones (máximo 260 caracteres) para buscadores y catálogos de redes: qué es, para qué sirve, para quién.
+- descriptionHtml: descripción comercial en HTML simple y seguro (p, ul, li, strong). Entre 120 y 220 palabras. Explicá qué logra el conjunto, no repitas la lista de piezas.
+- highlights: 3 a 5 puntos fuertes, una línea cada uno (máximo 80 caracteres), concretos y basados en los componentes.
+- audience: para quién está pensada (máximo 160 caracteres).
+- games: 6 a 10 juegos populares y variados (competitivos, AAA exigentes, indies) con el rendimiento ESTIMADO. tier es un texto corto tipo "1080p Alto (estimado)". resolution es solo "1080p", "1440p" o "4K". settings es solo "Bajo", "Medio", "Alto" o "Ultra". note es una aclaración opcional de una oración o null. Siempre cualitativo, NUNCA FPS ni porcentajes.
+- programs: 3 a 6 programas o usos (edición de video, streaming, diseño 3D, oficina, etc.) con una nota cualitativa.
+- compatibility: observaciones de compatibilidad orientativas basadas solo en los nombres recibidos (socket, RAM, fuente, tamaño). Si no hay nada que observar, lista vacía.
+
+Reglas duras: no inventes precios ni especificaciones numéricas que no estén en los nombres; todo tier de juego y toda nota de programa debe incluir literalmente "(estimado)"; no uses FPS ni métricas numéricas de rendimiento.`;
 const estimated=(value:string)=>value.toLocaleLowerCase('es-AR').includes('estimado')?value:`${value} (estimado)`;
-const fallback=(input:QuoteEnrichmentInput):QuoteEnrichmentOutput=>({descriptionHtml:`<p>Configuración The Gamer Shop compuesta por ${input.items.map(item=>`${item.quantity} × ${item.name}`).join(', ')}.</p>`,games:[],programs:[],compatibility:['Compatibilidad orientativa; recomendamos validación técnica antes del armado.']});
+const fallback=(input:QuoteEnrichmentInput):QuoteEnrichmentOutput=>({
+ title:'',
+ tagline:'',
+ shortDescription:'',
+ descriptionHtml:`<p>Configuración The Gamer Shop compuesta por ${input.items.map(item=>`${item.quantity} × ${item.name}`).join(', ')}.</p>`,
+ highlights:[],
+ audience:'',
+ games:[],
+ programs:[],
+ compatibility:['Compatibilidad orientativa; recomendamos validación técnica antes del armado.'],
+});
 export class QuoteEnrichmentService{
  constructor(private readonly deps:AiServiceDeps){}
  async enrich(input:QuoteEnrichmentInput,options?:AiRunOptions,customInstructions?:string|null):Promise<AiServiceResult<QuoteEnrichmentOutput>>{
   const parsed=quoteEnrichmentInputSchema.parse(input);
   const extra=customInstructions?.trim();
   const systemPrompt=extra?`${SYSTEM}\n\nInstrucciones adicionales definidas por el negocio (respetalas siempre que no contradigan las reglas anteriores): ${extra}`:SYSTEM;
-  const hashPayload=extra?{...parsed,customInstructions:extra}:parsed;
-  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Ítems cotizados:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}`).join('\n')}\n\nGenerá descripción comercial, juegos y programas cualitativos, y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
+  // `v2` en el hash: el formato de salida cambió y no hay que reutilizar
+  // respuestas cacheadas del formato anterior.
+  const hashPayload={format:'v2',...parsed,...(extra?{customInstructions:extra}:{})};
+  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Componentes de la PC:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}${item.line?` [${item.line}]`:''}`).join('\n')}\n\nGenerá título, bajada, descripción corta, descripción HTML, puntos fuertes, público, análisis de juegos por resolución y calidad estimadas, programas y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
   return{...response,result:{...response.result,games:response.result.games.map(game=>({...game,tier:estimated(game.tier)})),programs:response.result.programs.map(program=>({...program,note:estimated(program.note)}))}};
  }
 }

@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {db,Prisma,type QuoteState,type StatusEventType} from '@tgs/database';
+import {unpublishQuote} from '@tgs/providers';
 import {syncProductCostsFromQuoteItems,touchProductsLastUsed} from './products.js';
 import {
   collectionCreateSchema,
@@ -419,12 +420,18 @@ export class QuotesController{
     @Param('id',new ZodPipe(idSchema)) id:string,
     @CurrentUser() actor:RequestUser,
   ){
+    const family=await db.quoteFamily.findUnique({
+      where:{id},
+      include:{versions:{select:{id:true,version:true,state:true}},webPublication:{select:{status:true}}},
+    });
+    if(!family)throw new NotFoundException('Presupuesto inexistente');
+    // Si está en la tienda, primero se baja de ahí: si no, el producto quedaba
+    // publicado para siempre sin nada en el sistema que lo referencie.
+    if(family.webPublication?.status==='PUBLISHED'){
+      try{await unpublishQuote(id);}
+      catch(error){throw new BadRequestException(`No se pudo despublicar de la tienda: ${error instanceof Error?error.message:'error desconocido'}. Reintentá o despublicalo desde Publicación Web antes de borrarlo.`);}
+    }
     return db.$transaction(async tx=>{
-      const family=await tx.quoteFamily.findUnique({
-        where:{id},
-        include:{versions:{select:{id:true,version:true,state:true}}},
-      });
-      if(!family)throw new NotFoundException('Presupuesto inexistente');
       await audit(tx,actor.id,'QuoteFamily',id,'DELETE',family,null);
       await tx.quoteFamily.delete({where:{id}});
       return {ok:true};
@@ -833,6 +840,8 @@ export class QuotesController{
       if(!version)throw new NotFoundException('Versión inexistente');
       if(version.state!=='BORRADOR')throw new BadRequestException('Solo se pueden borrar versiones en borrador');
       if(family.activeVersion===versionNumber)throw new BadRequestException('No se puede borrar la versión activa');
+      const publication=await tx.webPublication.findUnique({where:{quoteVersionId:version.id},select:{status:true}});
+      if(publication&&publication.status!=='DRAFT')throw new BadRequestException('Esa versión es la que está publicada en la tienda: publicá otra versión o despublicá antes de borrarla');
       await audit(tx,actor.id,'QuoteVersion',version.id,'DELETE',version,null);
       await tx.quoteVersion.delete({where:{id:version.id}});
       return {ok:true};

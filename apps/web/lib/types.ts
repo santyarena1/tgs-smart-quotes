@@ -352,6 +352,9 @@ export type Quote = {
   activeVersion: number;
   autoRepublish?: boolean;
   thumbnailUrl?: string | null;
+  /** Título y bajada con los que se publica en la tienda (independientes del nombre interno). */
+  webTitle?: string | null;
+  webTagline?: string | null;
   customer?: Customer | null;
   request?: QuoteRequest | null;
   branch?: { id: string; name: string } | null;

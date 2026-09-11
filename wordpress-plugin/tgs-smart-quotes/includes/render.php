@@ -77,6 +77,10 @@ function tgs_sq_collect_product_data( $product_id ) {
 		'description'  => (string) $meta( TGS_SQ_META_DESCRIPTION ),
 		'games'        => $decode( TGS_SQ_META_GAMES ),
 		'compat'       => $decode( TGS_SQ_META_COMPATIBILITY ),
+		'tagline'      => (string) $meta( TGS_SQ_META_TAGLINE ),
+		'highlights'   => $decode( TGS_SQ_META_HIGHLIGHTS ),
+		'audience'     => (string) $meta( TGS_SQ_META_AUDIENCE ),
+		'gallery'      => $decode( TGS_SQ_META_GALLERY ),
 		'extra'        => tgs_sq_default_extra(),
 	);
 }
@@ -124,6 +128,8 @@ function tgs_sq_block_hero( array $d ) {
 	echo '<div class="tgs-summary">';
 	echo '<span class="tgs-kicker">THE GAMER SHOP</span>';
 	echo '<h1 class="tgs-title">' . esc_html( $d['title'] ) . '</h1>';
+	echo tgs_sq_tagline_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo tgs_sq_highlights_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	/* Caja de compra: precio + CTA agrupados en un solo panel para que el
 	 * precio y el botón se lean como una unidad y no como dos cajas sueltas. */
 	echo '<div class="tgs-buybox">';
@@ -271,17 +277,82 @@ function tgs_sq_block_description( array $d ) {
 	echo '<section class="tgs-section-card"><h2>Descripción</h2><div class="tgs-prose">' . wp_kses_post( $description ) . '</div></section>';
 }
 
+/** Bajada debajo del título del hero (vacío si no hay). */
+function tgs_sq_tagline_html( array $d ) {
+	if ( empty( $d['tagline'] ) ) {
+		return '';
+	}
+	return '<p class="tgs-tagline">' . esc_html( $d['tagline'] ) . '</p>';
+}
+
+/** Puntos fuertes en el hero, como lista corta con tilde. */
+function tgs_sq_highlights_html( array $d ) {
+	if ( empty( $d['highlights'] ) || ! is_array( $d['highlights'] ) ) {
+		return '';
+	}
+	$html = '<ul class="tgs-highlights">';
+	foreach ( $d['highlights'] as $line ) {
+		$line = (string) $line;
+		if ( '' === $line ) {
+			continue;
+		}
+		$html .= '<li>' . esc_html( $line ) . '</li>';
+	}
+	return $html . '</ul>';
+}
+
+/**
+ * Juegos con el rendimiento estimado. Si el análisis trae resolución y
+ * calidad por separado se muestran como etiquetas; si no, el texto del tier
+ * como siempre. Todo es estimado y así lo dice el pie.
+ */
 function tgs_sq_block_games( array $d ) {
 	if ( empty( $d['games'] ) ) {
 		return;
 	}
-	echo '<section class="tgs-section-card"><h2>Juegos</h2><div class="tgs-games">';
+	echo '<section class="tgs-section-card"><h2>Juegos</h2>';
+	if ( ! empty( $d['audience'] ) ) {
+		echo '<p class="tgs-audience">' . esc_html( $d['audience'] ) . '</p>';
+	}
+	echo '<div class="tgs-games">';
 	foreach ( $d['games'] as $game ) {
 		echo '<div class="tgs-game"><span class="tgs-game-name">' . esc_html( $game['name'] ?? '' ) . '</span>';
-		if ( ! empty( $game['tier'] ) ) {
+		$resolution = (string) ( $game['resolution'] ?? '' );
+		$settings   = (string) ( $game['settings'] ?? '' );
+		if ( '' !== $resolution || '' !== $settings ) {
+			echo '<span class="tgs-game-badges">';
+			if ( '' !== $resolution ) {
+				echo '<span class="tgs-game-badge">' . esc_html( $resolution ) . '</span>';
+			}
+			if ( '' !== $settings ) {
+				echo '<span class="tgs-game-badge tgs-game-badge--settings">' . esc_html( $settings ) . '</span>';
+			}
+			echo '</span>';
+		} elseif ( ! empty( $game['tier'] ) ) {
 			echo '<span class="tgs-game-tier">' . esc_html( $game['tier'] ) . '</span>';
 		}
+		if ( ! empty( $game['note'] ) ) {
+			echo '<span class="tgs-game-note">' . esc_html( $game['note'] ) . '</span>';
+		}
 		echo '</div>';
+	}
+	echo '</div>';
+	echo '<p class="tgs-games-footnote">Rendimiento estimado según los componentes. Puede variar con la configuración del juego y los drivers.</p>';
+	echo '</section>';
+}
+
+/** Galería de fotos de los componentes (bloque opcional). */
+function tgs_sq_block_gallery( array $d ) {
+	if ( empty( $d['gallery'] ) || ! is_array( $d['gallery'] ) ) {
+		return;
+	}
+	echo '<section class="tgs-section-card"><h2>Galería</h2><div class="tgs-gallery">';
+	foreach ( $d['gallery'] as $url ) {
+		$url = (string) $url;
+		if ( '' === $url ) {
+			continue;
+		}
+		echo '<img src="' . esc_url( $url ) . '" alt="" loading="lazy">';
 	}
 	echo '</div></section>';
 }
@@ -431,7 +502,8 @@ function tgs_sq_block_recommended( array $d ) {
  * plugin puede romper la página nueva.
  */
 function tgs_sq_legacy_block_types() {
-	return array( 'hero3d', 'pricebox', 'whatsapp', 'power', 'gallery' );
+	// 'gallery' volvió como bloque real (fotos de los componentes) en 2.11.
+	return array( 'hero3d', 'pricebox', 'whatsapp', 'power' );
 }
 
 function tgs_sq_render_blocks_mode( array $variant, array $data ) {
@@ -521,6 +593,9 @@ function tgs_sq_placeholder_values( array $d ) {
 		'modelo_3d_url'        => esc_url( (string) $d['model3d_url'] ),
 		'componentes'          => tgs_sq_capture_block( 'specs', $d ),
 		'juegos'               => tgs_sq_capture_block( 'games', $d ),
+		'bajada'               => esc_html( (string) $d['tagline'] ),
+		'puntos_fuertes'       => tgs_sq_highlights_html( $d ),
+		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
 		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
 		'recomendadas'         => tgs_sq_recommended_html( $d ),
 		'boton_carrito'        => $cart,

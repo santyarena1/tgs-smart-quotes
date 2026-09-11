@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Header,
   NotFoundException,
   Param,
   StreamableFile,
@@ -8,7 +9,7 @@ import {
 import {createReadStream} from 'node:fs';
 import {access} from 'node:fs/promises';
 import {constants} from 'node:fs';
-import {Public} from './infrastructure.js';
+import {Public, SkipRateLimit} from './infrastructure.js';
 import {
   brandingFilePath,
   mimeForBrandingFilename,
@@ -40,8 +41,15 @@ export class UploadsController {
    * La ruta es un wildcard porque las keys tienen subcarpetas
    * (`product-assets/<productId>/<archivo>.png`); `mediaFilePath` valida la
    * key y garantiza que no se pueda salir de la carpeta de medios.
+   *
+   * Sin rate limit: una ficha de la tienda pide diez o más imágenes por
+   * visita, y detrás de un mismo NAT (o un rastreador) el límite por IP
+   * devolvía 429 y la tienda mostraba imágenes rotas. Y con cache larga: las
+   * keys llevan un uuid, así que un archivo nunca cambia de contenido.
    */
   @Public()
+  @SkipRateLimit()
+  @Header('Cache-Control', 'public, max-age=604800, immutable')
   @Get('media/*')
   async media(@Param('*') key:string) {
     let fullPath:string;

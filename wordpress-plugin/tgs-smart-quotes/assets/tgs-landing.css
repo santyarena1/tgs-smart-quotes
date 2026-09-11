@@ -619,6 +619,96 @@
 	white-space: nowrap;
 }
 
+.tgs-landing .tgs-game-badges {
+	display: flex;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+.tgs-landing .tgs-game-badge {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--tgs-accent);
+	background: var(--tgs-accent-soft);
+	border: 1px solid var(--tgs-accent-line);
+	border-radius: 999px;
+	padding: 4px 10px;
+	white-space: nowrap;
+}
+.tgs-landing .tgs-game-badge--settings {
+	color: var(--tgs-text-soft);
+	background: transparent;
+	border-color: var(--tgs-line);
+}
+.tgs-landing .tgs-game-note {
+	flex-basis: 100%;
+	font-size: 12.5px;
+	color: var(--tgs-muted);
+}
+.tgs-landing .tgs-game {
+	flex-wrap: wrap;
+}
+.tgs-landing .tgs-audience,
+.tgs-landing .tgs-games-footnote {
+	font-size: 13px;
+	color: var(--tgs-muted);
+	margin: 0 0 12px;
+}
+.tgs-landing .tgs-games-footnote {
+	margin: 12px 0 0;
+}
+
+/* ==========================================================================
+   BAJADA Y PUNTOS FUERTES (hero)
+   ========================================================================== */
+.tgs-landing .tgs-tagline {
+	font-size: clamp(15px, 1.4vw, 18px);
+	line-height: 1.4;
+	color: var(--tgs-text-soft);
+	margin: 10px 0 0;
+	text-wrap: balance;
+}
+.tgs-landing .tgs-highlights {
+	list-style: none;
+	margin: 16px 0 0;
+	padding: 0;
+	display: grid;
+	gap: 6px;
+}
+.tgs-landing .tgs-highlights li {
+	position: relative;
+	padding-left: 22px;
+	font-size: 14px;
+	color: var(--tgs-text);
+}
+.tgs-landing .tgs-highlights li::before {
+	content: "✓";
+	position: absolute;
+	left: 0;
+	top: 0;
+	color: var(--tgs-accent);
+	font-weight: 800;
+}
+
+/* ==========================================================================
+   GALERÍA
+   ========================================================================== */
+.tgs-landing .tgs-gallery {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 10px;
+}
+.tgs-landing .tgs-gallery img {
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: contain;
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-r-sm);
+	padding: 10px;
+}
+
 /* ==========================================================================
    COMPATIBILIDAD / LISTAS
    ========================================================================== */

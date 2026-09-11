@@ -85,7 +85,8 @@ docs/modulo-externo/      PLAN.md + BLOCK-0..8.md (specs de cada bloque construi
 | `CaseModel3D` | por `Product` (@unique) | modelo 3D del gabinete (source UPLOAD/TRIPO/SKETCHFAB, sourcePhotos[], glbUrl, status PENDING/PROCESSING/READY/FAILED, tripoJobId) |
 | `ThumbnailTemplate` | — | plantillas de miniatura (templateImageUrl, fontsJson, rulesJson, active) |
 | `QuoteEnrichment` | por `QuoteVersion` (@unique) | descripción IA, powerWatts/recommendedPsuWatts/powerNote, gamesJson, programsJson, compatibilityJson |
-| `WebPublication` | por `QuoteVersion` (@unique) | link presupuesto→producto WP (wpProductId, url, status DRAFT/PUBLISHED/UNPUBLISHED/FAILED, payloadSnapshot, publishedAt, lastError) |
+| `WebPublication` | por `QuoteFamily` (@unique) + `quoteVersionId` = versión fijada en la tienda | link presupuesto→producto WP (wpProductId, url, status DRAFT/PUBLISHED/UNPUBLISHED/FAILED, payloadSnapshot, publishedAt, lastError/lastErrorAt). El `externalId` en WordPress es el id de la familia |
+| `WebPublishRun` | por `QuoteFamily` | corrida de "Preparar y publicar" con sus pasos (`stepsJson`) para mostrar progreso |
 | `ProcessingJob` | — | cola de jobs async en DB (type, status PENDING/RUNNING/DONE/FAILED, payload, attempts, maxAttempts, runAfter) |
 
 Enums nuevos: `AssetOrigin, Model3DStatus, Model3DSource, PublicationStatus, ProcessingStatus`. Se agregó `QUOTE_ENRICHMENT` al enum `AiTaskType`.
@@ -105,7 +106,7 @@ Enums nuevos: `AssetOrigin, Model3DStatus, Model3DSource, PublicationStatus, Pro
 - `serper.ts` — búsqueda de imágenes (`https://google.serper.dev/images`).
 - `tripo.ts` — 4 fotos → 3D (`https://api.tripo3d.ai/v2/openapi`: upload → multiview task → poll → GLB).
 - `higgsfield.ts` — fondo generado para miniatura (**API incierta**: aislada, best-effort; si falla se cae a la plantilla).
-- `wordpress.ts` — `buildPublishPayload(quoteVersionId)` + `publishQuote(quoteVersionId)` (arma payload, firma HMAC, POST al plugin, upsert `WebPublication`). Usado por la API y por el worker (auto-republish).
+- `wordpress.ts` — `buildPublishPayload(familyId, versionId?)`, `publishQuote(familyId, {versionId})`, `unpublishQuote(familyId)`, `postWordpress()` (timeout 30 s). Si una republicación de algo ya PUBLISHED falla, el estado se conserva y se guarda `lastError`: el producto sigue en la tienda y el resync lo reintenta. Usado por la API y por el worker.
 - `index.ts` — `getPhotoroomKey/getSerperKey/getTripoKey/getHiggsfieldKey` (leen de config, desencriptan).
 
 ### 3.7 API del módulo (`apps/api/src/external-module.ts`, `@Controller('external-module')`, auth por sesión)
@@ -144,8 +145,10 @@ Plugin WooCommerce **self-contained** (estilo propio, no depende del tema). Se d
 2. **Gabinete 3D**: se sube un GLB propio, o se generan desde 4 fotos con Tripo (job) → `CaseModel3D` por gabinete.
 3. **Enriquecimiento**: sobre un `QuoteVersion` → serializa items+precios, la IA genera descripción + juegos/programas (tiers "(estimado)"), y un helper determinístico estima potencia/PSU → `QuoteEnrichment` editable.
 4. **Miniatura**: recorte real del producto + plantilla (y fondo Higgsfield opcional) → compositing con sharp → JPEG en R2.
-5. **Publicar**: `publishQuote` arma el payload (items, precios, GLB, miniatura, enrichment, layout), lo firma con HMAC y lo manda al plugin → crea/actualiza el producto WooCommerce con su landing. Guarda `WebPublication`.
-6. **Auto-republish**: el worker (loop horario) rearma el payload de cada `WebPublication` PUBLISHED y, si cambió vs `payloadSnapshot` y `autoRepublish` está on, re-publica (precios se actualizan solos).
+5. **Preparar y publicar** (`apps/api/src/publish-pipeline.ts`, botón principal del editor web): en un solo paso completa lo que falte y publica. Pasos, cada uno idempotente y con su resultado visible: imágenes de componentes que falten (Serper → descarga → quitar fondo, hasta 4 candidatas; si ninguna tiene fondo liso se guarda la mejor con fondo), foto principal (el gabinete), textos e IA (`runQuoteEnrichment`: descripción, título comercial, bajada, descripción corta, puntos fuertes, público, juegos por resolución/calidad, programas, compatibilidad; se saltea si el hash de ítems no cambió), título y bajada (`QuoteFamily.webTitle/webTagline`, solo si estaban vacíos), miniatura (plantilla activa + foto del gabinete), 3D (informativo) y publicación. Corre en la API en segundo plano (`WebPublishRun`); la pantalla consulta el progreso. Potencia/PSU queda manual a propósito (regla: cálculo, no IA).
+6. **Publicar**: `publishQuote(familyId, {versionId})` arma el payload (items, precios, GLB, miniatura, enrichment, layout, `legacyExternalIds` con los ids de versión para que el plugin migre productos viejos), lo firma con HMAC y lo manda al plugin → crea/actualiza el producto WooCommerce con su landing. Guarda `WebPublication` **por presupuesto**, con la versión publicada fijada: crear una versión nueva no cambia la tienda hasta que alguien la actualice ("Actualizar a vN"). Borrar el presupuesto despublica primero; la versión publicada no se puede borrar.
+7. **Auto-republish**: el worker (loop horario) rearma el payload de cada `WebPublication` PUBLISHED con su versión fijada y, si cambió vs `payloadSnapshot` y `autoRepublish` está on, re-publica (precios se actualizan solos). La sincronización de precios por producto (`auto-republish.ts`) solo republica si la versión recalculada es la que está en la tienda.
+8. **Medios**: las imágenes que ve la tienda se sirven desde la API (`/uploads/media/*`, público, sin rate limit, `Cache-Control` de 7 días). WordPress solo baja la miniatura a su librería; el resto se hotlinkea. Si la API está caída, la ficha muestra imágenes rotas.
 
 ---
 

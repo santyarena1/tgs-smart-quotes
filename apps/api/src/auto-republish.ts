@@ -47,8 +47,7 @@ async function syncOneVersion(versionId: string): Promise<void> {
       where: { id: versionId },
       include: {
         items: true,
-        family: { select: { autoRepublish: true, isBuiltPc: true } },
-        webPublication: { select: { status: true } },
+        family: { select: { autoRepublish: true, isBuiltPc: true, webPublication: { select: { status: true, quoteVersionId: true } } } },
       },
     });
     if (!version || version.state !== 'BORRADOR' || !version.family.autoRepublish || !version.family.isBuiltPc) {
@@ -90,10 +89,14 @@ async function syncOneVersion(versionId: string): Promise<void> {
       },
     });
 
-    return version.webPublication?.status === 'PUBLISHED';
+    // Solo se republica si esta versión es la que está en la tienda: si el
+    // presupuesto tiene una versión nueva sin publicar, la tienda sigue
+    // mostrando la publicada y no hay nada que actualizar.
+    const publication = version.family.webPublication;
+    return publication?.status === 'PUBLISHED' && publication.quoteVersionId === version.id ? version.familyId : null;
   });
 
   if (shouldRepublish) {
-    await publishQuote(versionId);
+    await publishQuote(shouldRepublish, { versionId });
   }
 }

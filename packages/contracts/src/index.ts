@@ -461,7 +461,9 @@ export const productContentSchema = z.object({
 }).strict();
 export type ProductContentInput = z.infer<typeof productContentSchema>;
 export const quoteFamilyPublishSettingsSchema = z.object({
-  autoRepublish: z.boolean(),
+  autoRepublish: z.boolean().optional(),
+  webTitle: z.string().trim().max(120).nullable().optional(),
+  webTagline: z.string().trim().max(200).nullable().optional(),
 }).strict();
 export type QuoteFamilyPublishSettingsInput = z.infer<typeof quoteFamilyPublishSettingsSchema>;
 
@@ -1071,11 +1073,14 @@ export const aiIntentSchema = z
   })
   .strict();
 
-export const quoteEnrichmentGameSchema=z.object({name:z.string().trim().min(1).max(200),tier:z.string().trim().min(1).max(300)}).strict();
+// `tier` es el texto cualitativo que ya mostraba la ficha; `resolution`,
+// `settings` y `note` vienen del análisis profundo (opcionales para no
+// romper enriquecimientos viejos).
+export const quoteEnrichmentGameSchema=z.object({name:z.string().trim().min(1).max(200),tier:z.string().trim().min(1).max(300),resolution:z.string().trim().max(60).nullable().optional(),settings:z.string().trim().max(60).nullable().optional(),note:z.string().trim().max(300).nullable().optional()}).strict();
 export const quoteEnrichmentProgramSchema=z.object({name:z.string().trim().min(1).max(200),note:z.string().trim().min(1).max(500)}).strict();
-export const quoteEnrichmentUpdateSchema=z.object({descriptionHtml:z.string().max(20000).nullable().optional(),powerWatts:z.number().int().min(0).max(10000).nullable().optional(),recommendedPsuWatts:z.number().int().min(0).max(10000).nullable().optional(),powerNote:z.string().trim().max(2000).nullable().optional(),games:z.array(quoteEnrichmentGameSchema).max(50).optional(),programs:z.array(quoteEnrichmentProgramSchema).max(50).optional(),compatibility:z.array(z.string().trim().min(1).max(500)).max(100).optional()}).strict();
+export const quoteEnrichmentUpdateSchema=z.object({descriptionHtml:z.string().max(20000).nullable().optional(),powerWatts:z.number().int().min(0).max(10000).nullable().optional(),recommendedPsuWatts:z.number().int().min(0).max(10000).nullable().optional(),powerNote:z.string().trim().max(2000).nullable().optional(),games:z.array(quoteEnrichmentGameSchema).max(50).optional(),programs:z.array(quoteEnrichmentProgramSchema).max(50).optional(),compatibility:z.array(z.string().trim().min(1).max(500)).max(100).optional(),title:z.string().trim().max(120).nullable().optional(),tagline:z.string().trim().max(200).nullable().optional(),shortDescription:z.string().trim().max(400).nullable().optional(),highlights:z.array(z.string().trim().min(1).max(200)).max(12).optional(),audience:z.string().trim().max(300).nullable().optional()}).strict();
 export const wordpressPublishItemSchema=z.object({name:z.string(),imageUrl:z.string().url().nullable(),description:z.string().nullable().optional(),specs:z.record(z.unknown())}).strict();
-export const wordpressPublishPayloadSchema=z.object({externalId:idSchema,title:z.string(),slug:z.string(),priceListCents:z.string().regex(/^\d+$/),priceCashCents:z.string().regex(/^\d+$/),priceTransferCents:z.string().regex(/^\d+$/),installments:z.array(z.record(z.unknown())),items:z.array(wordpressPublishItemSchema),model3dUrl:z.string().url().nullable(),thumbnailUrl:z.string().url().nullable(),heroImageUrl:z.string().url().nullable(),descriptionHtml:z.string().nullable(),power:z.object({watts:z.number().int().nullable(),psu:z.number().int().nullable(),note:z.string().nullable()}).strict(),games:z.array(quoteEnrichmentGameSchema),compatibility:z.array(z.string())}).strict();
+export const wordpressPublishPayloadSchema=z.object({externalId:idSchema,legacyExternalIds:z.array(idSchema),versionNumber:z.number().int(),title:z.string(),tagline:z.string().nullable(),shortDescription:z.string().nullable(),highlights:z.array(z.string()),audience:z.string().nullable(),gallery:z.array(z.string().url()),slug:z.string(),priceListCents:z.string().regex(/^\d+$/),priceCashCents:z.string().regex(/^\d+$/),priceTransferCents:z.string().regex(/^\d+$/),installments:z.array(z.record(z.unknown())),items:z.array(wordpressPublishItemSchema),model3dUrl:z.string().url().nullable(),thumbnailUrl:z.string().url().nullable(),heroImageUrl:z.string().url().nullable(),descriptionHtml:z.string().nullable(),power:z.object({watts:z.number().int().nullable(),psu:z.number().int().nullable(),note:z.string().nullable()}).strict(),games:z.array(quoteEnrichmentGameSchema),compatibility:z.array(z.string())}).strict();
 export type WordpressPublishPayload=z.infer<typeof wordpressPublishPayloadSchema>;
 
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
