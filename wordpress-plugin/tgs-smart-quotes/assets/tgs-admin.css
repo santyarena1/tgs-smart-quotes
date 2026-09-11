@@ -301,11 +301,19 @@
 .tgs-admin .tgs-picker { display: grid; gap: 10px; }
 .tgs-admin .tgs-picker__search { position: relative; }
 .tgs-admin .tgs-picker__search input[type="text"] { width: 100%; }
-.tgs-admin .tgs-picker__results {
-	position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
-	max-height: 380px; overflow: auto; background: var(--tgs-surface);
-	border: 1px solid var(--tgs-line-strong); border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, .18); padding: 6px;
-}
+.tgs-admin .tgs-picker__toolbar { display: grid; grid-template-columns: minmax(200px, 2fr) minmax(160px, 1fr) minmax(150px, 1fr) auto auto; gap: 8px; align-items: center; }
+.tgs-admin .tgs-picker__toolbar input[type="text"], .tgs-admin .tgs-picker__toolbar select { width: 100%; }
+.tgs-admin .tgs-picker__check { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.tgs-admin .tgs-picker__results { background: var(--tgs-surface); border: 1px solid var(--tgs-line-strong); border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, .10); padding: 8px; }
+.tgs-admin .tgs-picker__results-list { max-height: 460px; overflow: auto; display: grid; gap: 6px; }
+.tgs-admin .tgs-picker__results-head, .tgs-admin .tgs-picker__list-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 4px 8px; font-size: 13px; color: var(--tgs-ink-soft); }
+.tgs-admin .tgs-picker__list-head { padding: 6px 4px 2px; }
+.tgs-admin .tgs-picker__results-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.tgs-admin .tgs-picker__results-foot { text-align: center; padding-top: 8px; }
+.tgs-admin .tgs-picker__card--result { grid-template-columns: 24px 56px 1fr auto; }
+.tgs-admin .tgs-picker__tick { display: grid; place-items: center; }
+.tgs-admin .tgs-picker__tick input { margin: 0; }
+@media (max-width: 900px) { .tgs-admin .tgs-picker__toolbar { grid-template-columns: 1fr 1fr; } }
 .tgs-admin .tgs-picker__none, .tgs-admin .tgs-picker__empty { margin: 4px 8px; color: var(--tgs-muted); font-size: 13px; }
 .tgs-admin .tgs-picker__list { display: grid; gap: 6px; }
 .tgs-admin .tgs-picker__card {

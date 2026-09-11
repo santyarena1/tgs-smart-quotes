@@ -343,23 +343,66 @@ function tgs_sq_page_settings() {
  * ------------------------------------------------------------------- */
 
 /**
- * Selector de monitores (buscador + lista ordenable). Lo usan Ajustes y el
- * editor de variantes; `$input_name` es el nombre de los inputs ocultos que
- * mandan los IDs elegidos, en orden.
+ * Selector de monitores (buscador amplio + lista ordenable). Lo usan
+ * Ajustes y el editor de variantes; `$input_name` es el nombre de los
+ * inputs ocultos que mandan los IDs elegidos, en orden.
+ *
+ * Buscador: texto libre (palabras sueltas en nombre o SKU), categoría,
+ * solo con stock, orden por precio/nombre/fecha, paginado; en los
+ * resultados se pueden tildar varios y agregarlos de una, o agregar todos.
+ * Lista: ▲ ▼ manual, o reordenar todo por precio / nombre.
  */
 function tgs_sq_render_monitor_picker( array $ids, $input_name, $search_id ) {
+	$categories = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => true, 'orderby' => 'name' ) );
+	$categories = is_wp_error( $categories ) ? array() : $categories;
 	?>
 	<div class="tgs-picker" data-tgs-monitor-picker data-picker-name="<?php echo esc_attr( $input_name ); ?>">
-		<div class="tgs-picker__search">
-			<input type="text" id="<?php echo esc_attr( $search_id ); ?>" autocomplete="off" placeholder="Buscá por nombre o SKU (ej: samsung 24, 165hz, lg 27)…" data-picker-search>
-			<div class="tgs-picker__results" hidden data-picker-results></div>
+		<div class="tgs-picker__toolbar">
+			<input type="text" id="<?php echo esc_attr( $search_id ); ?>" autocomplete="off" placeholder="Buscar por nombre o SKU (ej: samsung 24, 165hz)… o dejá vacío y filtrá por categoría" data-picker-search>
+			<select data-picker-category>
+				<option value="0">Todas las categorías</option>
+				<?php foreach ( $categories as $category ) : ?>
+					<option value="<?php echo esc_attr( $category->term_id ); ?>"><?php echo esc_html( $category->name ); ?> (<?php echo (int) $category->count; ?>)</option>
+				<?php endforeach; ?>
+			</select>
+			<select data-picker-sort>
+				<option value="price_asc">Precio: menor a mayor</option>
+				<option value="price_desc">Precio: mayor a menor</option>
+				<option value="name">Nombre A → Z</option>
+				<option value="date">Más nuevos primero</option>
+			</select>
+			<label class="tgs-picker__check"><input type="checkbox" checked data-picker-instock> Solo con stock</label>
+			<button type="button" class="tgs-btn tgs-btn--small" data-picker-go>Buscar</button>
 		</div>
-		<p class="tgs-picker__empty" data-picker-empty <?php echo $ids ? 'hidden' : ''; ?>>Todavía no elegiste ningún monitor.</p>
+		<div class="tgs-picker__results" hidden data-picker-results>
+			<div class="tgs-picker__results-head">
+				<span data-picker-count></span>
+				<span class="tgs-picker__results-actions">
+					<button type="button" class="tgs-btn tgs-btn--small" data-picker-select-all>Tildar todos</button>
+					<button type="button" class="tgs-btn tgs-btn--small tgs-btn--primary" data-picker-add-selected disabled>Agregar tildados (0)</button>
+					<button type="button" class="tgs-btn tgs-btn--small" data-picker-close>Cerrar</button>
+				</span>
+			</div>
+			<div class="tgs-picker__results-list" data-picker-results-list></div>
+			<div class="tgs-picker__results-foot">
+				<button type="button" class="tgs-btn tgs-btn--small" data-picker-more hidden>Ver más resultados</button>
+			</div>
+		</div>
+		<div class="tgs-picker__list-head">
+			<strong>Elegidos: <span data-picker-chosen-count>0</span></strong>
+			<span class="tgs-picker__results-actions">
+				<button type="button" class="tgs-btn tgs-btn--small" data-picker-sort-chosen="price_asc">Ordenar por precio ↑</button>
+				<button type="button" class="tgs-btn tgs-btn--small" data-picker-sort-chosen="price_desc">Precio ↓</button>
+				<button type="button" class="tgs-btn tgs-btn--small" data-picker-sort-chosen="name">Nombre</button>
+				<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-picker-clear>Quitar todos</button>
+			</span>
+		</div>
+		<p class="tgs-picker__empty" data-picker-empty <?php echo $ids ? 'hidden' : ''; ?>>Todavía no elegiste ningún monitor. Buscá arriba y agregá los que quieras.</p>
 		<div class="tgs-picker__list" data-picker-list>
 			<?php foreach ( $ids as $monitor_id ) : ?>
 				<?php $row = tgs_sq_product_picker_row( $monitor_id ); ?>
 				<?php if ( $row ) : ?>
-					<div class="tgs-picker__card" data-picker-item="<?php echo esc_attr( $row['id'] ); ?>">
+					<div class="tgs-picker__card" data-picker-item="<?php echo esc_attr( $row['id'] ); ?>" data-price="<?php echo esc_attr( $row['price'] ); ?>" data-name="<?php echo esc_attr( $row['name'] ); ?>">
 						<span class="tgs-picker__media"><?php echo $row['image'] ? '<img src="' . esc_url( $row['image'] ) . '" alt="">' : '<span class="tgs-picker__noimg">Sin foto</span>'; ?></span>
 						<span class="tgs-picker__body">
 							<a class="tgs-picker__name" href="<?php echo esc_url( $row['editUrl'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $row['name'] ); ?></a>
@@ -392,6 +435,7 @@ function tgs_sq_product_picker_row( $product_id ) {
 		'name'       => $product->get_name(),
 		'sku'        => (string) $product->get_sku(),
 		'priceHtml'  => $product->get_price_html() ?: 'Sin precio',
+		'price'      => (float) $product->get_price(),
 		'image'      => (string) get_the_post_thumbnail_url( $product->get_id(), 'woocommerce_gallery_thumbnail' ),
 		'inStock'    => $product->is_in_stock(),
 		'stockLabel' => $product->is_in_stock() ? ( null !== $stock ? $stock . ' en stock' : 'En stock' ) : 'Sin stock',
@@ -400,43 +444,81 @@ function tgs_sq_product_picker_row( $product_id ) {
 }
 
 /**
- * Búsqueda laxa: cada palabra tiene que aparecer en el nombre o en el SKU,
- * sin importar el orden ("samsung 24" encuentra "Monitor 24 Samsung ...").
- * Solo productos simples publicados (los que se pueden sumar al carrito de
- * un click). Devuelve hasta 20, primero los que tienen stock.
+ * Búsqueda amplia de productos para el selector de monitores.
+ *
+ * Texto libre: cada palabra tiene que aparecer en el nombre o en el SKU,
+ * sin importar el orden ("samsung 24" encuentra "Monitor 24 Samsung...").
+ * Sin texto, lista la categoría elegida (o todo). Filtros: categoría (con
+ * subcategorías), solo con stock. Orden: precio asc/desc, nombre, fecha.
+ * Paginado de a 30. Solo productos simples publicados y que no sean PCs
+ * del plugin (los únicos que se pueden sumar al carrito de un click).
  */
 add_action( 'wp_ajax_tgs_sq_search_products', function () {
 	if ( ! current_user_can( 'manage_options' ) || ! check_ajax_referer( 'tgs_sq_search', 'nonce', false ) ) {
 		wp_send_json_error( 'No autorizado', 403 );
 	}
-	$query = sanitize_text_field( wp_unslash( $_POST['q'] ?? '' ) );
-	$words = array_values( array_filter( preg_split( '/\s+/', mb_strtolower( $query ) ) ) );
-	if ( ! $words ) {
-		wp_send_json_success( array() );
-	}
 	global $wpdb;
-	$where = array();
-	foreach ( $words as $word ) {
+	$query    = sanitize_text_field( wp_unslash( $_POST['q'] ?? '' ) );
+	$category = (int) ( $_POST['category'] ?? 0 );
+	$in_stock = ! empty( $_POST['in_stock'] ) && 'false' !== $_POST['in_stock'];
+	$sort     = sanitize_key( $_POST['sort'] ?? 'price_asc' );
+	$page     = max( 1, (int) ( $_POST['page'] ?? 1 ) );
+	$per_page = 30;
+
+	$where = array( "p.post_type = 'product'", "p.post_status = 'publish'", "( managed.meta_value IS NULL OR managed.meta_value <> '1' )" );
+	foreach ( array_values( array_filter( preg_split( '/\s+/', mb_strtolower( $query ) ) ) ) as $word ) {
 		$like    = '%' . $wpdb->esc_like( $word ) . '%';
-		$where[] = $wpdb->prepare( '(p.post_title LIKE %s OR sku.meta_value LIKE %s)', $like, $like );
+		$where[] = $wpdb->prepare( '( p.post_title LIKE %s OR sku.meta_value LIKE %s )', $like, $like );
 	}
-	$sql = "SELECT p.ID FROM {$wpdb->posts} p
-		LEFT JOIN {$wpdb->postmeta} sku ON sku.post_id = p.ID AND sku.meta_key = '_sku'
-		WHERE p.post_type = 'product' AND p.post_status = 'publish' AND " . implode( ' AND ', $where ) . '
-		ORDER BY p.post_title ASC LIMIT 60';
-	$ids  = array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-	$rows = array();
-	foreach ( $ids as $id ) {
-		$product = wc_get_product( $id );
-		if ( ! $product || ! $product->is_type( 'simple' ) || tgs_sq_is_managed_product( $id ) ) {
-			continue;
+	if ( $in_stock ) {
+		$where[] = "stock.meta_value = 'instock'";
+	}
+
+	$joins = array(
+		"LEFT JOIN {$wpdb->postmeta} sku ON sku.post_id = p.ID AND sku.meta_key = '_sku'",
+		"LEFT JOIN {$wpdb->postmeta} price ON price.post_id = p.ID AND price.meta_key = '_price'",
+		"LEFT JOIN {$wpdb->postmeta} stock ON stock.post_id = p.ID AND stock.meta_key = '_stock_status'",
+		"LEFT JOIN {$wpdb->postmeta} managed ON managed.post_id = p.ID AND managed.meta_key = '" . TGS_SQ_META_MANAGED . "'",
+	);
+	// Solo productos simples (término "simple" de product_type).
+	$simple = get_term_by( 'slug', 'simple', 'product_type' );
+	if ( $simple ) {
+		$joins[] = $wpdb->prepare( "INNER JOIN {$wpdb->term_relationships} ptype ON ptype.object_id = p.ID AND ptype.term_taxonomy_id = %d", (int) $simple->term_taxonomy_id );
+	}
+	if ( $category ) {
+		$term_ids = array_merge( array( $category ), (array) get_term_children( $category, 'product_cat' ) );
+		$tt_ids   = array();
+		foreach ( $term_ids as $term_id ) {
+			$term = get_term( (int) $term_id, 'product_cat' );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$tt_ids[] = (int) $term->term_taxonomy_id;
+			}
 		}
-		$rows[] = tgs_sq_product_picker_row( $id );
+		if ( $tt_ids ) {
+			$joins[] = "INNER JOIN {$wpdb->term_relationships} cat ON cat.object_id = p.ID AND cat.term_taxonomy_id IN (" . implode( ',', array_map( 'intval', $tt_ids ) ) . ')';
+		}
 	}
-	usort( $rows, function ( $a, $b ) {
-		return ( (int) $b['inStock'] <=> (int) $a['inStock'] ) ?: strcasecmp( $a['name'], $b['name'] );
-	} );
-	wp_send_json_success( array_slice( $rows, 0, 20 ) );
+	$order = array(
+		'price_asc'  => 'CAST(price.meta_value AS DECIMAL(18,2)) ASC, p.post_title ASC',
+		'price_desc' => 'CAST(price.meta_value AS DECIMAL(18,2)) DESC, p.post_title ASC',
+		'name'       => 'p.post_title ASC',
+		'date'       => 'p.post_date DESC',
+	);
+	$order_by = $order[ $sort ] ?? $order['price_asc'];
+
+	$sql = "SELECT DISTINCT SQL_CALC_FOUND_ROWS p.ID FROM {$wpdb->posts} p " . implode( ' ', $joins )
+		. ' WHERE ' . implode( ' AND ', $where )
+		. " ORDER BY {$order_by} LIMIT " . ( ( $page - 1 ) * $per_page ) . ", {$per_page}";
+	$ids   = array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$total = (int) $wpdb->get_var( 'SELECT FOUND_ROWS()' );
+	$rows  = array();
+	foreach ( $ids as $id ) {
+		$row = tgs_sq_product_picker_row( $id );
+		if ( $row ) {
+			$rows[] = $row;
+		}
+	}
+	wp_send_json_success( array( 'rows' => $rows, 'total' => $total, 'page' => $page, 'perPage' => $per_page ) );
 } );
 
 /* ---------------------------------------------------------------------
