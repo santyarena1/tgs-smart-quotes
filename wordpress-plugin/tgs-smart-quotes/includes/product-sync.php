@@ -252,10 +252,10 @@ function tgs_sq_sync_product( array $payload ) {
 	}
 
 	// La variante de diseño NUNCA se pisa acá: si el producto es nuevo se le
-	// asigna la variante default una sola vez; si ya existía (re-publish),
-	// se respeta lo que el admin haya elegido en WordPress.
+	// asigna la variante predeterminada (Ajustes) una sola vez; si ya existía
+	// (re-publish), se respeta lo que el admin haya elegido en WordPress.
 	if ( '' === (string) get_post_meta( $product_id, TGS_SQ_META_VARIANT, true ) ) {
-		update_post_meta( $product_id, TGS_SQ_META_VARIANT, TGS_SQ_DEFAULT_VARIANT );
+		update_post_meta( $product_id, TGS_SQ_META_VARIANT, tgs_sq_default_variant_slug() );
 	}
 
 	return $product_id;

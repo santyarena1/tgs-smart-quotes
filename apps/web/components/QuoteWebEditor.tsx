@@ -20,7 +20,7 @@ import {
 type ProductSummary = { id: string; description: string | null };
 type HeroOption = { id: string; url: string | null; productId: string; productName: string };
 
-type Game = { name: string; tier: string; resolution?: string | null; settings?: string | null; note?: string | null };
+type Game = { name: string; tier: string; resolution?: string | null; settings?: string | null; fps?: string | null; note?: string | null };
 type Enrichment = {
   descriptionHtml: string | null;
   gamesJson?: Game[] | null;
@@ -365,6 +365,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
               tier: game.tier.trim(),
               resolution: game.resolution?.trim() || null,
               settings: game.settings?.trim() || null,
+              fps: game.fps?.trim() || null,
               note: game.note?.trim() || null,
             }))
             .filter((game) => game.name && game.tier),
@@ -743,7 +744,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                     muestran para revisarlos y corregirlos antes de publicar. */}
                 <Field
                   label="Juegos y rendimiento"
-                  hint="Los estima la IA a partir de los componentes: no son mediciones reales. Por juego: nombre, resolución, calidad y el texto que se muestra. Lo que borres no se publica."
+                  hint="Los estima la IA a partir de los componentes: no son mediciones reales. Por juego: nombre, resolución, calidad, rango de FPS y el texto que se muestra. Lo que borres no se publica."
                 >
                   <div style={{ display: "grid", gap: 8 }}>
                     {gamesDraft.length === 0 ? (
@@ -784,6 +785,16 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                             }
                           />
                           <input
+                            value={game.fps ?? ""}
+                            placeholder="90-120 FPS"
+                            style={{ flex: "0 1 110px" }}
+                            onChange={(e) =>
+                              setGamesDraft((prev) =>
+                                prev.map((row, i) => (i === index ? { ...row, fps: e.target.value } : row)),
+                              )
+                            }
+                          />
+                          <input
                             value={game.tier}
                             placeholder="Ej: 1080p Alto (estimado)"
                             style={{ flex: "1 1 180px" }}
@@ -807,7 +818,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                       <button
                         type="button"
                         className="btn-ghost btn-sm"
-                        onClick={() => setGamesDraft((prev) => [...prev, { name: "", tier: "", resolution: "", settings: "", note: "" }])}
+                        onClick={() => setGamesDraft((prev) => [...prev, { name: "", tier: "", resolution: "", settings: "", fps: "", note: "" }])}
                       >
                         + Agregar juego
                       </button>

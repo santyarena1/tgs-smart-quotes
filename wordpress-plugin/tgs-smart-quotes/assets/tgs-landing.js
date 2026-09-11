@@ -111,6 +111,66 @@
 		}
 	} );
 
+	// "Sumale un monitor": elegir uno lo deja anotado en el campo oculto del
+	// formulario de compra y en los links ?add-to-cart= (barra flotante), así
+	// el servidor lo suma al carrito junto con la PC. Tocar el elegido lo saca.
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var section = document.querySelector( '[data-tgs-monitors]' );
+		if ( ! section ) {
+			return;
+		}
+		var picks = section.querySelectorAll( '.tgs-monitor-pick' );
+		var summary = section.querySelector( '.tgs-monitors-summary' );
+		var summaryName = section.querySelector( '[data-monitor-summary-name]' );
+		var summaryTotal = section.querySelector( '[data-monitor-summary-total]' );
+		var pcPrice = parseFloat( section.getAttribute( 'data-pc-price' ) ) || 0;
+		var currency = section.getAttribute( 'data-currency' ) || 'ARS';
+		var formatter;
+		try {
+			formatter = new Intl.NumberFormat( 'es-AR', { style: 'currency', currency: currency, maximumFractionDigits: 0 } );
+		} catch ( e ) {
+			formatter = null;
+		}
+		function money( value ) {
+			return formatter ? formatter.format( value ) : '$ ' + Math.round( value ).toLocaleString( 'es-AR' );
+		}
+		function setParam( href, id ) {
+			var clean = href.replace( /([?&])tgs_addon_monitor=\d*(&|$)/, function ( m, sep, tail ) { return tail ? sep : ''; } );
+			if ( ! id ) { return clean; }
+			return clean + ( clean.indexOf( '?' ) >= 0 ? '&' : '?' ) + 'tgs_addon_monitor=' + id;
+		}
+		function apply( id, name, price ) {
+			var inputs = document.querySelectorAll( '[data-tgs-addon-monitor]' );
+			for ( var i = 0; i < inputs.length; i++ ) { inputs[ i ].value = id || ''; }
+			var links = document.querySelectorAll( 'a[href*="add-to-cart="]' );
+			for ( var j = 0; j < links.length; j++ ) { links[ j ].setAttribute( 'href', setParam( links[ j ].getAttribute( 'href' ), id ) ); }
+			for ( var k = 0; k < picks.length; k++ ) {
+				var on = !! id && picks[ k ].getAttribute( 'data-monitor-id' ) === id;
+				picks[ k ].classList.toggle( 'is-selected', on );
+				picks[ k ].setAttribute( 'aria-pressed', on ? 'true' : 'false' );
+			}
+			if ( summary ) {
+				summary.hidden = ! id;
+				if ( id ) {
+					summaryName.textContent = name;
+					summaryTotal.textContent = money( pcPrice + price );
+				}
+			}
+		}
+		for ( var p = 0; p < picks.length; p++ ) {
+			( function ( pick ) {
+				pick.addEventListener( 'click', function () {
+					var id = pick.getAttribute( 'data-monitor-id' );
+					if ( pick.classList.contains( 'is-selected' ) ) {
+						apply( '', '', 0 );
+						return;
+					}
+					apply( id, pick.getAttribute( 'data-monitor-name' ) || '', parseFloat( pick.getAttribute( 'data-monitor-price' ) ) || 0 );
+				} );
+			} )( picks[ p ] );
+		}
+	} );
+
 	window.addEventListener( 'load', fixHeaderSpacer );
 	window.addEventListener( 'resize', fixHeaderSpacer );
 	document.addEventListener( 'DOMContentLoaded', fixHeaderSpacer );

@@ -49,6 +49,7 @@ function tgs_sq_block_types() {
 		'compatibility'  => 'Notas de compatibilidad',
 		'payment'        => 'Formas de pago y cuotas',
 		'shipping'       => 'Envíos y retiro (zonas y costos de WooCommerce)',
+		'monitors'       => 'Sumale un monitor (se agrega al carrito con la PC)',
 		'recommended'    => 'Recomendadas de la casa (PCs de precio similar)',
 	);
 }
@@ -65,7 +66,7 @@ function tgs_sq_default_blocks() {
 			// Los bloques nuevos (payment/whatsapp/recommended) arrancan
 			// apagados por default: hay que cargar número de WhatsApp,
 			// etc. antes de que tenga sentido mostrarlos.
-			$visible = ! in_array( $type, array( 'payment', 'recommended', 'gallery' ), true );
+			$visible = ! in_array( $type, array( 'payment', 'recommended', 'gallery', 'monitors' ), true );
 			return array( 'type' => $type, 'visible' => $visible );
 		},
 		$types
@@ -95,6 +96,10 @@ function tgs_sq_default_extra() {
 		'sticky_label'       => 'Agregar al carrito',
 		'recommended_title'  => 'Recomendadas de la casa',
 		'recommended_count'  => 4,
+		// "Sumale un monitor": la categoría se elige en Ajustes; acá solo el
+		// título y cuántos mostrar.
+		'monitors_title'     => 'Sumale un monitor',
+		'monitors_count'     => 6,
 		'payment_methods'    => 'Efectivo, transferencia, tarjeta de crédito y débito',
 		// Aclaración de las cuotas. Toda mención a "cuotas sin interés" lleva un
 		// asterisco que remite a este texto, en el pie de Formas de pago.
@@ -141,6 +146,7 @@ function tgs_sq_placeholder_docs() {
 		'galeria'                => 'Galería con las fotos de los componentes.',
 		'compatibilidad'         => 'Sección con las notas de compatibilidad del armado.',
 		'recomendadas'           => 'Sección de "Recomendadas de la casa" (otras PCs de precio similar).',
+		'monitores'              => 'Sección "Sumale un monitor": monitores elegibles que se agregan al carrito junto con la PC (vacía si no hay categoría configurada en Ajustes).',
 		'boton_carrito'          => 'Botón de agregar al carrito de WooCommerce (con cantidad y stock).',
 		'boton_whatsapp'         => 'Botón de consulta por WhatsApp (vacío si la variante no tiene número cargado).',
 		'barra_flotante'         => 'Barra fija de compra para el celular (nombre + precio + botón).',
@@ -291,6 +297,19 @@ function tgs_sq_variant_choices() {
 function tgs_sq_product_variant_slug( $product_id ) {
 	$slug = get_post_meta( $product_id, TGS_SQ_META_VARIANT, true );
 	if ( ! $slug || ! tgs_sq_get_variant( $slug ) ) {
+		return tgs_sq_default_variant_slug();
+	}
+	return $slug;
+}
+
+/**
+ * Variante predeterminada (Ajustes → Diseño predeterminado): la que reciben
+ * las PCs nuevas al publicarse y la que se usa si un producto apunta a una
+ * variante que ya no existe. Si la elegida se borró, cae a "default".
+ */
+function tgs_sq_default_variant_slug() {
+	$slug = sanitize_title( (string) get_option( TGS_SQ_OPTION_DEFAULT_VARIANT, '' ) );
+	if ( '' === $slug || ! isset( tgs_sq_get_variants()[ $slug ] ) ) {
 		return TGS_SQ_DEFAULT_VARIANT;
 	}
 	return $slug;

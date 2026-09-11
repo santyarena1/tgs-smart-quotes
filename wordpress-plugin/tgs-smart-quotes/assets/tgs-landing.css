@@ -641,6 +641,14 @@
 	background: transparent;
 	border-color: var(--tgs-line);
 }
+/* Rango de FPS estimado: mismo pill, en verde para que se lea como "rendimiento". */
+.tgs-landing .tgs-game-badge--fps {
+	color: #22c55e;
+	background: rgba(34, 197, 94, 0.1);
+	border-color: rgba(34, 197, 94, 0.35);
+	text-transform: none;
+	letter-spacing: 0.02em;
+}
 .tgs-landing .tgs-game-note {
 	flex-basis: 100%;
 	font-size: 12.5px;
@@ -932,6 +940,91 @@ body.tgs-lightbox-open { overflow: hidden; }
 	color: var(--tgs-text);
 	white-space: nowrap;
 }
+
+/* ==========================================================================
+   SUMALE UN MONITOR
+   ========================================================================== */
+.tgs-landing .tgs-monitors-lead {
+	font-size: 13px;
+	color: var(--tgs-muted);
+	margin: 0 0 12px;
+}
+.tgs-landing .tgs-monitors-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+	gap: 12px;
+}
+.tgs-landing .tgs-monitor-card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.tgs-landing .tgs-monitor-pick {
+	all: unset;
+	box-sizing: border-box;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	width: 100%;
+	padding: 12px;
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-r-md);
+	color: var(--tgs-text);
+	font-family: inherit;
+	transition: transform .18s ease, border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+.tgs-landing .tgs-monitor-pick:hover { transform: translateY(-3px); border-color: var(--tgs-accent-line); }
+.tgs-landing .tgs-monitor-pick:focus-visible { outline: 2px solid var(--tgs-accent); outline-offset: 2px; }
+.tgs-landing .tgs-monitor-pick.is-selected {
+	border-color: var(--tgs-accent);
+	background: var(--tgs-accent-soft);
+	box-shadow: 0 0 0 1px var(--tgs-accent);
+}
+.tgs-landing .tgs-monitor-media {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1;
+	background: #fff;
+	border-radius: var(--tgs-r-sm);
+	overflow: hidden;
+}
+.tgs-landing .tgs-monitor-media img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.tgs-landing .tgs-monitor-body { display: grid; gap: 4px; min-width: 0; }
+.tgs-landing .tgs-monitor-name { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.tgs-landing .tgs-monitor-price { font-size: 15px; font-weight: 700; color: var(--tgs-accent); }
+.tgs-landing .tgs-monitor-price del { color: var(--tgs-muted); font-weight: 500; font-size: 12px; margin-right: 4px; }
+.tgs-landing .tgs-monitor-cta {
+	margin-top: 4px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--tgs-text-soft);
+}
+.tgs-landing .tgs-monitor-cta--added { display: none; color: var(--tgs-accent); }
+.tgs-landing .tgs-monitor-pick.is-selected .tgs-monitor-cta--add { display: none; }
+.tgs-landing .tgs-monitor-pick.is-selected .tgs-monitor-cta--added { display: inline; }
+.tgs-landing .tgs-monitor-link {
+	font-size: 12px;
+	color: var(--tgs-muted);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	align-self: flex-start;
+}
+.tgs-landing .tgs-monitor-link:hover { color: var(--tgs-text); }
+.tgs-landing .tgs-monitors-summary {
+	margin: 14px 0 0;
+	padding: 10px 14px;
+	font-size: 13.5px;
+	color: var(--tgs-text);
+	background: var(--tgs-accent-soft);
+	border: 1px solid var(--tgs-accent-line);
+	border-radius: var(--tgs-r-sm);
+}
+.tgs-landing .tgs-monitors-summary strong { color: var(--tgs-accent); }
 
 /* ==========================================================================
    RECOMENDADAS DE LA CASA

@@ -8,7 +8,7 @@ export const quoteEnrichmentInputSchema=z.object({items:z.array(z.object({name:z
 // descripción corta, puntos fuertes, público, y resolución/calidad por juego)
 // son nullable y no opcionales porque OpenAI structured outputs exige que
 // todas las claves estén presentes.
-export const quoteEnrichmentGameOutputSchema=z.object({name:z.string(),tier:z.string(),resolution:z.string().nullable(),settings:z.string().nullable(),note:z.string().nullable()}).strict();
+export const quoteEnrichmentGameOutputSchema=z.object({name:z.string(),tier:z.string(),resolution:z.string().nullable(),settings:z.string().nullable(),fps:z.string().nullable(),note:z.string().nullable()}).strict();
 // Specs cortas para el título con formato fijo ("PC GAMER | CPU - RAM - DISCO
 // - GPU | WINDOWS"). Las reglas del sistema leen primero los nombres; esto
 // solo rellena lo que las reglas no pudieron leer.

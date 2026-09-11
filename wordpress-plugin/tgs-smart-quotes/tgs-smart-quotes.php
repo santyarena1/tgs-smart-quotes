@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.12.0
+ * Version: 2.13.0
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.12.0' );
+define( 'TGS_SQ_VERSION', '2.13.0' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -50,6 +50,12 @@ define( 'TGS_SQ_META_COMPATIBILITY', '_tgs_compatibility' );
 define( 'TGS_SQ_OPTION_HMAC_SECRET', 'tgs_sq_hmac_secret' );
 define( 'TGS_SQ_OPTION_VARIANTS', 'tgs_sq_variants' );
 define( 'TGS_SQ_DEFAULT_VARIANT', 'default' );
+// Variante que reciben las PCs nuevas (Ajustes → Diseño predeterminado).
+define( 'TGS_SQ_OPTION_DEFAULT_VARIANT', 'tgs_sq_default_variant' );
+// Categoría de WooCommerce con los monitores de "Sumale un monitor".
+define( 'TGS_SQ_OPTION_MONITOR_CATEGORY', 'tgs_sq_monitor_category' );
+// Métodos de envío (por título, uno por línea) que no se muestran en la ficha.
+define( 'TGS_SQ_OPTION_HIDDEN_SHIPPING', 'tgs_sq_hidden_shipping' );
 
 require_once TGS_SQ_DIR . 'includes/variants.php';
 require_once TGS_SQ_DIR . 'includes/product-sync.php';

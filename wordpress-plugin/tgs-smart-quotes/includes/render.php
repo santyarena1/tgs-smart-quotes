@@ -324,17 +324,22 @@ function tgs_sq_block_games( array $d ) {
 	foreach ( $d['games'] as $game ) {
 		$resolution = (string) ( $game['resolution'] ?? '' );
 		$settings   = (string) ( $game['settings'] ?? '' );
+		$fps        = trim( (string) ( $game['fps'] ?? '' ) );
 		// Resolución y calidad también como atributos: los diseños propios
 		// pueden pintar una barra de rendimiento con CSS según el nivel.
 		echo '<div class="tgs-game" data-resolution="' . esc_attr( sanitize_title( $resolution ) ) . '" data-settings="' . esc_attr( sanitize_title( $settings ) ) . '">';
 		echo '<span class="tgs-game-name">' . esc_html( $game['name'] ?? '' ) . '</span>';
-		if ( '' !== $resolution || '' !== $settings ) {
+		if ( '' !== $resolution || '' !== $settings || '' !== $fps ) {
 			echo '<span class="tgs-game-badges">';
 			if ( '' !== $resolution ) {
 				echo '<span class="tgs-game-badge">' . esc_html( $resolution ) . '</span>';
 			}
 			if ( '' !== $settings ) {
 				echo '<span class="tgs-game-badge tgs-game-badge--settings">' . esc_html( $settings ) . '</span>';
+			}
+			// Rango de FPS estimado por la IA (ej: "90-120 FPS"); nunca un número exacto.
+			if ( '' !== $fps ) {
+				echo '<span class="tgs-game-badge tgs-game-badge--fps" title="Estimado">~' . esc_html( $fps ) . '</span>';
 			}
 			echo '</span>';
 		} elseif ( ! empty( $game['tier'] ) ) {
@@ -346,7 +351,7 @@ function tgs_sq_block_games( array $d ) {
 		echo '</div>';
 	}
 	echo '</div>';
-	echo '<p class="tgs-games-footnote">Rendimiento estimado según los componentes. Puede variar con la configuración del juego y los drivers.</p>';
+	echo '<p class="tgs-games-footnote">Rendimiento y FPS estimados según los componentes. Pueden variar con la configuración del juego, los drivers y el monitor.</p>';
 	echo tgs_sq_ai_note_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '</section>';
 }
@@ -413,12 +418,23 @@ function tgs_sq_ai_note_html( array $d ) {
  * mismo que va a cobrar el checkout, y si cambia un precio de envío no hay
  * que tocar nada acá.
  */
-function tgs_sq_shipping_options() {
+function tgs_sq_shipping_options( $product = null ) {
 	if ( ! class_exists( 'WC_Shipping_Zones' ) ) {
 		return array();
 	}
 	$rows  = array();
 	$zones = WC_Shipping_Zones::get_zones();
+	// Métodos que el admin pidió no mostrar en la ficha (Ajustes → Envíos),
+	// por ejemplo tarifas pensadas para otros productos ("Pesados (Silla Gamer)").
+	$hidden = tgs_sq_hidden_shipping_titles();
+	// Clase de envío de la PC, para leer el costo por clase de las tarifas planas.
+	$product_class_id = ( $product instanceof WC_Product ) ? (int) $product->get_shipping_class_id() : 0;
+	$class_ids        = array();
+	if ( function_exists( 'WC' ) && WC()->shipping() ) {
+		foreach ( (array) WC()->shipping()->get_shipping_classes() as $class ) {
+			$class_ids[] = (int) $class->term_id;
+		}
+	}
 	// La zona 0 es "Resto del mundo": cubre lo que no cae en ninguna otra.
 	$zones[] = array( 'zone_name' => 'Resto del país', 'shipping_methods' => WC_Shipping_Zones::get_zone( 0 )->get_shipping_methods( true ) );
 	foreach ( $zones as $zone ) {
@@ -429,6 +445,9 @@ function tgs_sq_shipping_options() {
 			}
 			$title = (string) $method->get_title();
 			$type  = (string) $method->id;
+			if ( in_array( tgs_sq_shipping_key( $title ), $hidden, true ) ) {
+				continue;
+			}
 			$cost  = '';
 			if ( 'free_shipping' === $type ) {
 				$cost = 'Gratis';
@@ -439,9 +458,38 @@ function tgs_sq_shipping_options() {
 			} elseif ( 'local_pickup' === $type ) {
 				$raw  = (float) $method->get_option( 'cost' );
 				$cost = $raw > 0 ? wp_strip_all_tags( wc_price( $raw ) ) : 'Sin costo';
+			} elseif ( 'flat_rate' === $type ) {
+				$raw = (string) $method->get_option( 'cost' );
+				// Tarifa plana con costos por clase de envío: se suma el de la
+				// clase de la PC (o el "sin clase"). Si la tarifa SOLO tiene costos
+				// para otras clases (sillas, pesados...), no aplica a esta PC y no
+				// se muestra: la ficha no puede prometer un envío que el checkout
+				// no va a ofrecer con ese precio.
+				$class_raw  = '';
+				$has_others = false;
+				foreach ( $class_ids as $class_id ) {
+					$value = (string) $method->get_option( 'class_cost_' . $class_id );
+					if ( $class_id === $product_class_id ) {
+						$class_raw = $value;
+					} elseif ( '' !== $value ) {
+						$has_others = true;
+					}
+				}
+				if ( '' === $class_raw && ! $product_class_id ) {
+					$class_raw = (string) $method->get_option( 'no_class_cost' );
+				}
+				if ( '' === $raw && '' === $class_raw && $has_others ) {
+					continue;
+				}
+				if ( ( '' === $raw || is_numeric( $raw ) ) && ( '' === $class_raw || is_numeric( $class_raw ) ) ) {
+					$total = (float) $raw + (float) $class_raw;
+					$cost  = $total > 0 ? wp_strip_all_tags( wc_price( $total ) ) : 'Sin costo';
+				} else {
+					// Un costo con fórmula ([qty], [fee]) no se puede mostrar como número.
+					$cost = 'Se calcula al comprar';
+				}
 			} else {
 				$raw = (string) $method->get_option( 'cost' );
-				// Un costo con fórmula ([qty], [fee]) no se puede mostrar como número.
 				if ( '' !== $raw && is_numeric( $raw ) ) {
 					$cost = (float) $raw > 0 ? wp_strip_all_tags( wc_price( (float) $raw ) ) : 'Sin costo';
 				} elseif ( '' !== $raw ) {
@@ -464,8 +512,26 @@ function tgs_sq_shipping_options() {
  * Sección "Envíos y retiro". Retiro en local primero, después los envíos
  * agrupados por zona. Si Woo no tiene zonas cargadas, solo la promesa.
  */
+/** Clave normalizada para comparar títulos de métodos de envío. */
+function tgs_sq_shipping_key( $title ) {
+	return strtolower( trim( preg_replace( '/\s+/', ' ', (string) $title ) ) );
+}
+
+/** Títulos de métodos de envío que no se muestran en la ficha (Ajustes → Envíos, uno por línea). */
+function tgs_sq_hidden_shipping_titles() {
+	$raw  = (string) get_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, '' );
+	$keys = array();
+	foreach ( preg_split( '/\r\n|\r|\n/', $raw ) as $line ) {
+		$key = tgs_sq_shipping_key( $line );
+		if ( '' !== $key ) {
+			$keys[] = $key;
+		}
+	}
+	return $keys;
+}
+
 function tgs_sq_shipping_html( array $d ) {
-	$rows    = tgs_sq_shipping_options();
+	$rows    = tgs_sq_shipping_options( $d['product'] );
 	$pickups = array_values( array_filter( $rows, function ( $r ) { return $r['pickup']; } ) );
 	$ships   = array_values( array_filter( $rows, function ( $r ) { return ! $r['pickup']; } ) );
 	ob_start();
@@ -627,6 +693,137 @@ function tgs_sq_block_recommended( array $d ) {
 	echo tgs_sq_recommended_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
+/* ---------------------------------------------------------------------
+ * "Sumale un monitor": monitores de una categoría de WooCommerce
+ * (Ajustes → Monitores) que el cliente puede elegir en la ficha. Al agregar
+ * la PC al carrito, el monitor elegido entra junto con ella.
+ * ------------------------------------------------------------------- */
+
+function tgs_sq_monitor_category_id() {
+	return (int) get_option( TGS_SQ_OPTION_MONITOR_CATEGORY, 0 );
+}
+
+/** Monitores publicados, comprables y con stock de la categoría configurada. */
+function tgs_sq_monitor_products( $count ) {
+	$category_id = tgs_sq_monitor_category_id();
+	if ( ! $category_id || ! function_exists( 'wc_get_product' ) ) {
+		return array();
+	}
+	$query = new WP_Query( array(
+		'post_type'      => 'product',
+		'post_status'    => 'publish',
+		'posts_per_page' => max( 1, (int) $count ),
+		'orderby'        => 'menu_order title',
+		'order'          => 'ASC',
+		'tax_query'      => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => $category_id ),
+		),
+	) );
+	$products = array();
+	foreach ( $query->posts as $post ) {
+		$product = wc_get_product( $post->ID );
+		// Solo productos simples: una variación necesitaría elegir atributos
+		// y eso no entra en un click desde la ficha de la PC.
+		if ( ! $product || ! $product->is_type( 'simple' ) || ! $product->is_purchasable() || ! $product->is_in_stock() ) {
+			continue;
+		}
+		if ( tgs_sq_is_managed_product( $post->ID ) ) {
+			continue;
+		}
+		$products[] = $product;
+	}
+	return $products;
+}
+
+/** ¿Este ID es un monitor elegible? Se valida antes de sumarlo al carrito. */
+function tgs_sq_is_addon_monitor( $product_id ) {
+	$product_id  = absint( $product_id );
+	$category_id = tgs_sq_monitor_category_id();
+	if ( ! $product_id || ! $category_id || 'publish' !== get_post_status( $product_id ) ) {
+		return false;
+	}
+	if ( ! has_term( $category_id, 'product_cat', $product_id ) ) {
+		return false;
+	}
+	$product = wc_get_product( $product_id );
+	return $product && $product->is_type( 'simple' ) && $product->is_purchasable() && $product->is_in_stock();
+}
+
+function tgs_sq_monitors_html( array $d ) {
+	if ( ! $d['product'] ) {
+		return '';
+	}
+	$count    = (int) ( $d['extra']['monitors_count'] ?? 6 );
+	$monitors = tgs_sq_monitor_products( $count );
+	if ( empty( $monitors ) ) {
+		return '';
+	}
+	$title    = $d['extra']['monitors_title'] ?? 'Sumale un monitor';
+	$pc_price = (float) $d['product']->get_price();
+	ob_start();
+	echo '<section class="tgs-section-card tgs-monitors" data-tgs-monitors data-pc-price="' . esc_attr( $pc_price ) . '" data-currency="' . esc_attr( get_woocommerce_currency() ) . '">';
+	echo '<h2>' . esc_html( $title ) . '</h2>';
+	echo '<p class="tgs-monitors-lead">Elegí uno y se agrega al carrito junto con la PC. Tocalo de nuevo para sacarlo.</p>';
+	echo '<div class="tgs-monitors-grid">';
+	foreach ( $monitors as $monitor ) {
+		$pid   = $monitor->get_id();
+		$thumb = get_the_post_thumbnail_url( $pid, 'woocommerce_thumbnail' );
+		echo '<div class="tgs-monitor-card">';
+		echo '<button type="button" class="tgs-monitor-pick" aria-pressed="false" data-monitor-id="' . esc_attr( $pid ) . '" data-monitor-name="' . esc_attr( $monitor->get_name() ) . '" data-monitor-price="' . esc_attr( (float) $monitor->get_price() ) . '">';
+		echo '<span class="tgs-monitor-media">';
+		if ( $thumb ) {
+			echo '<img src="' . esc_url( $thumb ) . '" alt="" loading="lazy">';
+		}
+		echo '</span>';
+		echo '<span class="tgs-monitor-body">';
+		echo '<span class="tgs-monitor-name">' . esc_html( $monitor->get_name() ) . '</span>';
+		echo '<span class="tgs-monitor-price">' . wp_kses_post( $monitor->get_price_html() ) . '</span>';
+		echo '<span class="tgs-monitor-cta"><span class="tgs-monitor-cta--add">+ Agregar</span><span class="tgs-monitor-cta--added">✓ Elegido</span></span>';
+		echo '</span>';
+		echo '</button>';
+		echo '<a class="tgs-monitor-link" href="' . esc_url( get_permalink( $pid ) ) . '" target="_blank" rel="noopener">Ver ficha</a>';
+		echo '</div>';
+	}
+	echo '</div>';
+	echo '<p class="tgs-monitors-summary" hidden>Al agregar al carrito entra la PC + <strong data-monitor-summary-name></strong>. Total: <strong data-monitor-summary-total></strong></p>';
+	echo '</section>';
+	return ob_get_clean();
+}
+
+function tgs_sq_block_monitors( array $d ) {
+	echo tgs_sq_monitors_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+/**
+ * Campo oculto en el formulario de compra de la PC: el JS de la ficha le
+ * pone el ID del monitor elegido y el hook de abajo lo suma al carrito.
+ */
+add_action( 'woocommerce_after_add_to_cart_button', function () {
+	if ( tgs_sq_is_managed_product() ) {
+		echo '<input type="hidden" name="tgs_addon_monitor" value="" data-tgs-addon-monitor>';
+	}
+} );
+
+/**
+ * Cuando entra una PC al carrito con un monitor elegido, se agrega también
+ * el monitor (1 unidad). Vale tanto para el formulario como para los links
+ * ?add-to-cart= de la barra flotante. El monitor se valida de nuevo acá:
+ * el ID viene del navegador.
+ */
+add_action( 'woocommerce_add_to_cart', function ( $cart_item_key, $product_id ) {
+	static $adding = false;
+	if ( $adding || empty( $_REQUEST['tgs_addon_monitor'] ) || ! tgs_sq_is_managed_product( $product_id ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return;
+	}
+	$monitor_id = absint( $_REQUEST['tgs_addon_monitor'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! tgs_sq_is_addon_monitor( $monitor_id ) || ! WC()->cart ) {
+		return;
+	}
+	$adding = true;
+	WC()->cart->add_to_cart( $monitor_id, 1 );
+	$adding = false;
+}, 10, 2 );
+
 /**
  * Tipos de bloque que ya no son "opcionales": se imprimen siempre como
  * parte del hero (ver tgs_sq_block_hero). Si una variante vieja todavía
@@ -734,6 +931,7 @@ function tgs_sq_placeholder_values( array $d ) {
 		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
 		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
 		'recomendadas'         => tgs_sq_recommended_html( $d ),
+		'monitores'            => tgs_sq_monitors_html( $d ),
 		'boton_carrito'        => $cart,
 		'boton_whatsapp'       => tgs_sq_whatsapp_button_html( $d ),
 		'barra_flotante'       => tgs_sq_sticky_html( $d ),

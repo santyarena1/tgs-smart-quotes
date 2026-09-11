@@ -43,15 +43,22 @@ export async function enrichmentService() {
 type EnrichmentItem = {name: string; quantity: number; line: string | null};
 
 /**
- * Hash estable de los ítems y de la lista de juegos a analizar: si cambia
- * cualquiera de los dos, el enriquecimiento guardado quedó viejo y el
- * pipeline lo regenera solo (antes, cambiar la lista de juegos no alcanzaba
- * y las PCs seguían mostrando los juegos anteriores).
+ * Versión del formato del enriquecimiento. Subirla invalida el hash de todas
+ * las PCs para que el pipeline regenere los textos con el formato nuevo
+ * (v2: rango de FPS estimado por juego).
+ */
+const ENRICHMENT_FORMAT = 'v2';
+
+/**
+ * Hash estable de los ítems, de la lista de juegos a analizar y del formato:
+ * si cambia cualquiera, el enriquecimiento guardado quedó viejo y el pipeline
+ * lo regenera solo (antes, cambiar la lista de juegos no alcanzaba y las PCs
+ * seguían mostrando los juegos anteriores).
  */
 export function enrichmentItemsHash(items: EnrichmentItem[], games: string[] = []): string {
   const canonical = items.map((item) => `${item.quantity}x${item.name.trim().toLowerCase()}`).sort().join('|');
   const gamesKey = games.map((game) => game.trim().toLowerCase()).filter(Boolean).join('|');
-  return createHash('sha256').update(`${canonical}#${gamesKey}`).digest('hex').slice(0, 32);
+  return createHash('sha256').update(`${ENRICHMENT_FORMAT}#${canonical}#${gamesKey}`).digest('hex').slice(0, 32);
 }
 
 /** Juegos configurados en Ajustes → IA (uno por línea); si no hay, los del sistema. */

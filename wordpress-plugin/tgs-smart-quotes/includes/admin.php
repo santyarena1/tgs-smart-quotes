@@ -157,7 +157,43 @@ function tgs_sq_page_settings() {
 		}
 	}
 
-	$has_secret = '' !== tgs_sq_hmac_secret();
+	// Diseño predeterminado, monitores y envíos: un formulario aparte del
+	// secreto para que guardar uno no obligue a repetir el otro.
+	if ( isset( $_POST['tgs_sq_display_nonce'] ) && wp_verify_nonce( $_POST['tgs_sq_display_nonce'], 'tgs_sq_display' ) ) {
+		$default_variant = sanitize_title( $_POST['default_variant'] ?? '' );
+		if ( tgs_sq_get_variant( $default_variant ) ) {
+			update_option( TGS_SQ_OPTION_DEFAULT_VARIANT, $default_variant );
+		}
+		// "Aplicar a todas": pisa la variante de todas las PCs publicadas con
+		// la predeterminada. Es a pedido (tilde), nunca automático.
+		if ( ! empty( $_POST['apply_variant_to_all'] ) && tgs_sq_get_variant( $default_variant ) ) {
+			$managed = get_posts( array(
+				'post_type'   => 'product',
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'fields'      => 'ids',
+				'meta_key'    => TGS_SQ_META_MANAGED,
+				'meta_value'  => '1',
+			) );
+			foreach ( $managed as $managed_id ) {
+				update_post_meta( $managed_id, TGS_SQ_META_VARIANT, $default_variant );
+			}
+			echo '<div class="notice notice-success"><p>Diseño "' . esc_html( tgs_sq_variant_choices()[ $default_variant ] ?? $default_variant ) . '" aplicado a ' . count( $managed ) . ' PC(s).</p></div>';
+		}
+		update_option( TGS_SQ_OPTION_MONITOR_CATEGORY, (int) ( $_POST['monitor_category'] ?? 0 ) );
+		update_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, sanitize_textarea_field( wp_unslash( $_POST['hidden_shipping'] ?? '' ) ) );
+		echo '<div class="notice notice-success"><p>Ajustes de la ficha guardados.</p></div>';
+	}
+
+	$has_secret       = '' !== tgs_sq_hmac_secret();
+	$variant_choices  = tgs_sq_variant_choices();
+	$default_variant  = tgs_sq_default_variant_slug();
+	$monitor_category = (int) get_option( TGS_SQ_OPTION_MONITOR_CATEGORY, 0 );
+	$hidden_shipping  = (string) get_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, '' );
+	$shipping_titles  = array();
+	foreach ( tgs_sq_shipping_options() as $row ) {
+		$shipping_titles[] = $row['title'] . ( $row['zone'] ? ' (' . $row['zone'] . ')' : '' );
+	}
 	?>
 	<div class="wrap tgs-admin">
 		<?php
@@ -196,6 +232,59 @@ function tgs_sq_page_settings() {
 					<div class="tgs-card__footer">
 						<button type="submit" class="tgs-btn tgs-btn--primary">Guardar</button>
 						<p>Si cambiás el secreto acá, acordate de cambiarlo también del otro lado.</p>
+					</div>
+				</div>
+			</form>
+
+			<form method="post">
+				<?php wp_nonce_field( 'tgs_sq_display', 'tgs_sq_display_nonce' ); ?>
+				<div class="tgs-card">
+					<div class="tgs-card__head">
+						<h2>Ficha de producto</h2>
+						<p>Qué diseño reciben las PCs nuevas, de qué categoría salen los monitores para "Sumale un monitor" y qué métodos de envío no se muestran.</p>
+					</div>
+					<div class="tgs-card__body">
+						<div class="tgs-fields">
+							<div class="tgs-field">
+								<label for="default_variant">Diseño predeterminado</label>
+								<select id="default_variant" name="default_variant">
+									<?php foreach ( $variant_choices as $slug => $name ) : ?>
+										<option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $default_variant, $slug ); ?>><?php echo esc_html( $name ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">Lo reciben las PCs que se publiquen de acá en adelante. Las ya publicadas conservan el suyo (se cambia por producto en "Productos").</p>
+								<label class="tgs-check" style="margin-top:8px;display:flex;gap:8px;align-items:center">
+									<input type="checkbox" name="apply_variant_to_all" value="1">
+									<span>Aplicar también a todas las PCs ya publicadas</span>
+								</label>
+							</div>
+							<div class="tgs-field">
+								<label for="monitor_category">Categoría de monitores</label>
+								<?php
+								wp_dropdown_categories( array(
+									'taxonomy'         => 'product_cat',
+									'name'             => 'monitor_category',
+									'id'               => 'monitor_category',
+									'selected'         => $monitor_category,
+									'show_option_none' => 'No mostrar "Sumale un monitor"',
+									'option_none_value' => 0,
+									'hide_empty'       => false,
+									'hierarchical'     => true,
+								) );
+								?>
+								<p class="description">Los productos simples publicados y con stock de esta categoría aparecen en la sección "Sumale un monitor". Al elegir uno, "Agregar al carrito" suma la PC y el monitor. La sección se activa por variante (Variantes → secciones) o con el placeholder <code>{{monitores}}</code>.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="hidden_shipping">Métodos de envío que no se muestran</label>
+								<textarea id="hidden_shipping" name="hidden_shipping" rows="3" placeholder="Pesados (Silla Gamer)"><?php echo esc_textarea( $hidden_shipping ); ?></textarea>
+								<p class="description">Uno por línea, con el título exacto del método en WooCommerce. Sirve para tarifas pensadas para otros productos. Las tarifas planas que solo tienen costo para otras clases de envío ya se ocultan solas.
+									<?php if ( $shipping_titles ) : ?><br>Métodos que se muestran hoy: <?php echo esc_html( implode( ' · ', $shipping_titles ) ); ?><?php endif; ?>
+								</p>
+							</div>
+						</div>
+					</div>
+					<div class="tgs-card__footer">
+						<button type="submit" class="tgs-btn tgs-btn--primary">Guardar</button>
 					</div>
 				</div>
 			</form>
@@ -248,6 +337,25 @@ function tgs_sq_page_products() {
 		}
 	}
 
+	// Publicar / despublicar desde acá, sin pasar por el sistema. Despublicar
+	// deja el producto en borrador (igual que el "unpublish" de la API), así
+	// que un republish desde TGS-SMART-QUOTES lo vuelve a publicar.
+	if ( isset( $_POST['tgs_sq_status_nonce'] ) && wp_verify_nonce( $_POST['tgs_sq_status_nonce'], 'tgs_sq_status' ) ) {
+		$product_id = (int) ( $_POST['product_id'] ?? 0 );
+		$action     = sanitize_key( $_POST['status_action'] ?? '' );
+		if ( $product_id && '1' === get_post_meta( $product_id, TGS_SQ_META_MANAGED, true ) && in_array( $action, array( 'publish', 'unpublish' ), true ) ) {
+			wp_update_post( array( 'ID' => $product_id, 'post_status' => 'publish' === $action ? 'publish' : 'draft' ) );
+			if ( 'publish' === $action ) {
+				$product = wc_get_product( $product_id );
+				if ( $product ) {
+					$product->set_catalog_visibility( 'visible' );
+					$product->save();
+				}
+			}
+			echo '<div class="notice notice-success"><p>"' . esc_html( get_the_title( $product_id ) ) . '" ' . ( 'publish' === $action ? 'publicada en la tienda.' : 'despublicada (queda como borrador).' ) . '</p></div>';
+		}
+	}
+
 	$products = get_posts( array(
 		'post_type'      => 'product',
 		'post_status'    => 'any',
@@ -294,7 +402,7 @@ function tgs_sq_page_products() {
 				<div class="tgs-card">
 					<div class="tgs-card__head">
 						<h2>Listado de PCs</h2>
-						<p>Cada cambio se guarda por separado: elegí la categoría o la variante y tocá "Guardar" en esa misma fila.</p>
+						<p>Cada cambio se guarda por separado: elegí la categoría o la variante y tocá "Guardar" en esa misma fila. "Publicar" y "Despublicar" cambian si la PC se ve en la tienda sin pasar por el sistema.</p>
 					</div>
 					<div class="tgs-card__body tgs-card__body--flush">
 						<div class="tgs-tablewrap">
@@ -304,6 +412,7 @@ function tgs_sq_page_products() {
 										<th>Producto</th>
 										<th>External ID</th>
 										<th>Estado</th>
+										<th>Publicación</th>
 										<th>Categoría</th>
 										<th>Variante de diseño</th>
 									</tr>
@@ -325,6 +434,19 @@ function tgs_sq_page_products() {
 											<td data-label="External ID"><code><?php echo esc_html( $external_id ); ?></code></td>
 											<td data-label="Estado">
 												<span class="tgs-chip tgs-chip--<?php echo esc_attr( $status_chip['state'] ); ?>" title="<?php echo esc_attr( $status ); ?>"><?php echo esc_html( $status_chip['label'] ); ?></span>
+											</td>
+											<td data-label="Publicación">
+												<form method="post" class="tgs-inlineform">
+													<?php wp_nonce_field( 'tgs_sq_status', 'tgs_sq_status_nonce' ); ?>
+													<input type="hidden" name="product_id" value="<?php echo esc_attr( $product->ID ); ?>">
+													<?php if ( 'publish' === $status ) : ?>
+														<input type="hidden" name="status_action" value="unpublish">
+														<button type="submit" class="tgs-btn tgs-btn--small">Despublicar</button>
+													<?php else : ?>
+														<input type="hidden" name="status_action" value="publish">
+														<button type="submit" class="tgs-btn tgs-btn--small tgs-btn--primary">Publicar</button>
+													<?php endif; ?>
+												</form>
 											</td>
 											<td data-label="Categoría">
 												<form method="post" class="tgs-inlineform">
@@ -543,6 +665,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'sticky_label'      => sanitize_text_field( $_POST['sticky_label'] ?? '' ),
 				'recommended_title' => sanitize_text_field( $_POST['recommended_title'] ?? '' ),
 				'recommended_count' => max( 1, min( 8, (int) ( $_POST['recommended_count'] ?? 4 ) ) ),
+				'monitors_title'    => sanitize_text_field( $_POST['monitors_title'] ?? '' ),
+				'monitors_count'    => max( 1, min( 12, (int) ( $_POST['monitors_count'] ?? 6 ) ) ),
 				'payment_methods'   => sanitize_text_field( $_POST['payment_methods'] ?? '' ),
 				'financing_terms'   => sanitize_textarea_field( $_POST['financing_terms'] ?? '' ),
 				'ai_disclaimer'     => sanitize_text_field( $_POST['ai_disclaimer'] ?? '' ),
@@ -831,6 +955,18 @@ function tgs_sq_render_variant_editor( $slug ) {
 									<span class="tgs-suffix">PCs</span>
 								</div>
 								<p class="description">Se eligen automáticamente otras PCs publicadas con precio parecido a esta.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="monitors_title">Sumale un monitor — título de la sección</label>
+								<input type="text" id="monitors_title" name="monitors_title" value="<?php echo esc_attr( $extra['monitors_title'] ); ?>" placeholder="Sumale un monitor">
+							</div>
+							<div class="tgs-field">
+								<label for="monitors_count">Sumale un monitor — cuántos mostrar</label>
+								<div class="tgs-inputgroup">
+									<input type="number" id="monitors_count" name="monitors_count" value="<?php echo esc_attr( $extra['monitors_count'] ); ?>" min="1" max="12">
+									<span class="tgs-suffix">monitores</span>
+								</div>
+								<p class="description">Salen de la categoría elegida en Ajustes → Ficha de producto. Al elegir uno, se agrega al carrito junto con la PC.</p>
 							</div>
 						</div>
 					</div>
