@@ -232,34 +232,35 @@ export function renderThumbnailHtml(input: LayoutInput): string {
       linear-gradient(180deg, #131316 0%, #09090b 100%);
   }
   .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%); pointer-events: none; }
-  .left { position: absolute; left: 56px; top: 44px; width: 470px; display: flex; flex-direction: column; align-items: flex-start; }
-  .logo { height: 130px; width: auto; max-width: 300px; object-fit: contain; object-position: left; }
+  /* --rs: escala de las filas; el script la baja si la columna no entra antes del pie. */
+  .left { --rs: 1; position: absolute; left: 40px; top: 32px; width: 580px; display: flex; flex-direction: column; align-items: flex-start; }
+  .logo { height: 170px; width: auto; max-width: 360px; object-fit: contain; object-position: left; }
   .logo-text { display: inline-flex; flex-direction: column; width: max-content; line-height: .9; font-weight: 900; letter-spacing: -.02em; text-transform: uppercase; }
-  .logo-text .lt1 { font-size: 34px; color: #fff; }
-  .logo-text .lt2 { font-size: 78px; color: var(--accent); -webkit-text-stroke: 2px #fff; }
-  .logo-text .lt3 { font-size: 30px; color: #fff; align-self: flex-end; margin-right: 6px; }
-  .kicker { margin-top: 28px; font-size: 26px; font-weight: 600; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
-  .h1 { font-size: ${threeLines ? 84 : 92}px; font-weight: 800; line-height: .95; letter-spacing: -.01em; text-transform: uppercase; white-space: nowrap; }
-  .h2 { font-size: ${threeLines ? 108 : 118}px; font-weight: 900; line-height: .95; letter-spacing: -.02em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 45%, transparent); }
-  .h3 { font-size: 46px; font-weight: 800; line-height: 1; color: var(--accent); text-transform: uppercase; margin-top: 6px; }
-  .rule { margin-top: 14px; height: 3px; width: 440px; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent)); border-radius: 2px; }
-  .rows { margin-top: 18px; display: flex; flex-direction: column; gap: ${input.rows.length > 5 ? 10 : 16}px; width: 100%; }
-  .row { display: flex; align-items: center; gap: 16px; min-height: 72px; width: 100%; }
-  .ico { width: 78px; height: 78px; flex: 0 0 78px; display: grid; place-items: center; color: var(--accent); background: rgba(255,255,255,.03); border: 2px solid color-mix(in srgb, var(--accent) 75%, transparent); border-radius: 12px; box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 0 14px rgba(0,0,0,.5); }
-  .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .lbl { font-size: 17px; font-weight: 600; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; }
-  .val { font-size: 25px; font-weight: 600; line-height: 1.12; color: #fff; text-transform: uppercase; white-space: nowrap; }
-  .txt { flex: 1 1 auto; }
-  .case { position: absolute; right: 20px; top: 100px; width: ${designW - 560}px; height: ${designH - 270}px; display: grid; place-items: center; }
+  .logo-text .lt1 { font-size: 44px; color: #fff; }
+  .logo-text .lt2 { font-size: 100px; color: var(--accent); -webkit-text-stroke: 2px #fff; }
+  .logo-text .lt3 { font-size: 38px; color: #fff; align-self: flex-end; margin-right: 6px; }
+  .kicker { margin-top: 18px; font-size: 30px; font-weight: 600; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+  .h1 { font-size: ${threeLines ? 96 : 110}px; font-weight: 800; line-height: .92; letter-spacing: -.01em; text-transform: uppercase; white-space: nowrap; }
+  .h2 { font-size: ${threeLines ? 126 : 148}px; font-weight: 900; line-height: .92; letter-spacing: -.02em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .h3 { font-size: 56px; font-weight: 800; line-height: 1; color: var(--accent); text-transform: uppercase; margin-top: 4px; }
+  .rule { margin-top: 12px; height: 4px; width: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent)); border-radius: 2px; }
+  .rows { margin-top: calc(16px * var(--rs)); display: flex; flex-direction: column; gap: calc(12px * var(--rs)); width: 100%; }
+  .row { display: flex; align-items: center; gap: 16px; min-height: calc(84px * var(--rs)); width: 100%; }
+  .ico { width: calc(88px * var(--rs)); height: calc(88px * var(--rs)); flex: 0 0 calc(88px * var(--rs)); display: grid; place-items: center; color: var(--accent); background: rgba(255,255,255,.03); border: 2px solid color-mix(in srgb, var(--accent) 75%, transparent); border-radius: 14px; box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 0 14px rgba(0,0,0,.5); }
+  .ico svg { width: calc(46px * var(--rs)); height: calc(46px * var(--rs)); }
+  .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+  .lbl { font-size: calc(20px * var(--rs)); font-weight: 600; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; }
+  .val { font-size: calc(31px * var(--rs)); font-weight: 600; line-height: 1.1; color: #fff; text-transform: uppercase; white-space: nowrap; }
+  .case { position: absolute; right: 10px; top: 70px; width: ${designW - 610}px; height: ${designH - 230}px; display: grid; place-items: center; }
   .case img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 40px 50px rgba(0,0,0,.85)) drop-shadow(0 0 90px color-mix(in srgb, var(--accent) 22%, transparent)); }
   .floor { position: absolute; right: 50px; bottom: 160px; width: ${designW - 620}px; height: 60px; background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.75), transparent 70%); filter: blur(6px); }
-  .footer { position: absolute; left: 56px; right: 56px; bottom: 44px; height: 110px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .footer { position: absolute; left: 40px; right: 40px; bottom: 30px; height: 104px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .badge { display: flex; align-items: center; gap: 14px; flex: 1; }
   .bico { color: #fff; width: 62px; height: 62px; display: grid; place-items: center; }
   .badge:nth-child(4n+3) .bico, .badge:nth-child(4n+5) .bico { color: var(--accent); }
   .btxt { display: flex; flex-direction: column; line-height: 1.15; }
-  .btxt span { font-size: 20px; font-weight: 600; color: #fff; text-transform: uppercase; }
-  .btxt strong { font-size: 20px; font-weight: 800; color: var(--accent); text-transform: uppercase; }
+  .btxt span { font-size: 21px; font-weight: 600; color: #fff; text-transform: uppercase; }
+  .btxt strong { font-size: 21px; font-weight: 800; color: var(--accent); text-transform: uppercase; }
   .sep { width: 1px; height: 56px; background: rgba(255,255,255,.18); flex: 0 0 1px; }
 </style></head><body>
 <div class="vignette"></div>
@@ -287,6 +288,14 @@ export function renderThumbnailHtml(input: LayoutInput): string {
     document.querySelectorAll('.h1, .h2, .h3').forEach(function (el) { shrink(el, max, 30); });
     // Valores de las filas: una sola línea; si no entra, se achica la letra.
     document.querySelectorAll('.val').forEach(function (el) { shrink(el, el.parentNode.clientWidth, 15); });
+    // Si la columna pisa el pie, se achican las filas de a poco (--rs).
+    var left = document.querySelector('.left');
+    var footerTop = document.querySelector('.footer').getBoundingClientRect().top;
+    var rs = 1;
+    while (left.getBoundingClientRect().bottom > footerTop - 12 && rs > 0.6) {
+      rs -= 0.03;
+      left.style.setProperty('--rs', rs.toFixed(2));
+    }
   }
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit, fit);
 </script>
