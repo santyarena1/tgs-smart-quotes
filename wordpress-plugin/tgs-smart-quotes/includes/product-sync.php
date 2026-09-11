@@ -215,7 +215,11 @@ function tgs_sq_sync_product( array $payload ) {
 	// publica el producto. Si el admin ya la cambió a mano desde
 	// "Productos", un republish nunca la pisa.
 	if ( ! $existing_product_id && 0 === tgs_sq_product_category_id( $product_id ) ) {
-		$category_id = tgs_sq_ensure_category();
+		// La categoría predeterminada se elige en Ajustes; si no hay, "TGS".
+		$category_id = (int) get_option( TGS_SQ_OPTION_DEFAULT_CATEGORY, 0 );
+		if ( ! $category_id || ! term_exists( $category_id, 'product_cat' ) ) {
+			$category_id = tgs_sq_ensure_category();
+		}
 		if ( $category_id ) {
 			wp_set_object_terms( $product_id, array( $category_id ), 'product_cat' );
 		}

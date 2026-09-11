@@ -703,50 +703,82 @@ function tgs_sq_monitor_category_id() {
 	return (int) get_option( TGS_SQ_OPTION_MONITOR_CATEGORY, 0 );
 }
 
-/** Monitores publicados, comprables y con stock de la categoría configurada. */
+/** IDs de monitores elegidos a mano en Ajustes, en el orden guardado. */
+function tgs_sq_monitor_product_ids() {
+	$ids = get_option( TGS_SQ_OPTION_MONITOR_PRODUCTS, array() );
+	return array_values( array_filter( array_map( 'absint', (array) $ids ) ) );
+}
+
+/** ¿Producto simple, publicado, comprable y con stock? */
+function tgs_sq_monitor_usable( $product_id ) {
+	if ( 'publish' !== get_post_status( $product_id ) || tgs_sq_is_managed_product( $product_id ) ) {
+		return null;
+	}
+	$product = wc_get_product( $product_id );
+	// Solo productos simples: una variación necesitaría elegir atributos
+	// y eso no entra en un click desde la ficha de la PC.
+	if ( ! $product || ! $product->is_type( 'simple' ) || ! $product->is_purchasable() || ! $product->is_in_stock() ) {
+		return null;
+	}
+	return $product;
+}
+
+/**
+ * Monitores para la sección: primero los elegidos a mano (Ajustes), después
+ * los de la categoría configurada, sin repetir y hasta `count`.
+ */
 function tgs_sq_monitor_products( $count ) {
-	$category_id = tgs_sq_monitor_category_id();
-	if ( ! $category_id || ! function_exists( 'wc_get_product' ) ) {
+	if ( ! function_exists( 'wc_get_product' ) ) {
 		return array();
 	}
-	$query = new WP_Query( array(
-		'post_type'      => 'product',
-		'post_status'    => 'publish',
-		'posts_per_page' => max( 1, (int) $count ),
-		'orderby'        => 'menu_order title',
-		'order'          => 'ASC',
-		'tax_query'      => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-			array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => $category_id ),
-		),
-	) );
+	$count    = max( 1, (int) $count );
 	$products = array();
-	foreach ( $query->posts as $post ) {
-		$product = wc_get_product( $post->ID );
-		// Solo productos simples: una variación necesitaría elegir atributos
-		// y eso no entra en un click desde la ficha de la PC.
-		if ( ! $product || ! $product->is_type( 'simple' ) || ! $product->is_purchasable() || ! $product->is_in_stock() ) {
-			continue;
+	$seen     = array();
+	foreach ( tgs_sq_monitor_product_ids() as $product_id ) {
+		$product = tgs_sq_monitor_usable( $product_id );
+		if ( $product ) {
+			$products[]          = $product;
+			$seen[ $product_id ] = true;
 		}
-		if ( tgs_sq_is_managed_product( $post->ID ) ) {
-			continue;
-		}
-		$products[] = $product;
 	}
-	return $products;
+	$category_id = tgs_sq_monitor_category_id();
+	if ( $category_id && count( $products ) < $count ) {
+		$query = new WP_Query( array(
+			'post_type'      => 'product',
+			'post_status'    => 'publish',
+			'posts_per_page' => $count + count( $seen ),
+			'orderby'        => 'menu_order title',
+			'order'          => 'ASC',
+			'tax_query'      => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => $category_id ),
+			),
+		) );
+		foreach ( $query->posts as $post ) {
+			if ( isset( $seen[ $post->ID ] ) ) {
+				continue;
+			}
+			$product = tgs_sq_monitor_usable( $post->ID );
+			if ( $product ) {
+				$products[]        = $product;
+				$seen[ $post->ID ] = true;
+			}
+		}
+	}
+	return array_slice( $products, 0, $count );
 }
 
 /** ¿Este ID es un monitor elegible? Se valida antes de sumarlo al carrito. */
 function tgs_sq_is_addon_monitor( $product_id ) {
-	$product_id  = absint( $product_id );
+	$product_id = absint( $product_id );
+	if ( ! $product_id ) {
+		return false;
+	}
 	$category_id = tgs_sq_monitor_category_id();
-	if ( ! $product_id || ! $category_id || 'publish' !== get_post_status( $product_id ) ) {
+	$chosen      = in_array( $product_id, tgs_sq_monitor_product_ids(), true );
+	if ( ! $chosen && ! ( $category_id && has_term( $category_id, 'product_cat', $product_id ) ) ) {
 		return false;
 	}
-	if ( ! has_term( $category_id, 'product_cat', $product_id ) ) {
-		return false;
-	}
-	$product = wc_get_product( $product_id );
-	return $product && $product->is_type( 'simple' ) && $product->is_purchasable() && $product->is_in_stock();
+	return (bool) tgs_sq_monitor_usable( $product_id );
 }
 
 function tgs_sq_monitors_html( array $d ) {

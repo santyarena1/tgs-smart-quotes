@@ -13,6 +13,7 @@ import {
 import {db} from '@tgs/database';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
 import {renderHtmlToPng} from '@tgs/pdf';
+import {removeBackgroundDetailed} from '@tgs/providers';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {extractSpecsFromItems, type StoreTitleSpecs} from './quote-title.js';
 import {buildHeadline, buildRows, DEFAULT_CASE_AI_PROMPT, DEFAULT_FOOTER, renderThumbnailHtml, type FooterBadge} from './thumbnail-layout.js';
@@ -64,6 +65,29 @@ async function openAiClient() {
 const toDataUrl = (buffer: Buffer, mime = 'image/png') => `data:${mime};base64,${buffer.toString('base64')}`;
 
 /**
+ * El gabinete tiene que ir recortado (fondo transparente) para que en la
+ * miniatura no quede un rectángulo alrededor. Si la imagen viene sin
+ * transparencia en las esquinas —una foto "tal cual" o una salida de la IA
+ * que ignoró el pedido de fondo transparente— se intenta el quitado de fondo
+ * del sistema; si el fondo no es claro y uniforme, se deja como está.
+ */
+async function ensureTransparentCase(buffer: Buffer): Promise<Buffer> {
+  const png = sharp(buffer).ensureAlpha();
+  const {data, info} = await png.raw().toBuffer({resolveWithObject: true});
+  const {width, height, channels} = info;
+  if (!width || !height) return buffer;
+  const alphaAt = (x: number, y: number) => data[(y * width + x) * channels + 3] ?? 255;
+  const corners = [alphaAt(0, 0), alphaAt(width - 1, 0), alphaAt(0, height - 1), alphaAt(width - 1, height - 1)];
+  if (corners.some((alpha) => alpha < 250)) return buffer;
+  try {
+    const {buffer: cut, removedRatio} = await removeBackgroundDetailed(buffer);
+    return removedRatio > 0.05 ? cut : buffer;
+  } catch {
+    return buffer;
+  }
+}
+
+/**
  * Gabinete procesado con IA (interior armado, luces RGB) a partir de la foto
  * original, con caché por URL: el mismo gabinete se repite en muchas PCs.
  */
@@ -95,7 +119,8 @@ async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {mo
     await db.aiRequest.create({data: {task: 'THUMBNAIL_IMAGE', model: settings.model, inputHash: randomUUID(), entityType: 'QuoteFamily', entityId: familyId, success: false, error: info.message, durationMs: Date.now() - started}});
     throw new Error(`OpenAI no pudo procesar el gabinete: ${info.message}`);
   }
-  const stored = await (await loadMediaStorage()).put(`thumbnail-ai/cases/${randomUUID()}.png`, result.buffer, 'image/png');
+  const rendered = await ensureTransparentCase(result.buffer);
+  const stored = await (await loadMediaStorage()).put(`thumbnail-ai/cases/${randomUUID()}.png`, rendered, 'image/png');
   await db.$transaction([
     db.thumbnailCaseRender.upsert({where: {sourceUrl}, update: {url: stored.url, key: stored.key, prompt}, create: {sourceUrl, url: stored.url, key: stored.key, prompt}}),
     db.aiRequest.create({data: {task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'QuoteFamily', entityId: familyId, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: {url: stored.url, kind: 'case', prompt} as any}}),
@@ -105,7 +130,7 @@ async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {mo
       await (await loadMediaStorage()).delete(cached.key);
     } catch {}
   }
-  return result.buffer;
+  return rendered;
 }
 
 /** Modo LAYOUT: plantilla TGS compuesta por el sistema. */
@@ -126,7 +151,7 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
   const headline = buildHeadline(specs, useGpu, family.webTitle?.trim() || family.internalName);
   const rows = buildRows(rowItems, specs);
 
-  let caseBuffer = (await readOwnOrRemote(caseUrl)).buffer;
+  let caseBuffer = await ensureTransparentCase((await readOwnOrRemote(caseUrl)).buffer);
   let caseDetail = 'foto original';
   if (settings.caseAiMode === 'ALWAYS') {
     caseBuffer = await caseWithAi(caseUrl, caseBuffer, settings, opts.familyId);

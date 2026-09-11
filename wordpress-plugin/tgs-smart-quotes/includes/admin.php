@@ -181,6 +181,8 @@ function tgs_sq_page_settings() {
 			echo '<div class="notice notice-success"><p>Diseño "' . esc_html( tgs_sq_variant_choices()[ $default_variant ] ?? $default_variant ) . '" aplicado a ' . count( $managed ) . ' PC(s).</p></div>';
 		}
 		update_option( TGS_SQ_OPTION_MONITOR_CATEGORY, (int) ( $_POST['monitor_category'] ?? 0 ) );
+		update_option( TGS_SQ_OPTION_MONITOR_PRODUCTS, array_values( array_filter( array_map( 'absint', (array) ( $_POST['monitor_products'] ?? array() ) ) ) ) );
+		update_option( TGS_SQ_OPTION_DEFAULT_CATEGORY, (int) ( $_POST['default_category'] ?? 0 ) );
 		update_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, sanitize_textarea_field( wp_unslash( $_POST['hidden_shipping'] ?? '' ) ) );
 		echo '<div class="notice notice-success"><p>Ajustes de la ficha guardados.</p></div>';
 	}
@@ -189,6 +191,8 @@ function tgs_sq_page_settings() {
 	$variant_choices  = tgs_sq_variant_choices();
 	$default_variant  = tgs_sq_default_variant_slug();
 	$monitor_category = (int) get_option( TGS_SQ_OPTION_MONITOR_CATEGORY, 0 );
+	$monitor_products = tgs_sq_monitor_product_ids();
+	$default_category = (int) get_option( TGS_SQ_OPTION_DEFAULT_CATEGORY, 0 );
 	$hidden_shipping  = (string) get_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, '' );
 	$shipping_titles  = array();
 	foreach ( tgs_sq_shipping_options() as $row ) {
@@ -241,7 +245,7 @@ function tgs_sq_page_settings() {
 				<div class="tgs-card">
 					<div class="tgs-card__head">
 						<h2>Ficha de producto</h2>
-						<p>Qué diseño reciben las PCs nuevas, de qué categoría salen los monitores para "Sumale un monitor" y qué métodos de envío no se muestran.</p>
+						<p>Qué diseño y qué categoría reciben las PCs nuevas, qué monitores se ofrecen en "Sumale un monitor" y qué métodos de envío no se muestran.</p>
 					</div>
 					<div class="tgs-card__body">
 						<div class="tgs-fields">
@@ -259,6 +263,34 @@ function tgs_sq_page_settings() {
 								</label>
 							</div>
 							<div class="tgs-field">
+								<label for="default_category">Categoría de las PCs nuevas</label>
+								<?php
+								wp_dropdown_categories( array(
+									'taxonomy'          => 'product_cat',
+									'name'              => 'default_category',
+									'id'                => 'default_category',
+									'selected'          => $default_category,
+									'show_option_none'  => 'Crear/usar "TGS"',
+									'option_none_value' => 0,
+									'hide_empty'        => false,
+									'hierarchical'      => true,
+								) );
+								?>
+								<p class="description">Las PCs que se publiquen de acá en adelante entran en esta categoría. Las ya publicadas se cambian por producto en "Productos".</p>
+							</div>
+							<div class="tgs-field">
+								<label for="monitor_products">Monitores elegidos</label>
+								<select id="monitor_products" name="monitor_products[]" class="wc-product-search" multiple="multiple" style="width:100%" data-placeholder="Buscá un monitor por nombre o SKU…" data-action="woocommerce_json_search_products" data-exclude_type="variable">
+									<?php foreach ( $monitor_products as $monitor_id ) : ?>
+										<?php $monitor = wc_get_product( $monitor_id ); ?>
+										<?php if ( $monitor ) : ?>
+											<option value="<?php echo esc_attr( $monitor_id ); ?>" selected><?php echo esc_html( wp_strip_all_tags( $monitor->get_formatted_name() ) ); ?></option>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">Van primero en la sección, en este orden. Se pueden combinar con la categoría de abajo (se completa con esos hasta el máximo por variante).</p>
+							</div>
+							<div class="tgs-field">
 								<label for="monitor_category">Categoría de monitores</label>
 								<?php
 								wp_dropdown_categories( array(
@@ -266,13 +298,13 @@ function tgs_sq_page_settings() {
 									'name'             => 'monitor_category',
 									'id'               => 'monitor_category',
 									'selected'         => $monitor_category,
-									'show_option_none' => 'No mostrar "Sumale un monitor"',
+									'show_option_none' => 'Solo los monitores elegidos arriba',
 									'option_none_value' => 0,
 									'hide_empty'       => false,
 									'hierarchical'     => true,
 								) );
 								?>
-								<p class="description">Los productos simples publicados y con stock de esta categoría aparecen en la sección "Sumale un monitor". Al elegir uno, "Agregar al carrito" suma la PC y el monitor. La sección se activa por variante (Variantes → secciones) o con el placeholder <code>{{monitores}}</code>.</p>
+								<p class="description">Los productos simples publicados y con stock de esta categoría completan la sección "Sumale un monitor". Al elegir uno, "Agregar al carrito" suma la PC y el monitor. La sección se activa por variante (Variantes → secciones) o con el placeholder <code>{{monitores}}</code>. Sin monitores elegidos ni categoría, la sección no se muestra.</p>
 							</div>
 							<div class="tgs-field">
 								<label for="hidden_shipping">Métodos de envío que no se muestran</label>

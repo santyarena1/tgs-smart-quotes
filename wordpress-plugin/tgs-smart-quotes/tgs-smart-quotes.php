@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.13.0
+ * Version: 2.14.0
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.13.0' );
+define( 'TGS_SQ_VERSION', '2.14.0' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -54,6 +54,10 @@ define( 'TGS_SQ_DEFAULT_VARIANT', 'default' );
 define( 'TGS_SQ_OPTION_DEFAULT_VARIANT', 'tgs_sq_default_variant' );
 // Categoría de WooCommerce con los monitores de "Sumale un monitor".
 define( 'TGS_SQ_OPTION_MONITOR_CATEGORY', 'tgs_sq_monitor_category' );
+// Monitores elegidos a mano (IDs de producto), van primero en la sección.
+define( 'TGS_SQ_OPTION_MONITOR_PRODUCTS', 'tgs_sq_monitor_products' );
+// Categoría en la que entran las PCs nuevas al publicarse (0 = "TGS").
+define( 'TGS_SQ_OPTION_DEFAULT_CATEGORY', 'tgs_sq_default_category' );
 // Métodos de envío (por título, uno por línea) que no se muestran en la ficha.
 define( 'TGS_SQ_OPTION_HIDDEN_SHIPPING', 'tgs_sq_hidden_shipping' );
 
@@ -82,6 +86,11 @@ add_action( 'admin_enqueue_scripts', function () {
 		return;
 	}
 	wp_enqueue_style( 'tgs-sq-admin', TGS_SQ_URL . 'assets/tgs-admin.css', array(), TGS_SQ_VERSION );
+	// Buscador de productos de WooCommerce (select2) para elegir monitores en Ajustes.
+	if ( class_exists( 'WooCommerce' ) ) {
+		wp_enqueue_style( 'woocommerce_admin_styles' );
+		wp_enqueue_script( 'wc-enhanced-select' );
+	}
 } );
 
 /**
