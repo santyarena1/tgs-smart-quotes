@@ -676,6 +676,9 @@ model QuoteItem {
   /// otras PCs (para eso está la ficha del producto del catálogo).
   webDescription       String?
   webImageUrl          String?
+  /// Cómo se recortó la foto propia: 'model' (segmentación) o 'color'
+  /// (relleno viejo). Null = sin recortar o anterior a este dato.
+  webImageCut          String?
   /// Ítem principal del PDF SIMPLE cuando la familia es una PC armada.
   isPcMainLine         Boolean      @default(false)
 
@@ -1234,6 +1237,10 @@ model ProductAsset {
   /// Motivo del último fallo al quitar el fondo, para poder mostrarlo en la
   /// pantalla en vez de dejar la imagen en "falló" sin explicación.
   lastError  String?
+  /// Cómo se recortó: 'model' (segmentación) o 'color' (relleno viejo).
+  /// Null = sin recortar o anterior a este dato. "Revisar recortes" rehace
+  /// todo lo que no sea 'model'.
+  cutMethod  String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   /// Presupuestos que usan esta imagen como foto del hero.

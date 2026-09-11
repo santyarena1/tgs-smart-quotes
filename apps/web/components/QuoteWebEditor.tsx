@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, apiUpload, generateFamilyThumbnailAi } from "../lib/api";
+import { api, apiUpload, generateFamilyThumbnailAi, recutQuoteImages } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
 import { Alert, Checkbox, Field, Loading, Modal, Pill, Tabs, errorMessage } from "./shared";
@@ -74,6 +74,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [generatingThumb, setGeneratingThumb] = useState(false);
   const [thumbNotice, setThumbNotice] = useState<string | null>(null);
   const [thumbOpen, setThumbOpen] = useState(false);
+  const [recutting, setRecutting] = useState(false);
+  const [recutNotice, setRecutNotice] = useState<string | null>(null);
 
   const [enrichment, setEnrichment] = useState<Enrichment>(null);
   const [descriptionDraft, setDescriptionDraft] = useState("");
@@ -318,6 +320,27 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     }
   };
 
+  /** Revisa los recortes: rehace con el modelo las fotos recortadas con el método viejo (o todas, con force). */
+  const recutImages = async (force = false) => {
+    if (!version) return;
+    setRecutting(true);
+    setActionError(null);
+    setRecutNotice(null);
+    try {
+      const summary = await recutQuoteImages(version.id, { force });
+      setRecutNotice(summary.detail);
+      if (summary.recut.length) {
+        await load();
+        setPreviewNonce((n) => n + 1);
+        onChanged?.();
+      }
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setRecutting(false);
+    }
+  };
+
   const uploadThumbnail = async (file: File) => {
     if (!quote) return;
     setUploadingThumb(true);
@@ -542,6 +565,15 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(version.id)}>
             {busyPublish ? "Publicando…" : isStale ? `Actualizar a v${version.version} sin preparar` : isPublished ? "Actualizar sin preparar" : "Publicar sin preparar"}
           </button>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={busy || recutting}
+            title="Vuelve a quitar el fondo con el modelo de segmentación a las fotos que se recortaron con el método viejo. Con Shift: todas."
+            onClick={(e) => void recutImages(e.shiftKey)}
+          >
+            {recutting ? "Revisando recortes…" : "Revisar recortes"}
+          </button>
           {isPublished ? (
             <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void unpublish()}>
               Despublicar
@@ -556,6 +588,12 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             La tienda sigue mostrando la v{publication?.publishedVersionNumber} tal como se publicó. La v{version.version} no se
             envía hasta que la actualices desde acá.
           </Alert>
+        </div>
+      ) : null}
+
+      {recutNotice ? (
+        <div style={{ marginTop: 12 }}>
+          <Alert tone="info">{recutNotice}</Alert>
         </div>
       ) : null}
 

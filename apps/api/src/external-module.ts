@@ -1,5 +1,5 @@
 import{BadGatewayException,BadRequestException,Body,ConflictException,Controller,Delete,Get,NotFoundException,Param,Patch,Post,Put,Query,Req,StreamableFile}from'@nestjs/common';
-import{createHmac,randomUUID}from'node:crypto';import{createReadStream,existsSync}from'node:fs';import path from'node:path';import{z}from'zod';import{db,enqueueJob}from'@tgs/database';import{assetFromUrlSchema,assetModeSchema,assetUpdateSchema,DEFAULT_LANDING_LAYOUT,idSchema,landingLayoutSchema,quoteEnrichmentUpdateSchema,thumbnailGenerateSchema,thumbnailRulesSchema,thumbnailTemplateCreateSchema,thumbnailTemplateUpdateSchema,productContentSchema,quoteFamilyPublishSettingsSchema,type ProductContentInput,type QuoteFamilyPublishSettingsInput,type AssetFromUrlInput,type AssetModeInput,type AssetUpdateInput,type LandingLayout,type QuoteEnrichmentUpdateInput,type ThumbnailGenerateInput,type ThumbnailRules,type ThumbnailTemplateCreateInput,type ThumbnailTemplateUpdateInput}from'@tgs/contracts';import{buildPublishPayload,generateBackground,getHiggsfieldKey,getSerperKey,publishQuote,removeBackground,resolvePublishVersionId,searchImages,unpublishQuote,WordpressPublishError}from'@tgs/providers';import{loadPublishRun,PublishRunConflictError,startPublishRun}from'./publish-pipeline.js';import{generateProductDescription,loadEnrichmentItems,runQuoteEnrichment}from'./quote-enrichment.js';import{buildStoreTitle}from'./quote-title.js';import{loadMediaStorage,normalizeMediaUrl,ownStorageKeyFromUrl,readMedia}from'@tgs/storage';import{createAiClient,DEFAULT_AI_MODEL,describeOpenAiError}from'@tgs/ai';import{decryptSecret}from'@tgs/config';import{CurrentUser,jsonSafe,type RequestUser,ZodPipe}from'./infrastructure.js';import{renderThumbnail}from'./thumbnail-render.js';import{generateAiThumbnail,ThumbnailAiUnavailable}from'./thumbnail-ai.js';
+import{createHmac,randomUUID}from'node:crypto';import{createReadStream,existsSync}from'node:fs';import path from'node:path';import{z}from'zod';import{db,enqueueJob}from'@tgs/database';import{assetFromUrlSchema,assetModeSchema,assetUpdateSchema,DEFAULT_LANDING_LAYOUT,idSchema,landingLayoutSchema,quoteEnrichmentUpdateSchema,thumbnailGenerateSchema,thumbnailRulesSchema,thumbnailTemplateCreateSchema,thumbnailTemplateUpdateSchema,productContentSchema,quoteFamilyPublishSettingsSchema,type ProductContentInput,type QuoteFamilyPublishSettingsInput,type AssetFromUrlInput,type AssetModeInput,type AssetUpdateInput,type LandingLayout,type QuoteEnrichmentUpdateInput,type ThumbnailGenerateInput,type ThumbnailRules,type ThumbnailTemplateCreateInput,type ThumbnailTemplateUpdateInput}from'@tgs/contracts';import{buildPublishPayload,generateBackground,getHiggsfieldKey,getSerperKey,publishQuote,removeBackground,removeBackgroundDetailed,resolvePublishVersionId,searchImages,unpublishQuote,WordpressPublishError}from'@tgs/providers';import{loadPublishRun,PublishRunConflictError,startPublishRun}from'./publish-pipeline.js';import{generateProductDescription,loadEnrichmentItems,runQuoteEnrichment}from'./quote-enrichment.js';import{buildStoreTitle}from'./quote-title.js';import{loadMediaStorage,normalizeMediaUrl,ownStorageKeyFromUrl,readMedia}from'@tgs/storage';import{createAiClient,DEFAULT_AI_MODEL,describeOpenAiError}from'@tgs/ai';import{decryptSecret}from'@tgs/config';import{CurrentUser,jsonSafe,type RequestUser,ZodPipe}from'./infrastructure.js';import{renderThumbnail}from'./thumbnail-render.js';import{generateAiThumbnail,ThumbnailAiUnavailable}from'./thumbnail-ai.js';import{describeRecut,recutVersionImages}from'./cutouts.js';
 const serperQuerySchema=z.object({q:z.string().trim().min(1).max(300)}).strict();
 // Elegir como imagen del hero una de las fotos ya cargadas. Se recibe el id de
 // la imagen (no la URL) para que el servidor resuelva la dirección real y no
@@ -55,14 +55,15 @@ async function saveItemImage(itemId:string,source:Buffer,contentType:string,mode
  let bytes=source;
  let extension=contentType==='image/png'?'png':contentType==='image/webp'?'webp':contentType==='image/gif'?'gif':'jpg';
  let aviso:string|null=null;
+ let cut:string|null=null;
  if(mode==='remove-bg'){
-  try{bytes=await removeBackground(source);extension='png';}
+  try{const result=await removeBackgroundDetailed(source);bytes=result.buffer;extension='png';cut=result.method;}
   catch(error){aviso=error instanceof Error?error.message:'No se pudo quitar el fondo.';}
  }
  const stored=await storage.put(`quote-items/${itemId}/${randomUUID()}.${extension}`,bytes,extension==='png'?'image/png':contentType);
  const old=await db.quoteItem.findUnique({where:{id:itemId}});
  const previousKey=ownStorageKeyFromUrl(old?.webImageUrl);
- const next=await db.$transaction(async tx=>{const saved=await tx.quoteItem.update({where:{id:itemId},data:{webImageUrl:stored.url}});await audit(tx,userId,itemId,'UPDATE_IMAGE',old,saved,'QuoteItem');return saved;});
+ const next=await db.$transaction(async tx=>{const saved=await tx.quoteItem.update({where:{id:itemId},data:{webImageUrl:stored.url,webImageCut:cut}});await audit(tx,userId,itemId,'UPDATE_IMAGE',old,saved,'QuoteItem');return saved;});
  // La foto anterior de este ítem ya no la usa nadie.
  if(previousKey&&previousKey!==stored.key)try{await storage.delete(previousKey);}catch{}
  return {...next,aviso};
@@ -114,9 +115,9 @@ async function removeAssetBackground(assetId:string){
   throw new BadRequestException(`No se pudo leer la imagen de origen: ${detalle}`);
  }
  try{
-  const png=await removeBackground(source);
+  const {buffer:png,method}=await removeBackgroundDetailed(source);
   const stored=await storage.put(`product-assets/${asset.productId}/${asset.id}.png`,png,'image/png');
-  return db.productAsset.update({where:{id:asset.id},data:{url:stored.url,storageKey:stored.key,status:'READY',lastError:null}});
+  return db.productAsset.update({where:{id:asset.id},data:{url:stored.url,storageKey:stored.key,status:'READY',lastError:null,cutMethod:method}});
  }catch(error){
   const detalle=error instanceof Error?error.message:'No se pudo quitar el fondo';
   await db.productAsset.update({where:{id:assetId},data:{status:'FAILED',lastError:detalle.slice(0,500)}});
@@ -304,6 +305,8 @@ if(!title)throw error instanceof Error?new BadRequestException(error.message):er
  // Payload exacto que se le manda a WordPress al publicar. La vista previa de
  // la app lo consume para mostrar lo que realmente se va a publicar (mismos
  // textos, precios, imagenes y tokens de diseno), en vez de una maqueta aparte.
+ // Revisión de recortes a pedido: rehace con el modelo las fotos que no fueron recortadas con él (force: todas).
+ @Post('quotes/:versionId/recut-images')async recutImages(@Param('versionId',new ZodPipe(idSchema))versionId:string,@Body(new ZodPipe(z.object({force:z.boolean().optional()}).strict().optional()))body:{force?:boolean}|undefined,@CurrentUser()u:RequestUser){await quoteVersion(versionId);const summary=await recutVersionImages(versionId,u.id,{force:Boolean(body?.force)});return{...summary,detail:describeRecut(summary)};}
  @Get('quotes/:versionId/enrichment')async getEnrichment(@Param('versionId',new ZodPipe(idSchema))versionId:string){await quoteVersion(versionId);return jsonSafe(await db.quoteEnrichment.findUnique({where:{quoteVersionId:versionId}}));}
  @Post('quotes/:versionId/enrich')async enrichQuote(@Param('versionId',new ZodPipe(idSchema))versionId:string,@CurrentUser()u:RequestUser){const version=await quoteVersion(versionId);if(!version.items.length)throw new BadRequestException('El presupuesto no tiene ítems');const{enrichment,ai}=await runQuoteEnrichment(versionId,u.id);return jsonSafe({...enrichment,ai});}
  @Put('quotes/:versionId/enrichment')async updateEnrichment(@Param('versionId',new ZodPipe(idSchema))versionId:string,@Body(new ZodPipe(quoteEnrichmentUpdateSchema))body:QuoteEnrichmentUpdateInput,@CurrentUser()u:RequestUser){await quoteVersion(versionId);const old=await db.quoteEnrichment.findUnique({where:{quoteVersionId:versionId}});const data=enrichmentData(body);const next=await db.$transaction(async tx=>{const saved=await tx.quoteEnrichment.upsert({where:{quoteVersionId:versionId},create:{quoteVersionId:versionId,...data},update:data});await audit(tx,u.id,saved.id,'UPDATE',old,saved,'QuoteEnrichment');return saved;});return jsonSafe(next);}

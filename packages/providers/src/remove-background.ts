@@ -50,6 +50,8 @@ export type RemoveBackgroundResult = {
   buffer: Buffer;
   /** Proporción de la imagen que se volvió transparente (0 a 1). */
   removedRatio: number;
+  /** 'model' = segmentación (ISNet); 'color' = relleno por color desde los bordes. */
+  method: 'model' | 'color';
 };
 
 /**
@@ -105,7 +107,7 @@ export async function removeBackgroundDetailed(input: Buffer): Promise<RemoveBac
     const { data, info } = await sharp(modelOutput).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     let transparent = 0;
     for (let i = 3; i < data.length; i += info.channels) if (data[i]! < 128) transparent++;
-    return { buffer: modelOutput, removedRatio: transparent / (info.width * info.height) };
+    return { buffer: modelOutput, removedRatio: transparent / (info.width * info.height), method: 'model' };
   }
   return removeBackgroundByColor(input);
 }
@@ -287,5 +289,5 @@ export async function removeBackgroundByColor(input: Buffer): Promise<RemoveBack
   }
 
   const buffer = await sharp(data, { raw: { width, height, channels } }).png().toBuffer();
-  return { buffer, removedRatio };
+  return { buffer, removedRatio, method: 'color' };
 }

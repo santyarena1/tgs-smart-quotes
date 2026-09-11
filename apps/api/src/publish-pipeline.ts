@@ -19,6 +19,7 @@ import {enrichmentItemsHash, gamesToAnalyze, generateProductDescription, loadEnr
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable} from './thumbnail-ai.js';
+import {describeRecut, recutVersionImages} from './cutouts.js';
 
 const logger = new Logger('PublishPipeline');
 
@@ -27,6 +28,7 @@ export type PublishRunStep = {id: string; label: string; status: PublishRunStepS
 
 const STEP_DEFS: Array<{id: string; label: string}> = [
   {id: 'images', label: 'Imágenes de componentes'},
+  {id: 'cutouts', label: 'Recortes de las fotos'},
   {id: 'descriptions', label: 'Descripciones de componentes'},
   {id: 'hero', label: 'Foto principal'},
   {id: 'enrichment', label: 'Textos y análisis con IA'},
@@ -105,6 +107,13 @@ async function runPipeline(runId: string, opts: {familyId: string; versionId: st
   };
 
   await step('images', () => fillMissingImages(opts.versionId, opts.userId));
+  await step('cutouts', async () => {
+    // Fotos recortadas con el método viejo (o con fondo): se rehacen con el
+    // modelo de segmentación para que ninguna salga con halo o sombra.
+    const summary = await recutVersionImages(opts.versionId, opts.userId);
+    if (!summary.recut.length && !summary.failed.length) return {status: 'SKIPPED', detail: summary.kept ? 'Todas las fotos ya tienen el recorte nuevo' : 'Sin fotos que revisar'};
+    return {status: 'DONE', detail: describeRecut(summary)};
+  });
   await step('descriptions', () => fillMissingDescriptions(opts.versionId, opts.userId));
   await step('hero', () => ensureHero(opts.familyId, opts.versionId));
   await step('enrichment', () => ensureEnrichment(opts.versionId, opts.userId));
@@ -167,14 +176,14 @@ async function fillMissingImages(versionId: string, userId: string): Promise<{st
         const source = await storage.put(`product-assets/${item.productId}/source-${randomUUID()}.${picked.sourceExtension}`, picked.source, picked.contentType);
         const existing = await db.productAsset.count({where: {productId: item.productId}});
         const asset = await db.productAsset.create({
-          data: {productId: item.productId, origin: 'SERPER', sourceUrl: source.url, approved: true, isPrimary: existing === 0, status: 'PENDING'},
+          data: {productId: item.productId, origin: 'SERPER', sourceUrl: source.url, approved: true, isPrimary: existing === 0, status: 'PENDING', cutMethod: picked.transparent ? (picked.method ?? 'color') : null},
         });
         const stored = await storage.put(`product-assets/${item.productId}/${asset.id}.${extension}`, picked.bytes, contentType);
         await db.productAsset.update({where: {id: asset.id}, data: {url: stored.url, storageKey: stored.key, status: 'READY'}});
         await db.auditLog.create({data: {userId, entityType: 'ProductAsset', entityId: asset.id, action: 'AUTO_FROM_SERPER', next: {sourceUrl: picked.sourceUrl, transparent: picked.transparent} as any}});
       } else {
         const stored = await storage.put(`quote-items/${item.itemId}/${randomUUID()}.${extension}`, picked.bytes, contentType);
-        await db.quoteItem.update({where: {id: item.itemId}, data: {webImageUrl: stored.url}});
+        await db.quoteItem.update({where: {id: item.itemId}, data: {webImageUrl: stored.url, webImageCut: picked.transparent ? (picked.method ?? 'color') : null}});
         await db.auditLog.create({data: {userId, entityType: 'QuoteItem', entityId: item.itemId, action: 'AUTO_IMAGE_FROM_SERPER', next: {sourceUrl: picked.sourceUrl, transparent: picked.transparent} as any}});
       }
       found.push(`${item.name}${picked.transparent ? '' : ' (con fondo)'}`);
@@ -200,6 +209,8 @@ type PickedImage = {
   contentType: string;
   sourceExtension: string;
   transparent: boolean;
+  /** Método con el que se recortó (solo si transparent). */
+  method?: 'model' | 'color';
 };
 
 /**
@@ -220,8 +231,8 @@ async function findProductImage(name: string, apiKey: string): Promise<PickedIma
     }
     const sourceExtension = downloaded.contentType === 'image/png' ? 'png' : downloaded.contentType === 'image/webp' ? 'webp' : 'jpg';
     try {
-      const {buffer} = await removeBackgroundDetailed(downloaded.buffer);
-      return {bytes: buffer, source: downloaded.buffer, sourceUrl: candidate.url, contentType: downloaded.contentType, sourceExtension, transparent: true};
+      const {buffer, method} = await removeBackgroundDetailed(downloaded.buffer);
+      return {bytes: buffer, source: downloaded.buffer, sourceUrl: candidate.url, contentType: downloaded.contentType, sourceExtension, transparent: true, method};
     } catch {
       fallback ??= {bytes: downloaded.buffer, source: downloaded.buffer, sourceUrl: candidate.url, contentType: downloaded.contentType, sourceExtension, transparent: false};
     }

@@ -283,6 +283,13 @@ export function deleteThumbnailAiReference(id: string): Promise<{ok: true}> {
   return api<{ok: true}>(`/settings/thumbnail-ai/references/${id}`, {method: 'DELETE'});
 }
 
+export type RecutSummary = {recut: string[]; kept: number; failed: string[]; missing: number; detail: string};
+
+/** Rehace con el modelo de segmentación las fotos del presupuesto que no fueron recortadas con él. */
+export function recutQuoteImages(versionId: string, options: {force?: boolean} = {}): Promise<RecutSummary> {
+  return api<RecutSummary>(`/external-module/quotes/${versionId}/recut-images`, {method: 'POST', body: options});
+}
+
 /** Genera (o regenera) la miniatura de una PC con IA. Cada llamada es una imagen nueva. */
 export function generateFamilyThumbnailAi(familyId: string, options: {regenerateCase?: boolean} = {}): Promise<{thumbnailUrl: string; detail: string}> {
   return api<{thumbnailUrl: string; detail: string}>(`/external-module/quote-families/${familyId}/thumbnail/generate`, {method: 'POST', body: options});
