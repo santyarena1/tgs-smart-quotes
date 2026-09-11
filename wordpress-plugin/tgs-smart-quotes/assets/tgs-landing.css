@@ -1,3 +1,27 @@
+/* Tipografías propias del plugin (subset latino, OFL). Las rutas son
+ * relativas a este archivo: assets/tgs-landing.css → assets/fonts/. */
+@font-face {
+	font-family: "Inter";
+	font-style: normal;
+	font-weight: 400 800;
+	font-display: swap;
+	src: url("fonts/inter-latin-400-800.woff2") format("woff2");
+}
+@font-face {
+	font-family: "Rajdhani";
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url("fonts/rajdhani-latin-600.woff2") format("woff2");
+}
+@font-face {
+	font-family: "Rajdhani";
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url("fonts/rajdhani-latin-700.woff2") format("woff2");
+}
+
 /* TGS Smart Quotes — estilos de la ficha de producto de PC armada.
  * Todo vive scoped dentro de .tgs-landing para no heredar nada del tema.
  *

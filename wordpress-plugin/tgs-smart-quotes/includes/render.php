@@ -39,9 +39,14 @@ add_action( 'wp_enqueue_scripts', function () {
 	}
 	// Tipografías de la ficha: Inter para texto (legible y con contraste
 	// contra los títulos) y Rajdhani para títulos y números (más "gamer").
-	// Antes se pedía Inter sin cargarla y el navegador caía a la del sistema.
-	wp_enqueue_style( 'tgs-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap', array(), null );
-	wp_enqueue_style( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.css', array( 'tgs-fonts' ), TGS_SQ_VERSION );
+	// Se sirven desde el plugin (assets/fonts, @font-face en tgs-landing.css):
+	// pedirlas a Google Fonts dependía de que ningún plugin de optimización
+	// las bloqueara o difiriera, y el título salía con la fuente del sistema.
+	wp_enqueue_style( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.css', array(), TGS_SQ_VERSION );
+	// Precarga de la fuente del título para que no "salte" al cargar.
+	add_filter( 'wp_head', function () {
+		echo '<link rel="preload" as="font" type="font/woff2" crossorigin href="' . esc_url( TGS_SQ_URL . 'assets/fonts/rajdhani-latin-700.woff2' ) . '">' . "\n";
+	}, 1 );
 	wp_enqueue_script( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.js', array(), TGS_SQ_VERSION, true );
 
 	$model3d = get_post_meta( get_the_ID(), TGS_SQ_META_MODEL3D, true );
