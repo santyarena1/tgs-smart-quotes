@@ -121,9 +121,10 @@
 .tgs-landing img {
 	max-width: 100%;
 }
-.tgs-landing h1,
-.tgs-landing h2,
-.tgs-landing h3 {
+/* Especificidad cero a propósito (:where): es un reset para los títulos,
+ * y en modo "Diseño propio" el código pegado (por ejemplo .gx-title con
+ * Rajdhani) tiene que poder pisarlo con un selector de una sola clase. */
+:where(.tgs-landing) :where(h1, h2, h3) {
 	font-family: var(--tgs-font);
 	margin: 0;
 	text-transform: none;

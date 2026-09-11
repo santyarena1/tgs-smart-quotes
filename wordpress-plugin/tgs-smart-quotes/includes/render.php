@@ -43,10 +43,6 @@ add_action( 'wp_enqueue_scripts', function () {
 	// pedirlas a Google Fonts dependía de que ningún plugin de optimización
 	// las bloqueara o difiriera, y el título salía con la fuente del sistema.
 	wp_enqueue_style( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.css', array(), TGS_SQ_VERSION );
-	// Precarga de la fuente del título para que no "salte" al cargar.
-	add_filter( 'wp_head', function () {
-		echo '<link rel="preload" as="font" type="font/woff2" crossorigin href="' . esc_url( TGS_SQ_URL . 'assets/fonts/rajdhani-latin-700.woff2' ) . '">' . "\n";
-	}, 1 );
 	wp_enqueue_script( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.js', array(), TGS_SQ_VERSION, true );
 
 	$model3d = get_post_meta( get_the_ID(), TGS_SQ_META_MODEL3D, true );
@@ -54,6 +50,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		wp_enqueue_script( 'tgs-model-viewer', TGS_SQ_URL . 'assets/model-viewer.min.js', array(), TGS_SQ_VERSION, true );
 	}
 } );
+
+// Precarga de la fuente del título para que no "salte" al cargar.
+add_action( 'wp_head', function () {
+	if ( is_singular( 'product' ) && tgs_sq_is_managed_product() ) {
+		echo '<link rel="preload" as="font" type="font/woff2" crossorigin href="' . esc_url( TGS_SQ_URL . 'assets/fonts/rajdhani-latin-700.woff2' ) . '">' . "\n";
+	}
+}, 1 );
 
 add_filter( 'script_loader_tag', function ( $tag, $handle ) {
 	return 'tgs-model-viewer' === $handle ? str_replace( '<script ', '<script type="module" ', $tag ) : $tag;
