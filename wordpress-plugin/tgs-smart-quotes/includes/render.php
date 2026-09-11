@@ -735,21 +735,25 @@ function tgs_sq_monitor_usable( $product_id ) {
  * Monitores para la sección: primero los elegidos a mano (Ajustes), después
  * los de la categoría configurada, sin repetir y hasta `count`.
  */
-function tgs_sq_monitor_products( $count ) {
+function tgs_sq_monitor_products( $count, array $extra = array() ) {
 	if ( ! function_exists( 'wc_get_product' ) ) {
 		return array();
 	}
 	$count    = max( 1, (int) $count );
 	$products = array();
 	$seen     = array();
-	foreach ( tgs_sq_monitor_product_ids() as $product_id ) {
+	// La variante puede traer su propia lista; en ese caso no se usa ni la
+	// lista global ni la categoría.
+	$custom = 'custom' === ( $extra['monitors_source'] ?? 'settings' );
+	$ids    = $custom ? array_values( array_filter( array_map( 'absint', (array) ( $extra['monitors_products'] ?? array() ) ) ) ) : tgs_sq_monitor_product_ids();
+	foreach ( $ids as $product_id ) {
 		$product = tgs_sq_monitor_usable( $product_id );
 		if ( $product ) {
 			$products[]          = $product;
 			$seen[ $product_id ] = true;
 		}
 	}
-	$category_id = tgs_sq_monitor_category_id();
+	$category_id = $custom ? 0 : tgs_sq_monitor_category_id();
 	if ( $category_id && count( $products ) < $count ) {
 		$query = new WP_Query( array(
 			'post_type'      => 'product',
@@ -783,6 +787,15 @@ function tgs_sq_is_addon_monitor( $product_id ) {
 	}
 	$category_id = tgs_sq_monitor_category_id();
 	$chosen      = in_array( $product_id, tgs_sq_monitor_product_ids(), true );
+	// También vale si alguna variante lo eligió para su propia lista.
+	if ( ! $chosen ) {
+		foreach ( tgs_sq_get_variants() as $variant ) {
+			if ( in_array( $product_id, array_map( 'absint', (array) ( $variant['extra']['monitors_products'] ?? array() ) ), true ) ) {
+				$chosen = true;
+				break;
+			}
+		}
+	}
 	if ( ! $chosen && ! ( $category_id && has_term( $category_id, 'product_cat', $product_id ) ) ) {
 		return false;
 	}
@@ -794,7 +807,7 @@ function tgs_sq_monitors_html( array $d ) {
 		return '';
 	}
 	$count    = (int) ( $d['extra']['monitors_count'] ?? 6 );
-	$monitors = tgs_sq_monitor_products( $count );
+	$monitors = tgs_sq_monitor_products( $count, (array) $d['extra'] );
 	if ( empty( $monitors ) ) {
 		return '';
 	}

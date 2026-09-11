@@ -280,35 +280,8 @@ function tgs_sq_page_settings() {
 							</div>
 							<div class="tgs-field tgs-field--wide">
 								<label for="monitor_search">Monitores elegidos</label>
-								<div class="tgs-picker" data-tgs-monitor-picker>
-									<div class="tgs-picker__search">
-										<input type="text" id="monitor_search" autocomplete="off" placeholder="Buscá por nombre o SKU (ej: samsung 24, 165hz, lg 27)…" data-picker-search>
-										<div class="tgs-picker__results" hidden data-picker-results></div>
-									</div>
-									<p class="tgs-picker__empty" data-picker-empty <?php echo $monitor_products ? 'hidden' : ''; ?>>Todavía no elegiste ningún monitor.</p>
-									<div class="tgs-picker__list" data-picker-list>
-										<?php foreach ( $monitor_products as $monitor_id ) : ?>
-											<?php $row = tgs_sq_product_picker_row( $monitor_id ); ?>
-											<?php if ( $row ) : ?>
-												<div class="tgs-picker__card" data-picker-item="<?php echo esc_attr( $row['id'] ); ?>">
-													<span class="tgs-picker__media"><?php echo $row['image'] ? '<img src="' . esc_url( $row['image'] ) . '" alt="">' : '<span class="tgs-picker__noimg">Sin foto</span>'; ?></span>
-													<span class="tgs-picker__body">
-														<a class="tgs-picker__name" href="<?php echo esc_url( $row['editUrl'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $row['name'] ); ?></a>
-														<span class="tgs-picker__meta"><?php echo $row['sku'] ? '<code>' . esc_html( $row['sku'] ) . '</code> · ' : ''; ?><strong><?php echo wp_kses_post( $row['priceHtml'] ); ?></strong> · <span class="tgs-chip tgs-chip--<?php echo $row['inStock'] ? 'ok' : 'warn'; ?>"><?php echo esc_html( $row['stockLabel'] ); ?></span></span>
-													</span>
-													<span class="tgs-picker__actions">
-														<span class="tgs-picker__pos"></span>
-														<button type="button" class="tgs-btn tgs-btn--small" data-move="up" title="Subir">▲</button>
-														<button type="button" class="tgs-btn tgs-btn--small" data-move="down" title="Bajar">▼</button>
-														<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-remove title="Quitar">✕</button>
-														<input type="hidden" name="monitor_products[]" value="<?php echo esc_attr( $row['id'] ); ?>">
-													</span>
-												</div>
-											<?php endif; ?>
-										<?php endforeach; ?>
-									</div>
-								</div>
-								<p class="description">Van primero en la sección, en este orden (▲ ▼ para ordenar). Se pueden combinar con la categoría de abajo, que completa hasta el máximo por variante. Acordate de tocar "Guardar".</p>
+								<?php tgs_sq_render_monitor_picker( $monitor_products, 'monitor_products[]', 'monitor_search' ); ?>
+								<p class="description">Van primero en la sección, en este orden (▲ ▼ para ordenar). Se pueden combinar con la categoría de abajo, que completa hasta el máximo por variante. Cada variante de diseño puede usar esta lista o elegir la suya (Variantes → Sumale un monitor). Acordate de tocar "Guardar".</p>
 							</div>
 							<div class="tgs-field">
 								<label for="monitor_category">Categoría de monitores</label>
@@ -368,6 +341,44 @@ function tgs_sq_page_settings() {
 /* ---------------------------------------------------------------------
  * Selector de monitores: buscador propio por AJAX.
  * ------------------------------------------------------------------- */
+
+/**
+ * Selector de monitores (buscador + lista ordenable). Lo usan Ajustes y el
+ * editor de variantes; `$input_name` es el nombre de los inputs ocultos que
+ * mandan los IDs elegidos, en orden.
+ */
+function tgs_sq_render_monitor_picker( array $ids, $input_name, $search_id ) {
+	?>
+	<div class="tgs-picker" data-tgs-monitor-picker data-picker-name="<?php echo esc_attr( $input_name ); ?>">
+		<div class="tgs-picker__search">
+			<input type="text" id="<?php echo esc_attr( $search_id ); ?>" autocomplete="off" placeholder="Buscá por nombre o SKU (ej: samsung 24, 165hz, lg 27)…" data-picker-search>
+			<div class="tgs-picker__results" hidden data-picker-results></div>
+		</div>
+		<p class="tgs-picker__empty" data-picker-empty <?php echo $ids ? 'hidden' : ''; ?>>Todavía no elegiste ningún monitor.</p>
+		<div class="tgs-picker__list" data-picker-list>
+			<?php foreach ( $ids as $monitor_id ) : ?>
+				<?php $row = tgs_sq_product_picker_row( $monitor_id ); ?>
+				<?php if ( $row ) : ?>
+					<div class="tgs-picker__card" data-picker-item="<?php echo esc_attr( $row['id'] ); ?>">
+						<span class="tgs-picker__media"><?php echo $row['image'] ? '<img src="' . esc_url( $row['image'] ) . '" alt="">' : '<span class="tgs-picker__noimg">Sin foto</span>'; ?></span>
+						<span class="tgs-picker__body">
+							<a class="tgs-picker__name" href="<?php echo esc_url( $row['editUrl'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $row['name'] ); ?></a>
+							<span class="tgs-picker__meta"><?php echo $row['sku'] ? '<code>' . esc_html( $row['sku'] ) . '</code> · ' : ''; ?><strong><?php echo wp_kses_post( $row['priceHtml'] ); ?></strong> · <span class="tgs-chip tgs-chip--<?php echo $row['inStock'] ? 'ok' : 'warn'; ?>"><?php echo esc_html( $row['stockLabel'] ); ?></span></span>
+						</span>
+						<span class="tgs-picker__actions">
+							<span class="tgs-picker__pos"></span>
+							<button type="button" class="tgs-btn tgs-btn--small" data-move="up" title="Subir">▲</button>
+							<button type="button" class="tgs-btn tgs-btn--small" data-move="down" title="Bajar">▼</button>
+							<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-remove title="Quitar">✕</button>
+							<input type="hidden" name="<?php echo esc_attr( $input_name ); ?>" value="<?php echo esc_attr( $row['id'] ); ?>">
+						</span>
+					</div>
+				<?php endif; ?>
+			<?php endforeach; ?>
+		</div>
+	</div>
+	<?php
+}
 
 /** Datos de un producto para el selector (foto, precio, stock, link). */
 function tgs_sq_product_picker_row( $product_id ) {
@@ -782,6 +793,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'recommended_count' => max( 1, min( 8, (int) ( $_POST['recommended_count'] ?? 4 ) ) ),
 				'monitors_title'    => sanitize_text_field( $_POST['monitors_title'] ?? '' ),
 				'monitors_count'    => max( 1, min( 12, (int) ( $_POST['monitors_count'] ?? 6 ) ) ),
+				'monitors_source'   => 'custom' === ( $_POST['monitors_source'] ?? '' ) ? 'custom' : 'settings',
+				'monitors_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['variant_monitor_products'] ?? array() ) ) ) ),
 				'payment_methods'   => sanitize_text_field( $_POST['payment_methods'] ?? '' ),
 				'financing_terms'   => sanitize_textarea_field( $_POST['financing_terms'] ?? '' ),
 				'ai_disclaimer'     => sanitize_text_field( $_POST['ai_disclaimer'] ?? '' ),
@@ -1081,7 +1094,18 @@ function tgs_sq_render_variant_editor( $slug ) {
 									<input type="number" id="monitors_count" name="monitors_count" value="<?php echo esc_attr( $extra['monitors_count'] ); ?>" min="1" max="12">
 									<span class="tgs-suffix">monitores</span>
 								</div>
-								<p class="description">Salen de la categoría elegida en Ajustes → Ficha de producto. Al elegir uno, se agrega al carrito junto con la PC.</p>
+								<p class="description">Al elegir uno en la ficha, se agrega al carrito junto con la PC.</p>
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label for="monitors_source">Sumale un monitor — qué monitores se ofrecen</label>
+								<select id="monitors_source" name="monitors_source" data-monitors-source>
+									<option value="settings" <?php selected( $extra['monitors_source'] ?? 'settings', 'settings' ); ?>>Los de Ajustes → Ficha de producto (monitores elegidos + categoría)</option>
+									<option value="custom" <?php selected( $extra['monitors_source'] ?? 'settings', 'custom' ); ?>>Elegir monitores solo para esta variante</option>
+								</select>
+								<div data-monitors-custom style="margin-top:10px;<?php echo 'custom' === ( $extra['monitors_source'] ?? 'settings' ) ? '' : 'display:none'; ?>">
+									<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra['monitors_products'] ?? array() ) ), 'variant_monitor_products[]', 'variant_monitor_search' ); ?>
+									<p class="description">Solo estos, en este orden. Si la lista queda vacía, la sección no se muestra en las PCs con esta variante.</p>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -1122,6 +1146,14 @@ function tgs_sq_render_variant_editor( $slug ) {
 		</form>
 	</div>
 	<script>
+	/* "Sumale un monitor": el selector propio de la variante solo se ve si eligió "custom". */
+	(function () {
+		var source = document.querySelector('[data-monitors-source]');
+		var custom = document.querySelector('[data-monitors-custom]');
+		if (source && custom) {
+			source.addEventListener('change', function () { custom.style.display = source.value === 'custom' ? '' : 'none'; });
+		}
+	})();
 	/* Muestra solo las tarjetas del modo elegido. Es solo comodidad visual:
 	   los campos del otro modo se siguen enviando y guardando, así que
 	   cambiar de modo nunca borra lo que ya estaba configurado. */

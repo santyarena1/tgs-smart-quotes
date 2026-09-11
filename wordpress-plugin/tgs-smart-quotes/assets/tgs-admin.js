@@ -9,11 +9,14 @@
 (function () {
 	'use strict';
 
-	var root = document.querySelector('[data-tgs-monitor-picker]');
-	if (!root || typeof window.tgsSqAdmin === 'undefined') {
+	if (typeof window.tgsSqAdmin === 'undefined') {
 		return;
 	}
 	var cfg = window.tgsSqAdmin;
+	document.querySelectorAll('[data-tgs-monitor-picker]').forEach(initPicker);
+
+	function initPicker(root) {
+	var inputName = root.getAttribute('data-picker-name') || 'monitor_products[]';
 	var input = root.querySelector('[data-picker-search]');
 	var results = root.querySelector('[data-picker-results]');
 	var list = root.querySelector('[data-picker-list]');
@@ -52,7 +55,7 @@
 				+ '<button type="button" class="tgs-btn tgs-btn--small" data-move="up" title="Subir">▲</button>'
 				+ '<button type="button" class="tgs-btn tgs-btn--small" data-move="down" title="Bajar">▼</button>'
 				+ '<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-remove title="Quitar">✕</button>'
-				+ '<input type="hidden" name="monitor_products[]" value="' + esc(p.id) + '">';
+				+ '<input type="hidden" name="' + esc(inputName) + '" value="' + esc(p.id) + '">';
 		return '<div class="tgs-picker__card" data-picker-item="' + esc(p.id) + '">'
 			+ '<span class="tgs-picker__media">' + thumb + '</span>'
 			+ '<span class="tgs-picker__body">'
@@ -146,4 +149,5 @@
 	});
 
 	refresh();
+	}
 })();

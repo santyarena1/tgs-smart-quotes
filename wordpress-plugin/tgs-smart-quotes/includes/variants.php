@@ -100,6 +100,10 @@ function tgs_sq_default_extra() {
 		// título y cuántos mostrar.
 		'monitors_title'     => 'Sumale un monitor',
 		'monitors_count'     => 6,
+		// 'settings' = los monitores elegidos + categoría de Ajustes;
+		// 'custom' = solo los de 'monitors_products' de esta variante.
+		'monitors_source'    => 'settings',
+		'monitors_products'  => array(),
 		'payment_methods'    => 'Efectivo, transferencia, tarjeta de crédito y débito',
 		// Aclaración de las cuotas. Toda mención a "cuotas sin interés" lleva un
 		// asterisco que remite a este texto, en el pie de Formas de pago.
