@@ -364,17 +364,40 @@ async function downloadImage(url: string): Promise<{buffer: Buffer; contentType:
 
 // ---------------------------------------------------------------------- hero
 
+/**
+ * Foto principal (hero): por defecto la del gabinete. Si ya hay una elegida
+ * y sigue siendo una foto vigente de algún componente, se respeta (pudo
+ * elegirla el usuario). Si apunta a una imagen que ya no existe —por ejemplo
+ * porque el gabinete se volvió a recortar o se reemplazó la foto— se vuelve
+ * a la del gabinete en vez de dejar la ficha con una imagen rota.
+ */
 async function ensureHero(familyId: string, versionId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
-  const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {heroAssetId: true, heroImageUrl: true}});
-  if (family.heroAssetId || family.heroImageUrl) return {status: 'SKIPPED', detail: 'Ya había una foto principal elegida'};
+  const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {heroAssetId: true, heroImageUrl: true, heroAsset: {select: {status: true, url: true}}}});
   const caseItem = await findCaseItem(versionId);
+  const items = await db.quoteItem.findMany({
+    where: {versionId},
+    select: {webImageUrl: true, product: {select: {assets: {where: {status: 'READY', url: {not: null}}, select: {id: true, url: true}}}}},
+  });
+  const validUrls = new Set<string>();
+  const validAssetIds = new Set<string>();
+  for (const item of items) {
+    if (item.webImageUrl) validUrls.add(item.webImageUrl);
+    for (const asset of item.product?.assets ?? []) {
+      validAssetIds.add(asset.id);
+      if (asset.url) validUrls.add(asset.url);
+    }
+  }
+  const heroValid = family.heroAssetId
+    ? validAssetIds.has(family.heroAssetId) && family.heroAsset?.status === 'READY' && Boolean(family.heroAsset.url)
+    : Boolean(family.heroImageUrl && validUrls.has(family.heroImageUrl));
+  if (heroValid) return {status: 'SKIPPED', detail: 'Se mantiene la foto principal elegida'};
   if (!caseItem) return {status: 'SKIPPED', detail: 'No hay gabinete con foto; la ficha usa la miniatura'};
   if (caseItem.assetId) {
     await db.quoteFamily.update({where: {id: familyId}, data: {heroAssetId: caseItem.assetId, heroImageUrl: null}});
   } else {
     await db.quoteFamily.update({where: {id: familyId}, data: {heroImageUrl: caseItem.imageUrl, heroAssetId: null}});
   }
-  return {status: 'DONE', detail: `Se usa la foto de ${caseItem.name}`};
+  return {status: 'DONE', detail: family.heroAssetId || family.heroImageUrl ? `La foto principal apuntaba a una imagen que ya no existe; se usa la de ${caseItem.name}` : `Se usa la foto de ${caseItem.name}`};
 }
 
 async function findCaseItem(versionId: string) {
@@ -390,9 +413,10 @@ async function findCaseItem(versionId: string) {
   });
   for (const item of items) {
     if (!CASE_PATTERN.test(`${item.line?.name ?? ''} ${item.frozenName}`)) continue;
+    // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
+    if (item.webImageUrl) return {name: item.frozenName, assetId: null, imageUrl: item.webImageUrl};
     const asset = item.product?.assets[0];
     if (asset?.url) return {name: item.frozenName, assetId: asset.id, imageUrl: asset.url};
-    if (item.webImageUrl) return {name: item.frozenName, assetId: null, imageUrl: item.webImageUrl};
   }
   return null;
 }

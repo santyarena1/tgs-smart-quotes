@@ -88,6 +88,8 @@ export async function recutVersionImages(versionId: string, userId: string | nul
         const stored = await storage.put(`quote-items/${item.id}/${randomUUID()}.png`, png, 'image/png');
         const previousKey = ownStorageKeyFromUrl(item.webImageUrl);
         await db.quoteItem.update({where: {id: item.id}, data: {webImageUrl: stored.url, webImageCut: 'model'}});
+        // Si esta foto era la principal de algún presupuesto, que siga apuntando a la nueva.
+        await db.quoteFamily.updateMany({where: {heroImageUrl: item.webImageUrl}, data: {heroImageUrl: stored.url}});
         if (previousKey) await storage.delete(previousKey).catch(() => undefined);
       } else if (asset) {
         const stored = await storage.put(`product-assets/${item.productId}/${asset.id}-${randomUUID().slice(0, 8)}.png`, png, 'image/png');
