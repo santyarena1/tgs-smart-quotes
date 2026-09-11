@@ -88,8 +88,18 @@ async function removeBackgroundWithModel(input: Buffer): Promise<Buffer | null> 
     const mime = meta.format === 'jpeg' ? 'image/jpeg' : meta.format === 'webp' ? 'image/webp' : 'image/png';
     const args = isTs ? ['--import', 'tsx', workerPath] : [workerPath];
     const ok = await new Promise<boolean>((resolve) => {
-      const child = execFile(process.execPath, [...args, inPath, outPath, mime], { timeout: 90_000, maxBuffer: 1024 * 1024 }, (error) => resolve(!error));
-      child.on('error', () => resolve(false));
+      const child = execFile(process.execPath, [...args, inPath, outPath, mime], { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 }, (error, _stdout, stderr) => {
+        if (error) {
+          // Se loguea el motivo (una sola línea) para poder diagnosticarlo en producción.
+          const reason = String(stderr || error.message).split('\n').filter(Boolean).slice(-3).join(' | ');
+          console.warn(JSON.stringify({ event: 'remove_background_model_failed', worker: workerPath, code: (error as any).code ?? null, signal: (error as any).signal ?? null, reason: reason.slice(0, 600) }));
+        }
+        resolve(!error);
+      });
+      child.on('error', (error) => {
+        console.warn(JSON.stringify({ event: 'remove_background_model_spawn_failed', worker: workerPath, reason: error.message }));
+        resolve(false);
+      });
     });
     if (!ok || !existsSync(outPath)) return null;
     const png = await readFile(outPath);
