@@ -87,16 +87,29 @@ const LINE_TESTS: {icon: RowIcon; label: string; test: RegExp}[] = [
   {icon: 'cooler', label: 'REFRIGERACIÓN', test: /refriger|cooler|water|disipador/i},
 ];
 
-/** Saca el prefijo redundante ("Procesador AMD..." → "AMD...") y acota el largo. */
-function cleanValue(name: string, label: string, max = 44): string {
-  let value = upper(name).replace(/\s+/g, ' ').trim();
-  const prefixes = [label, 'PLACA DE VIDEO', 'MEMORIA RAM', 'MEMORIA', 'DISCO SÓLIDO', 'DISCO', 'FUENTE DE PODER', 'FUENTE', 'PROCESADOR', 'MOTHERBOARD', 'GABINETE'];
+/**
+ * Deja el nombre del componente en una sola línea legible: saca el prefijo
+ * redundante ("Procesador AMD..." → "AMD..."), las aclaraciones entre
+ * paréntesis ("(SIMILAR 500GB)", "(AM4)"), las palabras de catálogo que no
+ * le dicen nada al cliente (OEM, BULK, SIN VIDEO...) y acota el largo
+ * cortando en una palabra.
+ */
+function cleanValue(name: string, label: string, max = 30): string {
+  let value = upper(name)
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\b(OEM|BULK|TRAY|BOX|SIMILAR|SIN VIDEO|C\/VIDEO|CON VIDEO|NUEVO|NUEVA|GARANTIA|GARANTÍA)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[\s.,;:-]+$/g, '')
+    .trim();
+  const prefixes = [label, 'PLACA DE VIDEO', 'MEMORIA RAM', 'MEMORIA', 'DISCO SÓLIDO', 'DISCO SSD', 'DISCO', 'FUENTE DE PODER', 'FUENTE', 'PROCESADOR', 'MOTHERBOARD', 'MOTHER', 'GABINETE', 'SSD', 'MICROPROCESADOR'];
   for (const prefix of prefixes) {
     if (value.startsWith(prefix + ' ')) value = value.slice(prefix.length + 1);
   }
   if (value.length > max) {
-    const cut = value.slice(0, max);
-    value = cut.slice(0, cut.lastIndexOf(' ') > max * 0.6 ? cut.lastIndexOf(' ') : max).trim();
+    const cut = value.slice(0, max + 1);
+    const space = cut.lastIndexOf(' ');
+    value = (space > max * 0.5 ? cut.slice(0, space) : value.slice(0, max)).trim();
   }
   return value;
 }
@@ -177,8 +190,17 @@ const svg = (paths: string, size: number) =>
 
 // --------------------------------------------------------------------- html
 
+/** Lado de referencia del diseño: todas las medidas en px están pensadas para 1240. */
+const BASE = 1240;
+
 export function renderThumbnailHtml(input: LayoutInput): string {
   const {accent} = input;
+  // El diseño se dibuja a escala 1240 y se achica/agranda entero con zoom,
+  // así el mismo layout sirve para 1024, 1536 o el tamaño que sea. En formatos
+  // no cuadrados el lado corto manda y el largo gana lienzo.
+  const scale = Math.min(input.width, input.height) / BASE;
+  const designW = Math.round(input.width / scale);
+  const designH = Math.round(input.height / scale);
   const threeLines = Boolean(input.headline.line3);
   const rowsHtml = input.rows
     .map(
@@ -197,10 +219,11 @@ export function renderThumbnailHtml(input: LayoutInput): string {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --accent: ${accent}; --w: ${input.width}px; --h: ${input.height}px; }
+  :root { --accent: ${accent}; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; width: var(--w); height: var(--h); overflow: hidden; }
+  html { margin: 0; width: ${input.width}px; height: ${input.height}px; overflow: hidden; background: #09090b; }
   body {
+    margin: 0; width: ${designW}px; height: ${designH}px; overflow: hidden; zoom: ${scale};
     position: relative; color: #fff; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
     background:
       radial-gradient(ellipse 70% 55% at 12% 100%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%),
@@ -210,25 +233,26 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   }
   .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%); pointer-events: none; }
   .left { position: absolute; left: 56px; top: 44px; width: 470px; display: flex; flex-direction: column; align-items: flex-start; }
-  .logo { height: 150px; width: auto; max-width: 320px; object-fit: contain; object-position: left; }
+  .logo { height: 130px; width: auto; max-width: 300px; object-fit: contain; object-position: left; }
   .logo-text { display: inline-flex; flex-direction: column; width: max-content; line-height: .9; font-weight: 900; letter-spacing: -.02em; text-transform: uppercase; }
   .logo-text .lt1 { font-size: 34px; color: #fff; }
   .logo-text .lt2 { font-size: 78px; color: var(--accent); -webkit-text-stroke: 2px #fff; }
   .logo-text .lt3 { font-size: 30px; color: #fff; align-self: flex-end; margin-right: 6px; }
-  .kicker { margin-top: 40px; font-size: 26px; font-weight: 600; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+  .kicker { margin-top: 28px; font-size: 26px; font-weight: 600; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
   .h1 { font-size: ${threeLines ? 84 : 92}px; font-weight: 800; line-height: .95; letter-spacing: -.01em; text-transform: uppercase; white-space: nowrap; }
   .h2 { font-size: ${threeLines ? 108 : 118}px; font-weight: 900; line-height: .95; letter-spacing: -.02em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 45%, transparent); }
   .h3 { font-size: 46px; font-weight: 800; line-height: 1; color: var(--accent); text-transform: uppercase; margin-top: 6px; }
   .rule { margin-top: 14px; height: 3px; width: 440px; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent)); border-radius: 2px; }
-  .rows { margin-top: 20px; display: flex; flex-direction: column; gap: ${input.rows.length > 5 ? 10 : 16}px; }
-  .row { display: flex; align-items: center; gap: 16px; min-height: 72px; }
+  .rows { margin-top: 18px; display: flex; flex-direction: column; gap: ${input.rows.length > 5 ? 10 : 16}px; width: 100%; }
+  .row { display: flex; align-items: center; gap: 16px; min-height: 72px; width: 100%; }
   .ico { width: 78px; height: 78px; flex: 0 0 78px; display: grid; place-items: center; color: var(--accent); background: rgba(255,255,255,.03); border: 2px solid color-mix(in srgb, var(--accent) 75%, transparent); border-radius: 12px; box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 0 14px rgba(0,0,0,.5); }
   .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .lbl { font-size: 17px; font-weight: 600; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; }
-  .val { font-size: 25px; font-weight: 600; line-height: 1.12; color: #fff; text-transform: uppercase; }
-  .case { position: absolute; right: 30px; top: 170px; width: 690px; height: 890px; display: grid; place-items: center; }
+  .val { font-size: 25px; font-weight: 600; line-height: 1.12; color: #fff; text-transform: uppercase; white-space: nowrap; }
+  .txt { flex: 1 1 auto; }
+  .case { position: absolute; right: 20px; top: 100px; width: ${designW - 560}px; height: ${designH - 270}px; display: grid; place-items: center; }
   .case img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 40px 50px rgba(0,0,0,.85)) drop-shadow(0 0 90px color-mix(in srgb, var(--accent) 22%, transparent)); }
-  .floor { position: absolute; right: 60px; bottom: 150px; width: 660px; height: 60px; background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.75), transparent 70%); filter: blur(6px); }
+  .floor { position: absolute; right: 50px; bottom: 160px; width: ${designW - 620}px; height: 60px; background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.75), transparent 70%); filter: blur(6px); }
   .footer { position: absolute; left: 56px; right: 56px; bottom: 44px; height: 110px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .badge { display: flex; align-items: center; gap: 14px; flex: 1; }
   .bico { color: #fff; width: 62px; height: 62px; display: grid; place-items: center; }
@@ -254,12 +278,15 @@ export function renderThumbnailHtml(input: LayoutInput): string {
 <script>
   // Título grande: si una línea no entra en la columna, se achica hasta que entre.
   // Corre recién con la tipografía web cargada: con la de reserva mide distinto.
+  function shrink(el, max, min) {
+    var size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > max && size > min) { size -= 1; el.style.fontSize = size + 'px'; }
+  }
   function fit() {
     var max = document.querySelector('.left').clientWidth;
-    document.querySelectorAll('.h1, .h2, .h3').forEach(function (el) {
-      var size = parseFloat(getComputedStyle(el).fontSize);
-      while (el.scrollWidth > max && size > 30) { size -= 2; el.style.fontSize = size + 'px'; }
-    });
+    document.querySelectorAll('.h1, .h2, .h3').forEach(function (el) { shrink(el, max, 30); });
+    // Valores de las filas: una sola línea; si no entra, se achica la letra.
+    document.querySelectorAll('.val').forEach(function (el) { shrink(el, el.parentNode.clientWidth, 15); });
   }
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fit, fit);
 </script>
