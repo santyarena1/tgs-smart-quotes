@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, apiUpload, generateFamilyThumbnailAi } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
-import { Alert, Checkbox, Field, Loading, Pill, Tabs, errorMessage } from "./shared";
+import { Alert, Checkbox, Field, Loading, Modal, Pill, Tabs, errorMessage } from "./shared";
 import { ProductContentEditor } from "./ProductContentEditor";
 import { QuoteItemContentEditor } from "./QuoteItemContentEditor";
 import { QuotePreview } from "./QuotePreview";
@@ -73,6 +73,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [uploadingThumb, setUploadingThumb] = useState(false);
   const [generatingThumb, setGeneratingThumb] = useState(false);
   const [thumbNotice, setThumbNotice] = useState<string | null>(null);
+  const [thumbOpen, setThumbOpen] = useState(false);
 
   const [enrichment, setEnrichment] = useState<Enrichment>(null);
   const [descriptionDraft, setDescriptionDraft] = useState("");
@@ -306,6 +307,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setQuote((prev) => (prev ? { ...prev, thumbnailUrl: next.thumbnailUrl } : prev));
       setThumbNotice(next.detail);
       setPreviewNonce((n) => n + 1);
+      // Se abre en grande apenas está lista, para verla sin recargar.
+      setThumbOpen(true);
     } catch (err) {
       setActionError(errorMessage(err));
     } finally {
@@ -704,11 +707,18 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             >
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 {quote.thumbnailUrl ? (
-                  <img
-                    src={quote.thumbnailUrl}
-                    alt="Miniatura actual"
-                    style={{ width: 64, height: 64, objectFit: "contain", background: "#fff", borderRadius: 8 }}
-                  />
+                  <button
+                    type="button"
+                    title="Ver en grande"
+                    onClick={() => setThumbOpen(true)}
+                    style={{ padding: 0, border: "1px solid var(--line, #ddd)", background: "#fff", borderRadius: 8, cursor: "zoom-in", lineHeight: 0 }}
+                  >
+                    <img
+                      src={quote.thumbnailUrl}
+                      alt="Miniatura actual"
+                      style={{ width: 96, height: 96, objectFit: "contain", borderRadius: 8 }}
+                    />
+                  </button>
                 ) : (
                   <span className="muted" style={{ fontSize: 12.5 }}>Sin miniatura cargada.</span>
                 )}
@@ -729,6 +739,25 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
               </div>
             </Field>
           </section>
+
+          <Modal open={thumbOpen && Boolean(quote.thumbnailUrl)} title="Miniatura" onClose={() => setThumbOpen(false)} wide>
+            <div style={{ display: "grid", gap: 10, justifyItems: "center" }}>
+              {quote.thumbnailUrl ? (
+                <img src={quote.thumbnailUrl} alt="Miniatura" style={{ maxWidth: "100%", maxHeight: "75vh", borderRadius: 10, background: "#111" }} />
+              ) : null}
+              {thumbNotice ? <span className="muted" style={{ fontSize: 12.5 }}>{thumbNotice}</span> : null}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="btn-dark btn-sm" disabled={generatingThumb} onClick={() => void generateThumbnailAi()}>
+                  {generatingThumb ? "Generando…" : "Regenerar"}
+                </button>
+                {quote.thumbnailUrl ? (
+                  <a className="btn-ghost btn-sm" href={quote.thumbnailUrl} target="_blank" rel="noopener">
+                    Abrir en pestaña nueva
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </Modal>
 
           <section className="card card-pad" style={{ marginTop: 16, display: "grid", gap: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

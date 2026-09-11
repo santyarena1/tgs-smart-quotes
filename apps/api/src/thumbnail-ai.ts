@@ -159,12 +159,22 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
   }
   const logo = settings.logoUrl ? await readOwnOrRemote(settings.logoUrl).catch(() => null) : null;
   const [width, height] = settings.size.split('x').map(Number) as [number, number];
+  // Sin los márgenes transparentes de la foto el gabinete ocupa todo su
+  // recuadro; si no, una foto con mucho aire alrededor sale chica. Y si la
+  // foto es chica, se agranda con lanczos para que el navegador no la
+  // pixele al estirarla.
+  const trimmed = await sharp(caseBuffer)
+    .png()
+    .trim({threshold: 8})
+    .toBuffer()
+    .then((buffer) => sharp(buffer).resize({height: 1100, kernel: 'lanczos3', fit: 'inside', withoutEnlargement: false}).png().toBuffer())
+    .catch(() => caseBuffer);
   const html = renderThumbnailHtml({
     width,
     height,
     accent: settings.accentColor,
     logoDataUrl: logo ? toDataUrl(logo.buffer, logo.mime) : null,
-    caseDataUrl: toDataUrl(await sharp(caseBuffer).png().toBuffer()),
+    caseDataUrl: toDataUrl(trimmed),
     headline,
     rows,
     footer: footerBadges(settings.footerJson),

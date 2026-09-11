@@ -251,8 +251,8 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
   .lbl { font-size: calc(20px * var(--rs)); font-weight: 600; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; }
   .val { font-size: calc(31px * var(--rs)); font-weight: 600; line-height: 1.1; color: #fff; text-transform: uppercase; white-space: nowrap; }
-  .case { position: absolute; right: 10px; top: 70px; width: ${designW - 610}px; height: ${designH - 230}px; display: grid; place-items: center; }
-  .case img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 40px 50px rgba(0,0,0,.85)) drop-shadow(0 0 90px color-mix(in srgb, var(--accent) 22%, transparent)); }
+  .case { position: absolute; right: 0; top: 50px; width: ${designW - 590}px; height: ${designH - 200}px; display: grid; place-items: center; }
+  .case img { width: 100%; height: 100%; object-fit: contain; object-position: center; filter: drop-shadow(0 40px 50px rgba(0,0,0,.85)) drop-shadow(0 0 90px color-mix(in srgb, var(--accent) 22%, transparent)); }
   .floor { position: absolute; right: 50px; bottom: 160px; width: ${designW - 620}px; height: 60px; background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.75), transparent 70%); filter: blur(6px); }
   .footer { position: absolute; left: 40px; right: 40px; bottom: 30px; height: 104px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .badge { display: flex; align-items: center; gap: 14px; flex: 1; }
