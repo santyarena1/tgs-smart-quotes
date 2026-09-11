@@ -20,6 +20,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Un fallo de WordPress al actualizar ya no saca la PC de \"Publicados\"; se reintenta solo cada hora",
       "Borrar un presupuesto lo despublica de la tienda; se arregló el worker que fallaba cada hora con \"SETTINGS_ENC_KEY debe contener 32 bytes\"",
       "Ficha de la tienda rediseñada (diseño Landing Gamer): barra de compra más limpia, juegos como tarjetas con barra de rendimiento, fotos de componentes grandes y hero proporcionado",
+      "Quitar fondo con modelo de segmentación local (ISNet): entiende qué es producto y qué es fondo, así que ya no quedan la sombra del piso, el halo ni el fondo que se veía a través del vidrio del gabinete; si el modelo no puede correr, cae al método anterior",
       "Quitar fondo más prolijo: borra también los huecos blancos encerrados (aro del cooler, entre ventiladores) y limpia el filete claro del borde",
       "Ficha: asterisco de condiciones en toda mención a cuotas sin interés (texto editable en la variante), aviso de \"generado con IA\" al pie de cada sección y tipografías Inter + Rajdhani cargadas por el plugin",
       "Ficha en celular: la barra de compra va en dos filas (precio + cuotas arriba, botón a lo ancho abajo) y ya nada desborda la pantalla",

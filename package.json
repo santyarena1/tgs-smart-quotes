@@ -13,7 +13,8 @@
       "argon2",
       "esbuild",
       "prisma",
-      "sharp"
+      "sharp",
+      "onnxruntime-node"
     ]
   },
   "scripts": {

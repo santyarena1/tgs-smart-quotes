@@ -1,4 +1,10 @@
 import sharp from 'sharp';
+import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Quitado de fondo sin servicios externos.
@@ -56,7 +62,56 @@ export async function removeBackground(input: Buffer): Promise<Buffer> {
   return buffer;
 }
 
+/**
+ * Quitado de fondo con modelo de segmentación (ISNet, corre local en un
+ * proceso hijo; ver remove-background-worker.ts). Entiende qué es el
+ * producto y qué es fondo, así que no deja la sombra del piso, el halo ni
+ * el fondo que se ve a través del vidrio de un gabinete, que es donde el
+ * relleno por color se quedaba corto. Devuelve null si el modelo no pudo
+ * correr (sin binario para esta plataforma, timeout, etc.) y el llamador
+ * cae al relleno por color.
+ */
+async function removeBackgroundWithModel(input: Buffer): Promise<Buffer | null> {
+  if (process.env.TGS_BG_MODEL === 'off') return null;
+  const workerUrl = new URL('./remove-background-worker.js', import.meta.url);
+  let workerPath = fileURLToPath(workerUrl);
+  const isTs = !existsSync(workerPath) && existsSync(workerPath.replace(/\.js$/, '.ts'));
+  if (isTs) workerPath = workerPath.replace(/\.js$/, '.ts');
+  const dir = await mkdtemp(join(tmpdir(), 'tgs-bg-'));
+  const inPath = join(dir, 'in.bin');
+  const outPath = join(dir, 'out.png');
+  try {
+    await writeFile(inPath, input);
+    const meta = await sharp(input, { failOn: 'none' }).metadata();
+    const mime = meta.format === 'jpeg' ? 'image/jpeg' : meta.format === 'webp' ? 'image/webp' : 'image/png';
+    const args = isTs ? ['--import', 'tsx', workerPath] : [workerPath];
+    const ok = await new Promise<boolean>((resolve) => {
+      const child = execFile(process.execPath, [...args, inPath, outPath, mime], { timeout: 90_000, maxBuffer: 1024 * 1024 }, (error) => resolve(!error));
+      child.on('error', () => resolve(false));
+    });
+    if (!ok || !existsSync(outPath)) return null;
+    const png = await readFile(outPath);
+    return png.length ? png : null;
+  } catch {
+    return null;
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
 export async function removeBackgroundDetailed(input: Buffer): Promise<RemoveBackgroundResult> {
+  const modelOutput = await removeBackgroundWithModel(input);
+  if (modelOutput) {
+    const { data, info } = await sharp(modelOutput).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let transparent = 0;
+    for (let i = 3; i < data.length; i += info.channels) if (data[i]! < 128) transparent++;
+    return { buffer: modelOutput, removedRatio: transparent / (info.width * info.height) };
+  }
+  return removeBackgroundByColor(input);
+}
+
+/** Relleno por color desde los bordes (el método original), como respaldo del modelo. */
+export async function removeBackgroundByColor(input: Buffer): Promise<RemoveBackgroundResult> {
   const image = sharp(input, { failOn: 'none' }).ensureAlpha();
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
   const { width, height, channels } = info;
