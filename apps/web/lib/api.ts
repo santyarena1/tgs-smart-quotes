@@ -137,6 +137,8 @@ export type WhatsappSettings = {
   displayPhoneNumber: string | null;
   verifiedName: string | null;
   lastVerifiedAt: string | null;
+  /** Último POST del webhook de Meta con firma válida; null si nunca llegó uno. */
+  lastWebhookAt: string | null;
   accessTokenMasked: string;
   appSecretMasked: string;
   hasAccessToken: boolean;

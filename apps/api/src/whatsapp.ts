@@ -82,6 +82,36 @@ const CHATBOT_NOTIFICATION_TYPES = [
 ];
 
 /** Frase exacta que hay que tipear para confirmar la limpieza masiva. */
+/**
+ * Resumen loggeable de un payload del webhook: campos suscriptos, cantidad de
+ * mensajes y de estados, y a qué número apunta. Nunca el cuerpo completo, que
+ * trae teléfonos y texto de clientes.
+ */
+function summarizeWebhookBody(body: any) {
+  const entries: any[] = Array.isArray(body?.entry) ? body.entry : [];
+  const fields = new Set<string>();
+  const phoneNumberIds = new Set<string>();
+  let messages = 0;
+  let statuses = 0;
+  for (const entry of entries) {
+    for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
+      if (typeof change?.field === 'string') fields.add(change.field);
+      const value = change?.value;
+      if (typeof value?.metadata?.phone_number_id === 'string') phoneNumberIds.add(value.metadata.phone_number_id);
+      messages += Array.isArray(value?.messages) ? value.messages.length : 0;
+      statuses += Array.isArray(value?.statuses) ? value.statuses.length : 0;
+    }
+  }
+  return {
+    object: typeof body?.object === 'string' ? body.object : null,
+    entries: entries.length,
+    fields: [...fields],
+    phoneNumberIds: [...phoneNumberIds],
+    messages,
+    statuses,
+  };
+}
+
 const PURGE_PHRASE = 'BORRAR TODO';
 
 const purgeSchema = z.object({
@@ -122,6 +152,7 @@ export class WhatsappController {
       displayPhoneNumber: row?.displayPhoneNumber ?? null,
       verifiedName: row?.verifiedName ?? null,
       lastVerifiedAt: row?.lastVerifiedAt ?? null,
+      lastWebhookAt: row?.lastWebhookAt ?? null,
       accessTokenMasked: mask(row?.accessTokenEncrypted),
       appSecretMasked: mask(row?.appSecretEncrypted),
       hasAccessToken: Boolean(row?.accessTokenEncrypted),
@@ -195,11 +226,18 @@ export class WhatsappController {
   @Get('webhook')
   async verifyWebhook(@Query() query: Record<string, string | undefined>, @Res() reply: any) {
     const row = await this.settings();
-    if (
-      query['hub.mode'] === 'subscribe'
+    const accepted = query['hub.mode'] === 'subscribe'
       && Boolean(row?.webhookVerifyToken)
-      && query['hub.verify_token'] === row?.webhookVerifyToken
-    ) {
+      && query['hub.verify_token'] === row?.webhookVerifyToken;
+    // Se loguea siempre: es la única forma de ver desde afuera si Meta llegó a la URL
+    // y, si no aceptó, distinguir "token distinto" de "no hay token configurado".
+    this.logger.log(JSON.stringify({
+      event: 'whatsapp_webhook_verify',
+      accepted,
+      mode: query['hub.mode'] ?? null,
+      hasConfiguredToken: Boolean(row?.webhookVerifyToken),
+    }));
+    if (accepted) {
       return reply.status(200).type('text/plain').send(query['hub.challenge'] ?? '');
     }
     return reply.status(403).type('text/plain').send('Forbidden');
@@ -222,9 +260,31 @@ export class WhatsappController {
   ) {
     const row = await this.settings();
     if (!row?.appSecretEncrypted || !this.validSignature(req.rawBody, signature, row.appSecretEncrypted)) {
+      // Un 401 mudo es indistinguible de "nunca llegó nada". Con el log se puede ver
+      // que Meta sí manda eventos y que el problema es el app secret cargado.
+      this.logger.warn(JSON.stringify({
+        event: 'whatsapp_webhook_rejected',
+        reason: row?.appSecretEncrypted ? 'invalid_signature' : 'missing_app_secret',
+        hasSignatureHeader: Boolean(signature),
+      }));
       throw new UnauthorizedException('Firma de Meta inválida');
     }
     reply.status(200).send({ok: true});
+    this.logger.log(JSON.stringify({
+      event: 'whatsapp_webhook_received',
+      ...summarizeWebhookBody(req.body),
+    }));
+    // Registro de "Meta nos está mandando eventos", que es lo que el checklist de
+    // puesta en marcha muestra como paso 2. No bloquea la respuesta a Meta.
+    void db.whatsappCloudSettings.update({
+      where: {id: 'singleton'},
+      data: {lastWebhookAt: new Date()},
+    }).catch((error: unknown) => {
+      this.logger.warn(JSON.stringify({
+        event: 'whatsapp_webhook_touch_failed',
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    });
     void this.processWebhookBody(req.body).catch((error: unknown) => {
       this.logger.error(JSON.stringify({
         event: 'whatsapp_webhook_processing_failed',

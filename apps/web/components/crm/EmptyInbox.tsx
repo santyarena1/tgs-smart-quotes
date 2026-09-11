@@ -24,6 +24,9 @@ export function EmptyInbox() {
 
   const credentialsDone = Boolean(settings?.enabled && settings.hasAccessToken && settings.hasAppSecret);
   const verified = Boolean(settings?.lastVerifiedAt);
+  // El paso se da por hecho recién cuando Meta mandó al menos un evento firmado:
+  // que la URL haya pasado la verificación no garantiza que la app esté suscripta al WABA.
+  const webhookDone = Boolean(settings?.lastWebhookAt);
 
   const steps = [
     {
@@ -34,9 +37,11 @@ export function EmptyInbox() {
         : "Phone Number ID, Business Account ID, access token y app secret.",
     },
     {
-      done: false,
+      done: webhookDone,
       title: "Suscribir el webhook en Meta",
-      detail: "Activá los campos messages y message_status. Sin el segundo no llegan las confirmaciones de entrega.",
+      detail: webhookDone && settings?.lastWebhookAt
+        ? `Último evento recibido: ${new Date(settings.lastWebhookAt).toLocaleString("es-AR")}`
+        : "Suscribí el campo messages (trae mensajes y confirmaciones de entrega) y la app al WABA. Se marca solo cuando llega el primer evento.",
     },
     {
       done: hasTemplates,

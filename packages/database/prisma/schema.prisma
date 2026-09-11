@@ -950,6 +950,10 @@ model WhatsappCloudSettings {
   displayPhoneNumber   String?
   verifiedName         String?
   lastVerifiedAt       DateTime?
+  /// Último POST del webhook con firma válida. Es la única prueba real de que la
+  /// suscripción en Meta funciona: el GET de verificación solo prueba que la URL
+  /// era alcanzable una vez.
+  lastWebhookAt        DateTime?
   updatedAt            DateTime @updatedAt
 }
 

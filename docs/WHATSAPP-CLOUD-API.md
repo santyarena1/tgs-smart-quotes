@@ -301,8 +301,14 @@ guardan cifradas en la base con `SETTINGS_ENC_KEY`.
    permanente y app secret. Guardar: se genera el verify token del webhook.
 2. **Verificar credenciales** con el botón: consulta a Meta sin mandarle nada a ningún cliente.
 3. **En Meta for Developers**: pegar la Callback URL y el verify token que muestra la pantalla,
-   y suscribir los campos `messages` **y** `message_status` (sin el segundo no llegan las
-   confirmaciones de entrega y lectura).
+   y suscribir el campo `messages`. Es el único campo necesario: las confirmaciones de
+   entrega y lectura llegan dentro del mismo campo, en `statuses[]` (no existe un campo
+   `message_status` aparte). Además de la suscripción a nivel app hay que suscribir la app
+   al WABA (`POST /{waba_id}/subscribed_apps`), si no Meta no manda ningún evento.
+   El checklist de la bandeja marca este paso como hecho recién cuando llega el primer
+   POST firmado (`lastWebhookAt`); hasta entonces se puede seguir en los logs con los
+   eventos `whatsapp_webhook_verify`, `whatsapp_webhook_received` y
+   `whatsapp_webhook_rejected`.
 4. **Habilitar** la integración con el switch.
 5. **Plantillas**: darlas de alta en Meta, esperar la aprobación y sincronizarlas desde
    el CRM → Plantillas.
