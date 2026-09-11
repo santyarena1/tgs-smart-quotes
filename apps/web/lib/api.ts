@@ -284,8 +284,8 @@ export function deleteThumbnailAiReference(id: string): Promise<{ok: true}> {
 }
 
 /** Genera (o regenera) la miniatura de una PC con IA. Cada llamada es una imagen nueva. */
-export function generateFamilyThumbnailAi(familyId: string): Promise<{thumbnailUrl: string; detail: string}> {
-  return api<{thumbnailUrl: string; detail: string}>(`/external-module/quote-families/${familyId}/thumbnail/generate`, {method: 'POST'});
+export function generateFamilyThumbnailAi(familyId: string, options: {regenerateCase?: boolean} = {}): Promise<{thumbnailUrl: string; detail: string}> {
+  return api<{thumbnailUrl: string; detail: string}>(`/external-module/quote-families/${familyId}/thumbnail/generate`, {method: 'POST', body: options});
 }
 
 export function getWhatsappSettings(): Promise<WhatsappSettings> {

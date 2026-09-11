@@ -38,7 +38,7 @@ export const DEFAULT_FOOTER: FooterBadge[] = [
 ];
 
 export const DEFAULT_CASE_AI_PROMPT =
-  'Es la foto de un gabinete de PC gamer con fondo transparente. Devolvé el MISMO gabinete (idéntica forma, color, panel de vidrio, logos y proporciones), visto desde el mismo ángulo, pero con el interior armado como una PC gamer completa: motherboard, placa de video, memorias RGB, cooler y ventiladores con iluminación RGB multicolor encendida. Estilo foto de producto de catálogo, luz de estudio, nítido. Fondo transparente, sin texto, sin sombras fuera del gabinete.';
+  'Foto de producto real de un gabinete de PC gamer, con fondo transparente. Tu única tarea es mostrar el interior armado: agregá, vistos a través del panel de vidrio, una motherboard, una placa de video, memorias RAM con luz RGB, un cooler de CPU y ventiladores con iluminación RGB encendida. NO modifiques el gabinete: mantené exactamente la misma forma, tamaño, proporciones, ángulo de cámara, color, materiales, panel frontal, ventiladores frontales, patas, logos y detalles del original; no agregues ni saques partes del gabinete. Tiene que parecer una fotografía real de catálogo (no un render 3D ni una ilustración): luz de estudio suave, texturas y reflejos realistas, nítida. Fondo 100% transparente, sin texto, sin sombra proyectada fuera del gabinete.';
 
 // ------------------------------------------------------------------ helpers
 

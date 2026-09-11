@@ -91,10 +91,16 @@ async function ensureTransparentCase(buffer: Buffer): Promise<Buffer> {
  * Gabinete procesado con IA (interior armado, luces RGB) a partir de la foto
  * original, con caché por URL: el mismo gabinete se repite en muchas PCs.
  */
-async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {model: string; quality: string; caseAiPrompt: string}, familyId: string): Promise<Buffer> {
+/**
+ * IMPORTANTE: la entrada es SIEMPRE la foto original del gabinete
+ * (`sourceBuffer`, la que tiene el producto), nunca una salida anterior de la
+ * IA. Regenerar parte de cero desde la misma foto; si se encadenaran
+ * resultados, cada pasada deformaría un poco más el gabinete.
+ */
+async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {model: string; quality: string; caseAiPrompt: string}, familyId: string, force = false): Promise<Buffer> {
   const prompt = settings.caseAiPrompt.trim() || DEFAULT_CASE_AI_PROMPT;
   const cached = await db.thumbnailCaseRender.findUnique({where: {sourceUrl}});
-  if (cached && cached.prompt === prompt) {
+  if (cached && cached.prompt === prompt && !force) {
     try {
       return await readMedia(cached.key);
     } catch {
@@ -134,7 +140,7 @@ async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {mo
 }
 
 /** Modo LAYOUT: plantilla TGS compuesta por el sistema. */
-async function generateLayoutThumbnail(opts: {familyId: string; versionId: string; userId: string | null}): Promise<{url: string; detail: string}> {
+async function generateLayoutThumbnail(opts: {familyId: string; versionId: string; userId: string | null; regenerateCase?: boolean}): Promise<{url: string; detail: string}> {
   const settings = await loadThumbnailAiSettings();
   const [family, version] = await Promise.all([
     db.quoteFamily.findUniqueOrThrow({where: {id: opts.familyId}, select: {webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
@@ -154,7 +160,7 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
   let caseBuffer = await ensureTransparentCase((await readOwnOrRemote(caseUrl)).buffer);
   let caseDetail = 'foto original';
   if (settings.caseAiMode === 'ALWAYS') {
-    caseBuffer = await caseWithAi(caseUrl, caseBuffer, settings, opts.familyId);
+    caseBuffer = await caseWithAi(caseUrl, caseBuffer, settings, opts.familyId, Boolean(opts.regenerateCase));
     caseDetail = 'gabinete procesado con IA';
   }
   const logo = settings.logoUrl ? await readOwnOrRemote(settings.logoUrl).catch(() => null) : null;
@@ -298,7 +304,7 @@ export class ThumbnailAiUnavailable extends Error {}
  * plantilla clásica con un mensaje claro); cualquier otro error es de la
  * generación en sí.
  */
-export async function generateAiThumbnail(opts: {familyId: string; versionId: string; userId: string | null}): Promise<{url: string; detail: string}> {
+export async function generateAiThumbnail(opts: {familyId: string; versionId: string; userId: string | null; regenerateCase?: boolean}): Promise<{url: string; detail: string}> {
   const settings = await loadThumbnailAiSettings();
   if (!settings.enabled) throw new ThumbnailAiUnavailable('Generación de miniaturas desactivada (Ajustes → Miniaturas)');
   if (settings.mode !== 'AI_SCENE') return generateLayoutThumbnail(opts);

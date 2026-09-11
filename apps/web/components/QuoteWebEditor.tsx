@@ -297,13 +297,15 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
   // Miniatura según Ajustes → Miniaturas (plantilla TGS o escena con IA):
   // cada click la vuelve a armar, así que se puede insistir hasta que guste.
-  const generateThumbnailAi = async () => {
+  // regenerateCase: vuelve a procesar el gabinete con IA partiendo SIEMPRE de
+  // la foto original (nunca de un resultado anterior), por si salió raro.
+  const generateThumbnailAi = async (regenerateCase = false) => {
     if (!quote) return;
     setGeneratingThumb(true);
     setActionError(null);
     setThumbNotice(null);
     try {
-      const next = await generateFamilyThumbnailAi(quote.id);
+      const next = await generateFamilyThumbnailAi(quote.id, { regenerateCase });
       setQuote((prev) => (prev ? { ...prev, thumbnailUrl: next.thumbnailUrl } : prev));
       setThumbNotice(next.detail);
       setPreviewNonce((n) => n + 1);
@@ -749,6 +751,15 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" className="btn-dark btn-sm" disabled={generatingThumb} onClick={() => void generateThumbnailAi()}>
                   {generatingThumb ? "Generando…" : "Regenerar"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost btn-sm"
+                  disabled={generatingThumb}
+                  title="Vuelve a procesar el gabinete con IA desde la foto original (solo si está activo en Ajustes → Miniaturas)"
+                  onClick={() => void generateThumbnailAi(true)}
+                >
+                  Rehacer gabinete con IA
                 </button>
                 {quote.thumbnailUrl ? (
                   <a className="btn-ghost btn-sm" href={quote.thumbnailUrl} target="_blank" rel="noopener">
