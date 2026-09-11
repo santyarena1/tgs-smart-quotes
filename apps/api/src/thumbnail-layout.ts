@@ -15,6 +15,7 @@ function embeddedFontCss(): string {
   const candidates = [resolve(process.cwd(), 'apps', 'api', 'assets', 'fonts', 'Montserrat-wght.ttf'), resolve(process.cwd(), 'assets', 'fonts', 'Montserrat-wght.ttf'), join(__dirname, '..', 'assets', 'fonts', 'Montserrat-wght.ttf')];
   const path = candidates.find((candidate) => existsSync(candidate));
   if (!path) {
+    console.warn(JSON.stringify({event: 'thumbnail_font_missing', cwd: process.cwd(), candidates}));
     fontCss = '';
     return fontCss;
   }

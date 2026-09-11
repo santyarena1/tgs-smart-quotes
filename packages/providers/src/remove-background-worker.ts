@@ -11,6 +11,9 @@
  * en `salida` y termina con código 0. Cualquier otra cosa es fallo.
  */
 import {readFileSync, writeFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {dirname} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 async function main() {
   const [input, output, mime] = process.argv.slice(2);
@@ -18,7 +21,12 @@ async function main() {
   const {removeBackground} = await import('@imgly/background-removal-node');
   const bytes = readFileSync(input);
   const blob = new Blob([bytes], {type: mime || 'image/png'});
+  // El paquete busca el modelo en node_modules/@imgly/... relativo al directorio
+  // actual, que con pnpm y en Docker no existe: se le pasa la carpeta real.
+  const entry = createRequire(import.meta.url).resolve('@imgly/background-removal-node');
+  const publicPath = pathToFileURL(dirname(entry) + '/').href;
   const result = await removeBackground(blob, {
+    publicPath,
     model: 'medium',
     output: {format: 'image/png', quality: 1},
     // Sin logs del modelo en la salida estándar: el padre solo mira el archivo.
