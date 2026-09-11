@@ -21,6 +21,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Borrar un presupuesto lo despublica de la tienda; se arregló el worker que fallaba cada hora con \"SETTINGS_ENC_KEY debe contener 32 bytes\"",
       "Plugin de WordPress 2.11.0 (hay que subirlo): migra los productos viejos sin duplicar, no pisa el slug, carga descripción, galería y puntos fuertes",
       "Checklist de WhatsApp: el paso del webhook se marca cuando llega el primer evento real de Meta",
+      "Publicación Web ya no tira \"Demasiadas solicitudes\": el listado y el editor piden todo en una sola llamada",
     ],
   },
   {

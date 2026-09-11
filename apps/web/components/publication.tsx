@@ -68,7 +68,7 @@ export function loadPublication(familyId: string): Promise<Publication> {
 
 /**
  * Sigue una corrida de "Preparar y publicar": arranca una nueva o retoma la
- * última, y la consulta cada segundo y medio mientras está en marcha.
+ * última, y la consulta cada 2,5 s mientras está en marcha.
  */
 export function usePublishRun(familyId: string | null, onFinished?: (run: PublishRun) => void) {
   const [run, setRun] = useState<PublishRun | null>(null);
@@ -104,7 +104,7 @@ export function usePublishRun(familyId: string | null, onFinished?: (run: Publis
       } catch (err) {
         setError(errorMessage(err));
       }
-    }, 1500);
+    }, 2500);
     return () => window.clearInterval(timer);
   }, [run]);
 

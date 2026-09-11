@@ -35,6 +35,12 @@ type Enrichment = {
 
 type StepId = "contenido" | "componentes" | "preview";
 
+function countByProduct(options: HeroOption[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const option of options) counts[option.productId] = (counts[option.productId] ?? 0) + 1;
+  return counts;
+}
+
 type Props = {
   quoteId: string;
   onClose: () => void;
@@ -125,22 +131,6 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       const v = getActiveVersion(q);
       setPublication(await loadPublication(quoteId));
       if (v) {
-        // Se cuentan las imágenes de cada componente por adelantado para que el
-        // checklist diga la verdad sin tener que abrir ficha por ficha.
-        const productIds = Array.from(
-          new Set(v.items.map((item) => item.productId).filter((id): id is string => Boolean(id))),
-        );
-        const counts = await Promise.all(
-          productIds.map(async (productId) => {
-            try {
-              const assets = await api<unknown[]>(`/external-module/products/${productId}/assets`);
-              return [productId, assets.length] as const;
-            } catch {
-              return [productId, 0] as const;
-            }
-          }),
-        );
-        setAssetCounts(Object.fromEntries(counts));
         const familia = q as { heroAssetId?: string | null; heroImageUrl?: string | null };
         setHeroAssetId(familia.heroAssetId ?? null);
         setHeroImageUrl(familia.heroImageUrl ?? null);
@@ -155,10 +145,16 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             ]),
           ),
         );
+        // Las fotos listas de cada componente salen de hero-options (una sola
+        // petición): pedir las imágenes producto por producto pasaba el rate
+        // limit con PCs de muchos componentes.
         try {
-          setHeroOptions(await api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`));
+          const options = await api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`);
+          setHeroOptions(options);
+          setAssetCounts(countByProduct(options));
         } catch {
           setHeroOptions([]);
+          setAssetCounts({});
         }
       }
     } catch (err) {
@@ -1002,7 +998,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                           // Las fotos disponibles para el hero cambian con las
                           // imágenes del componente.
                           void api<HeroOption[]>(`/external-module/quote-families/${quoteId}/hero-options`)
-                            .then(setHeroOptions)
+                            .then((options) => {
+                              setHeroOptions(options);
+                              setAssetCounts(countByProduct(options));
+                            })
                             .catch(() => undefined);
                           setPreviewNonce((n) => n + 1);
                         }}

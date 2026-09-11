@@ -18,7 +18,7 @@ import {
 } from "./shared";
 import { IntegrationsCard } from "./IntegrationsCard";
 import { QuoteWebEditor } from "./QuoteWebEditor";
-import { loadPublication, publicationStatusLabel, publicationStatusTone, type Publication } from "./publication";
+import { EMPTY_PUBLICATION, loadPublication, publicationStatusLabel, publicationStatusTone, type Publication } from "./publication";
 
 type WordpressConfig = {
   wpBaseUrl: string;
@@ -103,10 +103,9 @@ export function PublicacionWebView() {
       const rows = await api<Quote[]>("/quotes");
       const pcQuotes = rows.filter((quote) => quote.isBuiltPc && getActiveVersion(quote));
       setQuotes(pcQuotes);
-      const entries = await Promise.all(
-        pcQuotes.map(async (quote) => [quote.id, await loadPublication(quote.id)] as const),
-      );
-      setPublications(Object.fromEntries(entries));
+      // Una sola petición para todas: una por PC pasaba el rate limit.
+      const all = await api<Record<string, Publication>>("/external-module/publications").catch(() => ({}) as Record<string, Publication>);
+      setPublications(Object.fromEntries(pcQuotes.map((quote) => [quote.id, all[quote.id] ?? EMPTY_PUBLICATION] as const)));
     } catch (err) {
       setQuotesError(errorMessage(err));
     } finally {
