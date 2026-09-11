@@ -148,7 +148,8 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
   ]);
   const items = await db.quoteItem.findMany({where: {versionId: opts.versionId}, orderBy: {position: 'asc'}, select: {frozenName: true, quantity: true, line: {select: {name: true}}}});
   const caseItem = await findCaseItem(opts.versionId);
-  const caseUrl = family.heroImageUrl ?? family.heroAsset?.url ?? caseItem?.imageUrl ?? null;
+  // Primero la foto elegida para el gabinete en el presupuesto; el hero solo si no hay gabinete con foto.
+  const caseUrl = caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? null;
   if (!caseUrl) throw new ThumbnailAiUnavailable('No hay foto del gabinete para armar la miniatura');
 
   const rowItems = items.map((item) => ({name: item.frozenName, quantity: item.quantity, line: item.line?.name ?? null}));
@@ -239,7 +240,8 @@ async function findCaseItem(versionId: string) {
   });
   for (const item of items) {
     if (!CASE_PATTERN.test(`${item.line?.name ?? ''} ${item.frozenName}`)) continue;
-    const url = item.product?.assets[0]?.url ?? item.webImageUrl ?? null;
+    // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
+    const url = item.webImageUrl ?? item.product?.assets[0]?.url ?? null;
     return {name: item.frozenName, imageUrl: url};
   }
   return null;
@@ -324,7 +326,8 @@ export async function generateAiThumbnail(opts: {familyId: string; versionId: st
     select: {frozenName: true, quantity: true, line: {select: {name: true}}},
   });
   const caseItem = await findCaseItem(opts.versionId);
-  const caseUrl = family.heroImageUrl ?? family.heroAsset?.url ?? caseItem?.imageUrl ?? null;
+  // Primero la foto elegida para el gabinete en el presupuesto; el hero solo si no hay gabinete con foto.
+  const caseUrl = caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? null;
   if (!caseUrl) throw new ThumbnailAiUnavailable('No hay foto del gabinete para generar la miniatura');
 
   const specs = extractSpecsFromItems(items.map((item) => ({name: item.frozenName, quantity: item.quantity, line: item.line?.name ?? null})));
