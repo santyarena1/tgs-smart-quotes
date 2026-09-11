@@ -15,7 +15,10 @@
       "prisma",
       "sharp",
       "onnxruntime-node"
-    ]
+    ],
+    "overrides": {
+      "@types/node": "^22.20.1"
+    }
   },
   "scripts": {
     "build": "turbo build",

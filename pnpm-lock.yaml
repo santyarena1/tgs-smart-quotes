@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@types/node': ^22.20.1
+
 importers:
 
   .:
@@ -166,7 +169,7 @@ importers:
         version: 19.2.8(react@19.2.8)
     devDependencies:
       '@types/node':
-        specifier: ^22.16.5
+        specifier: ^22.20.1
         version: 22.20.1
       '@types/react':
         specifier: ^19.1.8
@@ -279,7 +282,7 @@ importers:
         version: 1.62.0
     devDependencies:
       '@types/node':
-        specifier: ^22.16.5
+        specifier: ^22.20.1
         version: 22.20.1
       typescript:
         specifier: ^5.8.3
@@ -1255,9 +1258,6 @@ packages:
 
   '@types/ndarray@1.0.14':
     resolution: {integrity: sha512-oANmFZMnFQvb219SSBIhI1Ih/r4CvHDOzkWyJS/XRqkMrGH5/kaPSA1hQhdIBzouaE+5KpE/f5ylI9cujmckQg==}
-
-  '@types/node@20.3.3':
-    resolution: {integrity: sha512-wheIYdr4NYML61AjC8MKj/2jrR/kDQri/CIpVoZwldwhnIrD/j9jIU5bJ8yBKuB2VhpFV7Ab6G2XkBjv9r9Zzw==}
 
   '@types/node@22.20.1':
     resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
@@ -2472,7 +2472,7 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
-      '@types/node': ^20.19.0 || >=22.12.0
+      '@types/node': ^22.20.1
       jiti: '>=1.21.0'
       less: ^4.0.0
       lightningcss: ^1.21.0
@@ -2514,7 +2514,7 @@ packages:
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@types/debug': ^4.1.12
-      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
+      '@types/node': ^22.20.1
       '@vitest/browser': 3.2.7
       '@vitest/ui': 3.2.7
       happy-dom: '*'
@@ -2942,7 +2942,7 @@ snapshots:
     dependencies:
       '@types/lodash': 4.14.202
       '@types/ndarray': 1.0.14
-      '@types/node': 20.3.3
+      '@types/node': 22.20.1
       lodash: 4.17.23
       ndarray: 1.0.19
       onnxruntime-node: 1.17.3
@@ -3291,8 +3291,6 @@ snapshots:
   '@types/lodash@4.14.202': {}
 
   '@types/ndarray@1.0.14': {}
-
-  '@types/node@20.3.3': {}
 
   '@types/node@22.20.1':
     dependencies:
