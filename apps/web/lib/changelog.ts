@@ -8,6 +8,22 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.5.0",
+    date: "2026-09-11",
+    title: "Publicación web: un botón que prepara todo",
+    items: [
+      "\"Preparar y publicar\": busca las fotos que falten, describe los componentes, genera textos con IA, arma la miniatura y publica, mostrando cada paso",
+      "La publicación ya no se pierde al crear una versión nueva: la tienda sigue mostrando la que publicaste hasta que la actualices con \"Actualizar a vN\"",
+      "Título de la tienda con formato fijo: PC GAMER | procesador - RAM - disco - placa | WINDOWS 11, armado solo desde los componentes; botón para regenerarlo con IA",
+      "Bajada, descripción corta, puntos fuertes y para quién es la PC; juegos con resolución y calidad estimadas",
+      "Las fotos automáticas tienen que coincidir con el modelo del componente; antes traía cualquier cosa",
+      "Un fallo de WordPress al actualizar ya no saca la PC de \"Publicados\"; se reintenta solo cada hora",
+      "Borrar un presupuesto lo despublica de la tienda; se arregló el worker que fallaba cada hora con \"SETTINGS_ENC_KEY debe contener 32 bytes\"",
+      "Plugin de WordPress 2.11.0 (hay que subirlo): migra los productos viejos sin duplicar, no pisa el slug, carga descripción, galería y puntos fuertes",
+      "Checklist de WhatsApp: el paso del webhook se marca cuando llega el primer evento real de Meta",
+    ],
+  },
+  {
     version: "0.4.0",
     date: "2026-09-08",
     title: "CRM propio y WhatsApp por API oficial",
