@@ -46,8 +46,11 @@
 	--gx-f-body: clamp(14.5px, 1.15vw, 16px);
 	--gx-f-md: clamp(16.5px, 1.5vw, 19px);
 	--gx-f-lg: clamp(20px, 2.1vw, 26px);
-	--gx-f-xl: clamp(30px, 4.6vw, 54px);
-	--gx-f-price: clamp(34px, 5vw, 58px);
+	/* El título es una línea de specs larga ("PC GAMER | RYZEN 5 … | WINDOWS 11"):
+	   a 54px ocupaba cinco renglones y aplastaba al gabinete. Se lee mejor
+	   más chico y con el precio como lo grande del panel. */
+	--gx-f-xl: clamp(21px, 2.4vw, 31px);
+	--gx-f-price: clamp(30px, 3.8vw, 46px);
 
 	/* Dos roles tipográficos, no más: display para lo que se lee,
 	   monoespaciada para etiquetas, numeración y códigos. */
@@ -113,7 +116,8 @@
    ------------------------------------------------------------------- */
 .gx-hero {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+	/* La foto manda: la columna del equipo es la más ancha. */
+	grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
 	gap: clamp(20px, 3vw, 56px);
 	align-items: stretch;
 	border: 1px solid var(--gx-line);
@@ -128,8 +132,8 @@
 	isolation: isolate;
 	display: grid;
 	place-items: center;
-	padding: clamp(22px, 3vw, 46px);
-	min-height: clamp(260px, 34vw, 460px);
+	padding: clamp(18px, 2.4vw, 34px);
+	min-height: clamp(300px, 36vw, 520px);
 	border-right: 1px solid var(--gx-line);
 	background-color: color-mix(in srgb, var(--gx-text) 2%, var(--gx-bg));
 	background-image:
@@ -187,8 +191,11 @@
 .gx-frame model-viewer {
 	display: block;
 	width: 100%;
-	height: clamp(210px, 30vw, 390px);
+	/* Ocupa el escenario: antes quedaba un gabinete chico flotando en un
+	   panel enorme. */
+	height: clamp(280px, 34vw, 480px);
 	object-fit: contain;
+	filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.55));
 }
 
 /* Chapita de estado, arriba a la izquierda del escenario. */
@@ -219,8 +226,8 @@
 .gx-panel {
 	display: grid;
 	align-content: center;
-	gap: var(--gx-md);
-	padding: clamp(22px, 3vw, 46px);
+	gap: var(--gx-sm);
+	padding: clamp(20px, 2.6vw, 38px);
 }
 
 .gx-kicker {
@@ -246,8 +253,8 @@
 	margin: 0;
 	font-size: var(--gx-f-xl);
 	font-weight: 800;
-	line-height: 1.02;
-	letter-spacing: -0.035em;
+	line-height: 1.15;
+	letter-spacing: -0.02em;
 	text-transform: uppercase;
 	text-wrap: balance;
 }
@@ -535,36 +542,42 @@
 /* --- Componentes: tabla de specs con líneas de 1px, no tarjetas sueltas --- */
 .tgs-landing.tgs-custom .tgs-items {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
 	gap: 1px;
-	background: var(--gx-line);
+	/* Fondo de la página, no de línea: si la última fila queda incompleta, el
+	   hueco no se ve como una celda gris. Las líneas las pone cada ítem. */
+	background: var(--gx-bg);
 	border: 1px solid var(--gx-line);
 	border-radius: var(--gx-r);
 	overflow: hidden;
 }
 .tgs-landing.tgs-custom .tgs-item {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: var(--gx-md);
 	margin: 0;
 	padding: var(--gx-md);
 	background: var(--gx-bg);
 	border: 0;
 	border-radius: 0;
-	box-shadow: none;
+	box-shadow: 0 0 0 1px var(--gx-line);
 	transition: background-color .15s ease;
 }
 .tgs-landing.tgs-custom .tgs-item:hover {
 	transform: none;
 	background: var(--gx-panel-2);
 }
+/* La foto del componente es protagonista: a 62px se perdía al lado de un
+   párrafo de cuatro renglones. Ahora ocupa el alto del texto. */
 .tgs-landing.tgs-custom .tgs-item-media {
 	flex: 0 0 auto;
-	width: 62px;
-	height: 62px;
+	width: clamp(110px, 12vw, 150px);
+	height: clamp(110px, 12vw, 150px);
 	display: grid;
 	place-items: center;
-	background: color-mix(in srgb, var(--gx-text) 5%, var(--gx-bg));
+	background:
+		radial-gradient(ellipse at 50% 80%, color-mix(in srgb, var(--gx-accent) 18%, transparent), transparent 70%),
+		color-mix(in srgb, var(--gx-text) 5%, var(--gx-bg));
 	border: 1px solid var(--gx-line);
 	border-radius: var(--gx-r);
 	overflow: hidden;
@@ -573,8 +586,11 @@
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
-	padding: 6px;
+	padding: 10px;
+	filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.5));
+	transition: transform .2s ease;
 }
+.tgs-landing.tgs-custom .tgs-item:hover .tgs-item-media img { transform: scale(1.06); }
 .tgs-landing.tgs-custom .tgs-item-info {
 	display: grid;
 	gap: 2px;
@@ -588,8 +604,9 @@
 	color: var(--gx-accent);
 }
 .tgs-landing.tgs-custom .tgs-item-name {
-	font-size: var(--gx-f-body);
-	font-weight: 700;
+	font-size: var(--gx-f-md);
+	font-weight: 800;
+	line-height: 1.2;
 	letter-spacing: -0.01em;
 	color: var(--gx-text);
 }
@@ -598,32 +615,74 @@
 	color: var(--gx-dim);
 }
 
-/* --- Juegos: se lee como una planilla de rendimiento --- */
+/* --- Juegos: tarjetas con barra de rendimiento ---
+   Cada juego es una tarjeta con el nombre grande, la resolución y la
+   calidad como etiquetas y una barra de 4 segmentos que se llena según la
+   calidad (bajo / medio / alto / ultra). El nivel sale de data-settings,
+   que el plugin escribe en cada .tgs-game. */
 .tgs-landing.tgs-custom .tgs-games {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-	gap: 1px;
-	background: var(--gx-line);
-	border: 1px solid var(--gx-line);
-	border-radius: var(--gx-r);
-	overflow: hidden;
-}
-.tgs-landing.tgs-custom .tgs-game {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
+	grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 	gap: var(--gx-sm);
-	margin: 0;
-	padding: var(--gx-sm) var(--gx-md);
-	background: var(--gx-bg);
+	background: none;
 	border: 0;
 	border-radius: 0;
+	overflow: visible;
+}
+.tgs-landing.tgs-custom .tgs-game {
+	--gx-lvl: 2;
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: var(--gx-xs);
+	align-items: start;
+	justify-content: start;
+	margin: 0;
+	padding: var(--gx-md) var(--gx-md) calc(var(--gx-md) + 8px);
+	background:
+		linear-gradient(160deg, color-mix(in srgb, var(--gx-accent) 10%, transparent), transparent 55%),
+		var(--gx-panel);
+	border: 1px solid var(--gx-line);
+	border-left: 3px solid var(--gx-accent);
+	border-radius: var(--gx-r);
+	overflow: hidden;
+	transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.tgs-landing.tgs-custom .tgs-game:hover {
+	transform: translateY(-2px);
+	border-color: var(--gx-accent-line);
+	box-shadow: 0 16px 34px -20px color-mix(in srgb, var(--gx-accent) 80%, transparent);
+}
+.tgs-landing.tgs-custom .tgs-game[data-settings="bajo"] { --gx-lvl: 1; }
+.tgs-landing.tgs-custom .tgs-game[data-settings="medio"] { --gx-lvl: 2; }
+.tgs-landing.tgs-custom .tgs-game[data-settings="alto"] { --gx-lvl: 3; }
+.tgs-landing.tgs-custom .tgs-game[data-settings="ultra"] { --gx-lvl: 4; }
+/* Barra de 4 segmentos al pie de la tarjeta. */
+.tgs-landing.tgs-custom .tgs-game::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 6px;
+	background:
+		linear-gradient(90deg, var(--gx-accent) calc(var(--gx-lvl) * 25%), color-mix(in srgb, var(--gx-text) 10%, transparent) 0);
+	-webkit-mask: repeating-linear-gradient(90deg, #000 0 calc(25% - 3px), transparent 0 25%);
+	mask: repeating-linear-gradient(90deg, #000 0 calc(25% - 3px), transparent 0 25%);
 }
 .tgs-landing.tgs-custom .tgs-game-name {
-	font-size: var(--gx-f-sm);
-	font-weight: 600;
+	font-size: var(--gx-f-md);
+	font-weight: 800;
+	line-height: 1.15;
+	letter-spacing: -0.01em;
 	color: var(--gx-text);
 }
+.tgs-landing.tgs-custom .tgs-game-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.tgs-landing.tgs-custom .tgs-game-badge,
 .tgs-landing.tgs-custom .tgs-game-tier {
 	flex: 0 0 auto;
 	font-family: var(--gx-mono);
@@ -631,10 +690,37 @@
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
 	color: var(--gx-accent);
-	background: transparent;
+	background: var(--gx-accent-dim);
 	border: 1px solid var(--gx-accent-line);
-	border-radius: 0;
-	padding: 4px 8px;
+	border-radius: 999px;
+	padding: 4px 10px;
+}
+.tgs-landing.tgs-custom .tgs-game-badge--settings {
+	color: var(--gx-text);
+	background: color-mix(in srgb, var(--gx-text) 8%, transparent);
+	border-color: var(--gx-line);
+}
+.tgs-landing.tgs-custom .tgs-game-note {
+	font-size: var(--gx-f-sm);
+	color: var(--gx-dim);
+	line-height: 1.4;
+}
+.tgs-landing.tgs-custom .tgs-audience {
+	margin: 0 0 var(--gx-md);
+	padding: var(--gx-sm) var(--gx-md);
+	font-size: var(--gx-f-body);
+	color: var(--gx-text);
+	background: var(--gx-accent-dim);
+	border-left: 3px solid var(--gx-accent);
+	border-radius: var(--gx-r);
+}
+.tgs-landing.tgs-custom .tgs-games-footnote {
+	margin: var(--gx-md) 0 0;
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--gx-faint);
 }
 
 /* --- Compatibilidad: lista con una marca angular en rojo --- */
@@ -816,13 +902,18 @@
    Adentro va {{barra_flotante}} (el enlace real de "agregar al carrito"
    del plugin), más el precio, la financiación y el WhatsApp.
    ------------------------------------------------------------------- */
+/* Barra baja y limpia: una sola línea de acento arriba, fondo apenas más
+   claro que la página, todo centrado en vertical. Lo fuerte es el botón de
+   comprar; el precio va grande pero en blanco; las cuotas en una línea. */
 .gx-buybar {
 	position: fixed;
 	left: 0;
 	right: 0;
 	bottom: 0;
 	z-index: 9998;
-	background: color-mix(in srgb, var(--gx-bg) 92%, #fff);
+	background: color-mix(in srgb, var(--gx-bg) 94%, #fff);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
 	border-top: 1px solid var(--gx-line);
 	box-shadow: 0 -18px 40px -30px #000;
 	padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -830,12 +921,8 @@
 .gx-buybar::before {
 	content: "";
 	display: block;
-	height: 3px;
-	background-image: repeating-linear-gradient(
-		115deg,
-		var(--gx-accent) 0 2px,
-		transparent 2px 7px
-	);
+	height: 2px;
+	background: linear-gradient(90deg, transparent, var(--gx-accent) 30%, var(--gx-accent) 70%, transparent);
 }
 /* `stretch` en vez de `center`: así el bloque de financiación, el botón de
    compra y el de WhatsApp miden todos lo mismo de alto. La altura la marca el
@@ -845,10 +932,11 @@
 	max-width: 1280px;
 	margin-inline: auto;
 	display: flex;
-	align-items: stretch;
+	align-items: center;
 	justify-content: space-between;
 	gap: var(--gx-md);
 	padding: 10px clamp(14px, 4vw, 40px);
+	min-height: 72px;
 }
 /* El precio no es una caja: se centra respecto de las que sí lo son. */
 .gx-buybar__price { align-self: center; }
@@ -861,7 +949,7 @@
 	color: var(--gx-dim);
 }
 .gx-buybar__value {
-	font-size: clamp(20px, 2.2vw, 27px);
+	font-size: clamp(22px, 2.4vw, 30px);
 	font-weight: 800;
 	letter-spacing: -0.03em;
 	line-height: 1.1;
@@ -870,40 +958,55 @@
 }
 
 /* ---- Bloque de financiación: el gancho de la barra ---- */
+/* Financiación: una línea, sin caja ni fondo. La etiqueta roja chica dice
+   qué es; el texto va en blanco para no pelear con el botón. */
 .gx-barfin {
-	flex: 1 1 240px;
+	flex: 1 1 260px;
 	min-width: 0;
 	display: grid;
-	gap: 1px;
-	align-content: center;
+	grid-template-columns: auto 1fr;
+	grid-template-rows: auto auto;
+	column-gap: 10px;
+	row-gap: 2px;
+	align-items: center;
 	align-self: center;
 	padding-left: var(--gx-md);
 	border-left: 1px solid var(--gx-line);
 }
 .gx-barfin__tag {
+	grid-row: 1 / span 2;
+	display: inline-grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
 	font-family: var(--gx-mono);
-	font-size: 10px;
-	letter-spacing: 0.18em;
-	text-transform: uppercase;
-	color: var(--gx-accent);
-}
-/* La línea de cuotas es lo más grande después del precio. */
-.gx-barfin__line {
-	font-size: clamp(14px, 1.6vw, 17px);
+	font-size: 14px;
 	font-weight: 800;
-	line-height: 1.2;
-	letter-spacing: -0.015em;
-	color: var(--gx-accent);
+	color: #fff;
+	background: var(--gx-accent);
+	border-radius: var(--gx-r);
+}
+.gx-barfin__tag::before { content: "%"; }
+.gx-barfin__tag span { display: none; }
+.gx-barfin__line {
+	font-size: clamp(13.5px, 1.3vw, 15.5px);
+	font-weight: 700;
+	line-height: 1.25;
+	color: var(--gx-text);
 	font-variant-numeric: tabular-nums;
-	text-wrap: balance;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 }
 .gx-barfin__line:empty { display: none; }
 .gx-barfin__more {
+	grid-column: 2;
 	justify-self: start;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	margin-top: 2px;
+	margin-top: 0;
 	padding: 0;
 	cursor: pointer;
 	font: inherit;
@@ -993,9 +1096,9 @@
 /* El CTA es lo más pesado de la barra: más alto, más ancho y con un halo del
    color de acento para que se despegue del resto. */
 .tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
-	min-height: 58px;
-	border-radius: var(--gx-r) !important;
-	padding: 17px clamp(24px, 4vw, 52px) !important;
+	min-height: 52px;
+	border-radius: 999px !important;
+	padding: 14px clamp(22px, 3.4vw, 44px) !important;
 	font-weight: 800 !important;
 	font-size: clamp(14px, 1.5vw, 16px) !important;
 	letter-spacing: 0.1em;
@@ -1015,15 +1118,15 @@
    y en la barra tiene que haber un solo color fuerte, el del botón de comprar. */
 .tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn {
 	width: auto;
-	min-height: 48px;
-	height: 100%;
+	min-height: 52px;
+	height: auto;
 	padding: 12px 18px;
 	gap: 8px;
 	font-weight: 700;
 	background: transparent;
 	color: var(--gx-text);
 	border: 1px solid var(--gx-line);
-	border-radius: var(--gx-r);
+	border-radius: 999px;
 }
 .tgs-landing.tgs-custom .gx-buybar .tgs-whatsapp-btn:hover {
 	border-color: var(--gx-text);
@@ -1052,7 +1155,7 @@
 
 @media (max-width: 620px) {
 	.gx { gap: var(--gx-lg); }
-	.gx-title { font-size: clamp(27px, 8vw, 38px); }
+	.gx-title { font-size: clamp(19px, 5.4vw, 26px); }
 	/* El CTA de WhatsApp pasa a dos filas: texto arriba, botón a lo ancho. */
 	.tgs-landing.tgs-custom .gx-ask .tgs-whatsapp-btn { width: 100%; }
 	.gx-frame::before,
@@ -1066,8 +1169,8 @@
 	}
 	.gx-buybar__value { font-size: 19px; }
 	.gx-buybar__label { display: none; }
-	.gx-barfin { flex-basis: 200px; padding: 8px 12px; }
-	.gx-barfin__line { font-size: 14px; }
+	.gx-barfin { flex-basis: 200px; padding: 0 0 0 10px; }
+	.gx-barfin__line { font-size: 13px; }
 	.gx-barfin__more { font-size: 11.5px; }
 	.tgs-landing.tgs-custom .gx-buybar .tgs-sticky .button {
 		min-height: 50px;
@@ -1246,7 +1349,7 @@
 			     Es el gancho, no un dato al pie. El botón abre el detalle de
 			     todos los planes sin tapar el botón de comprar. -->
 			<div class="gx-barfin">
-				<span class="gx-barfin__tag">Financiación</span>
+				<span class="gx-barfin__tag" aria-label="Financiación"><span>Financiación</span></span>
 				<strong class="gx-barfin__line">{{cuotas}}</strong>
 				<button type="button" class="gx-barfin__more" data-gx-pay-toggle aria-expanded="false" aria-controls="gx-pay">
 					Ver todas las formas de pago

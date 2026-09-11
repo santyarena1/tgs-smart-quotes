@@ -316,9 +316,12 @@ function tgs_sq_block_games( array $d ) {
 	}
 	echo '<div class="tgs-games">';
 	foreach ( $d['games'] as $game ) {
-		echo '<div class="tgs-game"><span class="tgs-game-name">' . esc_html( $game['name'] ?? '' ) . '</span>';
 		$resolution = (string) ( $game['resolution'] ?? '' );
 		$settings   = (string) ( $game['settings'] ?? '' );
+		// Resolución y calidad también como atributos: los diseños propios
+		// pueden pintar una barra de rendimiento con CSS según el nivel.
+		echo '<div class="tgs-game" data-resolution="' . esc_attr( sanitize_title( $resolution ) ) . '" data-settings="' . esc_attr( sanitize_title( $settings ) ) . '">';
+		echo '<span class="tgs-game-name">' . esc_html( $game['name'] ?? '' ) . '</span>';
 		if ( '' !== $resolution || '' !== $settings ) {
 			echo '<span class="tgs-game-badges">';
 			if ( '' !== $resolution ) {
