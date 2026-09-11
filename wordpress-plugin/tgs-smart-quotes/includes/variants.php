@@ -95,6 +95,12 @@ function tgs_sq_default_extra() {
 		'recommended_title'  => 'Recomendadas de la casa',
 		'recommended_count'  => 4,
 		'payment_methods'    => 'Efectivo, transferencia, tarjeta de crédito y débito',
+		// Aclaración de las cuotas. Toda mención a "cuotas sin interés" lleva un
+		// asterisco que remite a este texto, en el pie de Formas de pago.
+		'financing_terms'    => 'Las cuotas sin interés aplican con las tarjetas y bancos indicados, sujetas a disponibilidad de la promoción y a las condiciones del emisor al momento de la compra. Los importes son orientativos y pueden variar.',
+		// Disclaimer de los textos generados con IA (descripción, componentes,
+		// juegos, compatibilidad). Vacío = no se muestra.
+		'ai_disclaimer'      => 'Texto generado con inteligencia artificial a partir de los componentes; puede contener errores u omisiones.',
 	);
 }
 
@@ -127,6 +133,8 @@ function tgs_sq_placeholder_docs() {
 		'componentes'            => 'Sección con los componentes de la PC (foto + nombre + detalle).',
 		'juegos'                 => 'Sección de juegos recomendados con el rendimiento estimado.',
 		'bajada'                 => 'Bajada corta debajo del título (la propone la IA del sistema).',
+		'condiciones_cuotas'     => 'Texto de condiciones de las cuotas (el que remite el asterisco), ya formateado.',
+		'aviso_ia'               => 'Aviso de "generado con IA", ya formateado.',
 		'puntos_fuertes'         => 'Lista de puntos fuertes de la PC (3 a 5 líneas).',
 		'galeria'                => 'Galería con las fotos de los componentes.',
 		'compatibilidad'         => 'Sección con las notas de compatibilidad del armado.',

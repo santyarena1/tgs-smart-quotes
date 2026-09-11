@@ -24,8 +24,21 @@ const LUMA_MIN = 205;
 const TOLERANCE = 32;
 /** Margen de suavizado del borde del recorte. */
 const FEATHER = 26;
+/**
+ * Huecos de fondo encerrados (el aro de un cooler, el espacio entre los
+ * ventiladores de una placa): no los alcanza el flood fill desde los bordes y
+ * quedaban blancos. Se borran solo si son blanco puro del mismo tono que el
+ * fondo (tolerancia estricta) y chicos respecto de la imagen, para no
+ * comerse un panel blanco del producto.
+ */
+const HOLE_TOLERANCE = 12;
+const HOLE_LUMA_MIN = 238;
+const HOLE_MAX_RATIO = 0.12;
+/** Halo claro de compresión JPEG alrededor del producto: hasta este ancho se limpia. */
+const FRINGE_WIDTH = 2;
 
 const luma = (r: number, g: number, b: number) => 0.299 * r + 0.587 * g + 0.114 * b;
+const clamp = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
 export type RemoveBackgroundResult = {
   buffer: Buffer;
@@ -112,6 +125,71 @@ export async function removeBackgroundDetailed(input: Buffer): Promise<RemoveBac
     push(x, y - 1);
   }
 
+  // Huecos encerrados: componentes de blanco puro que no tocan el borde.
+  const isHole = (index: number) => {
+    const r = data[index]!;
+    const g = data[index + 1]!;
+    const b = data[index + 2]!;
+    if (luma(r, g, b) < HOLE_LUMA_MIN) return false;
+    return Math.abs(r - refR) <= HOLE_TOLERANCE && Math.abs(g - refG) <= HOLE_TOLERANCE && Math.abs(b - refB) <= HOLE_TOLERANCE;
+  };
+  const visited = new Uint8Array(total);
+  const maxHole = Math.floor(total * HOLE_MAX_RATIO);
+  for (let seed = 0; seed < total; seed++) {
+    if (background[seed] || visited[seed] || !isHole(seed * channels)) continue;
+    const component: number[] = [];
+    const pending = [seed];
+    visited[seed] = 1;
+    while (pending.length) {
+      const flat = pending.pop()!;
+      component.push(flat);
+      const x = flat % width;
+      const y = (flat - x) / width;
+      const neighbors = [x > 0 ? flat - 1 : -1, x < width - 1 ? flat + 1 : -1, y > 0 ? flat - width : -1, y < height - 1 ? flat + width : -1];
+      for (const next of neighbors) {
+        if (next < 0 || visited[next] || background[next] || !isHole(next * channels)) continue;
+        visited[next] = 1;
+        pending.push(next);
+      }
+    }
+    if (component.length <= maxHole) for (const flat of component) background[flat] = 1;
+  }
+
+  // Anillo de contorno: a qué distancia del fondo está cada píxel del producto
+  // (1 = lo toca, 2 = toca a uno que lo toca). Sirve para el suavizado y para
+  // limpiar el halo claro que deja el JPEG alrededor del recorte.
+  const ring = new Uint8Array(total);
+  let frontier: number[] = [];
+  for (let flat = 0; flat < total; flat++) {
+    if (background[flat]) continue;
+    const x = flat % width;
+    const y = (flat - x) / width;
+    const touchesBackground =
+      (x > 0 && background[flat - 1]) ||
+      (x < width - 1 && background[flat + 1]) ||
+      (y > 0 && background[flat - width]) ||
+      (y < height - 1 && background[flat + width]);
+    if (touchesBackground) {
+      ring[flat] = 1;
+      frontier.push(flat);
+    }
+  }
+  for (let depth = 2; depth <= FRINGE_WIDTH; depth++) {
+    const next: number[] = [];
+    for (const flat of frontier) {
+      const x = flat % width;
+      const y = (flat - x) / width;
+      const neighbors = [x > 0 ? flat - 1 : -1, x < width - 1 ? flat + 1 : -1, y > 0 ? flat - width : -1, y < height - 1 ? flat + width : -1];
+      for (const candidate of neighbors) {
+        if (candidate < 0 || background[candidate] || ring[candidate]) continue;
+        ring[candidate] = depth;
+        next.push(candidate);
+      }
+    }
+    frontier = next;
+  }
+
+  const reference = luma(refR, refG, refB);
   let removed = 0;
   for (let flat = 0; flat < total; flat++) {
     const index = flat * channels;
@@ -120,22 +198,29 @@ export async function removeBackgroundDetailed(input: Buffer): Promise<RemoveBac
       removed++;
       continue;
     }
+    if (!ring[flat]) continue;
     // Suavizado del contorno: un píxel del producto que sea casi tan claro
-    // como el fondo y toque el fondo se vuelve semitransparente, así el
-    // recorte no queda con escalones.
-    const x = flat % width;
-    const y = (flat - x) / width;
-    const touchesBackground =
-      (x > 0 && background[flat - 1]) ||
-      (x < width - 1 && background[flat + 1]) ||
-      (y > 0 && background[flat - width]) ||
-      (y < height - 1 && background[flat + width]);
-    if (!touchesBackground) continue;
-    const value = luma(data[index]!, data[index + 1]!, data[index + 2]!);
-    const reference = luma(refR, refG, refB);
-    if (value >= reference - FEATHER) {
-      const distance = Math.max(0, reference - value);
-      data[index + 3] = Math.round((distance / FEATHER) * 255);
+    // como el fondo y esté pegado a él se vuelve semitransparente, así el
+    // recorte no queda con escalones ni con un borde blanco.
+    const r = data[index]!;
+    const g = data[index + 1]!;
+    const b = data[index + 2]!;
+    const value = luma(r, g, b);
+    if (value < reference - FEATHER) continue;
+    const distance = Math.max(0, reference - value);
+    // Más lejos del fondo, más se respeta el píxel: el anillo 2 solo se toca
+    // si es casi blanco puro (halo), no si es un borde claro del producto.
+    const strength = ring[flat] === 1 ? 1 : Math.max(0, 1 - distance / (FEATHER / 2));
+    const alpha = Math.round((distance / FEATHER) * 255);
+    data[index + 3] = Math.min(data[index + 3]!, ring[flat] === 1 ? alpha : Math.round(255 - (255 - alpha) * strength));
+    // Descontaminación: el color de un píxel semitransparente trae mezclado el
+    // blanco del fondo; se le quita para que al componer sobre oscuro no se
+    // vea un filete blanquecino.
+    const a = data[index + 3]! / 255;
+    if (a > 0 && a < 1) {
+      data[index] = clamp((r - (1 - a) * refR) / a);
+      data[index + 1] = clamp((g - (1 - a) * refG) / a);
+      data[index + 2] = clamp((b - (1 - a) * refB) / a);
     }
   }
 

@@ -544,6 +544,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'recommended_title' => sanitize_text_field( $_POST['recommended_title'] ?? '' ),
 				'recommended_count' => max( 1, min( 8, (int) ( $_POST['recommended_count'] ?? 4 ) ) ),
 				'payment_methods'   => sanitize_text_field( $_POST['payment_methods'] ?? '' ),
+				'financing_terms'   => sanitize_textarea_field( $_POST['financing_terms'] ?? '' ),
+				'ai_disclaimer'     => sanitize_text_field( $_POST['ai_disclaimer'] ?? '' ),
 			),
 		);
 
@@ -845,6 +847,16 @@ function tgs_sq_render_variant_editor( $slug ) {
 								<label for="payment_methods">Formas de pago — texto</label>
 								<input type="text" id="payment_methods" name="payment_methods" value="<?php echo esc_attr( $extra['payment_methods'] ); ?>" placeholder="Efectivo, transferencia, tarjeta de crédito y débito">
 								<p class="description">Las cuotas/planes de financiación se listan automáticamente debajo si el presupuesto los trae.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="financing_terms">Condiciones de las cuotas</label>
+								<textarea id="financing_terms" name="financing_terms" rows="3"><?php echo esc_textarea( $extra['financing_terms'] ?? '' ); ?></textarea>
+								<p class="description">Cada mención a cuotas lleva un asterisco (*) que remite a este texto, al pie de Formas de pago. Vacío = sin asterisco.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="ai_disclaimer">Aviso de textos generados con IA</label>
+								<input type="text" id="ai_disclaimer" name="ai_disclaimer" value="<?php echo esc_attr( $extra['ai_disclaimer'] ?? '' ); ?>">
+								<p class="description">Se muestra en chiquito al pie de Descripción, Componentes, Juegos y Compatibilidad. Vacío = no se muestra.</p>
 							</div>
 						</div>
 					</div>

@@ -19,7 +19,8 @@
 	--gx-bg: var(--tgs-bg, #08090C);
 	--gx-text: var(--tgs-text, #F5F6F8);
 
-	--gx-dim: color-mix(in srgb, var(--gx-text) 62%, transparent);
+	/* Texto secundario más presente: al 62 % los párrafos se leían apagados. */
+	--gx-dim: color-mix(in srgb, var(--gx-text) 74%, transparent);
 	--gx-faint: color-mix(in srgb, var(--gx-text) 42%, transparent);
 	--gx-line: color-mix(in srgb, var(--gx-text) 12%, transparent);
 	--gx-line-soft: color-mix(in srgb, var(--gx-text) 7%, transparent);
@@ -54,7 +55,11 @@
 
 	/* Dos roles tipográficos, no más: display para lo que se lee,
 	   monoespaciada para etiquetas, numeración y códigos. */
-	--gx-sans: var(--tgs-font, "Inter", "Segoe UI", system-ui, -apple-system, sans-serif);
+	/* Inter la carga el plugin (2.11.2+); Rajdhani es la de títulos, precios y
+	   nombres: condensada y con carácter gamer, para que lo destacado se
+	   distinga del texto corrido. */
+	--gx-sans: "Inter", var(--tgs-font, "Segoe UI", system-ui, -apple-system, sans-serif);
+	--gx-display: "Rajdhani", "Inter", "Segoe UI", system-ui, sans-serif;
 	--gx-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 
 	font-family: var(--gx-sans);
@@ -251,10 +256,11 @@
 
 .gx-title {
 	margin: 0;
-	font-size: var(--gx-f-xl);
-	font-weight: 800;
-	line-height: 1.15;
-	letter-spacing: -0.02em;
+	font-family: var(--gx-display);
+	font-size: calc(var(--gx-f-xl) * 1.18);
+	font-weight: 700;
+	line-height: 1.1;
+	letter-spacing: 0;
 	text-transform: uppercase;
 	text-wrap: balance;
 }
@@ -267,6 +273,7 @@
 	border-top: 1px solid var(--gx-line);
 }
 .gx-price__value {
+	font-family: var(--gx-display);
 	display: block;
 	font-size: var(--gx-f-price);
 	font-weight: 800;
@@ -294,10 +301,11 @@
 .gx-price__alt s { text-decoration-thickness: 1px; }
 
 .gx-fin {
-	display: inline-flex;
+	/* inline-block, no flex: el asterisco de condiciones es un <sup> adentro del
+	   texto y con flex quedaba como columna aparte. */
+	display: inline-block;
 	align-self: start;
-	align-items: center;
-	gap: 8px;
+	line-height: 1.45;
 	margin: var(--gx-xs) 0 0;
 	padding: 8px 12px;
 	font-size: var(--gx-f-sm);
@@ -442,6 +450,7 @@
 }
 .gx-strip .gx-label { margin-top: 10px; }
 .gx-strip b {
+	font-family: var(--gx-display);
 	font-size: clamp(17px, 1.9vw, 21px);
 	font-weight: 800;
 	letter-spacing: -0.02em;
@@ -478,6 +487,7 @@
 	padding: clamp(20px, 2.6vw, 38px);
 }
 .tgs-landing.tgs-custom .tgs-section-card > h2:first-child {
+	font-family: var(--gx-display);
 	display: flex;
 	align-items: baseline;
 	gap: 14px;
@@ -512,6 +522,19 @@
 }
 .gx-about .gx-label { padding-top: 6px; }
 .tgs-landing.tgs-custom .gx-about .tgs-prose,
+/* Notas al pie: condiciones de cuotas y aviso de IA, en monoespaciada chica. */
+.tgs-landing.tgs-custom .tgs-fin-terms,
+.tgs-landing.tgs-custom .tgs-ai-note {
+	margin: var(--gx-md) 0 0;
+	font-family: var(--gx-mono);
+	font-size: var(--gx-f-label);
+	letter-spacing: 0.04em;
+	line-height: 1.5;
+	color: var(--gx-faint);
+	text-transform: none;
+}
+.tgs-landing.tgs-custom .tgs-ai-note::before { border-color: var(--gx-line); color: var(--gx-dim); }
+.tgs-landing.tgs-custom .tgs-fin-mark { color: var(--gx-accent); }
 .gx-about__text {
 	font-size: var(--gx-f-md);
 	line-height: 1.65;
@@ -604,8 +627,9 @@
 	color: var(--gx-accent);
 }
 .tgs-landing.tgs-custom .tgs-item-name {
-	font-size: var(--gx-f-md);
-	font-weight: 800;
+	font-family: var(--gx-display);
+	font-size: calc(var(--gx-f-md) * 1.15);
+	font-weight: 700;
 	line-height: 1.2;
 	letter-spacing: -0.01em;
 	color: var(--gx-text);
@@ -671,8 +695,9 @@
 	mask: repeating-linear-gradient(90deg, #000 0 calc(25% - 3px), transparent 0 25%);
 }
 .tgs-landing.tgs-custom .tgs-game-name {
-	font-size: var(--gx-f-md);
-	font-weight: 800;
+	font-family: var(--gx-display);
+	font-size: calc(var(--gx-f-md) * 1.2);
+	font-weight: 700;
 	line-height: 1.15;
 	letter-spacing: -0.01em;
 	color: var(--gx-text);
@@ -949,7 +974,8 @@
 	color: var(--gx-dim);
 }
 .gx-buybar__value {
-	font-size: clamp(22px, 2.4vw, 30px);
+	font-family: var(--gx-display);
+	font-size: clamp(24px, 2.6vw, 34px);
 	font-weight: 800;
 	letter-spacing: -0.03em;
 	line-height: 1.1;
@@ -1295,7 +1321,7 @@
 			<h2>La PC</h2>
 			<div class="gx-about">
 				<span class="gx-label">De qué se trata</span>
-				<div class="gx-about__text">{{descripcion}}</div>
+				<div class="gx-about__text">{{descripcion}}{{aviso_ia}}</div>
 			</div>
 		</section>
 

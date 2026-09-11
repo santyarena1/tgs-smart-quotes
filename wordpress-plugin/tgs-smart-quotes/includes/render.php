@@ -37,7 +37,11 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! is_singular( 'product' ) || ! tgs_sq_is_managed_product() ) {
 		return;
 	}
-	wp_enqueue_style( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.css', array(), TGS_SQ_VERSION );
+	// Tipografías de la ficha: Inter para texto (legible y con contraste
+	// contra los títulos) y Rajdhani para títulos y números (más "gamer").
+	// Antes se pedía Inter sin cargarla y el navegador caía a la del sistema.
+	wp_enqueue_style( 'tgs-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap', array(), null );
+	wp_enqueue_style( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.css', array( 'tgs-fonts' ), TGS_SQ_VERSION );
 	wp_enqueue_script( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.js', array(), TGS_SQ_VERSION, true );
 
 	$model3d = get_post_meta( get_the_ID(), TGS_SQ_META_MODEL3D, true );
@@ -183,13 +187,13 @@ function tgs_sq_best_installment_plan( $plans ) {
  * Tanto el "sin interés" como el banco salen del plan cargado, así la ficha
  * nunca promete una condición que el presupuesto no tenga.
  */
-function tgs_sq_installment_line( $plan ) {
+function tgs_sq_installment_line( $plan, array $d = array() ) {
 	if ( ! is_array( $plan ) || empty( $plan['installments'] ) || empty( $plan['installmentCents'] ) ) {
 		return '';
 	}
 	$linea = 'Hasta ' . (int) $plan['installments'] . ' cuotas';
 	if ( tgs_sq_plan_sin_interes( $plan ) ) {
-		$linea .= ' sin interés';
+		$linea .= ' sin interés' . ( $d ? tgs_sq_financing_mark( $d ) : '' );
 	}
 	$linea .= ' de ' . wp_kses_post( wc_price( ( (int) $plan['installmentCents'] ) / 100 ) );
 	$banco = trim( (string) ( $plan['bank'] ?? '' ) );
@@ -211,7 +215,7 @@ function tgs_sq_price_html( array $d ) {
 	echo '<span class="tgs-price-cash">Efectivo ' . wp_kses_post( wc_price( $d['price_cash'] / 100 ) ) . '</span>';
 	$best = tgs_sq_best_installment_plan( $d['installments'] );
 	if ( $best ) {
-		echo '<span class="tgs-price-financing">' . wp_kses_post( tgs_sq_installment_line( $best ) ) . '</span>';
+		echo '<span class="tgs-price-financing">' . wp_kses_post( tgs_sq_installment_line( $best, $d ) ) . '</span>';
 	}
 	echo '</div>';
 	return ob_get_clean();
@@ -260,7 +264,9 @@ function tgs_sq_block_specs( array $d ) {
 		}
 		echo '</div></div>';
 	}
-	echo '</div></section>';
+	echo '</div>';
+	echo tgs_sq_ai_note_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '</section>';
 }
 
 function tgs_sq_block_description( array $d ) {
@@ -274,7 +280,7 @@ function tgs_sq_block_description( array $d ) {
 	if ( $description === wp_strip_all_tags( $description ) ) {
 		$description = wpautop( $description );
 	}
-	echo '<section class="tgs-section-card"><h2>Descripción</h2><div class="tgs-prose">' . wp_kses_post( $description ) . '</div></section>';
+	echo '<section class="tgs-section-card"><h2>Descripción</h2><div class="tgs-prose">' . wp_kses_post( $description ) . '</div>' . tgs_sq_ai_note_html( $d ) . '</section>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 /** Bajada debajo del título del hero (vacío si no hay). */
@@ -341,6 +347,7 @@ function tgs_sq_block_games( array $d ) {
 	}
 	echo '</div>';
 	echo '<p class="tgs-games-footnote">Rendimiento estimado según los componentes. Puede variar con la configuración del juego y los drivers.</p>';
+	echo tgs_sq_ai_note_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '</section>';
 }
 
@@ -368,7 +375,36 @@ function tgs_sq_block_compatibility( array $d ) {
 	foreach ( $d['compat'] as $line ) {
 		echo '<li>' . esc_html( $line ) . '</li>';
 	}
-	echo '</ul></section>';
+	echo '</ul>';
+	echo tgs_sq_ai_note_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '</section>';
+}
+
+/** Asterisco que remite a las condiciones de las cuotas (vacío si no hay texto). */
+function tgs_sq_financing_mark( array $d ) {
+	$terms = trim( (string) ( $d['extra']['financing_terms'] ?? '' ) );
+	if ( '' === $terms ) {
+		return '';
+	}
+	return '<sup class="tgs-fin-mark" title="' . esc_attr( $terms ) . '">*</sup>';
+}
+
+/** Condiciones de las cuotas, para el pie de Formas de pago. */
+function tgs_sq_financing_terms_html( array $d ) {
+	$terms = trim( (string) ( $d['extra']['financing_terms'] ?? '' ) );
+	if ( '' === $terms ) {
+		return '';
+	}
+	return '<p class="tgs-fin-terms">* ' . esc_html( $terms ) . '</p>';
+}
+
+/** Aviso de "generado con IA", al pie de cada sección con texto de la IA. */
+function tgs_sq_ai_note_html( array $d ) {
+	$note = trim( (string) ( $d['extra']['ai_disclaimer'] ?? '' ) );
+	if ( '' === $note ) {
+		return '';
+	}
+	return '<p class="tgs-ai-note">' . esc_html( $note ) . '</p>';
 }
 
 function tgs_sq_payment_html( array $d ) {
@@ -393,7 +429,7 @@ function tgs_sq_payment_html( array $d ) {
 			}
 			echo '<span class="tgs-installment-plan"><span class="tgs-installment-count">' . esc_html( $installments ) . ' cuotas</span>';
 			if ( tgs_sq_plan_sin_interes( $plan ) ) {
-				echo ' <span class="tgs-installment-free">sin interés</span>';
+				echo ' <span class="tgs-installment-free">sin interés' . tgs_sq_financing_mark( $d ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			}
 			if ( $per ) {
 				echo ' de <span class="tgs-installment-amount">' . wp_kses_post( $per ) . '</span>';
@@ -402,6 +438,7 @@ function tgs_sq_payment_html( array $d ) {
 			echo '</div>';
 		}
 		echo '</div>';
+		echo tgs_sq_financing_terms_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 	echo '</section>';
 	return ob_get_clean();
@@ -570,7 +607,7 @@ function tgs_sq_placeholder_values( array $d ) {
 	$best    = tgs_sq_best_installment_plan( $d['installments'] );
 	$cuotas  = '';
 	if ( $best ) {
-		$cuotas = tgs_sq_installment_line( $best );
+		$cuotas = tgs_sq_installment_line( $best, $d );
 	}
 
 	$imagen = $d['hero_image']
@@ -597,6 +634,8 @@ function tgs_sq_placeholder_values( array $d ) {
 		'componentes'          => tgs_sq_capture_block( 'specs', $d ),
 		'juegos'               => tgs_sq_capture_block( 'games', $d ),
 		'bajada'               => esc_html( (string) $d['tagline'] ),
+		'condiciones_cuotas'   => tgs_sq_financing_terms_html( $d ),
+		'aviso_ia'             => tgs_sq_ai_note_html( $d ),
 		'puntos_fuertes'       => tgs_sq_highlights_html( $d ),
 		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
 		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
