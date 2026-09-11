@@ -19,11 +19,13 @@ const SYSTEM=`Sos el redactor comercial senior de The Gamer Shop, tienda de PC g
 - descriptionHtml: descripción comercial en HTML simple y seguro (p, ul, li, strong). Entre 120 y 220 palabras. Explicá qué logra el conjunto, no repitas la lista de piezas.
 - highlights: 3 a 5 puntos fuertes, una línea cada uno (máximo 80 caracteres), concretos y basados en los componentes.
 - audience: para quién está pensada (máximo 160 caracteres).
-- games: 6 a 10 juegos populares y variados (competitivos, AAA exigentes, indies) con el rendimiento ESTIMADO. tier es un texto corto tipo "1080p Alto (estimado)". resolution es solo "1080p", "1440p" o "4K". settings es solo "Bajo", "Medio", "Alto" o "Ultra". note es una aclaración opcional de una oración o null. Siempre cualitativo, NUNCA FPS ni porcentajes.
+- games: el rendimiento ESTIMADO de CADA UNO de los juegos de la lista que se te pasa (todos, en ese orden; si la PC no puede correr alguno de forma jugable, igual incluilo con settings "Bajo" y una nota que lo diga). tier es un texto corto tipo "1080p Alto (estimado)". resolution es solo "1080p", "1440p" o "4K". settings es solo "Bajo", "Medio", "Alto" o "Ultra". note es una aclaración opcional de una oración o null (útil para DLSS/FSR, juegos de CPU, o si depende del servidor/mods). Siempre cualitativo, NUNCA FPS ni porcentajes. Si no hay placa de video dedicada, sé conservador.
 - programs: 3 a 6 programas o usos (edición de video, streaming, diseño 3D, oficina, etc.) con una nota cualitativa.
 - compatibility: observaciones de compatibilidad orientativas basadas solo en los nombres recibidos (socket, RAM, fuente, tamaño). Si no hay nada que observar, lista vacía.
 
 Reglas duras: no inventes precios ni especificaciones numéricas que no estén en los nombres; todo tier de juego y toda nota de programa debe incluir literalmente "(estimado)"; no uses FPS ni métricas numéricas de rendimiento.`;
+/** Lista por defecto: la de la tienda, del más liviano al más pesado. */
+export const DEFAULT_GAMES_TO_ANALYZE=["Fortnite","Counter-Strike 2","Valorant","GTA V","EA Sports FC 25","Los Sims 4","Lineage 2","Minecraft","Rocket League","Roblox","Assetto Corsa","World of Warcraft","Call of Duty: Warzone","Marvel Rivals","ARK: Survival Evolved","Red Dead Redemption 2","Assassin's Creed Mirage","Dragon Ball: Sparking! Zero","The Last of Us Part I","God of War Ragnarök"];
 const estimated=(value:string)=>value.toLocaleLowerCase('es-AR').includes('estimado')?value:`${value} (estimado)`;
 const fallback=(input:QuoteEnrichmentInput):QuoteEnrichmentOutput=>({
  specs:{cpu:null,gpu:null,ramGb:null,storage:null,os:null},
@@ -45,7 +47,7 @@ export class QuoteEnrichmentService{
   // `v2` en el hash: el formato de salida cambió y no hay que reutilizar
   // respuestas cacheadas del formato anterior.
   const hashPayload={format:'v3',...parsed,...(extra?{customInstructions:extra}:{})};
-  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Componentes de la PC:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}${item.line?` [${item.line}]`:''}`).join('\n')}\n\nGenerá specs, bajada, descripción corta, descripción HTML, puntos fuertes, público, análisis de juegos por resolución y calidad estimadas, programas y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
+  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Componentes de la PC:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}${item.line?` [${item.line}]`:''}`).join('\n')}\n\nJuegos a analizar (todos):\n${(value.games?.length?value.games:DEFAULT_GAMES_TO_ANALYZE).map(game=>`- ${game}`).join('\n')}\n\nGenerá specs, bajada, descripción corta, descripción HTML, puntos fuertes, público, análisis de juegos por resolución y calidad estimadas, programas y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
   return{...response,result:{...response.result,games:response.result.games.map(game=>({...game,tier:estimated(game.tier)})),programs:response.result.programs.map(program=>({...program,note:estimated(program.note)}))}};
  }
 }

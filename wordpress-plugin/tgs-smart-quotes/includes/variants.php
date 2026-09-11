@@ -48,6 +48,7 @@ function tgs_sq_block_types() {
 		'gallery'        => 'Galería de fotos de los componentes',
 		'compatibility'  => 'Notas de compatibilidad',
 		'payment'        => 'Formas de pago y cuotas',
+		'shipping'       => 'Envíos y retiro (zonas y costos de WooCommerce)',
 		'recommended'    => 'Recomendadas de la casa (PCs de precio similar)',
 	);
 }
@@ -134,6 +135,7 @@ function tgs_sq_placeholder_docs() {
 		'juegos'                 => 'Sección de juegos recomendados con el rendimiento estimado.',
 		'bajada'                 => 'Bajada corta debajo del título (la propone la IA del sistema).',
 		'condiciones_cuotas'     => 'Texto de condiciones de las cuotas (el que remite el asterisco), ya formateado.',
+		'envios'                 => 'Sección "Envíos y retiro" con las zonas, métodos y costos configurados en WooCommerce.',
 		'aviso_ia'               => 'Aviso de "generado con IA", ya formateado.',
 		'puntos_fuertes'         => 'Lista de puntos fuertes de la PC (3 a 5 líneas).',
 		'galeria'                => 'Galería con las fotos de los componentes.',

@@ -5,7 +5,7 @@
  */
 import {createHash} from 'node:crypto';
 import {BadGatewayException, BadRequestException} from '@nestjs/common';
-import {createAiClient, DEFAULT_AI_MODEL, describeOpenAiError, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
+import {createAiClient, DEFAULT_AI_MODEL, DEFAULT_GAMES_TO_ANALYZE, describeOpenAiError, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
 import {decryptSecret} from '@tgs/config';
 import {db} from '@tgs/database';
 import {buildStoreTitle} from './quote-title.js';
@@ -65,8 +65,14 @@ export async function runQuoteEnrichment(versionId: string, userId: string | nul
   const items = await loadEnrichmentItems(versionId);
   if (!items.length) throw new Error('El presupuesto no tiene ítems');
   const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+  // Juegos configurados en Ajustes → IA (uno por línea); si no hay, los del sistema.
+  const games = (aiSettings.gamesToAnalyze ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 40);
   const {result, metadata} = await (await enrichmentService()).enrich(
-    {items},
+    {items, games: games.length ? games : DEFAULT_GAMES_TO_ANALYZE},
     {entity: {entityType: 'QuoteVersion', entityId: versionId}},
     aiSettings.pcDescriptionPrompt,
   );

@@ -660,6 +660,96 @@
 }
 
 /* ==========================================================================
+   VISOR DE FOTOS (lightbox)
+   ========================================================================== */
+.tgs-zoomable { cursor: zoom-in; }
+body.tgs-lightbox-open { overflow: hidden; }
+.tgs-lightbox {
+	position: fixed;
+	inset: 0;
+	z-index: 99999;
+	display: grid;
+	grid-template-rows: 1fr auto;
+	background: rgba(4, 5, 8, 0.94);
+	-webkit-backdrop-filter: blur(6px);
+	backdrop-filter: blur(6px);
+	color: #fff;
+	font-family: "Inter", system-ui, sans-serif;
+}
+.tgs-lightbox[hidden] { display: none; }
+.tgs-lightbox__figure {
+	grid-row: 1;
+	margin: 0;
+	display: grid;
+	grid-template-rows: 1fr auto;
+	place-items: center;
+	padding: clamp(48px, 7vw, 72px) clamp(56px, 8vw, 96px) 12px;
+	min-height: 0;
+}
+.tgs-lightbox__figure img {
+	max-width: 100%;
+	max-height: 100%;
+	min-height: 0;
+	object-fit: contain;
+	filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.6));
+}
+.tgs-lightbox__figure figcaption {
+	margin-top: 12px;
+	font-size: 14px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.85);
+	text-align: center;
+}
+.tgs-lightbox__close,
+.tgs-lightbox__nav {
+	position: absolute;
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.06);
+	color: #fff;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+}
+.tgs-lightbox__close { top: 16px; right: 16px; font-size: 16px; }
+.tgs-lightbox__nav { top: 50%; transform: translateY(-50%); }
+.tgs-lightbox__nav--prev { left: 12px; }
+.tgs-lightbox__nav--next { right: 12px; }
+.tgs-lightbox__close:hover,
+.tgs-lightbox__nav:hover { background: rgba(255, 255, 255, 0.16); }
+.tgs-lightbox__thumbs {
+	grid-row: 2;
+	display: flex;
+	gap: 8px;
+	padding: 10px 16px 16px;
+	overflow-x: auto;
+	justify-content: safe center;
+}
+.tgs-lightbox__thumb {
+	flex: 0 0 auto;
+	width: 64px;
+	height: 64px;
+	padding: 4px;
+	border: 2px solid transparent;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.08);
+	cursor: pointer;
+	opacity: 0.6;
+}
+.tgs-lightbox__thumb img { width: 100%; height: 100%; object-fit: contain; }
+.tgs-lightbox__thumb.is-active,
+.tgs-lightbox__thumb:hover { opacity: 1; border-color: var(--tgs-accent, #E31B23); }
+@media (max-width: 620px) {
+	.tgs-lightbox__figure { padding: 56px 12px 8px; }
+	.tgs-lightbox__nav { display: none; }
+	.tgs-lightbox__thumb { width: 52px; height: 52px; }
+}
+
+/* ==========================================================================
    NOTAS: condiciones de cuotas y aviso de IA
    ========================================================================== */
 .tgs-landing .tgs-fin-mark {
@@ -778,6 +868,28 @@
 	margin-bottom: 16px !important;
 	font-size: 14px !important;
 }
+.tgs-landing .tgs-shipping-lead {
+	font-size: 15px;
+	color: var(--tgs-text-soft);
+	margin: 0 0 14px;
+}
+.tgs-landing .tgs-shipping-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+	gap: 8px;
+}
+.tgs-landing .tgs-shipping-row {
+	display: grid;
+	gap: 2px;
+	padding: 12px 14px;
+	background: var(--tgs-bg-soft);
+	border: 1px solid var(--tgs-line);
+	border-radius: var(--tgs-r-sm);
+}
+.tgs-landing .tgs-shipping-row--pickup { border-color: var(--tgs-accent-line); }
+.tgs-landing .tgs-shipping-title { font-weight: 700; color: var(--tgs-text); }
+.tgs-landing .tgs-shipping-zone { font-size: 12.5px; color: var(--tgs-muted); }
+.tgs-landing .tgs-shipping-cost { font-size: 13px; font-weight: 700; color: var(--tgs-accent); }
 .tgs-landing .tgs-installments {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));

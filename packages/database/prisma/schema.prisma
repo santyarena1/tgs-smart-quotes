@@ -940,6 +940,9 @@ model AiSettings {
   apiKeyEncrypted            String?
   pcDescriptionPrompt        String?
   productDescriptionPrompt   String?
+  /// Juegos que la IA analiza en cada PC (uno por línea). Null = lista por
+  /// defecto del sistema. La IA los cubre todos, del más liviano al más pesado.
+  gamesToAnalyze             String?
   analysisEnabled            Boolean        @default(true)
   similarityEnabled          Boolean        @default(true)
   compatibilityEnabled       Boolean        @default(true)

@@ -407,6 +407,99 @@ function tgs_sq_ai_note_html( array $d ) {
 	return '<p class="tgs-ai-note">' . esc_html( $note ) . '</p>';
 }
 
+/**
+ * Envíos y retiro, leídos de la configuración real de WooCommerce (zonas de
+ * envío y sus métodos, con el costo cargado ahí). Así la ficha promete lo
+ * mismo que va a cobrar el checkout, y si cambia un precio de envío no hay
+ * que tocar nada acá.
+ */
+function tgs_sq_shipping_options() {
+	if ( ! class_exists( 'WC_Shipping_Zones' ) ) {
+		return array();
+	}
+	$rows  = array();
+	$zones = WC_Shipping_Zones::get_zones();
+	// La zona 0 es "Resto del mundo": cubre lo que no cae en ninguna otra.
+	$zones[] = array( 'zone_name' => 'Resto del país', 'shipping_methods' => WC_Shipping_Zones::get_zone( 0 )->get_shipping_methods( true ) );
+	foreach ( $zones as $zone ) {
+		$zone_name = (string) ( $zone['zone_name'] ?? '' );
+		foreach ( (array) ( $zone['shipping_methods'] ?? array() ) as $method ) {
+			if ( ! is_object( $method ) || ! $method->is_enabled() ) {
+				continue;
+			}
+			$title = (string) $method->get_title();
+			$type  = (string) $method->id;
+			$cost  = '';
+			if ( 'free_shipping' === $type ) {
+				$cost = 'Gratis';
+				$min  = (float) $method->get_option( 'min_amount' );
+				if ( $min > 0 && in_array( $method->get_option( 'requires' ), array( 'min_amount', 'either', 'both' ), true ) ) {
+					$cost = 'Gratis desde ' . wp_strip_all_tags( wc_price( $min ) );
+				}
+			} elseif ( 'local_pickup' === $type ) {
+				$raw  = (float) $method->get_option( 'cost' );
+				$cost = $raw > 0 ? wp_strip_all_tags( wc_price( $raw ) ) : 'Sin costo';
+			} else {
+				$raw = (string) $method->get_option( 'cost' );
+				// Un costo con fórmula ([qty], [fee]) no se puede mostrar como número.
+				if ( '' !== $raw && is_numeric( $raw ) ) {
+					$cost = (float) $raw > 0 ? wp_strip_all_tags( wc_price( (float) $raw ) ) : 'Sin costo';
+				} elseif ( '' !== $raw ) {
+					$cost = 'Se calcula al comprar';
+				}
+			}
+			$rows[] = array(
+				'zone'   => $zone_name,
+				'title'  => $title,
+				'type'   => $type,
+				'cost'   => $cost,
+				'pickup' => 'local_pickup' === $type,
+			);
+		}
+	}
+	return $rows;
+}
+
+/**
+ * Sección "Envíos y retiro". Retiro en local primero, después los envíos
+ * agrupados por zona. Si Woo no tiene zonas cargadas, solo la promesa.
+ */
+function tgs_sq_shipping_html( array $d ) {
+	$rows    = tgs_sq_shipping_options();
+	$pickups = array_values( array_filter( $rows, function ( $r ) { return $r['pickup']; } ) );
+	$ships   = array_values( array_filter( $rows, function ( $r ) { return ! $r['pickup']; } ) );
+	ob_start();
+	echo '<section class="tgs-section-card tgs-shipping"><h2>Envíos y retiro</h2>';
+	echo '<p class="tgs-shipping-lead"><strong>Enviamos a todo el país.</strong> El costo se calcula en el checkout según tu ubicación, con las mismas tarifas y opciones de siempre.</p>';
+	if ( $pickups || $ships ) {
+		echo '<div class="tgs-shipping-grid">';
+		foreach ( $pickups as $row ) {
+			echo '<div class="tgs-shipping-row tgs-shipping-row--pickup"><span class="tgs-shipping-title">' . esc_html( $row['title'] ) . '</span>';
+			if ( $row['zone'] && 'Resto del país' !== $row['zone'] ) {
+				echo '<span class="tgs-shipping-zone">' . esc_html( $row['zone'] ) . '</span>';
+			}
+			echo '<span class="tgs-shipping-cost">' . esc_html( $row['cost'] ?: 'Sin costo' ) . '</span></div>';
+		}
+		foreach ( $ships as $row ) {
+			echo '<div class="tgs-shipping-row"><span class="tgs-shipping-title">' . esc_html( $row['title'] ) . '</span>';
+			if ( $row['zone'] ) {
+				echo '<span class="tgs-shipping-zone">' . esc_html( $row['zone'] ) . '</span>';
+			}
+			if ( $row['cost'] ) {
+				echo '<span class="tgs-shipping-cost">' . esc_html( $row['cost'] ) . '</span>';
+			}
+			echo '</div>';
+		}
+		echo '</div>';
+	}
+	echo '</section>';
+	return ob_get_clean();
+}
+
+function tgs_sq_block_shipping( array $d ) {
+	echo tgs_sq_shipping_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
 function tgs_sq_payment_html( array $d ) {
 	$methods = $d['extra']['payment_methods'] ?? '';
 	ob_start();
@@ -635,6 +728,7 @@ function tgs_sq_placeholder_values( array $d ) {
 		'juegos'               => tgs_sq_capture_block( 'games', $d ),
 		'bajada'               => esc_html( (string) $d['tagline'] ),
 		'condiciones_cuotas'   => tgs_sq_financing_terms_html( $d ),
+		'envios'               => tgs_sq_shipping_html( $d ),
 		'aviso_ia'             => tgs_sq_ai_note_html( $d ),
 		'puntos_fuertes'       => tgs_sq_highlights_html( $d ),
 		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
@@ -705,6 +799,11 @@ function tgs_sq_render_product( $product_id ) {
 	$variant       = tgs_sq_get_variant( $variant_slug ) ?: tgs_sq_get_variant( TGS_SQ_DEFAULT_VARIANT );
 	$data['extra'] = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
 
+	// Datos para el visor de fotos (lightbox) y datos estructurados para
+	// Google: van en cualquiera de los dos modos, antes de la ficha.
+	tgs_sq_gallery_data_html( $data );
+	tgs_sq_structured_data_html( $data );
+
 	$custom_code = tgs_sq_variant_custom_code( $variant );
 	if ( 'custom' === tgs_sq_normalize_mode( $variant['mode'] ?? '' ) && '' !== $custom_code ) {
 		tgs_sq_render_custom_mode( $variant, $data );
@@ -712,4 +811,70 @@ function tgs_sq_render_product( $product_id ) {
 	}
 
 	tgs_sq_render_blocks_mode( $variant, $data );
+}
+
+/**
+ * Fotos para el visor: la principal primero y después las de los
+ * componentes, con su nombre como pie. El JS del plugin arma el lightbox
+ * al tocar la foto del hero o cualquier foto de componente.
+ */
+function tgs_sq_gallery_data_html( array $d ) {
+	$photos = array();
+	if ( ! empty( $d['hero_image'] ) ) {
+		$photos[] = array( 'url' => esc_url_raw( $d['hero_image'] ), 'label' => (string) $d['title'] );
+	}
+	foreach ( (array) $d['items'] as $item ) {
+		if ( ! is_array( $item ) || empty( $item['imageUrl'] ) ) {
+			continue;
+		}
+		$label = trim( (string) ( $item['part'] ?? '' ) );
+		$label = ( '' !== $label ? $label . ' · ' : '' ) . (string) ( $item['name'] ?? '' );
+		$photos[] = array( 'url' => esc_url_raw( $item['imageUrl'] ), 'label' => $label );
+	}
+	if ( count( $photos ) < 1 ) {
+		return;
+	}
+	echo '<script type="application/json" id="tgs-gallery-data">' . wp_json_encode( $photos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG ) . '</script>';
+}
+
+/**
+ * schema.org Product: precio, disponibilidad, imagen y descripción, para
+ * que Google muestre el resultado enriquecido. WooCommerce ya emite uno
+ * básico, pero sin imagen ni descripción cuando la ficha es custom.
+ */
+function tgs_sq_structured_data_html( array $d ) {
+	$product = $d['product'];
+	if ( ! $product ) {
+		return;
+	}
+	$price = $d['price_transfer'] > 0 ? round( $d['price_transfer'] / 100, 2 ) : (float) $product->get_price();
+	$description = trim( wp_strip_all_tags( (string) $product->get_short_description() ) );
+	if ( '' === $description ) {
+		$description = trim( wp_strip_all_tags( (string) $d['description'] ) );
+	}
+	$images = array_values( array_filter( array( $d['hero_image'], $d['thumbnail'] ) ) );
+	foreach ( (array) $d['gallery'] as $url ) {
+		if ( $url ) {
+			$images[] = $url;
+		}
+	}
+	$schema = array(
+		'@context'    => 'https://schema.org',
+		'@type'       => 'Product',
+		'name'        => (string) $d['title'],
+		'description' => mb_substr( $description, 0, 500 ),
+		'image'       => array_values( array_unique( array_map( 'esc_url_raw', $images ) ) ),
+		'sku'         => (string) $product->get_sku(),
+		'brand'       => array( '@type' => 'Brand', 'name' => 'The Gamer Shop' ),
+		'offers'      => array(
+			'@type'           => 'Offer',
+			'url'             => (string) $d['permalink'],
+			'priceCurrency'   => get_woocommerce_currency(),
+			'price'           => number_format( $price, 2, '.', '' ),
+			'availability'    => 'https://schema.org/InStock',
+			'itemCondition'   => 'https://schema.org/NewCondition',
+			'seller'          => array( '@type' => 'Organization', 'name' => 'The Gamer Shop' ),
+		),
+	);
+	echo '<script type="application/ld+json">' . wp_json_encode( $schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . '</script>';
 }

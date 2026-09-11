@@ -167,6 +167,7 @@ export type AiSettings = {
   frequentSupportThreshold: number;
   pcDescriptionPrompt?: string | null;
   productDescriptionPrompt?: string | null;
+  gamesToAnalyze?: string | null;
   updatedAt?: string;
 };
 

@@ -286,6 +286,7 @@ export const aiSettingsInputSchema = z
     frequentSupportThreshold: z.number().int().nonnegative(),
     pcDescriptionPrompt: z.string().trim().max(4000).nullable().optional(),
     productDescriptionPrompt: z.string().trim().max(4000).nullable().optional(),
+    gamesToAnalyze: z.string().trim().max(4000).nullable().optional(),
   })
   .strict();
 export const aiSettingsSchema = aiSettingsInputSchema

@@ -285,6 +285,7 @@ export function SettingsView() {
         frequentSupportThreshold: ai.frequentSupportThreshold,
         pcDescriptionPrompt: ai.pcDescriptionPrompt?.trim() || null,
         productDescriptionPrompt: ai.productDescriptionPrompt?.trim() || null,
+        gamesToAnalyze: ai.gamesToAnalyze?.trim() || null,
         clearApiKey: clearKey,
       };
       if (aiKey.trim()) body.apiKey = aiKey.trim();
@@ -867,6 +868,19 @@ export function SettingsView() {
               value={ai.pcDescriptionPrompt ?? ""}
               onChange={(e) => setAi({ ...ai, pcDescriptionPrompt: e.target.value })}
               placeholder="Ej: Destacá siempre que el armado incluye garantía y soporte técnico. Tono cercano pero profesional."
+            />
+          </Field>
+          <Field
+            label="Juegos a analizar en cada PC"
+            htmlFor="ai-games"
+            hint="Uno por línea. La IA estima resolución y calidad para todos estos juegos en cada PC que se publica. Vacío = lista por defecto de la tienda (Fortnite, CS2, Valorant, GTA V, FC 25, Sims 4, Lineage 2, Minecraft, Rocket League, Roblox, Assetto Corsa, WoW, Warzone, Marvel Rivals, ARK, RDR2, Assassin's Creed, Sparking! Zero, The Last of Us, God of War)."
+          >
+            <textarea
+              id="ai-games"
+              rows={6}
+              value={ai.gamesToAnalyze ?? ""}
+              onChange={(e) => setAi({ ...ai, gamesToAnalyze: e.target.value })}
+              placeholder={"Fortnite\nCounter-Strike 2\nValorant\nGTA V\nEA Sports FC 25\n…"}
             />
           </Field>
           <Field

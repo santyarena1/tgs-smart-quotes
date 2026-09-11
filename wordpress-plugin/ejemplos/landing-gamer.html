@@ -421,7 +421,7 @@
    ------------------------------------------------------------------- */
 .gx-strip {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: repeat(5, minmax(0, 1fr));
 	gap: 1px;
 	background: var(--gx-line);
 	border: 1px solid var(--gx-line);
@@ -1084,6 +1084,10 @@
 	border-radius: var(--gx-r);
 }
 .gx-pay__close:hover { color: var(--gx-text); border-color: var(--gx-accent); }
+.tgs-landing.tgs-custom .gx-pay .tgs-shipping { margin-top: var(--gx-md); padding-top: var(--gx-md); border-top: 1px solid var(--gx-line); }
+.tgs-landing.tgs-custom .tgs-shipping-row { background: var(--gx-panel); border-color: var(--gx-line); border-radius: var(--gx-r); }
+.tgs-landing.tgs-custom .tgs-shipping-row--pickup { border-left: 3px solid var(--gx-accent); }
+.tgs-landing.tgs-custom .tgs-shipping-cost { color: var(--gx-accent); font-family: var(--gx-mono); font-size: var(--gx-f-label); letter-spacing: 0.08em; text-transform: uppercase; }
 /* Adentro de la barra la sección de pagos no necesita su propia tarjeta. */
 .tgs-landing.tgs-custom .gx-pay .tgs-section-card {
 	background: none;
@@ -1170,6 +1174,7 @@
 	.gx-hero { grid-template-columns: 1fr; }
 	.gx-stage { border-right: 0; border-bottom: 1px solid var(--gx-line); }
 	.gx-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.gx-strip > div:last-child { grid-column: 1 / -1; }
 	.gx-strip b { font-size: 17px; }
 	.gx-about { grid-template-columns: 1fr; gap: var(--gx-sm); }
 }
@@ -1336,6 +1341,11 @@
 			<b>Calidad garantizada</b>
 			<span>Cada equipo sale probado y con respaldo</span>
 		</div>
+		<div>
+			<span class="gx-label">Envíos</span>
+			<b>A todo el país</b>
+			<span>Retiro en local o envío a domicilio; el costo se calcula al comprar</span>
+		</div>
 	</div>
 
 	<!-- ================== 3. SECCIONES ==================
@@ -1388,6 +1398,7 @@
 			<div class="gx-pay__inner">
 				<button type="button" class="gx-pay__close" data-gx-pay-close aria-label="Cerrar formas de pago">✕</button>
 				{{formas_de_pago}}
+				{{envios}}
 			</div>
 		</div>
 
