@@ -18,6 +18,7 @@ import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
 import {enrichmentItemsHash, gamesToAnalyze, generateProductDescription, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
+import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable} from './thumbnail-ai.js';
 
 const logger = new Logger('PublishPipeline');
 
@@ -108,7 +109,7 @@ async function runPipeline(runId: string, opts: {familyId: string; versionId: st
   await step('hero', () => ensureHero(opts.familyId, opts.versionId));
   await step('enrichment', () => ensureEnrichment(opts.versionId, opts.userId));
   await step('title', () => ensureTitle(opts.familyId, opts.versionId));
-  await step('thumbnail', () => ensureThumbnail(opts.familyId, opts.versionId));
+  await step('thumbnail', () => ensureThumbnail(opts.familyId, opts.versionId, opts.userId));
   await step('model3d', () => reportModel3d(opts.versionId));
   let failed = false;
   if (opts.publish) {
@@ -422,12 +423,24 @@ async function ensureTitle(familyId: string, versionId: string): Promise<{status
 
 // ----------------------------------------------------------------- miniatura
 
-async function ensureThumbnail(familyId: string, versionId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
+async function ensureThumbnail(familyId: string, versionId: string, userId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
   const family = await db.quoteFamily.findUniqueOrThrow({
     where: {id: familyId},
     select: {thumbnailUrl: true, webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}},
   });
   if (family.thumbnailUrl) return {status: 'SKIPPED', detail: 'Ya había miniatura'};
+  // Con "Miniaturas IA" activo, la miniatura la genera el modelo de imágenes a
+  // partir de las referencias y la foto del gabinete. Si falta algo de la
+  // configuración se avisa y se cae a la plantilla clásica.
+  if ((await loadThumbnailAiSettings()).enabled) {
+    try {
+      const generated = await generateAiThumbnail({familyId, versionId, userId});
+      return {status: 'DONE', detail: generated.detail};
+    } catch (error) {
+      if (!(error instanceof ThumbnailAiUnavailable)) throw error;
+      logger.warn(JSON.stringify({event: 'thumbnail_ai_unavailable', familyId, reason: error.message}));
+    }
+  }
   const template = await db.thumbnailTemplate.findFirst({where: {active: true}, orderBy: {createdAt: 'desc'}});
   if (!template) return {status: 'SKIPPED', detail: 'No hay plantilla de miniatura activa (Conexiones → Plantillas)'};
   const parsed = thumbnailRulesSchema.safeParse(template.rulesJson);

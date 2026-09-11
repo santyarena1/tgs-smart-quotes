@@ -219,6 +219,55 @@ export type WhatsappTemplate = {
 
 export type WhatsappConversationFilter = 'TODAS' | 'NO_LEIDAS' | 'ESCALADAS' | 'MIAS' | 'VENTANA_ABIERTA';
 
+// ----------------------------------------------------------- Miniaturas IA
+
+export type ThumbnailAiReference = {id: string; url: string; note: string | null; sortOrder: number; createdAt: string};
+
+export type ThumbnailAiSettings = {
+  enabled: boolean;
+  model: string;
+  quality: 'low' | 'medium' | 'high';
+  size: '1024x1024' | '1536x1024' | '1024x1536';
+  prompt: string;
+  textMode: 'AI' | 'OVERLAY' | 'NONE';
+  textTemplate: string;
+  overlayPosition: 'top' | 'bottom';
+  overlayColor: string;
+  overlayFontSize: number;
+  overlayFontFamily: string | null;
+  references: ThumbnailAiReference[];
+  placeholders: string[];
+};
+
+export type ThumbnailAiSettingsInput = Partial<Omit<ThumbnailAiSettings, 'references' | 'placeholders'>>;
+
+export function getThumbnailAiSettings(): Promise<ThumbnailAiSettings> {
+  return api<ThumbnailAiSettings>('/settings/thumbnail-ai');
+}
+
+export function updateThumbnailAiSettings(body: ThumbnailAiSettingsInput): Promise<ThumbnailAiSettings> {
+  return api<ThumbnailAiSettings>('/settings/thumbnail-ai', {method: 'PUT', body});
+}
+
+export function uploadThumbnailAiReference(file: File): Promise<ThumbnailAiReference> {
+  const form = new FormData();
+  form.append('file', file);
+  return apiUpload<ThumbnailAiReference>('/settings/thumbnail-ai/references', form);
+}
+
+export function updateThumbnailAiReference(id: string, body: {note?: string | null; sortOrder?: number}): Promise<ThumbnailAiReference> {
+  return api<ThumbnailAiReference>(`/settings/thumbnail-ai/references/${id}`, {method: 'PATCH', body});
+}
+
+export function deleteThumbnailAiReference(id: string): Promise<{ok: true}> {
+  return api<{ok: true}>(`/settings/thumbnail-ai/references/${id}`, {method: 'DELETE'});
+}
+
+/** Genera (o regenera) la miniatura de una PC con IA. Cada llamada es una imagen nueva. */
+export function generateFamilyThumbnailAi(familyId: string): Promise<{thumbnailUrl: string; detail: string}> {
+  return api<{thumbnailUrl: string; detail: string}>(`/external-module/quote-families/${familyId}/thumbnail/generate`, {method: 'POST'});
+}
+
 export function getWhatsappSettings(): Promise<WhatsappSettings> {
   return api<WhatsappSettings>('/whatsapp/settings');
 }

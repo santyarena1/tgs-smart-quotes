@@ -66,6 +66,7 @@ enum AiTaskType {
   SEMANTIC_SIMILARITY
   CHATBOT_RESPONSE
   QUOTE_ENRICHMENT
+  THUMBNAIL_IMAGE
 }
 
 enum ProcessingStatus {
@@ -1255,6 +1256,43 @@ model CaseModel3D {
   meshStats    Json?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+}
+
+/// Miniaturas generadas con IA (modelo de imágenes de OpenAI) a partir de
+/// las imágenes de referencia del negocio, la foto del gabinete y un prompt
+/// con placeholders ({{titulo}}, {{cpu}}, {{gpu}}, ...). Singleton. Cuando
+/// está activo reemplaza a la plantilla compuesta con sharp.
+model ThumbnailAiSettings {
+  id                String   @id @default("singleton")
+  enabled           Boolean  @default(false)
+  model             String   @default("gpt-image-1")
+  /// low | medium | high
+  quality           String   @default("medium")
+  /// 1024x1024 | 1536x1024 | 1024x1536
+  size              String   @default("1024x1024")
+  /// Instrucciones de estilo con placeholders; se manda junto con las imágenes.
+  prompt            String   @default("")
+  /// AI: la IA escribe los textos en la imagen. OVERLAY: la IA deja espacio y
+  /// el sistema estampa las specs exactas. NONE: sin texto.
+  textMode          String   @default("AI")
+  /// Texto que se escribe (modo AI u OVERLAY), con placeholders. Vacío = título.
+  textTemplate      String   @default("")
+  overlayPosition   String   @default("bottom")
+  overlayColor      String   @default("#FFFFFF")
+  overlayFontSize   Int      @default(44)
+  overlayFontFamily String?
+  updatedAt         DateTime @updatedAt
+}
+
+/// Imágenes de referencia (miniaturas ya hechas) que se le muestran a la IA
+/// para que copie el estilo. Se mandan todas en cada generación.
+model ThumbnailAiReference {
+  id        String   @id @default(uuid())
+  url       String
+  key       String
+  note      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 }
 
 model ThumbnailTemplate {

@@ -9,6 +9,7 @@ export const AiTask = {
   INTENT_CLASSIFICATION: "INTENT_CLASSIFICATION",
   CHATBOT_RESPONSE: "CHATBOT_RESPONSE",
   QUOTE_ENRICHMENT: "QUOTE_ENRICHMENT",
+  THUMBNAIL_IMAGE: "THUMBNAIL_IMAGE",
 } as const;
 
 export type AiTask = (typeof AiTask)[keyof typeof AiTask];

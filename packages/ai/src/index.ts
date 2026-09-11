@@ -63,6 +63,16 @@ export { IntentClassificationService } from "./services/intent-classification.js
 export { SemanticSimilarityService } from "./services/semantic-similarity.js";
 export { ChatbotResponseService } from "./services/chatbot-response.js";
 export { QuoteEnrichmentService, DEFAULT_GAMES_TO_ANALYZE } from "./services/quote-enrichment.js";
+export {
+  generateThumbnailImage,
+  DEFAULT_IMAGE_MODEL,
+  IMAGE_QUALITIES,
+  IMAGE_SIZES,
+  type ImageQuality,
+  type ImageSize,
+  type ThumbnailImageInput,
+  type ThumbnailImageResult,
+} from "./services/thumbnail-image.js";
 
 import { CompatibilityFeedbackService } from "./services/compatibility-feedback.js";
 import { IntentClassificationService } from "./services/intent-classification.js";

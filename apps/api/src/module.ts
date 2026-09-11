@@ -16,6 +16,7 @@ import {QuoteAiController, RequestAiController} from './ai.js';
 import {DashboardController} from './dashboard.js';
 import {CatalogController} from './catalog.js';
 import {ChatbotController} from './chatbot.js';
+import {ThumbnailAiController} from './thumbnail-ai.js';
 import {BranchesController, UsersController} from './users.js';
 import {ExternalModuleController} from './external-module.js';
 import {EmployeesController} from './employees.js';
@@ -59,6 +60,7 @@ class HealthController {
     SimilarityController,
     CatalogController,
     ChatbotController,
+    ThumbnailAiController,
     UsersController,
     BranchesController,
     EmployeesController,

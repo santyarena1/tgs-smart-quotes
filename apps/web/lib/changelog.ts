@@ -26,6 +26,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Juegos: la IA analiza la lista de la tienda (Fortnite, CS2, Valorant, GTA V, FC 25… 20 títulos), editable en Ajustes → IA",
       "Ficha: visor de fotos al tocar el gabinete o un componente, sección Envíos y retiro con las zonas y costos reales de WooCommerce, y datos estructurados para Google",
       "Plugin de WordPress 2.13.0 (hay que subirlo): migra los productos viejos sin duplicar, no pisa el slug, carga descripción, galería y puntos fuertes",
+      "Miniaturas con IA (Ajustes → Miniaturas IA): subís tus miniaturas de referencia y el prompt, y \"Preparar y publicar\" genera la miniatura de cada PC con el gabinete real; botón \"Generar con IA\" en Publicación Web para regenerar",
       "Juegos: además de resolución y calidad, la IA estima un rango de FPS por juego (editable en Publicación Web); las PCs ya publicadas se regeneran al volver a preparar",
       "Ficha: sección \"Sumale un monitor\" con los monitores de una categoría de WooCommerce; al elegir uno, \"Agregar al carrito\" suma la PC y el monitor",
       "Plugin: Publicar/Despublicar desde Productos, diseño predeterminado para las PCs nuevas (con opción de aplicarlo a todas) y lista de métodos de envío a ocultar; las tarifas planas que solo aplican a otras clases de envío ya no se muestran",

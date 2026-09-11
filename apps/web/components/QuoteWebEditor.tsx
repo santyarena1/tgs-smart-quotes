@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, apiUpload } from "../lib/api";
+import { api, apiUpload, generateFamilyThumbnailAi } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
 import { Alert, Checkbox, Field, Loading, Pill, Tabs, errorMessage } from "./shared";
@@ -71,6 +71,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [generatingTitle, setGeneratingTitle] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
+  const [generatingThumb, setGeneratingThumb] = useState(false);
+  const [thumbNotice, setThumbNotice] = useState<string | null>(null);
 
   const [enrichment, setEnrichment] = useState<Enrichment>(null);
   const [descriptionDraft, setDescriptionDraft] = useState("");
@@ -289,6 +291,25 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setActionError(errorMessage(err));
     } finally {
       setSavingAuto(false);
+    }
+  };
+
+  // Miniatura con IA (Ajustes → Miniaturas IA): cada click es una imagen nueva,
+  // así que se puede insistir hasta que guste.
+  const generateThumbnailAi = async () => {
+    if (!quote) return;
+    setGeneratingThumb(true);
+    setActionError(null);
+    setThumbNotice(null);
+    try {
+      const next = await generateFamilyThumbnailAi(quote.id);
+      setQuote((prev) => (prev ? { ...prev, thumbnailUrl: next.thumbnailUrl } : prev));
+      setThumbNotice(next.detail);
+      setPreviewNonce((n) => n + 1);
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setGeneratingThumb(false);
     }
   };
 
@@ -701,6 +722,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                   }}
                 />
                 {uploadingThumb ? <span className="muted">Subiendo…</span> : null}
+                <button type="button" className="btn-ghost btn-sm" disabled={generatingThumb || uploadingThumb} onClick={() => void generateThumbnailAi()}>
+                  {generatingThumb ? "Generando…" : quote.thumbnailUrl ? "Regenerar con IA" : "Generar con IA"}
+                </button>
+                {thumbNotice ? <span className="muted" style={{ fontSize: 12.5 }}>{thumbNotice}</span> : null}
               </div>
             </Field>
           </section>
