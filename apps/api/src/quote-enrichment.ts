@@ -42,10 +42,26 @@ export async function enrichmentService() {
 
 type EnrichmentItem = {name: string; quantity: number; line: string | null};
 
-/** Hash estable de los ítems: si cambia, el enriquecimiento guardado quedó viejo. */
-export function enrichmentItemsHash(items: EnrichmentItem[]): string {
+/**
+ * Hash estable de los ítems y de la lista de juegos a analizar: si cambia
+ * cualquiera de los dos, el enriquecimiento guardado quedó viejo y el
+ * pipeline lo regenera solo (antes, cambiar la lista de juegos no alcanzaba
+ * y las PCs seguían mostrando los juegos anteriores).
+ */
+export function enrichmentItemsHash(items: EnrichmentItem[], games: string[] = []): string {
   const canonical = items.map((item) => `${item.quantity}x${item.name.trim().toLowerCase()}`).sort().join('|');
-  return createHash('sha256').update(canonical).digest('hex').slice(0, 32);
+  const gamesKey = games.map((game) => game.trim().toLowerCase()).filter(Boolean).join('|');
+  return createHash('sha256').update(`${canonical}#${gamesKey}`).digest('hex').slice(0, 32);
+}
+
+/** Juegos configurados en Ajustes → IA (uno por línea); si no hay, los del sistema. */
+export function gamesToAnalyze(raw: string | null | undefined): string[] {
+  const games = (raw ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 40);
+  return games.length ? games : DEFAULT_GAMES_TO_ANALYZE;
 }
 
 export async function loadEnrichmentItems(versionId: string): Promise<EnrichmentItem[]> {
@@ -65,14 +81,9 @@ export async function runQuoteEnrichment(versionId: string, userId: string | nul
   const items = await loadEnrichmentItems(versionId);
   if (!items.length) throw new Error('El presupuesto no tiene ítems');
   const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
-  // Juegos configurados en Ajustes → IA (uno por línea); si no hay, los del sistema.
-  const games = (aiSettings.gamesToAnalyze ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 40);
+  const games = gamesToAnalyze(aiSettings.gamesToAnalyze);
   const {result, metadata} = await (await enrichmentService()).enrich(
-    {items, games: games.length ? games : DEFAULT_GAMES_TO_ANALYZE},
+    {items, games},
     {entity: {entityType: 'QuoteVersion', entityId: versionId}},
     aiSettings.pcDescriptionPrompt,
   );
@@ -89,7 +100,7 @@ export async function runQuoteEnrichment(versionId: string, userId: string | nul
     shortDescription: clean(result.shortDescription),
     highlightsJson: result.highlights.filter((entry) => entry.trim().length > 0) as any,
     audience: clean(result.audience),
-    itemsHash: enrichmentItemsHash(items),
+    itemsHash: enrichmentItemsHash(items, games),
   };
   const old = await db.quoteEnrichment.findUnique({where: {quoteVersionId: versionId}});
   const next = await db.$transaction(async (tx) => {

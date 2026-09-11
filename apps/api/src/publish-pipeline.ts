@@ -15,7 +15,7 @@ import {thumbnailRulesSchema, type ThumbnailRules} from '@tgs/contracts';
 import {db} from '@tgs/database';
 import {getSerperKey, publishQuote, removeBackgroundDetailed, searchImages, type SerperImage} from '@tgs/providers';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
-import {enrichmentItemsHash, generateProductDescription, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
+import {enrichmentItemsHash, gamesToAnalyze, generateProductDescription, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 
@@ -391,7 +391,8 @@ async function ensureEnrichment(versionId: string, userId: string): Promise<{sta
   const items = await loadEnrichmentItems(versionId);
   if (!items.length) throw new Error('El presupuesto no tiene ítems');
   const current = await db.quoteEnrichment.findUnique({where: {quoteVersionId: versionId}});
-  const hash = enrichmentItemsHash(items);
+  const aiSettings = await db.aiSettings.findUnique({where: {id: 'singleton'}, select: {gamesToAnalyze: true}});
+  const hash = enrichmentItemsHash(items, gamesToAnalyze(aiSettings?.gamesToAnalyze));
   if (current?.descriptionHtml && current.itemsHash === hash && current.title) {
     return {status: 'SKIPPED', detail: 'Los textos ya estaban generados para estos componentes'};
   }
