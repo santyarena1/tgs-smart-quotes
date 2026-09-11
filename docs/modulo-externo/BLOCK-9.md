@@ -33,7 +33,7 @@
 | images | Por cada componente sin imagen: Serper (`"<nombre> png"`), ranking (PNG, ≥250 px, proporción ≤2.5), hasta 4 candidatas: descarga con UA de navegador → `removeBackgroundDetailed`; si ninguna recorta, se guarda la mejor con fondo. Producto de catálogo → `ProductAsset` (origen SERPER, principal si es la primera); ítem manual → `QuoteItem.webImageUrl` | todos tienen imagen |
 | hero | `heroAssetId`/`heroImageUrl` = foto del gabinete (línea o nombre con gabinete/case/chasis/tower) | ya había hero |
 | enrichment | `runQuoteEnrichment` (IA v2) | `itemsHash` igual y ya hay descripción y título |
-| title | `webTitle` = `PC GAMER | CPU - RAM xxGB - DISCO - GPU | WINDOWS N` armado por reglas desde los nombres de los ítems (`apps/api/src/quote-title.ts`); la IA (`specs`) solo rellena lo que las reglas no leyeron. Sin CPU legible no se propone título. `webTagline` = `enrichment.tagline` | ya tenían valor |
+| title | `webTitle` = `PC GAMER | CPU - RAM xxGB - DISCO - GPU | WINDOWS N` armado por reglas desde los nombres de los ítems (`apps/api/src/quote-title.ts`); la IA (`specs`) solo rellena lo que las reglas no leyeron. Sin CPU legible no se propone título. `WINDOWS 11` va siempre (todas las PC salen con Windows); si un ítem indica otra versión de Windows se respeta. `webTagline` = `enrichment.tagline` | ya tenían valor |
 | thumbnail | plantilla activa + foto del gabinete → `quote-thumbnails/<familia>/…jpg` | ya había miniatura, o no hay plantilla activa / foto |
 | model3d | informativo | — |
 | publish | `publishQuote(familyId, {versionId})` | `publish: false` |

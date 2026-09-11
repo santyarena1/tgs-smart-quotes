@@ -127,14 +127,20 @@ export function mergeSpecs(primary: StoreTitleSpecs, fallback: Partial<StoreTitl
   return {cpu: pick('cpu'), gpu: pick('gpu'), ramGb: pick('ramGb'), storage: pick('storage'), os: pick('os')};
 }
 
+/** Todas las PC salen con Windows 11 instalado, figure o no como ítem. */
+const DEFAULT_OS = 'WINDOWS 11';
+
 /**
  * Compone el título. Sin CPU no hay título (devuelve null): mejor caer al
- * nombre interno que publicar "PC GAMER | RAM 16GB".
+ * nombre interno que publicar "PC GAMER | RAM 16GB". El sistema operativo
+ * va siempre: si un ítem dice otra versión de Windows se respeta, si no
+ * se usa el fijo.
  */
 export function composeStoreTitle(specs: StoreTitleSpecs): string | null {
   if (!specs.cpu) return null;
   const middle = [specs.cpu, specs.ramGb ? `RAM ${specs.ramGb}GB` : null, specs.storage, specs.gpu].filter(Boolean).join(' - ');
-  return specs.os ? `PC GAMER | ${middle} | ${specs.os}` : `PC GAMER | ${middle}`;
+  const os = specs.os && specs.os !== 'WINDOWS' ? specs.os : DEFAULT_OS;
+  return `PC GAMER | ${middle} | ${os}`;
 }
 
 export function buildStoreTitle(items: TitleItem[], aiSpecs?: Partial<StoreTitleSpecs> | null): string | null {

@@ -53,13 +53,13 @@ describe('título de la tienda con formato de specs', () => {
     expect(title).toBe('PC GAMER | RYZEN 5 7600X - RAM 16GB - 512GB M.2 - RTX 3070 8GB | WINDOWS 11');
   });
 
-  it('sin placa de video ni Windows, omite esos segmentos y suma módulos de RAM', () => {
+  it('sin placa de video omite ese segmento, suma módulos de RAM y Windows 11 va siempre', () => {
     const title = buildStoreTitle([
       {name: 'AMD Ryzen 5 3400G con gráficos Radeon Vega 11', quantity: 1, line: 'Procesador'},
       {name: 'Memoria 8GB DDR4 3200', quantity: 2, line: 'Memoria RAM'},
       {name: 'SSD 512GB M.2', quantity: 1, line: 'Disco'},
     ]);
-    expect(title).toBe('PC GAMER | RYZEN 5 3400G - RAM 16GB - 512GB M.2');
+    expect(title).toBe('PC GAMER | RYZEN 5 3400G - RAM 16GB - 512GB M.2 | WINDOWS 11');
   });
 
   it('la IA rellena lo que las reglas no leyeron, pero no pisa lo leído', () => {
@@ -69,7 +69,7 @@ describe('título de la tienda con formato de specs', () => {
         {name: 'Kit 2x8GB DDR4', quantity: 1, line: 'Memoria RAM'},
         {name: 'Disco 1TB', quantity: 1, line: 'Disco'},
       ],
-      {cpu: 'ryzen 9', gpu: 'rtx 4060 8gb', os: 'windows 11'},
+      {cpu: 'ryzen 9', gpu: 'rtx 4060 8gb', os: null},
     );
     expect(title).toBe('PC GAMER | INTEL I5 12400F - RAM 16GB - 1TB - RTX 4060 8GB | WINDOWS 11');
   });
