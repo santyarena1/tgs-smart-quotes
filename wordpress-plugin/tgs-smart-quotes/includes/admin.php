@@ -278,17 +278,37 @@ function tgs_sq_page_settings() {
 								?>
 								<p class="description">Las PCs que se publiquen de acá en adelante entran en esta categoría. Las ya publicadas se cambian por producto en "Productos".</p>
 							</div>
-							<div class="tgs-field">
-								<label for="monitor_products">Monitores elegidos</label>
-								<select id="monitor_products" name="monitor_products[]" class="wc-product-search" multiple="multiple" style="width:100%" data-placeholder="Buscá un monitor por nombre o SKU…" data-action="woocommerce_json_search_products" data-exclude_type="variable">
-									<?php foreach ( $monitor_products as $monitor_id ) : ?>
-										<?php $monitor = wc_get_product( $monitor_id ); ?>
-										<?php if ( $monitor ) : ?>
-											<option value="<?php echo esc_attr( $monitor_id ); ?>" selected><?php echo esc_html( wp_strip_all_tags( $monitor->get_formatted_name() ) ); ?></option>
-										<?php endif; ?>
-									<?php endforeach; ?>
-								</select>
-								<p class="description">Van primero en la sección, en este orden. Se pueden combinar con la categoría de abajo (se completa con esos hasta el máximo por variante).</p>
+							<div class="tgs-field tgs-field--wide">
+								<label for="monitor_search">Monitores elegidos</label>
+								<div class="tgs-picker" data-tgs-monitor-picker>
+									<div class="tgs-picker__search">
+										<input type="text" id="monitor_search" autocomplete="off" placeholder="Buscá por nombre o SKU (ej: samsung 24, 165hz, lg 27)…" data-picker-search>
+										<div class="tgs-picker__results" hidden data-picker-results></div>
+									</div>
+									<p class="tgs-picker__empty" data-picker-empty <?php echo $monitor_products ? 'hidden' : ''; ?>>Todavía no elegiste ningún monitor.</p>
+									<div class="tgs-picker__list" data-picker-list>
+										<?php foreach ( $monitor_products as $monitor_id ) : ?>
+											<?php $row = tgs_sq_product_picker_row( $monitor_id ); ?>
+											<?php if ( $row ) : ?>
+												<div class="tgs-picker__card" data-picker-item="<?php echo esc_attr( $row['id'] ); ?>">
+													<span class="tgs-picker__media"><?php echo $row['image'] ? '<img src="' . esc_url( $row['image'] ) . '" alt="">' : '<span class="tgs-picker__noimg">Sin foto</span>'; ?></span>
+													<span class="tgs-picker__body">
+														<a class="tgs-picker__name" href="<?php echo esc_url( $row['editUrl'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $row['name'] ); ?></a>
+														<span class="tgs-picker__meta"><?php echo $row['sku'] ? '<code>' . esc_html( $row['sku'] ) . '</code> · ' : ''; ?><strong><?php echo wp_kses_post( $row['priceHtml'] ); ?></strong> · <span class="tgs-chip tgs-chip--<?php echo $row['inStock'] ? 'ok' : 'warn'; ?>"><?php echo esc_html( $row['stockLabel'] ); ?></span></span>
+													</span>
+													<span class="tgs-picker__actions">
+														<span class="tgs-picker__pos"></span>
+														<button type="button" class="tgs-btn tgs-btn--small" data-move="up" title="Subir">▲</button>
+														<button type="button" class="tgs-btn tgs-btn--small" data-move="down" title="Bajar">▼</button>
+														<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-remove title="Quitar">✕</button>
+														<input type="hidden" name="monitor_products[]" value="<?php echo esc_attr( $row['id'] ); ?>">
+													</span>
+												</div>
+											<?php endif; ?>
+										<?php endforeach; ?>
+									</div>
+								</div>
+								<p class="description">Van primero en la sección, en este orden (▲ ▼ para ordenar). Se pueden combinar con la categoría de abajo, que completa hasta el máximo por variante. Acordate de tocar "Guardar".</p>
 							</div>
 							<div class="tgs-field">
 								<label for="monitor_category">Categoría de monitores</label>
@@ -344,6 +364,69 @@ function tgs_sq_page_settings() {
 	</div>
 	<?php
 }
+
+/* ---------------------------------------------------------------------
+ * Selector de monitores: buscador propio por AJAX.
+ * ------------------------------------------------------------------- */
+
+/** Datos de un producto para el selector (foto, precio, stock, link). */
+function tgs_sq_product_picker_row( $product_id ) {
+	$product = wc_get_product( $product_id );
+	if ( ! $product ) {
+		return null;
+	}
+	$stock = $product->get_stock_quantity();
+	return array(
+		'id'         => $product->get_id(),
+		'name'       => $product->get_name(),
+		'sku'        => (string) $product->get_sku(),
+		'priceHtml'  => $product->get_price_html() ?: 'Sin precio',
+		'image'      => (string) get_the_post_thumbnail_url( $product->get_id(), 'woocommerce_gallery_thumbnail' ),
+		'inStock'    => $product->is_in_stock(),
+		'stockLabel' => $product->is_in_stock() ? ( null !== $stock ? $stock . ' en stock' : 'En stock' ) : 'Sin stock',
+		'editUrl'    => (string) get_edit_post_link( $product->get_id(), 'raw' ),
+	);
+}
+
+/**
+ * Búsqueda laxa: cada palabra tiene que aparecer en el nombre o en el SKU,
+ * sin importar el orden ("samsung 24" encuentra "Monitor 24 Samsung ...").
+ * Solo productos simples publicados (los que se pueden sumar al carrito de
+ * un click). Devuelve hasta 20, primero los que tienen stock.
+ */
+add_action( 'wp_ajax_tgs_sq_search_products', function () {
+	if ( ! current_user_can( 'manage_options' ) || ! check_ajax_referer( 'tgs_sq_search', 'nonce', false ) ) {
+		wp_send_json_error( 'No autorizado', 403 );
+	}
+	$query = sanitize_text_field( wp_unslash( $_POST['q'] ?? '' ) );
+	$words = array_values( array_filter( preg_split( '/\s+/', mb_strtolower( $query ) ) ) );
+	if ( ! $words ) {
+		wp_send_json_success( array() );
+	}
+	global $wpdb;
+	$where = array();
+	foreach ( $words as $word ) {
+		$like    = '%' . $wpdb->esc_like( $word ) . '%';
+		$where[] = $wpdb->prepare( '(p.post_title LIKE %s OR sku.meta_value LIKE %s)', $like, $like );
+	}
+	$sql = "SELECT p.ID FROM {$wpdb->posts} p
+		LEFT JOIN {$wpdb->postmeta} sku ON sku.post_id = p.ID AND sku.meta_key = '_sku'
+		WHERE p.post_type = 'product' AND p.post_status = 'publish' AND " . implode( ' AND ', $where ) . '
+		ORDER BY p.post_title ASC LIMIT 60';
+	$ids  = array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$rows = array();
+	foreach ( $ids as $id ) {
+		$product = wc_get_product( $id );
+		if ( ! $product || ! $product->is_type( 'simple' ) || tgs_sq_is_managed_product( $id ) ) {
+			continue;
+		}
+		$rows[] = tgs_sq_product_picker_row( $id );
+	}
+	usort( $rows, function ( $a, $b ) {
+		return ( (int) $b['inStock'] <=> (int) $a['inStock'] ) ?: strcasecmp( $a['name'], $b['name'] );
+	} );
+	wp_send_json_success( array_slice( $rows, 0, 20 ) );
+} );
 
 /* ---------------------------------------------------------------------
  * Productos publicados: elegir variante y categoría por producto.

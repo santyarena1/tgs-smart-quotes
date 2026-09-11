@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.14.0
+ * Version: 2.14.1
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.14.0' );
+define( 'TGS_SQ_VERSION', '2.14.1' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -86,11 +86,12 @@ add_action( 'admin_enqueue_scripts', function () {
 		return;
 	}
 	wp_enqueue_style( 'tgs-sq-admin', TGS_SQ_URL . 'assets/tgs-admin.css', array(), TGS_SQ_VERSION );
-	// Buscador de productos de WooCommerce (select2) para elegir monitores en Ajustes.
-	if ( class_exists( 'WooCommerce' ) ) {
-		wp_enqueue_style( 'woocommerce_admin_styles' );
-		wp_enqueue_script( 'wc-enhanced-select' );
-	}
+	// Selector de monitores de Ajustes (buscador propio, ver tgs_sq_ajax_search_products).
+	wp_enqueue_script( 'tgs-sq-admin', TGS_SQ_URL . 'assets/tgs-admin.js', array(), TGS_SQ_VERSION, true );
+	wp_localize_script( 'tgs-sq-admin', 'tgsSqAdmin', array(
+		'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+		'nonce'   => wp_create_nonce( 'tgs_sq_search' ),
+	) );
 } );
 
 /**
