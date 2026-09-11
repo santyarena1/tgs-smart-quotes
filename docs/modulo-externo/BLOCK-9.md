@@ -46,6 +46,7 @@ Un paso que falla no frena a los demás; solo un fallo de `publish` marca la cor
 - `GET /external-module/quote-families/:id/publication` → publicación + `publishedVersionNumber`, `activeVersionNumber`, `isStale`, `webTitle`, `webTagline`.
 - `POST .../publish` `{versionId?}` (default: la fijada, o la activa si nunca se publicó), `POST .../unpublish`, `GET .../publish-preview?versionId=`.
 - `PUT .../publish-settings` `{autoRepublish?, webTitle?, webTagline?}`.
+- `POST .../generate-title` `{versionId?, apply?}`: rehace título (reglas + specs de la IA) y bajada a pedido; con `apply` los guarda pisando lo que había. Botón "Regenerar título y bajada con IA" en el editor.
 - `POST /external-module/quotes/:versionId/enrich` (manual), `PUT .../enrichment` acepta los campos nuevos.
 
 ## Pendiente / no incluido a propósito

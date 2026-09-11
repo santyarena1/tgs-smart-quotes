@@ -62,6 +62,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [titleDraft, setTitleDraft] = useState("");
   const [taglineDraft, setTaglineDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
+  const [generatingTitle, setGeneratingTitle] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
 
@@ -252,6 +253,29 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setActionError(errorMessage(err));
     } finally {
       setSavingTitle(false);
+    }
+  };
+
+  /** Rehace título (formato de specs) y bajada con IA y los guarda, pisando lo que había. */
+  const regenerateTitle = async () => {
+    if (!quote || !version) return;
+    setGeneratingTitle(true);
+    setActionError(null);
+    try {
+      const next = await api<{ webTitle: string | null; webTagline: string | null; ai: { usedAi: boolean } }>(
+        `/external-module/quote-families/${quote.id}/generate-title`,
+        { method: "POST", body: { versionId: version.id, apply: true } },
+      );
+      setTitleDraft(next.webTitle ?? "");
+      setTaglineDraft(next.webTagline ?? "");
+      setQuote((prev) => (prev ? { ...prev, webTitle: next.webTitle, webTagline: next.webTagline } : prev));
+      setPreviewNonce((n) => n + 1);
+      onChanged?.();
+      if (!next.ai.usedAi) setActionError("El título se armó por reglas; la bajada necesita la IA activada (Ajustes → IA).");
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setGeneratingTitle(false);
     }
   };
 
@@ -581,7 +605,18 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       {step === "contenido" ? (
         <>
           <section className="card card-pad" style={{ marginTop: 16, display: "grid", gap: 14 }}>
-            <h3 className="panel-title">Datos generales</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <h3 className="panel-title" style={{ margin: 0 }}>Datos generales</h3>
+              <button
+                type="button"
+                className="btn-ghost btn-sm"
+                disabled={generatingTitle || savingTitle}
+                title="Rehace el título con formato de specs y la bajada con IA, y los guarda"
+                onClick={() => void regenerateTitle()}
+              >
+                {generatingTitle ? "Generando…" : "Regenerar título y bajada con IA"}
+              </button>
+            </div>
             <Field
               label="Título en la tienda"
               hint={`Formato: PC GAMER | procesador - RAM - disco - placa de video | Windows. Se arma solo desde los componentes al preparar la publicación. El nombre interno (${quote.internalName}) no cambia; si lo dejás vacío se publica con el nombre interno.`}
