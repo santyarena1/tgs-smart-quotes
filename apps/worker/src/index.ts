@@ -3,7 +3,7 @@ import { db } from "@tgs/database";
 import { runAcustockSyncLoop } from "./catalog-sync.js";
 import { processPendingJobs, handlers } from "./jobs.js";
 import {removeProductAssetBackground} from "./handlers/product-asset.js";
-import {resyncStalePublications} from "./publications.js";
+import {resyncEnvProblem, resyncStalePublications} from "./publications.js";
 
 handlers["product-asset:remove-bg"] = removeProductAssetBackground;
 
@@ -243,5 +243,11 @@ async function runJobsLoop() {
   } while (true);
 }
 
-if (process.env.NODE_ENV !== "test") void Promise.all([runLoop(), runJobsLoop(), runAcustockSyncLoop()]);
+if (process.env.NODE_ENV !== "test") {
+  // Aviso al arrancar, bien visible en los logs del deploy, además del que
+  // repite cada vuelta del resync.
+  const envProblem = resyncEnvProblem();
+  if (envProblem) console.error(JSON.stringify({level: "error", task: "startup", error: `${envProblem}. La republicación automática queda desactivada hasta corregirlo.`}));
+  void Promise.all([runLoop(), runJobsLoop(), runAcustockSyncLoop()]);
+}
 
