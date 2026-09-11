@@ -111,15 +111,95 @@ async function removeBackgroundWithModel(input: Buffer): Promise<Buffer | null> 
   }
 }
 
+/**
+ * Recorte definitivo: híbrido entre el relleno por color y el modelo.
+ *
+ * El relleno por color decide QUÉ es fondo (solo lo que toca los bordes de
+ * la foto, más huecos chicos de blanco puro): respeta los blancos internos
+ * del producto (etiquetas, el interior visible por el vidrio, paneles
+ * claros). Su punto flojo es el CONTORNO: deja la sombra del piso, halos y
+ * escalones. Ahí entra el modelo de segmentación, pero solo en una franja
+ * alrededor del fondo detectado; lejos del contorno, el modelo no opina.
+ *
+ * Si la foto no tiene fondo liso (ambientada), el relleno falla y se usa el
+ * modelo entero. Si el modelo no corre, queda el relleno solo.
+ */
 export async function removeBackgroundDetailed(input: Buffer): Promise<RemoveBackgroundResult> {
-  const modelOutput = await removeBackgroundWithModel(input);
+  const [color, modelOutput] = await Promise.all([
+    removeBackgroundByColor(input).catch(() => null),
+    removeBackgroundWithModel(input),
+  ]);
+  if (color && modelOutput) {
+    const merged = await mergeEdgesWithModel(color.buffer, modelOutput);
+    if (merged) return { ...merged, method: 'model' };
+    return color;
+  }
   if (modelOutput) {
     const { data, info } = await sharp(modelOutput).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     let transparent = 0;
     for (let i = 3; i < data.length; i += info.channels) if (data[i]! < 128) transparent++;
     return { buffer: modelOutput, removedRatio: transparent / (info.width * info.height), method: 'model' };
   }
+  if (color) return color;
   return removeBackgroundByColor(input);
+}
+
+/**
+ * Aplica el alfa del modelo únicamente en la franja que rodea al fondo del
+ * relleno por color (hasta ~5% del lado menor, mínimo 24 px). Devuelve null
+ * si las dos imágenes no miden lo mismo.
+ */
+async function mergeEdgesWithModel(colorPng: Buffer, modelPng: Buffer): Promise<{ buffer: Buffer; removedRatio: number } | null> {
+  const [color, model] = await Promise.all([
+    sharp(colorPng).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+    sharp(modelPng).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+  ]);
+  const { width, height, channels } = color.info;
+  if (!width || !height || model.info.width !== width || model.info.height !== height) return null;
+  const total = width * height;
+  const band = Math.max(32, Math.round(Math.min(width, height) * 0.08));
+  // Distancia (en pasos de 4 vecinos) al fondo del relleno, hasta `band`.
+  const distance = new Int16Array(total).fill(-1);
+  let frontier: number[] = [];
+  for (let flat = 0; flat < total; flat++) {
+    if (color.data[flat * channels + 3]! < 128) {
+      distance[flat] = 0;
+      frontier.push(flat);
+    }
+  }
+  for (let depth = 1; depth <= band && frontier.length; depth++) {
+    const next: number[] = [];
+    for (const flat of frontier) {
+      const x = flat % width;
+      const y = (flat - x) / width;
+      const neighbours = [x > 0 ? flat - 1 : -1, x < width - 1 ? flat + 1 : -1, y > 0 ? flat - width : -1, y < height - 1 ? flat + width : -1];
+      for (const n of neighbours) {
+        if (n < 0 || distance[n] !== -1) continue;
+        distance[n] = depth;
+        next.push(n);
+      }
+    }
+    frontier = next;
+  }
+  const out = Buffer.from(color.data);
+  let removed = 0;
+  for (let flat = 0; flat < total; flat++) {
+    const index = flat * channels;
+    const d = distance[flat]!;
+    if (d > 0) {
+      // Dentro de la franja: gana el más transparente de los dos. Cerca del
+      // fondo el modelo pesa entero; hacia adentro va perdiendo peso para
+      // que el empalme no se note.
+      const weight = d <= band / 2 ? 1 : Math.max(0, 1 - (d - band / 2) / (band / 2));
+      const a = out[index + 3]!;
+      // Restos casi transparentes del modelo (sombra tenue) se van del todo.
+      const m = model.data[index + 3]! < 48 ? 0 : model.data[index + 3]!;
+      out[index + 3] = Math.round(Math.min(a, a + (m - a) * weight));
+    }
+    if (out[index + 3]! < 128) removed++;
+  }
+  const buffer = await sharp(out, { raw: { width, height, channels: channels as 4 } }).png().toBuffer();
+  return { buffer, removedRatio: removed / total };
 }
 
 /** Relleno por color desde los bordes (el método original), como respaldo del modelo. */

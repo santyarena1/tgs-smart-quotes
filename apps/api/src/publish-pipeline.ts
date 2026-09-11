@@ -10,6 +10,7 @@
  * imágenes y sharp; es la misma razón por la que "quitar fondo" vive acá.
  */
 import {randomUUID} from 'node:crypto';
+import sharp from 'sharp';
 import {Logger} from '@nestjs/common';
 import {thumbnailRulesSchema, type ThumbnailRules} from '@tgs/contracts';
 import {db} from '@tgs/database';
@@ -20,6 +21,7 @@ import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable} from './thumbnail-ai.js';
 import {describeRecut, recutVersionImages} from './cutouts.js';
+import {pickCaseItem} from './case-detect.js';
 
 const logger = new Logger('PublishPipeline');
 
@@ -41,10 +43,9 @@ const STEP_DEFS: Array<{id: string; label: string}> = [
 /** Una corrida que lleva más que esto sin terminar quedó colgada (p. ej. la API se reinició). */
 const STALE_RUN_MS = 15 * 60_000;
 /** Cuántas imágenes de Serper se prueban por componente antes de rendirse. */
-const CANDIDATES_PER_ITEM = 4;
+const CANDIDATES_PER_ITEM = 8;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
-const CASE_PATTERN = /gabinete|case|chasis|tower/i;
 
 export class PublishRunConflictError extends Error {
   constructor() {
@@ -140,6 +141,7 @@ type ItemNeedingImage = {
   itemId: string;
   name: string;
   productId: string | null;
+  line: string | null;
 };
 
 async function fillMissingImages(versionId: string, userId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
@@ -151,12 +153,13 @@ async function fillMissingImages(versionId: string, userId: string): Promise<{st
       frozenName: true,
       webImageUrl: true,
       productId: true,
+      line: {select: {name: true}},
       product: {select: {assets: {where: {status: 'READY', url: {not: null}}, select: {id: true}, take: 1}}},
     },
   });
   const missing: ItemNeedingImage[] = items
     .filter((item) => !item.webImageUrl && !(item.product?.assets.length))
-    .map((item) => ({itemId: item.id, name: item.frozenName, productId: item.productId}));
+    .map((item) => ({itemId: item.id, name: item.frozenName, productId: item.productId, line: item.line?.name ?? null}));
   if (!missing.length) return {status: 'SKIPPED', detail: 'Todos los componentes ya tienen imagen'};
 
   const apiKey = await getSerperKey();
@@ -165,7 +168,7 @@ async function fillMissingImages(versionId: string, userId: string): Promise<{st
   const notFound: string[] = [];
   for (const item of missing) {
     try {
-      const picked = await findProductImage(item.name, apiKey);
+      const picked = await findProductImage(item.name, apiKey, item.line);
       if (!picked) {
         notFound.push(item.name);
         continue;
@@ -214,14 +217,18 @@ type PickedImage = {
 };
 
 /**
- * Busca en Serper y devuelve la primera imagen que se pudo bajar y recortar.
- * Si ninguna candidata tiene fondo liso (fotos ambientadas), se queda con la
- * mejor que se pudo bajar, con fondo: es preferible a no tener foto.
+ * Busca en Serper y devuelve la mejor foto de producto.
+ *
+ * Se bajan las candidatas en orden de puntaje y gana la primera con fondo
+ * liso y claro (foto de catálogo): es la que recorta bien y la que se ve
+ * como las demás en la ficha. Si ninguna tiene fondo liso (todas
+ * ambientadas), se recorta la mejor igual con el modelo, y si tampoco se
+ * pudo, queda con fondo: es preferible a no tener foto.
  */
-async function findProductImage(name: string, apiKey: string): Promise<PickedImage | null> {
-  const results = await searchImages(searchQuery(name), apiKey, 30);
+async function findProductImage(name: string, apiKey: string, line: string | null = null): Promise<PickedImage | null> {
+  const results = await searchImages(searchQuery(name, line), apiKey, 40);
   const candidates = rankCandidates(results, name).slice(0, CANDIDATES_PER_ITEM);
-  let fallback: PickedImage | null = null;
+  let ambient: {downloaded: {buffer: Buffer; contentType: string}; url: string} | null = null;
   for (const candidate of candidates) {
     let downloaded: {buffer: Buffer; contentType: string};
     try {
@@ -229,19 +236,67 @@ async function findProductImage(name: string, apiKey: string): Promise<PickedIma
     } catch {
       continue;
     }
-    const sourceExtension = downloaded.contentType === 'image/png' ? 'png' : downloaded.contentType === 'image/webp' ? 'webp' : 'jpg';
-    try {
-      const {buffer, method} = await removeBackgroundDetailed(downloaded.buffer);
-      return {bytes: buffer, source: downloaded.buffer, sourceUrl: candidate.url, contentType: downloaded.contentType, sourceExtension, transparent: true, method};
-    } catch {
-      fallback ??= {bytes: downloaded.buffer, source: downloaded.buffer, sourceUrl: candidate.url, contentType: downloaded.contentType, sourceExtension, transparent: false};
+    if (await hasPlainBackground(downloaded.buffer)) {
+      const picked = await cutPicked(downloaded, candidate.url);
+      if (picked.transparent) return picked;
     }
+    ambient ??= {downloaded, url: candidate.url};
   }
-  return fallback;
+  if (!ambient) return null;
+  return cutPicked(ambient.downloaded, ambient.url);
+}
+
+async function cutPicked(downloaded: {buffer: Buffer; contentType: string}, sourceUrl: string): Promise<PickedImage> {
+  const sourceExtension = downloaded.contentType === 'image/png' ? 'png' : downloaded.contentType === 'image/webp' ? 'webp' : 'jpg';
+  try {
+    const {buffer, method} = await removeBackgroundDetailed(downloaded.buffer);
+    return {bytes: buffer, source: downloaded.buffer, sourceUrl, contentType: downloaded.contentType, sourceExtension, transparent: true, method};
+  } catch {
+    return {bytes: downloaded.buffer, source: downloaded.buffer, sourceUrl, contentType: downloaded.contentType, sourceExtension, transparent: false};
+  }
+}
+
+/**
+ * ¿Foto de catálogo (fondo liso y claro)? Se muestrea el borde de la imagen:
+ * si casi todo es claro y parejo, es fondo blanco/gris claro. Un PNG ya
+ * recortado (borde transparente) también cuenta como "liso".
+ */
+export async function hasPlainBackground(buffer: Buffer): Promise<boolean> {
+  try {
+    const {data, info} = await sharp(buffer, {failOn: 'none'}).resize(160, 160, {fit: 'fill'}).ensureAlpha().raw().toBuffer({resolveWithObject: true});
+    const {width, height, channels} = info;
+    let plain = 0;
+    let samples = 0;
+    const check = (x: number, y: number) => {
+      const i = (y * width + x) * channels;
+      const a = data[i + 3]!;
+      const l = 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
+      const spread = Math.max(data[i]!, data[i + 1]!, data[i + 2]!) - Math.min(data[i]!, data[i + 1]!, data[i + 2]!);
+      samples++;
+      if (a < 40 || (l >= 225 && spread <= 24)) plain++;
+    };
+    for (let x = 0; x < width; x += 2) {
+      check(x, 0);
+      check(x, 1);
+      check(x, height - 1);
+      check(x, height - 2);
+    }
+    for (let y = 0; y < height; y += 2) {
+      check(0, y);
+      check(1, y);
+      check(width - 1, y);
+      check(width - 2, y);
+    }
+    return samples > 0 && plain / samples >= 0.9;
+  } catch {
+    return false;
+  }
 }
 
 /** Sitios que devuelven collages, memes o fotos de usuarios, nunca la foto del producto. */
-const BLOCKED_HOSTS = /pinterest|facebook|fbcdn|instagram|tiktok|youtube|ytimg|reddit|twitter|x\.com|wikipedia|wikimedia/i;
+const BLOCKED_HOSTS = /pinterest|facebook|fbcdn|instagram|tiktok|youtube|ytimg|reddit|twitter|x\.com|wikipedia|wikimedia|aliexpress|alicdn|ebay|olx|temu|shein/i;
+/** Tiendas y fabricantes con fotos de catálogo prolijas (fondo blanco, producto solo). */
+const GOOD_HOSTS = /compragamer|mexx|fullh4rd|maximus|venex|gezatek|hardcore|xtreme|invasion|cetrogar|fravega|garbarino|musimundo|mlstatic|mercadolibre|newegg|amazon|pcpartpicker|techpowerup|asus|msi|gigabyte|aorus|evga|zotac|corsair|kingston|adata|xpg|crucial|samsung|western|seagate|sentey|cougar|solarmax|evolabs|aerocool|nzxt|deepcool|thermaltake|redragon|logitech|hyperx|razer|amd|intel|nvidia|palit|pny|inno3d|sapphire|powercolor|asrock|biostar|teamgroup|patriot|gskill|g\.skill|lian-li|lianli|coolermaster|cooler-master|noga|gamemax|montech|antec|hyte|fractal/i;
 
 /** Ruido de los nombres del catálogo que no ayuda a buscar la foto. */
 const NAME_NOISE = /\b(nuevo|nueva|sellado|garant[ií]a|oferta|promo|combo|con|sin|para|pc|gamer|gaming|the gamer shop|tgs)\b/gi;
@@ -261,8 +316,31 @@ function modelTokens(name: string): string[] {
     .filter((token, index, all) => all.indexOf(token) === index);
 }
 
-export function searchQuery(name: string): string {
-  return name.replace(NAME_NOISE, ' ').replace(/\s+/g, ' ').trim();
+/**
+ * Consulta para Serper: el nombre sin ruido y, si el nombre no dice de qué
+ * tipo de componente se trata, el tipo según la línea ("gabinete", "placa de
+ * video"...). Así "Sentey A8" busca "Sentey A8 gabinete" y no un auto.
+ */
+export function searchQuery(name: string, line: string | null = null): string {
+  const clean = name.replace(NAME_NOISE, ' ').replace(/\s+/g, ' ').trim();
+  const kind = lineKeyword(line);
+  if (kind && !new RegExp(`\\b${kind.split(' ')[0]}`, 'i').test(clean)) return `${clean} ${kind}`;
+  return clean;
+}
+
+function lineKeyword(line: string | null): string | null {
+  if (!line) return null;
+  if (/gabinete|case|chasis/i.test(line)) return 'gabinete';
+  if (/placa de video|gpu|gr[aá]fic/i.test(line)) return 'placa de video';
+  if (/procesador|cpu|micro/i.test(line)) return 'procesador';
+  if (/mother|placa madre/i.test(line)) return 'motherboard';
+  if (/memoria|ram/i.test(line)) return 'memoria ram';
+  if (/ssd|nvme|disco s[oó]lido/i.test(line)) return 'ssd';
+  if (/hdd|disco r[ií]gido/i.test(line)) return 'disco rigido';
+  if (/fuente|psu|power/i.test(line)) return 'fuente';
+  if (/refriger|cooler|water/i.test(line)) return 'cooler';
+  if (/monitor/i.test(line)) return 'monitor';
+  return null;
 }
 
 /**
@@ -292,6 +370,7 @@ export function rankCandidates(results: SerperImage[], name = ''): SerperImage[]
       value += (matched.length / tokens.length) * 10;
     }
     if (/\.png(\?|$)/i.test(image.url)) value += 3;
+    if (GOOD_HOSTS.test(image.url) || (image.source && GOOD_HOSTS.test(image.source))) value += 4;
     if (width >= 600 && height >= 600) value += 2;
     value += Math.max(0, 2 - (ratio - 1));
     return value;
@@ -411,13 +490,14 @@ async function findCaseItem(versionId: string) {
       product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {id: true, url: true}}}},
     },
   });
-  for (const item of items) {
-    if (!CASE_PATTERN.test(`${item.line?.name ?? ''} ${item.frozenName}`)) continue;
-    // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
-    if (item.webImageUrl) return {name: item.frozenName, assetId: null, imageUrl: item.webImageUrl};
-    const asset = item.product?.assets[0];
-    if (asset?.url) return {name: item.frozenName, assetId: asset.id, imageUrl: asset.url};
-  }
+  // El que más parece gabinete entre los que tienen foto (ver case-detect.ts).
+  const withPhoto = items.filter((item) => item.webImageUrl || item.product?.assets[0]?.url);
+  const item = pickCaseItem(withPhoto.map((entry) => ({name: entry.frozenName, line: entry.line?.name ?? null, entry})))?.entry;
+  if (!item) return null;
+  // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
+  if (item.webImageUrl) return {name: item.frozenName, assetId: null, imageUrl: item.webImageUrl};
+  const asset = item.product?.assets[0];
+  if (asset?.url) return {name: item.frozenName, assetId: asset.id, imageUrl: asset.url};
   return null;
 }
 

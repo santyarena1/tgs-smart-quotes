@@ -2,7 +2,7 @@
 export const SERPER_IMAGES_URL='https://google.serper.dev/images';
 export type SerperImage={url:string;title?:string;source?:string;width?:number;height?:number};
 export async function searchImages(query:string,apiKey:string,num=20):Promise<SerperImage[]>{
- const response=await fetch(SERPER_IMAGES_URL,{method:'POST',headers:{'Content-Type':'application/json','X-API-KEY':apiKey},body:JSON.stringify({q:query,num})});
+ const response=await fetch(SERPER_IMAGES_URL,{method:'POST',headers:{'Content-Type':'application/json','X-API-KEY':apiKey},body:JSON.stringify({q:query,num,gl:'ar',hl:'es'})});
  if(!response.ok){
   let detail='';
   try{const body=await response.text();if(body)detail=`: ${body.slice(0,300)}`;}catch{/* sin body legible */}

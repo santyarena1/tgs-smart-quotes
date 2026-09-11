@@ -17,6 +17,7 @@ import {removeBackgroundDetailed} from '@tgs/providers';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {extractSpecsFromItems, type StoreTitleSpecs} from './quote-title.js';
 import {buildHeadline, buildRows, DEFAULT_CASE_AI_PROMPT, DEFAULT_FOOTER, renderThumbnailHtml, type FooterBadge} from './thumbnail-layout.js';
+import {pickCaseItem} from './case-detect.js';
 
 /**
  * Miniaturas de la tienda.
@@ -30,7 +31,6 @@ import {buildHeadline, buildRows, DEFAULT_CASE_AI_PROMPT, DEFAULT_FOOTER, render
  *    miniaturas de referencia, la foto del gabinete y un prompt.
  */
 
-const CASE_PATTERN = /gabinete|case|chasis|tower/i;
 const MAX_REFERENCES = 6;
 
 /** Placeholders disponibles en el prompt y en el texto; se documentan en la UI. */
@@ -238,13 +238,14 @@ async function findCaseItem(versionId: string) {
       product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {url: true}}}},
     },
   });
-  for (const item of items) {
-    if (!CASE_PATTERN.test(`${item.line?.name ?? ''} ${item.frozenName}`)) continue;
-    // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
-    const url = item.webImageUrl ?? item.product?.assets[0]?.url ?? null;
-    return {name: item.frozenName, imageUrl: url};
-  }
-  return null;
+  // El que más parece gabinete (ver case-detect.ts); si ninguno tiene foto,
+  // igual se devuelve el nombre para que el placeholder {{gabinete}} salga.
+  const withPhoto = items.filter((item) => item.webImageUrl || item.product?.assets[0]?.url);
+  const candidates = (withPhoto.length ? withPhoto : items).map((entry) => ({name: entry.frozenName, line: entry.line?.name ?? null, entry}));
+  const item = pickCaseItem(candidates)?.entry;
+  if (!item) return null;
+  // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
+  return {name: item.frozenName, imageUrl: item.webImageUrl ?? item.product?.assets[0]?.url ?? null};
 }
 
 type PlaceholderValues = Record<(typeof THUMBNAIL_AI_PLACEHOLDERS)[number], string>;
