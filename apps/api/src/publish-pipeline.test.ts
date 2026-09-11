@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {rankCandidates} from './publish-pipeline.js';
+import {rankCandidates, searchQuery} from './publish-pipeline.js';
 import {enrichmentItemsHash} from './quote-enrichment.js';
 import {buildStoreTitle} from './quote-title.js';
 
@@ -17,6 +17,23 @@ describe('elección de imágenes de Serper', () => {
   it('no descarta resultados sin dimensiones informadas', () => {
     const ranked = rankCandidates([{url: 'https://a/unknown.webp'}]);
     expect(ranked).toHaveLength(1);
+  });
+
+  it('exige que el resultado mencione el modelo y descarta redes sociales', () => {
+    const ranked = rankCandidates(
+      [
+        {url: 'https://cdn.shop.com/img/rtx-3070-8gb-gigabyte.png', title: 'Gigabyte RTX 3070 8GB', width: 800, height: 800},
+        {url: 'https://i.pinimg.com/rtx-3070.png', title: 'RTX 3070 setup', width: 800, height: 800},
+        {url: 'https://cdn.shop.com/img/random-gpu.png', title: 'Placa de video gamer', width: 900, height: 900},
+        {url: 'https://cdn.shop.com/img/rtx-4060.jpg', title: 'Gigabyte RTX 4060', width: 800, height: 800},
+      ],
+      'Placa de video RTX 3070 8GB Gigabyte',
+    );
+    expect(ranked.map((image) => image.url)).toEqual(['https://cdn.shop.com/img/rtx-3070-8gb-gigabyte.png']);
+  });
+
+  it('limpia el ruido del nombre para buscar', () => {
+    expect(searchQuery('Procesador AMD Ryzen 5 7600X nuevo con garantía')).toBe('Procesador AMD Ryzen 5 7600X');
   });
 });
 

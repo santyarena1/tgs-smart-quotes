@@ -15,7 +15,7 @@ import {thumbnailRulesSchema, type ThumbnailRules} from '@tgs/contracts';
 import {db} from '@tgs/database';
 import {getSerperKey, publishQuote, removeBackgroundDetailed, searchImages, type SerperImage} from '@tgs/providers';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
-import {enrichmentItemsHash, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
+import {enrichmentItemsHash, generateProductDescription, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 
@@ -26,6 +26,7 @@ export type PublishRunStep = {id: string; label: string; status: PublishRunStepS
 
 const STEP_DEFS: Array<{id: string; label: string}> = [
   {id: 'images', label: 'Imágenes de componentes'},
+  {id: 'descriptions', label: 'Descripciones de componentes'},
   {id: 'hero', label: 'Foto principal'},
   {id: 'enrichment', label: 'Textos y análisis con IA'},
   {id: 'title', label: 'Título y bajada'},
@@ -103,6 +104,7 @@ async function runPipeline(runId: string, opts: {familyId: string; versionId: st
   };
 
   await step('images', () => fillMissingImages(opts.versionId, opts.userId));
+  await step('descriptions', () => fillMissingDescriptions(opts.versionId, opts.userId));
   await step('hero', () => ensureHero(opts.familyId, opts.versionId));
   await step('enrichment', () => ensureEnrichment(opts.versionId, opts.userId));
   await step('title', () => ensureTitle(opts.familyId, opts.versionId));
@@ -205,8 +207,8 @@ type PickedImage = {
  * mejor que se pudo bajar, con fondo: es preferible a no tener foto.
  */
 async function findProductImage(name: string, apiKey: string): Promise<PickedImage | null> {
-  const results = await searchImages(`${name} png`, apiKey, 20);
-  const candidates = rankCandidates(results).slice(0, CANDIDATES_PER_ITEM);
+  const results = await searchImages(searchQuery(name), apiKey, 30);
+  const candidates = rankCandidates(results, name).slice(0, CANDIDATES_PER_ITEM);
   let fallback: PickedImage | null = null;
   for (const candidate of candidates) {
     let downloaded: {buffer: Buffer; contentType: string};
@@ -226,18 +228,57 @@ async function findProductImage(name: string, apiKey: string): Promise<PickedIma
   return fallback;
 }
 
+/** Sitios que devuelven collages, memes o fotos de usuarios, nunca la foto del producto. */
+const BLOCKED_HOSTS = /pinterest|facebook|fbcdn|instagram|tiktok|youtube|ytimg|reddit|twitter|x\.com|wikipedia|wikimedia/i;
+
+/** Ruido de los nombres del catálogo que no ayuda a buscar la foto. */
+const NAME_NOISE = /\b(nuevo|nueva|sellado|garant[ií]a|oferta|promo|combo|con|sin|para|pc|gamer|gaming|the gamer shop|tgs)\b/gi;
+
 /**
- * Orden de preferencia: PNG (suelen ser recortes de producto), tamaño
- * razonable (ni miniaturas ni banners) y proporción cercana al cuadrado.
+ * Palabras del nombre que identifican al producto: las que llevan números
+ * (modelo, capacidad) y las de 3+ letras (marca, familia). Se descartan las
+ * que son solo números sueltos.
  */
-export function rankCandidates(results: SerperImage[]): SerperImage[] {
+function modelTokens(name: string): string[] {
+  return name
+    .toLowerCase()
+    .replace(NAME_NOISE, ' ')
+    .split(/[^a-z0-9.]+/)
+    .map((token) => token.replace(/\.$/, ''))
+    .filter((token) => (/\d/.test(token) ? token.length >= 2 && !/^\d+$/.test(token) : token.length >= 3))
+    .filter((token, index, all) => all.indexOf(token) === index);
+}
+
+export function searchQuery(name: string): string {
+  return name.replace(NAME_NOISE, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Orden de preferencia: primero que sea ESE producto (los tokens del modelo
+ * aparecen en el título o la URL del resultado), después PNG (suelen ser
+ * recortes), tamaño razonable y proporción cercana al cuadrado. Un resultado
+ * que no menciona ningún token con números del nombre se descarta: era la
+ * causa de las fotos "de cualquier cosa".
+ */
+export function rankCandidates(results: SerperImage[], name = ''): SerperImage[] {
+  const tokens = modelTokens(name);
+  const numericTokens = tokens.filter((token) => /\d/.test(token));
   const score = (image: SerperImage) => {
+    if (BLOCKED_HOSTS.test(image.url) || (image.source && BLOCKED_HOSTS.test(image.source))) return -1;
     const width = image.width ?? 0;
     const height = image.height ?? 0;
     if (width && height && (width < 250 || height < 250)) return -1;
     const ratio = width && height ? Math.max(width, height) / Math.min(width, height) : 1.5;
     if (ratio > 2.5) return -1;
     let value = 0;
+    if (tokens.length) {
+      const haystack = `${image.title ?? ''} ${image.url} ${image.source ?? ''}`.toLowerCase();
+      const matched = tokens.filter((token) => haystack.includes(token));
+      const matchedNumeric = numericTokens.filter((token) => haystack.includes(token));
+      if (numericTokens.length && !matchedNumeric.length) return -1;
+      if (!numericTokens.length && !matched.length) return -1;
+      value += (matched.length / tokens.length) * 10;
+    }
     if (/\.png(\?|$)/i.test(image.url)) value += 3;
     if (width >= 600 && height >= 600) value += 2;
     value += Math.max(0, 2 - (ratio - 1));
@@ -248,6 +289,52 @@ export function rankCandidates(results: SerperImage[]): SerperImage[] {
     .filter((entry) => entry.value >= 0)
     .sort((a, b) => b.value - a.value)
     .map((entry) => entry.image);
+}
+
+// ---------------------------------------------------------------- descripciones
+
+async function fillMissingDescriptions(versionId: string, userId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
+  const items = await db.quoteItem.findMany({
+    where: {versionId},
+    orderBy: {position: 'asc'},
+    select: {id: true, frozenName: true, webDescription: true, productId: true, product: {select: {description: true}}},
+  });
+  const missing = items.filter((item) => (item.productId ? !item.product?.description?.trim() : !item.webDescription?.trim()));
+  if (!missing.length) return {status: 'SKIPPED', detail: 'Todos los componentes ya tienen descripción'};
+  const done: string[] = [];
+  const failed: string[] = [];
+  // Un producto puede aparecer dos veces en la PC (dos discos iguales): se
+  // describe una sola vez.
+  const seenProducts = new Set<string>();
+  for (const item of missing) {
+    if (item.productId && seenProducts.has(item.productId)) continue;
+    try {
+      const description = await generateProductDescription(item.frozenName);
+      if (item.productId) {
+        seenProducts.add(item.productId);
+        await db.product.update({where: {id: item.productId}, data: {description}});
+        await db.auditLog.create({data: {userId, entityType: 'Product', entityId: item.productId, action: 'AUTO_DESCRIPTION', next: {description} as any}});
+      } else {
+        await db.quoteItem.update({where: {id: item.id}, data: {webDescription: description}});
+        await db.auditLog.create({data: {userId, entityType: 'QuoteItem', entityId: item.id, action: 'AUTO_DESCRIPTION', next: {description} as any}});
+      }
+      done.push(item.frozenName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Si la IA está apagada o sin key, todos van a fallar igual: se corta acá.
+      if (/desactivada|API key/i.test(message)) throw new Error(message);
+      failed.push(item.frozenName);
+      logger.warn(JSON.stringify({event: 'publish_pipeline_description_failed', item: item.frozenName, error: message}));
+    }
+  }
+  const detail = [
+    done.length ? `Se describieron ${done.length}: ${done.join(', ')}` : null,
+    failed.length ? `Sin describir: ${failed.join(', ')}` : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
+  if (!done.length) throw new Error(detail || 'No se pudo describir ningún componente');
+  return {status: 'DONE', detail};
 }
 
 async function downloadImage(url: string): Promise<{buffer: Buffer; contentType: string}> {

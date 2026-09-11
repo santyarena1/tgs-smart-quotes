@@ -4,7 +4,8 @@
  * web y el pipeline "Preparar y publicar", por eso vive aparte del controller.
  */
 import {createHash} from 'node:crypto';
-import {createAiClient, DEFAULT_AI_MODEL, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
+import {BadGatewayException, BadRequestException} from '@nestjs/common';
+import {createAiClient, DEFAULT_AI_MODEL, describeOpenAiError, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
 import {decryptSecret} from '@tgs/config';
 import {db} from '@tgs/database';
 import {buildStoreTitle} from './quote-title.js';
@@ -107,3 +108,37 @@ export async function runQuoteEnrichment(versionId: string, userId: string | nul
 }
 
 const bigintSafe = (_key: string, value: unknown) => (typeof value === 'bigint' ? value.toString() : value);
+
+// ------------------------------------------------ descripción de un componente
+
+const PRODUCT_DESCRIPTION_SYSTEM =
+  'Sos redactor comercial de The Gamer Shop, Argentina. Redactá en español una descripción breve (1 a 2 oraciones, máximo 220 caracteres) de un componente de PC gamer para mostrar debajo de su nombre en una ficha de producto. Tono profesional y directo, sin emojis, sin inventar especificaciones numéricas que no te dieron, sin repetir el nombre completo del producto tal cual.';
+
+/** Descripción corta de un componente. La usan el botón del editor y el pipeline. */
+export async function generateProductDescription(productName: string): Promise<string> {
+  const settings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+  if (!settings.enabled) throw new BadRequestException('La IA está desactivada. Activala en Ajustes → IA.');
+  const key = settings.apiKeyEncrypted ? decryptSecret(settings.apiKeyEncrypted) : process.env.OPENAI_API_KEY;
+  const client = createAiClient({apiKey: key});
+  if (!client) throw new BadRequestException('Falta la API key de OpenAI. Cargala en Ajustes → IA.');
+  const extra = settings.productDescriptionPrompt?.trim();
+  const systemPrompt = extra
+    ? `${PRODUCT_DESCRIPTION_SYSTEM}\n\nInstrucciones adicionales definidas por el negocio (respetalas siempre que no contradigan las reglas anteriores): ${extra}`
+    : PRODUCT_DESCRIPTION_SYSTEM;
+  let completion;
+  try {
+    completion = await client.chat.completions.create({
+      model: settings.model ?? DEFAULT_AI_MODEL,
+      max_tokens: 150,
+      messages: [
+        {role: 'system', content: systemPrompt},
+        {role: 'user', content: `Componente: ${productName}`},
+      ],
+    });
+  } catch (error) {
+    throw new BadGatewayException(describeOpenAiError(error).message);
+  }
+  const text = completion.choices[0]?.message?.content?.trim();
+  if (!text) throw new BadGatewayException('La IA no devolvió una respuesta.');
+  return text;
+}
