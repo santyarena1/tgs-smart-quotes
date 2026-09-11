@@ -233,7 +233,7 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   }
   .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%); pointer-events: none; }
   /* --rs: escala de las filas; el script la baja si la columna no entra antes del pie. */
-  .left { --rs: 1; position: absolute; left: 40px; top: 32px; width: 580px; display: flex; flex-direction: column; align-items: flex-start; }
+  .left { --rs: 1; position: absolute; z-index: 2; left: 40px; top: 32px; width: 580px; display: flex; flex-direction: column; align-items: flex-start; }
   .logo { height: 170px; width: auto; max-width: 360px; object-fit: contain; object-position: left; }
   .logo-text { display: inline-flex; flex-direction: column; width: max-content; line-height: .9; font-weight: 900; letter-spacing: -.02em; text-transform: uppercase; }
   .logo-text .lt1 { font-size: 44px; color: #fff; }
@@ -251,10 +251,10 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
   .lbl { font-size: calc(20px * var(--rs)); font-weight: 600; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; }
   .val { font-size: calc(31px * var(--rs)); font-weight: 600; line-height: 1.1; color: #fff; text-transform: uppercase; white-space: nowrap; }
-  .case { position: absolute; right: 0; top: 50px; width: ${designW - 590}px; height: ${designH - 200}px; display: grid; place-items: center; }
+  .case { position: absolute; z-index: 1; right: 0; top: 50px; width: ${designW - 590}px; height: ${designH - 200}px; display: grid; place-items: center; }
   .case img { width: 100%; height: 100%; object-fit: contain; object-position: center; filter: drop-shadow(0 40px 50px rgba(0,0,0,.85)) drop-shadow(0 0 90px color-mix(in srgb, var(--accent) 22%, transparent)); }
   .floor { position: absolute; right: 50px; bottom: 160px; width: ${designW - 620}px; height: 60px; background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.75), transparent 70%); filter: blur(6px); }
-  .footer { position: absolute; left: 40px; right: 40px; bottom: 30px; height: 104px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .footer { position: absolute; z-index: 2; left: 40px; right: 40px; bottom: 30px; height: 104px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .badge { display: flex; align-items: center; gap: 14px; flex: 1; }
   .bico { color: #fff; width: 62px; height: 62px; display: grid; place-items: center; }
   .badge:nth-child(4n+3) .bico, .badge:nth-child(4n+5) .bico { color: var(--accent); }
