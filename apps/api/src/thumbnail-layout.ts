@@ -1,6 +1,5 @@
 import {existsSync, readFileSync} from 'node:fs';
-import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join, resolve} from 'node:path';
 import type {StoreTitleSpecs} from './quote-title.js';
 
 /**
@@ -12,8 +11,8 @@ import type {StoreTitleSpecs} from './quote-title.js';
 let fontCss: string | null = null;
 function embeddedFontCss(): string {
   if (fontCss !== null) return fontCss;
-  const here = dirname(fileURLToPath(import.meta.url));
-  const candidates = [join(here, '..', 'assets', 'fonts', 'Montserrat-wght.ttf'), join(here, '..', '..', 'assets', 'fonts', 'Montserrat-wght.ttf')];
+  // La API se ejecuta desde la raíz del repo (dev y Docker) o desde apps/api.
+  const candidates = [resolve(process.cwd(), 'apps', 'api', 'assets', 'fonts', 'Montserrat-wght.ttf'), resolve(process.cwd(), 'assets', 'fonts', 'Montserrat-wght.ttf'), join(__dirname, '..', 'assets', 'fonts', 'Montserrat-wght.ttf')];
   const path = candidates.find((candidate) => existsSync(candidate));
   if (!path) {
     fontCss = '';
