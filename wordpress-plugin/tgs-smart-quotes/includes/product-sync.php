@@ -55,10 +55,29 @@ function tgs_sq_find_product_id( $external_id ) {
  * - Cualquier otro producto que coincida es un duplicado: se pasa a borrador
  *   con una nota, nunca se borra.
  */
+/** Entre varios productos con el mismo id: publicado > no borrado > más nuevo. */
+function tgs_sq_pick_product_to_keep( array $ids ) {
+	$best       = 0;
+	$best_score = -1;
+	foreach ( $ids as $id ) {
+		$status = get_post_status( (int) $id );
+		$score  = ( 'publish' === $status ? 200 : ( 'trash' === $status ? 0 : 100 ) ) + (int) $id / 1e9;
+		if ( $score > $best_score ) {
+			$best       = (int) $id;
+			$best_score = $score;
+		}
+	}
+	return $best;
+}
+
 function tgs_sq_resolve_product_id( $external_id, array $legacy_ids ) {
 	$current = tgs_sq_find_product_ids( array( $external_id ) );
 	$legacy  = array_diff( tgs_sq_find_product_ids( $legacy_ids ), $current );
-	$keep    = $current ? (int) $current[0] : ( $legacy ? (int) reset( $legacy ) : 0 );
+	// Si hay más de un producto con el mismo id, se conserva el que está
+	// PUBLICADO (y entre varios, el más nuevo). Antes se conservaba el de ID
+	// más bajo: si ese era un duplicado viejo (incluso en la papelera), cada
+	// republicación lo resucitaba y mandaba a borrador al que el cliente veía.
+	$keep = tgs_sq_pick_product_to_keep( $current ) ?: tgs_sq_pick_product_to_keep( array_values( $legacy ) );
 	if ( ! $keep ) {
 		return 0;
 	}
@@ -66,7 +85,7 @@ function tgs_sq_resolve_product_id( $external_id, array $legacy_ids ) {
 		wp_untrash_post( $keep );
 	}
 	update_post_meta( $keep, TGS_SQ_META_EXTERNAL_ID, tgs_sq_meta_text( $external_id ) );
-	foreach ( array_merge( array_slice( $current, 1 ), array_values( $legacy ) ) as $duplicate ) {
+	foreach ( array_merge( $current, array_values( $legacy ) ) as $duplicate ) {
 		if ( (int) $duplicate === $keep ) {
 			continue;
 		}
