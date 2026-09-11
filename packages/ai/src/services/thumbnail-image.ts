@@ -23,6 +23,8 @@ export type ThumbnailImageInput = {
   size: ImageSize;
   quality: ImageQuality;
   model?: string;
+  /** Fondo transparente (para recortes de gabinete que después se componen). */
+  transparent?: boolean;
 };
 
 export type ThumbnailImageResult = {
@@ -67,6 +69,7 @@ export async function generateThumbnailImage(client: OpenAI, input: ThumbnailIma
     // en vez de "un gabinete parecido".
     input_fidelity: "high",
     output_format: "png",
+    ...(input.transparent ? { background: "transparent" as const } : {}),
   });
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) throw new Error("OpenAI no devolvió ninguna imagen");

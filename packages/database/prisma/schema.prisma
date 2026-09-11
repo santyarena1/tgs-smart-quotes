@@ -1265,6 +1265,21 @@ model CaseModel3D {
 model ThumbnailAiSettings {
   id                String   @id @default("singleton")
   enabled           Boolean  @default(false)
+  /// LAYOUT: plantilla TGS compuesta por el sistema (texto exacto, gratis).
+  /// AI_SCENE: toda la imagen la genera el modelo a partir de referencias.
+  mode              String   @default("LAYOUT")
+  /// Plantilla TGS: por encima de este precio (transferencia, centavos) el
+  /// título grande muestra la placa de video en vez del procesador.
+  gpuHeadlineThresholdCents BigInt @default(150000000)
+  logoUrl           String?
+  logoKey           String?
+  accentColor       String   @default("#E31B23")
+  /// Badges del pie: [{icon, line1, line2}] (icon: shield|star|headset|truck).
+  footerJson        Json     @default("[]")
+  /// Procesar la foto del gabinete con IA antes de componer (OFF | ALWAYS):
+  /// sirve para rellenar gabinetes vacíos con componentes y luces.
+  caseAiMode        String   @default("OFF")
+  caseAiPrompt      String   @default("")
   model             String   @default("gpt-image-1")
   /// low | medium | high
   quality           String   @default("medium")
@@ -1286,6 +1301,17 @@ model ThumbnailAiSettings {
 
 /// Imágenes de referencia (miniaturas ya hechas) que se le muestran a la IA
 /// para que copie el estilo. Se mandan todas en cada generación.
+/// Gabinetes ya procesados con IA, por URL de la foto original: el mismo
+/// gabinete se usa en muchas PCs y no hay que pagarlo cada vez.
+model ThumbnailCaseRender {
+  id        String   @id @default(uuid())
+  sourceUrl String   @unique
+  url       String
+  key       String
+  prompt    String
+  createdAt DateTime @default(now())
+}
+
 model ThumbnailAiReference {
   id        String   @id @default(uuid())
   url       String

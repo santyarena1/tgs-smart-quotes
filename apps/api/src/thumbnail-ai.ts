@@ -12,17 +12,21 @@ import {
 } from '@tgs/contracts';
 import {db} from '@tgs/database';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
+import {renderHtmlToPng} from '@tgs/pdf';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {extractSpecsFromItems, type StoreTitleSpecs} from './quote-title.js';
+import {buildHeadline, buildRows, DEFAULT_CASE_AI_PROMPT, DEFAULT_FOOTER, renderThumbnailHtml, type FooterBadge} from './thumbnail-layout.js';
 
 /**
- * Miniaturas con IA.
+ * Miniaturas de la tienda.
  *
- * Replica lo que el negocio hacía a mano en ChatGPT: se le pasan al modelo
- * de imágenes las miniaturas de referencia (el "estilo de la casa"), la foto
- * del gabinete de esta PC y un prompt con los componentes, y devuelve la
- * miniatura lista. Todo lo configurable vive en Ajustes → Miniaturas IA:
- * referencias, prompt, calidad, tamaño y cómo va el texto.
+ * Dos modos (Ajustes → Miniaturas):
+ *  - LAYOUT: la plantilla TGS la compone el sistema en HTML/CSS y la captura
+ *    Chromium (texto exacto, gratis, un segundo). Opcionalmente la foto del
+ *    gabinete pasa antes por el modelo de imágenes para rellenar el interior
+ *    con componentes y luces (caseAiMode), con caché por foto.
+ *  - AI_SCENE: toda la imagen la genera el modelo de imágenes a partir de las
+ *    miniaturas de referencia, la foto del gabinete y un prompt.
  */
 
 const CASE_PATTERN = /gabinete|case|chasis|tower/i;
@@ -33,6 +37,121 @@ export const THUMBNAIL_AI_PLACEHOLDERS = ['titulo', 'cpu', 'gpu', 'ram', 'disco'
 
 export async function loadThumbnailAiSettings() {
   return db.thumbnailAiSettings.upsert({where: {id: 'singleton'}, update: {}, create: {id: 'singleton'}});
+}
+
+function footerBadges(raw: unknown): FooterBadge[] {
+  return Array.isArray(raw) && raw.length ? (raw as FooterBadge[]) : DEFAULT_FOOTER;
+}
+
+async function settingsDto() {
+  const [settings, references] = await Promise.all([loadThumbnailAiSettings(), loadReferences()]);
+  return jsonSafe({
+    ...settings,
+    footer: footerBadges(settings.footerJson),
+    footerJson: undefined,
+    caseAiPrompt: settings.caseAiPrompt || DEFAULT_CASE_AI_PROMPT,
+    references,
+    placeholders: THUMBNAIL_AI_PLACEHOLDERS,
+  });
+}
+
+async function openAiClient() {
+  const ai = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+  const key = ai.apiKeyEncrypted ? decryptSecret(ai.apiKeyEncrypted) : process.env.OPENAI_API_KEY;
+  return key ? createAiClient({apiKey: key}) : null;
+}
+
+const toDataUrl = (buffer: Buffer, mime = 'image/png') => `data:${mime};base64,${buffer.toString('base64')}`;
+
+/**
+ * Gabinete procesado con IA (interior armado, luces RGB) a partir de la foto
+ * original, con caché por URL: el mismo gabinete se repite en muchas PCs.
+ */
+async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {model: string; quality: string; caseAiPrompt: string}, familyId: string): Promise<Buffer> {
+  const prompt = settings.caseAiPrompt.trim() || DEFAULT_CASE_AI_PROMPT;
+  const cached = await db.thumbnailCaseRender.findUnique({where: {sourceUrl}});
+  if (cached && cached.prompt === prompt) {
+    try {
+      return await readMedia(cached.key);
+    } catch {
+      await db.thumbnailCaseRender.delete({where: {id: cached.id}}).catch(() => undefined);
+    }
+  }
+  const client = await openAiClient();
+  if (!client) throw new ThumbnailAiUnavailable('Falta la clave de OpenAI (Ajustes → IA) para procesar el gabinete');
+  const started = Date.now();
+  let result;
+  try {
+    result = await generateThumbnailImage(client, {
+      prompt,
+      images: [{buffer: await normalizeInput(sourceBuffer), name: 'gabinete.png', mime: 'image/png'}],
+      size: '1024x1024',
+      quality: settings.quality as ImageQuality,
+      model: settings.model,
+      transparent: true,
+    });
+  } catch (error) {
+    const info = describeOpenAiError(error);
+    await db.aiRequest.create({data: {task: 'THUMBNAIL_IMAGE', model: settings.model, inputHash: randomUUID(), entityType: 'QuoteFamily', entityId: familyId, success: false, error: info.message, durationMs: Date.now() - started}});
+    throw new Error(`OpenAI no pudo procesar el gabinete: ${info.message}`);
+  }
+  const stored = await (await loadMediaStorage()).put(`thumbnail-ai/cases/${randomUUID()}.png`, result.buffer, 'image/png');
+  await db.$transaction([
+    db.thumbnailCaseRender.upsert({where: {sourceUrl}, update: {url: stored.url, key: stored.key, prompt}, create: {sourceUrl, url: stored.url, key: stored.key, prompt}}),
+    db.aiRequest.create({data: {task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'QuoteFamily', entityId: familyId, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: {url: stored.url, kind: 'case', prompt} as any}}),
+  ]);
+  if (cached) {
+    try {
+      await (await loadMediaStorage()).delete(cached.key);
+    } catch {}
+  }
+  return result.buffer;
+}
+
+/** Modo LAYOUT: plantilla TGS compuesta por el sistema. */
+async function generateLayoutThumbnail(opts: {familyId: string; versionId: string; userId: string | null}): Promise<{url: string; detail: string}> {
+  const settings = await loadThumbnailAiSettings();
+  const [family, version] = await Promise.all([
+    db.quoteFamily.findUniqueOrThrow({where: {id: opts.familyId}, select: {webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
+    db.quoteVersion.findUniqueOrThrow({where: {id: opts.versionId}, select: {totalSaleCents: true}}),
+  ]);
+  const items = await db.quoteItem.findMany({where: {versionId: opts.versionId}, orderBy: {position: 'asc'}, select: {frozenName: true, quantity: true, line: {select: {name: true}}}});
+  const caseItem = await findCaseItem(opts.versionId);
+  const caseUrl = family.heroImageUrl ?? family.heroAsset?.url ?? caseItem?.imageUrl ?? null;
+  if (!caseUrl) throw new ThumbnailAiUnavailable('No hay foto del gabinete para armar la miniatura');
+
+  const rowItems = items.map((item) => ({name: item.frozenName, quantity: item.quantity, line: item.line?.name ?? null}));
+  const specs = extractSpecsFromItems(rowItems);
+  const useGpu = Boolean(specs.gpu) && version.totalSaleCents > settings.gpuHeadlineThresholdCents;
+  const headline = buildHeadline(specs, useGpu, family.webTitle?.trim() || family.internalName);
+  const rows = buildRows(rowItems, specs);
+
+  let caseBuffer = (await readOwnOrRemote(caseUrl)).buffer;
+  let caseDetail = 'foto original';
+  if (settings.caseAiMode === 'ALWAYS') {
+    caseBuffer = await caseWithAi(caseUrl, caseBuffer, settings, opts.familyId);
+    caseDetail = 'gabinete procesado con IA';
+  }
+  const logo = settings.logoUrl ? await readOwnOrRemote(settings.logoUrl).catch(() => null) : null;
+  const [width, height] = settings.size.split('x').map(Number) as [number, number];
+  const html = renderThumbnailHtml({
+    width,
+    height,
+    accent: settings.accentColor,
+    logoDataUrl: logo ? toDataUrl(logo.buffer, logo.mime) : null,
+    caseDataUrl: toDataUrl(await sharp(caseBuffer).png().toBuffer()),
+    headline,
+    rows,
+    footer: footerBadges(settings.footerJson),
+  });
+  const png = await renderHtmlToPng(html, {width, height});
+  const jpeg = await sharp(png).jpeg({quality: 92}).toBuffer();
+  const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${opts.familyId}/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
+  await db.$transaction([
+    db.quoteFamily.update({where: {id: opts.familyId}, data: {thumbnailUrl: stored.url}}),
+    ...(opts.userId ? [db.auditLog.create({data: {userId: opts.userId, entityType: 'QuoteFamily', entityId: opts.familyId, action: 'GENERATE_THUMBNAIL_LAYOUT', next: {url: stored.url, headline}}})] : []),
+  ]);
+  return {url: stored.url, detail: `Plantilla TGS: título ${useGpu ? 'con la placa de video' : 'con el procesador'}, ${rows.length} filas, ${caseDetail}`};
 }
 
 async function loadReferences() {
@@ -146,10 +265,9 @@ export class ThumbnailAiUnavailable extends Error {}
  */
 export async function generateAiThumbnail(opts: {familyId: string; versionId: string; userId: string | null}): Promise<{url: string; detail: string}> {
   const settings = await loadThumbnailAiSettings();
-  if (!settings.enabled) throw new ThumbnailAiUnavailable('Miniaturas con IA desactivadas (Ajustes → Miniaturas IA)');
-  const ai = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
-  const key = ai.apiKeyEncrypted ? decryptSecret(ai.apiKeyEncrypted) : process.env.OPENAI_API_KEY;
-  const client = key ? createAiClient({apiKey: key}) : null;
+  if (!settings.enabled) throw new ThumbnailAiUnavailable('Generación de miniaturas desactivada (Ajustes → Miniaturas)');
+  if (settings.mode !== 'AI_SCENE') return generateLayoutThumbnail(opts);
+  const client = await openAiClient();
   if (!client) throw new ThumbnailAiUnavailable('Falta la clave de OpenAI (Ajustes → IA)');
   const references = await loadReferences();
   if (!references.length) throw new ThumbnailAiUnavailable('No hay imágenes de referencia cargadas (Ajustes → Miniaturas IA)');
@@ -266,19 +384,60 @@ export async function generateAiThumbnail(opts: {familyId: string; versionId: st
 export class ThumbnailAiController {
   @Get()
   async get() {
-    const [settings, references] = await Promise.all([loadThumbnailAiSettings(), loadReferences()]);
-    return jsonSafe({...settings, references, placeholders: THUMBNAIL_AI_PLACEHOLDERS});
+    return settingsDto();
   }
 
   @Put()
   async put(@Body(new ZodPipe(thumbnailAiSettingsUpdateSchema)) body: ThumbnailAiSettingsUpdateInput, @CurrentUser() user: RequestUser) {
     const previous = await loadThumbnailAiSettings();
-    const next = await db.$transaction(async (tx) => {
-      const saved = await tx.thumbnailAiSettings.update({where: {id: 'singleton'}, data: body});
+    const {footer, gpuHeadlineThresholdCents, ...rest} = body;
+    const data = {
+      ...rest,
+      ...(footer !== undefined ? {footerJson: footer as any} : {}),
+      ...(gpuHeadlineThresholdCents !== undefined ? {gpuHeadlineThresholdCents: BigInt(gpuHeadlineThresholdCents)} : {}),
+    };
+    await db.$transaction(async (tx) => {
+      const saved = await tx.thumbnailAiSettings.update({where: {id: 'singleton'}, data});
       await tx.auditLog.create({data: {userId: user.id, entityType: 'ThumbnailAiSettings', entityId: 'singleton', action: 'UPDATE', previous: jsonSafe(previous), next: jsonSafe(saved)}});
-      return saved;
     });
-    return jsonSafe({...next, references: await loadReferences(), placeholders: THUMBNAIL_AI_PLACEHOLDERS});
+    return settingsDto();
+  }
+
+  /** Logo de la plantilla TGS (PNG con fondo transparente, idealmente). */
+  @Post('logo')
+  async uploadLogo(@Req() req: any, @CurrentUser() user: RequestUser) {
+    if (typeof req.file !== 'function') throw new BadRequestException('Upload multipart no disponible en el servidor');
+    const part = await req.file();
+    if (!part) throw new BadRequestException('Seleccioná una imagen');
+    const mimetype = String(part.mimetype ?? '');
+    if (!mimetype.startsWith('image/')) throw new BadRequestException('El archivo debe ser una imagen');
+    const buffer = await part.toBuffer();
+    if (!buffer.length) throw new BadRequestException('La imagen está vacía');
+    const extension = mimetype === 'image/png' ? 'png' : mimetype === 'image/webp' ? 'webp' : mimetype === 'image/svg+xml' ? 'svg' : 'jpg';
+    const storage = await loadMediaStorage();
+    const previous = await loadThumbnailAiSettings();
+    const stored = await storage.put(`thumbnail-ai/logo/${randomUUID()}.${extension}`, buffer, mimetype);
+    await db.thumbnailAiSettings.update({where: {id: 'singleton'}, data: {logoUrl: stored.url, logoKey: stored.key}});
+    await db.auditLog.create({data: {userId: user.id, entityType: 'ThumbnailAiSettings', entityId: 'singleton', action: 'UPLOAD_LOGO', next: {url: stored.url}}});
+    if (previous.logoKey) {
+      try {
+        await storage.delete(previous.logoKey);
+      } catch {}
+    }
+    return settingsDto();
+  }
+
+  @Delete('logo')
+  async deleteLogo(@CurrentUser() user: RequestUser) {
+    const previous = await loadThumbnailAiSettings();
+    await db.thumbnailAiSettings.update({where: {id: 'singleton'}, data: {logoUrl: null, logoKey: null}});
+    await db.auditLog.create({data: {userId: user.id, entityType: 'ThumbnailAiSettings', entityId: 'singleton', action: 'DELETE_LOGO', previous: {url: previous.logoUrl}}});
+    if (previous.logoKey) {
+      try {
+        await (await loadMediaStorage()).delete(previous.logoKey);
+      } catch {}
+    }
+    return settingsDto();
   }
 
   @Post('references')

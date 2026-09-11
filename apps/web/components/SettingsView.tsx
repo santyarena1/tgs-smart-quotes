@@ -33,7 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
   { id: "pdf", label: "PDF" },
   { id: "ia", label: "IA" },
-  { id: "miniaturas", label: "Miniaturas IA" },
+  { id: "miniaturas", label: "Miniaturas" },
   { id: "chatbot", label: "Chatbot" },
   { id: "whatsapp", label: "WhatsApp Cloud" },
   { id: "financiacion", label: "Financiación" },

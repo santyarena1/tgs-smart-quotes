@@ -294,8 +294,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     }
   };
 
-  // Miniatura con IA (Ajustes → Miniaturas IA): cada click es una imagen nueva,
-  // así que se puede insistir hasta que guste.
+  // Miniatura según Ajustes → Miniaturas (plantilla TGS o escena con IA):
+  // cada click la vuelve a armar, así que se puede insistir hasta que guste.
   const generateThumbnailAi = async () => {
     if (!quote) return;
     setGeneratingThumb(true);
@@ -723,7 +723,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                 />
                 {uploadingThumb ? <span className="muted">Subiendo…</span> : null}
                 <button type="button" className="btn-ghost btn-sm" disabled={generatingThumb || uploadingThumb} onClick={() => void generateThumbnailAi()}>
-                  {generatingThumb ? "Generando…" : quote.thumbnailUrl ? "Regenerar con IA" : "Generar con IA"}
+                  {generatingThumb ? "Generando…" : quote.thumbnailUrl ? "Regenerar miniatura" : "Generar miniatura"}
                 </button>
                 {thumbNotice ? <span className="muted" style={{ fontSize: 12.5 }}>{thumbNotice}</span> : null}
               </div>

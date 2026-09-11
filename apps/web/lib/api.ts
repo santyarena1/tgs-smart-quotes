@@ -223,8 +223,18 @@ export type WhatsappConversationFilter = 'TODAS' | 'NO_LEIDAS' | 'ESCALADAS' | '
 
 export type ThumbnailAiReference = {id: string; url: string; note: string | null; sortOrder: number; createdAt: string};
 
+export type ThumbnailFooterBadge = {icon: 'shield' | 'star' | 'headset' | 'truck' | 'check' | 'bolt'; line1: string; line2: string};
+
 export type ThumbnailAiSettings = {
   enabled: boolean;
+  mode: 'LAYOUT' | 'AI_SCENE';
+  /** Centavos, como string (BigInt en el servidor). */
+  gpuHeadlineThresholdCents: string;
+  logoUrl: string | null;
+  accentColor: string;
+  footer: ThumbnailFooterBadge[];
+  caseAiMode: 'OFF' | 'ALWAYS';
+  caseAiPrompt: string;
   model: string;
   quality: 'low' | 'medium' | 'high';
   size: '1024x1024' | '1536x1024' | '1024x1536';
@@ -239,7 +249,7 @@ export type ThumbnailAiSettings = {
   placeholders: string[];
 };
 
-export type ThumbnailAiSettingsInput = Partial<Omit<ThumbnailAiSettings, 'references' | 'placeholders'>>;
+export type ThumbnailAiSettingsInput = Partial<Omit<ThumbnailAiSettings, 'references' | 'placeholders' | 'logoUrl'>>;
 
 export function getThumbnailAiSettings(): Promise<ThumbnailAiSettings> {
   return api<ThumbnailAiSettings>('/settings/thumbnail-ai');
@@ -247,6 +257,16 @@ export function getThumbnailAiSettings(): Promise<ThumbnailAiSettings> {
 
 export function updateThumbnailAiSettings(body: ThumbnailAiSettingsInput): Promise<ThumbnailAiSettings> {
   return api<ThumbnailAiSettings>('/settings/thumbnail-ai', {method: 'PUT', body});
+}
+
+export function uploadThumbnailAiLogo(file: File): Promise<ThumbnailAiSettings> {
+  const form = new FormData();
+  form.append('file', file);
+  return apiUpload<ThumbnailAiSettings>('/settings/thumbnail-ai/logo', form);
+}
+
+export function deleteThumbnailAiLogo(): Promise<ThumbnailAiSettings> {
+  return api<ThumbnailAiSettings>('/settings/thumbnail-ai/logo', {method: 'DELETE'});
 }
 
 export function uploadThumbnailAiReference(file: File): Promise<ThumbnailAiReference> {
