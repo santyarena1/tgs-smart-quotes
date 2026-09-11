@@ -1,4 +1,28 @@
+import {existsSync, readFileSync} from 'node:fs';
+import {dirname, join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import type {StoreTitleSpecs} from './quote-title.js';
+
+/**
+ * Tipografía de la plantilla, incrustada en el HTML como data URL. Antes se
+ * pedía a Google Fonts desde el Chromium del servidor y, si la descarga
+ * fallaba o llegaba tarde, la miniatura salía con la fuente de reserva.
+ * Montserrat variable (OFL), en apps/api/assets/fonts.
+ */
+let fontCss: string | null = null;
+function embeddedFontCss(): string {
+  if (fontCss !== null) return fontCss;
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [join(here, '..', 'assets', 'fonts', 'Montserrat-wght.ttf'), join(here, '..', '..', 'assets', 'fonts', 'Montserrat-wght.ttf')];
+  const path = candidates.find((candidate) => existsSync(candidate));
+  if (!path) {
+    fontCss = '';
+    return fontCss;
+  }
+  const b64 = readFileSync(path).toString('base64');
+  fontCss = `@font-face { font-family: 'Montserrat'; font-style: normal; font-weight: 100 900; font-display: block; src: url(data:font/ttf;base64,${b64}) format('truetype'); }`;
+  return fontCss;
+}
 
 /**
  * Plantilla "TGS" de miniatura, compuesta por el sistema en HTML/CSS y
@@ -216,9 +240,8 @@ export function renderThumbnailHtml(input: LayoutInput): string {
     : `<div class="logo-text"><span class="lt1">THE</span><span class="lt2">GAMER</span><span class="lt3">SHOP</span></div>`;
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
+  ${embeddedFontCss()}
   :root { --accent: ${accent}; }
   * { box-sizing: border-box; }
   html { margin: 0; width: ${input.width}px; height: ${input.height}px; overflow: hidden; background: #09090b; }
