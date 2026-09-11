@@ -16,6 +16,7 @@ import {db} from '@tgs/database';
 import {getSerperKey, publishQuote, removeBackgroundDetailed, searchImages, type SerperImage} from '@tgs/providers';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
 import {enrichmentItemsHash, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
+import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 
 const logger = new Logger('PublishPipeline');
@@ -317,12 +318,15 @@ async function ensureTitle(familyId: string, versionId: string): Promise<{status
   const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {webTitle: true, webTagline: true}});
   const enrichment = await db.quoteEnrichment.findUnique({where: {quoteVersionId: versionId}, select: {title: true, tagline: true}});
   const data: {webTitle?: string; webTagline?: string} = {};
-  if (!family.webTitle?.trim() && enrichment?.title) data.webTitle = enrichment.title;
+  // El título con formato de specs sale de las reglas sobre los nombres; el
+  // guardado por el enriquecimiento ya trae lo que la IA completó, si hubo.
+  const proposedTitle = enrichment?.title ?? buildStoreTitle(await loadEnrichmentItems(versionId));
+  if (!family.webTitle?.trim() && proposedTitle) data.webTitle = proposedTitle;
   if (!family.webTagline?.trim() && enrichment?.tagline) data.webTagline = enrichment.tagline;
   if (!Object.keys(data).length) {
     return family.webTitle?.trim()
       ? {status: 'SKIPPED', detail: `Se mantiene "${family.webTitle.trim()}"`}
-      : {status: 'SKIPPED', detail: 'La IA no propuso título; se publica con el nombre interno'};
+      : {status: 'SKIPPED', detail: 'No se pudo leer el procesador de los componentes; se publica con el nombre interno'};
   }
   await db.quoteFamily.update({where: {id: familyId}, data});
   return {status: 'DONE', detail: data.webTitle ? `Título propuesto: "${data.webTitle}"` : 'Bajada propuesta por la IA'};

@@ -12,7 +12,7 @@
 
 - `WebPublication.quoteFamilyId` (@unique) + `quoteVersionId` = versión cuyo contenido está en la tienda. `externalId` en WordPress = id de la familia.
 - `QuoteFamily.webTitle` / `webTagline`: título comercial y bajada de la tienda. El nombre interno no se toca.
-- `QuoteEnrichment`: `title`, `tagline`, `shortDescription`, `highlightsJson`, `audience`, `itemsHash`. Juegos con `resolution`/`settings`/`note` además de `tier`.
+- `QuoteEnrichment`: `title` (formato fijo de specs, ver abajo), `tagline`, `shortDescription`, `highlightsJson`, `audience`, `itemsHash`. Juegos con `resolution`/`settings`/`note` además de `tier`.
 - `WebPublishRun`: corrida del pipeline con `stepsJson` (id, label, status PENDING/RUNNING/DONE/SKIPPED/FAILED, detail).
 - Migración `20260911130000_web_publication_by_family`: puebla `quoteFamilyId`, deduplica (queda la PUBLISHED más reciente por familia), FK a versión pasa a RESTRICT.
 
@@ -33,7 +33,7 @@
 | images | Por cada componente sin imagen: Serper (`"<nombre> png"`), ranking (PNG, ≥250 px, proporción ≤2.5), hasta 4 candidatas: descarga con UA de navegador → `removeBackgroundDetailed`; si ninguna recorta, se guarda la mejor con fondo. Producto de catálogo → `ProductAsset` (origen SERPER, principal si es la primera); ítem manual → `QuoteItem.webImageUrl` | todos tienen imagen |
 | hero | `heroAssetId`/`heroImageUrl` = foto del gabinete (línea o nombre con gabinete/case/chasis/tower) | ya había hero |
 | enrichment | `runQuoteEnrichment` (IA v2) | `itemsHash` igual y ya hay descripción y título |
-| title | copia `enrichment.title/tagline` a `webTitle/webTagline` | ya tenían valor |
+| title | `webTitle` = `PC GAMER | CPU - RAM xxGB - DISCO - GPU | WINDOWS N` armado por reglas desde los nombres de los ítems (`apps/api/src/quote-title.ts`); la IA (`specs`) solo rellena lo que las reglas no leyeron. Sin CPU legible no se propone título. `webTagline` = `enrichment.tagline` | ya tenían valor |
 | thumbnail | plantilla activa + foto del gabinete → `quote-thumbnails/<familia>/…jpg` | ya había miniatura, o no hay plantilla activa / foto |
 | model3d | informativo | — |
 | publish | `publishQuote(familyId, {versionId})` | `publish: false` |

@@ -9,7 +9,11 @@ export const quoteEnrichmentInputSchema=z.object({items:z.array(z.object({name:z
 // son nullable y no opcionales porque OpenAI structured outputs exige que
 // todas las claves estén presentes.
 export const quoteEnrichmentGameOutputSchema=z.object({name:z.string(),tier:z.string(),resolution:z.string().nullable(),settings:z.string().nullable(),note:z.string().nullable()}).strict();
-export const quoteEnrichmentOutputSchema=z.object({title:z.string(),tagline:z.string(),shortDescription:z.string(),descriptionHtml:z.string(),highlights:z.array(z.string()),audience:z.string(),games:z.array(quoteEnrichmentGameOutputSchema),programs:z.array(z.object({name:z.string(),note:z.string()}).strict()),compatibility:z.array(z.string())}).strict();
+// Specs cortas para el título con formato fijo ("PC GAMER | CPU - RAM - DISCO
+// - GPU | WINDOWS"). Las reglas del sistema leen primero los nombres; esto
+// solo rellena lo que las reglas no pudieron leer.
+export const quoteEnrichmentSpecsSchema=z.object({cpu:z.string().nullable(),gpu:z.string().nullable(),ramGb:z.number().int().nullable(),storage:z.string().nullable(),os:z.string().nullable()}).strict();
+export const quoteEnrichmentOutputSchema=z.object({specs:quoteEnrichmentSpecsSchema,tagline:z.string(),shortDescription:z.string(),descriptionHtml:z.string(),highlights:z.array(z.string()),audience:z.string(),games:z.array(quoteEnrichmentGameOutputSchema),programs:z.array(z.object({name:z.string(),note:z.string()}).strict()),compatibility:z.array(z.string())}).strict();
 export type QuoteEnrichmentInput=z.infer<typeof quoteEnrichmentInputSchema>;
 export type QuoteEnrichmentOutput=z.infer<typeof quoteEnrichmentOutputSchema>;
 

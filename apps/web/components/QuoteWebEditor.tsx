@@ -584,13 +584,13 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             <h3 className="panel-title">Datos generales</h3>
             <Field
               label="Título en la tienda"
-              hint={`Es el nombre comercial con el que se publica. El nombre interno (${quote.internalName}) no cambia. Si lo dejás vacío, se publica con el nombre interno.`}
+              hint={`Formato: PC GAMER | procesador - RAM - disco - placa de video | Windows. Se arma solo desde los componentes al preparar la publicación. El nombre interno (${quote.internalName}) no cambia; si lo dejás vacío se publica con el nombre interno.`}
             >
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <input
                   value={titleDraft}
                   style={{ flex: "1 1 260px" }}
-                  placeholder="Ej: PC Gamer RTX 4060 · 1080p Ultra sin vueltas"
+                  placeholder="Ej: PC GAMER | RYZEN 5 7600X - RAM 16GB - 512GB M.2 - RTX 3070 8GB | WINDOWS 11"
                   onChange={(e) => setTitleDraft(e.target.value)}
                 />
                 {enrichment?.title && enrichment.title !== titleDraft.trim() ? (
@@ -601,7 +601,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                     title={enrichment.title}
                     onClick={() => void saveTitle({ webTitle: enrichment.title ?? "" })}
                   >
-                    Usar propuesta de la IA
+                    Usar título con formato de specs
                   </button>
                 ) : null}
               </div>

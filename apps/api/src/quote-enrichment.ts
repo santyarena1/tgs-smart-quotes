@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {createAiClient, DEFAULT_AI_MODEL, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
 import {decryptSecret} from '@tgs/config';
 import {db} from '@tgs/database';
+import {buildStoreTitle} from './quote-title.js';
 
 export const aiCache: AiCacheRepo = {
   async findCached(task, inputHash) {
@@ -74,7 +75,9 @@ export async function runQuoteEnrichment(versionId: string, userId: string | nul
     gamesJson: result.games as any,
     programsJson: result.programs as any,
     compatibilityJson: result.compatibility as any,
-    title: clean(result.title),
+    // Título con formato fijo de specs: las reglas leen los nombres y la IA
+    // solo rellena lo que no se pudo leer.
+    title: buildStoreTitle(items, result.specs),
     tagline: clean(result.tagline),
     shortDescription: clean(result.shortDescription),
     highlightsJson: result.highlights.filter((entry) => entry.trim().length > 0) as any,

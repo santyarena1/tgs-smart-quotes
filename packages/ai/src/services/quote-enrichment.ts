@@ -13,7 +13,7 @@ import {AiTask,type AiRunOptions,type AiServiceDeps,type AiServiceResult} from "
  */
 const SYSTEM=`Sos el redactor comercial senior de The Gamer Shop, tienda de PC gamer de Argentina. Recibís la lista de componentes de una PC armada y devolvés SOLO JSON estructurado, en español rioplatense, con:
 
-- title: título comercial llamativo para la ficha de la tienda, máximo 60 caracteres. Tiene que decir para qué sirve la PC y nombrar la pieza que más vende (normalmente la placa de video, si no el procesador). Ejemplos de estilo: "PC Gamer RTX 4060 · 1080p Ultra sin vueltas", "PC Ryzen 5 + RX 7600 lista para 1440p". Sin emojis, sin signos de exclamación, sin la palabra "presupuesto".
+- specs: las specs clave en formato corto y en MAYÚSCULAS, leídas SOLO de los nombres de los componentes (null si no está): cpu (ej: "RYZEN 5 7600X", "INTEL I5 12400F"), gpu con su VRAM si figura (ej: "RTX 3070 8GB", "RX 7600 8GB"; null si la PC usa gráficos integrados), ramGb (total en GB como número, sumando módulos), storage (ej: "512GB M.2", "1TB SSD", "1TB M.2 + 2TB HDD"), os (ej: "WINDOWS 11"; null si no hay licencia de Windows entre los ítems).
 - tagline: una oración corta (máximo 110 caracteres) que complemente al título con el beneficio principal.
 - shortDescription: 1 a 2 oraciones (máximo 260 caracteres) para buscadores y catálogos de redes: qué es, para qué sirve, para quién.
 - descriptionHtml: descripción comercial en HTML simple y seguro (p, ul, li, strong). Entre 120 y 220 palabras. Explicá qué logra el conjunto, no repitas la lista de piezas.
@@ -26,7 +26,7 @@ const SYSTEM=`Sos el redactor comercial senior de The Gamer Shop, tienda de PC g
 Reglas duras: no inventes precios ni especificaciones numéricas que no estén en los nombres; todo tier de juego y toda nota de programa debe incluir literalmente "(estimado)"; no uses FPS ni métricas numéricas de rendimiento.`;
 const estimated=(value:string)=>value.toLocaleLowerCase('es-AR').includes('estimado')?value:`${value} (estimado)`;
 const fallback=(input:QuoteEnrichmentInput):QuoteEnrichmentOutput=>({
- title:'',
+ specs:{cpu:null,gpu:null,ramGb:null,storage:null,os:null},
  tagline:'',
  shortDescription:'',
  descriptionHtml:`<p>Configuración The Gamer Shop compuesta por ${input.items.map(item=>`${item.quantity} × ${item.name}`).join(', ')}.</p>`,
@@ -44,8 +44,8 @@ export class QuoteEnrichmentService{
   const systemPrompt=extra?`${SYSTEM}\n\nInstrucciones adicionales definidas por el negocio (respetalas siempre que no contradigan las reglas anteriores): ${extra}`:SYSTEM;
   // `v2` en el hash: el formato de salida cambió y no hay que reutilizar
   // respuestas cacheadas del formato anterior.
-  const hashPayload={format:'v2',...parsed,...(extra?{customInstructions:extra}:{})};
-  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Componentes de la PC:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}${item.line?` [${item.line}]`:''}`).join('\n')}\n\nGenerá título, bajada, descripción corta, descripción HTML, puntos fuertes, público, análisis de juegos por resolución y calidad estimadas, programas y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
+  const hashPayload={format:'v3',...parsed,...(extra?{customInstructions:extra}:{})};
+  const response=await runAiTask({task:AiTask.QUOTE_ENRICHMENT,input:parsed,hashPayload,schema:quoteEnrichmentOutputSchema,schemaName:'quote_enrichment',systemPrompt,buildUserPrompt:value=>`Componentes de la PC:\n${value.items.map(item=>`- ${item.quantity} × ${item.name}${item.line?` [${item.line}]`:''}`).join('\n')}\n\nGenerá specs, bajada, descripción corta, descripción HTML, puntos fuertes, público, análisis de juegos por resolución y calidad estimadas, programas y observaciones de compatibilidad.`,fallback,deps:this.deps,options});
   return{...response,result:{...response.result,games:response.result.games.map(game=>({...game,tier:estimated(game.tier)})),programs:response.result.programs.map(program=>({...program,note:estimated(program.note)}))}};
  }
 }
