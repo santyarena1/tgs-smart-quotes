@@ -891,6 +891,17 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'monitors_count'    => max( 1, min( 12, (int) ( $_POST['monitors_count'] ?? 6 ) ) ),
 				'monitors_source'   => 'custom' === ( $_POST['monitors_source'] ?? '' ) ? 'custom' : 'settings',
 				'monitors_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['variant_monitor_products'] ?? array() ) ) ) ),
+				'upsell_enabled'           => ! empty( $_POST['upsell_enabled'] ),
+				'upsell_discount_pct'      => max( 0, min( 90, (int) ( $_POST['upsell_discount_pct'] ?? 0 ) ) ),
+				'upsell_headline'          => sanitize_text_field( wp_unslash( $_POST['upsell_headline'] ?? '' ) ),
+				'upsell_text'              => sanitize_textarea_field( wp_unslash( $_POST['upsell_text'] ?? '' ) ),
+				'upsell_no_monitor_text'   => sanitize_textarea_field( wp_unslash( $_POST['upsell_no_monitor_text'] ?? '' ) ),
+				'upsell_keyboard_category' => (int) ( $_POST['upsell_keyboard_category'] ?? 0 ),
+				'upsell_keyboard_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['upsell_keyboard_products'] ?? array() ) ) ) ),
+				'upsell_mouse_category'    => (int) ( $_POST['upsell_mouse_category'] ?? 0 ),
+				'upsell_mouse_products'    => array_values( array_filter( array_map( 'absint', (array) ( $_POST['upsell_mouse_products'] ?? array() ) ) ) ),
+				'upsell_headset_category'  => (int) ( $_POST['upsell_headset_category'] ?? 0 ),
+				'upsell_headset_products'  => array_values( array_filter( array_map( 'absint', (array) ( $_POST['upsell_headset_products'] ?? array() ) ) ) ),
 				'payment_methods'   => sanitize_text_field( $_POST['payment_methods'] ?? '' ),
 				'financing_terms'   => sanitize_textarea_field( $_POST['financing_terms'] ?? '' ),
 				'ai_disclaimer'     => sanitize_text_field( $_POST['ai_disclaimer'] ?? '' ),
@@ -898,7 +909,9 @@ function tgs_sq_render_variant_editor( $slug ) {
 		);
 
 		tgs_sq_save_variant( $variant );
-		echo '<div class="notice notice-success"><p>Variante guardada.</p></div>';
+		// El cupón del modal se regenera con lo recién guardado.
+		$coupon = tgs_sq_upsell_ensure_coupon( tgs_sq_get_variant( $posted_slug ) ?: $variant );
+		echo '<div class="notice notice-success"><p>Variante guardada.' . ( $coupon ? ' Cupón del modal: <code>' . esc_html( $coupon ) . '</code>.' : '' ) . '</p></div>';
 		$slug    = $posted_slug;
 		$variant = tgs_sq_get_variant( $slug );
 	}
@@ -1203,6 +1216,63 @@ function tgs_sq_render_variant_editor( $slug ) {
 									<p class="description">Solo estos, en este orden. Si la lista queda vacía, la sección no se muestra en las PCs con esta variante.</p>
 								</div>
 							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="tgs-card">
+					<div class="tgs-card__head">
+						<h2>Después de agregar al carrito: "Completá tu setup"</h2>
+						<p>Cuando el cliente agrega la PC (y el monitor, si eligió uno) al carrito, se abre un modal con carruseles de teclados, mouse y auriculares y un descuento por sumarlos en ese momento. Si no eligió monitor, también se le ofrecen monitores. El descuento se aplica con un cupón que el plugin crea solo, restringido a estos productos.</p>
+					</div>
+					<div class="tgs-card__body">
+						<div class="tgs-fields">
+							<div class="tgs-field tgs-field--wide">
+								<label class="tgs-check" style="display:flex;gap:8px;align-items:center">
+									<input type="checkbox" name="upsell_enabled" value="1" <?php checked( ! empty( $extra['upsell_enabled'] ) ); ?>>
+									<span>Mostrar el modal después de agregar al carrito</span>
+								</label>
+							</div>
+							<div class="tgs-field">
+								<label for="upsell_discount_pct">Descuento por sumar en el momento</label>
+								<div class="tgs-inputgroup">
+									<input type="number" id="upsell_discount_pct" name="upsell_discount_pct" value="<?php echo esc_attr( (int) ( $extra['upsell_discount_pct'] ?? 0 ) ); ?>" min="0" max="90">
+									<span class="tgs-suffix">%</span>
+								</div>
+								<p class="description">0 = sin descuento (el modal igual se muestra). Se aplica solo a lo que se suma desde el modal.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="upsell_headline">Título del modal</label>
+								<input type="text" id="upsell_headline" name="upsell_headline" value="<?php echo esc_attr( $extra['upsell_headline'] ?? '' ); ?>" placeholder="Pssst… ¡ya está en tu carrito! 🎉">
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label for="upsell_text">Texto (con monitor elegido o sin monitores para ofrecer)</label>
+								<textarea id="upsell_text" name="upsell_text" rows="2"><?php echo esc_textarea( $extra['upsell_text'] ?? '' ); ?></textarea>
+								<p class="description"><code>{{descuento}}</code> se reemplaza por el porcentaje.</p>
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label for="upsell_no_monitor_text">Texto extra si NO eligió monitor</label>
+								<textarea id="upsell_no_monitor_text" name="upsell_no_monitor_text" rows="2"><?php echo esc_textarea( $extra['upsell_no_monitor_text'] ?? '' ); ?></textarea>
+							</div>
+							<?php foreach ( tgs_sq_upsell_groups() as $group_key => $group_meta ) : ?>
+								<div class="tgs-field tgs-field--wide">
+									<label for="upsell_<?php echo esc_attr( $group_key ); ?>_category"><?php echo esc_html( $group_meta['label'] ); ?> — categoría</label>
+									<?php
+									wp_dropdown_categories( array(
+										'taxonomy'          => 'product_cat',
+										'name'              => 'upsell_' . $group_key . '_category',
+										'id'                => 'upsell_' . $group_key . '_category',
+										'selected'          => (int) ( $extra[ 'upsell_' . $group_key . '_category' ] ?? 0 ),
+										'show_option_none'  => 'Sin categoría (solo los elegidos abajo)',
+										'option_none_value' => 0,
+										'hide_empty'        => false,
+										'hierarchical'      => true,
+									) );
+									?>
+									<p class="description"><?php echo esc_html( $group_meta['label'] ); ?> — elegidos (van primero; la categoría completa hasta 12):</p>
+									<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra[ 'upsell_' . $group_key . '_products' ] ?? array() ) ), 'upsell_' . $group_key . '_products[]', 'upsell_' . $group_key . '_search' ); ?>
+								</div>
+							<?php endforeach; ?>
 						</div>
 					</div>
 				</div>

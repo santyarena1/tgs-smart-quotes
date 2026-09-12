@@ -104,6 +104,18 @@ function tgs_sq_default_extra() {
 		// 'custom' = solo los de 'monitors_products' de esta variante.
 		'monitors_source'    => 'settings',
 		'monitors_products'  => array(),
+		// Modal "Completá tu setup" después de agregar al carrito (ver upsell.php).
+		'upsell_enabled'           => true,
+		'upsell_discount_pct'      => 10,
+		'upsell_headline'          => 'Pssst… ¡ya está en tu carrito! 🎉',
+		'upsell_text'              => 'Ahora que estamos: si sumás un teclado, un mouse o auriculares en este mismo paso, te llevás {{descuento}}% de descuento en cualquiera de estos. Después de esta pantalla, el descuento se va.',
+		'upsell_no_monitor_text'   => 'Ya sé, ya sé: tenés monitor y "no necesitás otro". Pero mirá igual los que tenemos, porque a este precio y con {{descuento}}% extra no vas a encontrar uno mejor en ningún lado.',
+		'upsell_keyboard_category' => 0,
+		'upsell_keyboard_products' => array(),
+		'upsell_mouse_category'    => 0,
+		'upsell_mouse_products'    => array(),
+		'upsell_headset_category'  => 0,
+		'upsell_headset_products'  => array(),
 		'payment_methods'    => 'Efectivo, transferencia, tarjeta de crédito y débito',
 		// Aclaración de las cuotas. Toda mención a "cuotas sin interés" lleva un
 		// asterisco que remite a este texto, en el pie de Formas de pago.

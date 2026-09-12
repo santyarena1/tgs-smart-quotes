@@ -1096,6 +1096,7 @@ function tgs_sq_render_product( $product_id ) {
 	// Google: van en cualquiera de los dos modos, antes de la ficha.
 	tgs_sq_gallery_data_html( $data );
 	tgs_sq_structured_data_html( $data );
+	tgs_sq_upsell_data_html( $data, $variant_slug );
 
 	$custom_code = tgs_sq_variant_custom_code( $variant );
 	if ( 'custom' === tgs_sq_normalize_mode( $variant['mode'] ?? '' ) && '' !== $custom_code ) {
