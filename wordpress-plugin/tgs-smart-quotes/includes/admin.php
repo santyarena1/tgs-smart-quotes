@@ -184,6 +184,7 @@ function tgs_sq_page_settings() {
 		update_option( TGS_SQ_OPTION_MONITOR_PRODUCTS, array_values( array_filter( array_map( 'absint', (array) ( $_POST['monitor_products'] ?? array() ) ) ) ) );
 		update_option( TGS_SQ_OPTION_DEFAULT_CATEGORY, (int) ( $_POST['default_category'] ?? 0 ) );
 		update_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, sanitize_textarea_field( wp_unslash( $_POST['hidden_shipping'] ?? '' ) ) );
+		update_option( TGS_SQ_OPTION_GUARD_PUBLISHED, empty( $_POST['guard_published'] ) ? '0' : '1' );
 		echo '<div class="notice notice-success"><p>Ajustes de la ficha guardados.</p></div>';
 	}
 
@@ -194,6 +195,7 @@ function tgs_sq_page_settings() {
 	$monitor_products = tgs_sq_monitor_product_ids();
 	$default_category = (int) get_option( TGS_SQ_OPTION_DEFAULT_CATEGORY, 0 );
 	$hidden_shipping  = (string) get_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, '' );
+	$guard_published  = tgs_sq_guard_enabled();
 	$shipping_titles  = array();
 	foreach ( tgs_sq_shipping_options() as $row ) {
 		$shipping_titles[] = $row['title'] . ( $row['zone'] ? ' (' . $row['zone'] . ')' : '' );
@@ -305,6 +307,13 @@ function tgs_sq_page_settings() {
 								<p class="description">Uno por línea, con el título exacto del método en WooCommerce. Sirve para tarifas pensadas para otros productos. Las tarifas planas que solo tienen costo para otras clases de envío ya se ocultan solas.
 									<?php if ( $shipping_titles ) : ?><br>Métodos que se muestran hoy: <?php echo esc_html( implode( ' · ', $shipping_titles ) ); ?><?php endif; ?>
 								</p>
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label class="tgs-check" style="display:flex;gap:8px;align-items:center">
+									<input type="checkbox" name="guard_published" value="1" <?php checked( $guard_published ); ?>>
+									<span>Proteger las PCs publicadas: si otro plugin (por ejemplo un sincronizador de catálogo como AcuStock Sync) las pasa a borrador, a la papelera o las deja sin stock, volver a publicarlas al instante</span>
+								</label>
+								<p class="description">Despublicar desde TGS-SMART-QUOTES, desde esta pantalla o editando el producto a mano en WordPress sigue funcionando normal: la protección solo actúa contra cambios automáticos (cron, syncs por AJAX, API de terceros).</p>
 							</div>
 						</div>
 					</div>
@@ -552,6 +561,7 @@ function tgs_sq_page_products() {
 		$product_id = (int) ( $_POST['product_id'] ?? 0 );
 		$action     = sanitize_key( $_POST['status_action'] ?? '' );
 		if ( $product_id && '1' === get_post_meta( $product_id, TGS_SQ_META_MANAGED, true ) && in_array( $action, array( 'publish', 'unpublish' ), true ) ) {
+			tgs_sq_guard_allow( true );
 			wp_update_post( array( 'ID' => $product_id, 'post_status' => 'publish' === $action ? 'publish' : 'draft' ) );
 			if ( 'publish' === $action ) {
 				$product = wc_get_product( $product_id );
@@ -642,6 +652,10 @@ function tgs_sq_page_products() {
 											<td data-label="External ID"><code><?php echo esc_html( $external_id ); ?></code></td>
 											<td data-label="Estado">
 												<span class="tgs-chip tgs-chip--<?php echo esc_attr( $status_chip['state'] ); ?>" title="<?php echo esc_attr( $status ); ?>"><?php echo esc_html( $status_chip['label'] ); ?></span>
+												<?php $guard_count = (int) get_post_meta( $product->ID, '_tgs_guard_count', true ); ?>
+												<?php if ( $guard_count ) : ?>
+													<span class="tgs-table__meta" title="Última vez: <?php echo esc_attr( (string) get_post_meta( $product->ID, '_tgs_guard_last', true ) ); ?>">Protegida <?php echo (int) $guard_count; ?> <?php echo 1 === $guard_count ? 'vez' : 'veces'; ?> de un sync externo</span>
+												<?php endif; ?>
 											</td>
 											<td data-label="Publicación">
 												<form method="post" class="tgs-inlineform">

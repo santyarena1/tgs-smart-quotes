@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.15.2
+ * Version: 2.16.0
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.15.2' );
+define( 'TGS_SQ_VERSION', '2.16.0' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -60,12 +60,15 @@ define( 'TGS_SQ_OPTION_MONITOR_PRODUCTS', 'tgs_sq_monitor_products' );
 define( 'TGS_SQ_OPTION_DEFAULT_CATEGORY', 'tgs_sq_default_category' );
 // Métodos de envío (por título, uno por línea) que no se muestran en la ficha.
 define( 'TGS_SQ_OPTION_HIDDEN_SHIPPING', 'tgs_sq_hidden_shipping' );
+// Proteger las PCs publicadas de syncs de terceros que las pasan a borrador ('1' | '0').
+define( 'TGS_SQ_OPTION_GUARD_PUBLISHED', 'tgs_sq_guard_published' );
 
 require_once TGS_SQ_DIR . 'includes/variants.php';
 require_once TGS_SQ_DIR . 'includes/product-sync.php';
 require_once TGS_SQ_DIR . 'includes/rest.php';
 require_once TGS_SQ_DIR . 'includes/render.php';
 require_once TGS_SQ_DIR . 'includes/admin.php';
+require_once TGS_SQ_DIR . 'includes/guard.php';
 
 /**
  * Aviso si WooCommerce no está activo: el plugin no puede hacer nada sin él.

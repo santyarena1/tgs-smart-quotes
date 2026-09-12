@@ -85,6 +85,7 @@ function tgs_sq_resolve_product_id( $external_id, array $legacy_ids ) {
 		wp_untrash_post( $keep );
 	}
 	update_post_meta( $keep, TGS_SQ_META_EXTERNAL_ID, tgs_sq_meta_text( $external_id ) );
+	tgs_sq_guard_allow( true );
 	foreach ( array_merge( $current, array_values( $legacy ) ) as $duplicate ) {
 		if ( (int) $duplicate === $keep ) {
 			continue;
@@ -368,6 +369,8 @@ function tgs_sq_sanitize_items( $items ) {
  */
 function tgs_sq_unpublish_product( $external_id, array $legacy_ids = array() ) {
 	$ids = tgs_sq_find_product_ids( array_merge( array( $external_id ), $legacy_ids ) );
+	// Despublicación pedida por el sistema: la protección no debe revertirla.
+	tgs_sq_guard_allow( true );
 	foreach ( $ids as $product_id ) {
 		if ( 'trash' !== get_post_status( $product_id ) ) {
 			wp_update_post( array( 'ID' => $product_id, 'post_status' => 'draft' ) );
