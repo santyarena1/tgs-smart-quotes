@@ -158,11 +158,41 @@ async function mergeEdgesWithModel(colorPng: Buffer, modelPng: Buffer): Promise<
   if (!width || !height || model.info.width !== width || model.info.height !== height) return null;
   const total = width * height;
   const band = Math.max(32, Math.round(Math.min(width, height) * 0.08));
-  // Distancia (en pasos de 4 vecinos) al fondo del relleno, hasta `band`.
+
+  // 1) Fondo del relleno conectado al borde de la foto (el "afuera"). Los
+  //    huecos encerrados que el relleno borró (blanco puro chico) no entran.
+  const outside = new Uint8Array(total);
+  const stack: number[] = [];
+  const isBgF = (flat: number) => color.data[flat * channels + 3]! < 128;
+  const seed = (flat: number) => {
+    if (!outside[flat] && isBgF(flat)) {
+      outside[flat] = 1;
+      stack.push(flat);
+    }
+  };
+  for (let x = 0; x < width; x++) {
+    seed(x);
+    seed((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y++) {
+    seed(y * width);
+    seed(y * width + width - 1);
+  }
+  while (stack.length) {
+    const flat = stack.pop()!;
+    const x = flat % width;
+    const y = (flat - x) / width;
+    if (x > 0) seed(flat - 1);
+    if (x < width - 1) seed(flat + 1);
+    if (y > 0) seed(flat - width);
+    if (y < height - 1) seed(flat + width);
+  }
+
+  // 2) Distancia (4 vecinos) al "afuera", hasta `band` píxeles.
   const distance = new Int16Array(total).fill(-1);
   let frontier: number[] = [];
   for (let flat = 0; flat < total; flat++) {
-    if (color.data[flat * channels + 3]! < 128) {
+    if (outside[flat]) {
       distance[flat] = 0;
       frontier.push(flat);
     }
@@ -181,20 +211,30 @@ async function mergeEdgesWithModel(colorPng: Buffer, modelPng: Buffer): Promise<
     }
     frontier = next;
   }
+
+  // 3) Combinación:
+  //    - "Afuera" según el relleno: decide el modelo (recupera superficies
+  //      claras del producto que el relleno se comió, como una caja plateada).
+  //    - Hueco encerrado según el relleno: queda transparente (blanco puro).
+  //    - Producto según el relleno: se respeta, salvo en la franja pegada al
+  //      afuera, donde el modelo puede sacar sombra y halo.
   const out = Buffer.from(color.data);
   let removed = 0;
   for (let flat = 0; flat < total; flat++) {
     const index = flat * channels;
-    const d = distance[flat]!;
-    if (d > 0) {
-      // Dentro de la franja: gana el más transparente de los dos. Cerca del
-      // fondo el modelo pesa entero; hacia adentro va perdiendo peso para
-      // que el empalme no se note.
-      const weight = d <= band / 2 ? 1 : Math.max(0, 1 - (d - band / 2) / (band / 2));
-      const a = out[index + 3]!;
-      // Restos casi transparentes del modelo (sombra tenue) se van del todo.
-      const m = model.data[index + 3]! < 48 ? 0 : model.data[index + 3]!;
-      out[index + 3] = Math.round(Math.min(a, a + (m - a) * weight));
+    const m = model.data[index + 3]! < 48 ? 0 : model.data[index + 3]!;
+    if (outside[flat]) {
+      out[index] = model.data[index]!;
+      out[index + 1] = model.data[index + 1]!;
+      out[index + 2] = model.data[index + 2]!;
+      out[index + 3] = m;
+    } else if (!isBgF(flat)) {
+      const d = distance[flat]!;
+      if (d > 0) {
+        const weight = d <= band / 2 ? 1 : Math.max(0, 1 - (d - band / 2) / (band / 2));
+        const a = out[index + 3]!;
+        out[index + 3] = Math.round(Math.min(a, a + (m - a) * weight));
+      }
     }
     if (out[index + 3]! < 128) removed++;
   }
