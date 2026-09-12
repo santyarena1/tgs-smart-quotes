@@ -134,6 +134,7 @@ function tgs_sq_placeholder_docs() {
 		'precio_transferencia'   => 'Precio por transferencia ya formateado (es el precio principal).',
 		'caja_precios'           => 'El bloque de precios completo del plugin: transferencia + efectivo + mejor cuota.',
 		'cuotas'                 => 'Una línea con la mejor financiación disponible (ej: "Hasta 12 cuotas de $125.000").',
+		'cuotas_detalle'         => 'Financiación detallada: "Hasta N cuotas sin interés del precio de lista con Tarjeta X", una línea por plan sin interés y el link "Más opciones de pago" (abre el panel de formas de pago).',
 		'formas_de_pago'         => 'Sección completa de formas de pago con todos los planes de cuotas.',
 		'descripcion'            => 'Descripción de la PC, como HTML listo para mostrar.',
 		'imagen_destacada'       => 'La foto principal como etiqueta <img> lista para usar.',

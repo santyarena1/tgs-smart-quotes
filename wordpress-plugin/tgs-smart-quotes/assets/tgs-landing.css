@@ -1018,7 +1018,24 @@ body.tgs-lightbox-open { overflow: hidden; }
 }
 .tgs-landing .tgs-monitor-media img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .tgs-landing .tgs-monitor-body { display: grid; gap: 4px; min-width: 0; }
-.tgs-landing .tgs-monitor-name { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.tgs-landing .tgs-monitor-name {
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.3;
+	/* Dos líneas siempre (se corta con puntos suspensivos): así todas las
+	 * tarjetas miden lo mismo aunque un nombre sea más largo. */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	min-height: 2.6em;
+}
+.tgs-landing .tgs-monitors-grid { align-items: stretch; }
+.tgs-landing .tgs-monitor-card { height: 100%; }
+.tgs-landing .tgs-monitor-pick { height: 100%; }
+.tgs-landing .tgs-monitor-body { flex: 1 1 auto; align-content: start; }
+.tgs-landing .tgs-monitor-cta { margin-top: auto; }
+.tgs-landing .tgs-monitor-price { min-height: 1.3em; }
 .tgs-landing .tgs-monitor-price { font-size: 15px; font-weight: 700; color: var(--tgs-accent); }
 .tgs-landing .tgs-monitor-price del { color: var(--tgs-muted); font-weight: 500; font-size: 12px; margin-right: 4px; }
 .tgs-landing .tgs-monitor-cta {
@@ -1041,7 +1058,7 @@ body.tgs-lightbox-open { overflow: hidden; }
 }
 .tgs-landing .tgs-monitor-link:hover { color: var(--tgs-text); }
 .tgs-landing .tgs-monitors-summary {
-	margin: 14px 0 0;
+	margin: 22px 0 4px;
 	padding: 10px 14px;
 	font-size: 13.5px;
 	color: var(--tgs-text);
@@ -1052,12 +1069,42 @@ body.tgs-lightbox-open { overflow: hidden; }
 .tgs-landing .tgs-monitors-summary strong { color: var(--tgs-accent); }
 
 /* ==========================================================================
+   FINANCIACIÓN DETALLADA ({{cuotas_detalle}})
+   ========================================================================== */
+.tgs-landing .tgs-fin-detail { display: grid; gap: 6px; margin-top: 10px; }
+.tgs-landing .tgs-fin-detail__head { font-size: 14px; font-weight: 700; line-height: 1.3; color: var(--tgs-text); }
+.tgs-landing .tgs-fin-detail__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.tgs-landing .tgs-fin-detail__list li { font-size: 13.5px; color: var(--tgs-text-soft); }
+.tgs-landing .tgs-fin-detail__list b { color: var(--tgs-text); font-weight: 700; }
+.tgs-landing .tgs-fin-detail__more {
+	all: unset;
+	cursor: pointer;
+	justify-self: start;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--tgs-accent);
+	border-bottom: 1px solid var(--tgs-accent-line);
+	padding-bottom: 1px;
+}
+.tgs-landing .tgs-fin-detail__more:hover { border-bottom-color: var(--tgs-accent); }
+
+/* ==========================================================================
    RECOMENDADAS DE LA CASA
    ========================================================================== */
+/* De a 3 por fila; si hay menos, centradas. */
 .tgs-landing .tgs-recommended-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
-	gap: 12px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 14px;
+}
+.tgs-landing .tgs-recommended-grid .tgs-recommended-card {
+	flex: 0 1 calc((100% - 28px) / 3);
+	max-width: calc((100% - 28px) / 3);
+	min-width: 0;
 }
 .tgs-landing .tgs-recommended-card {
 	display: flex;
@@ -1257,8 +1304,11 @@ body.tgs-lightbox-open { overflow: hidden; }
 		gap: 10px;
 	}
 	.tgs-landing .tgs-recommended-grid {
-		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 		gap: 10px;
+	}
+	.tgs-landing .tgs-recommended-grid .tgs-recommended-card {
+		flex-basis: calc((100% - 10px) / 2);
+		max-width: calc((100% - 10px) / 2);
 	}
 	/* La barra flotante pasa a ocupar el ancho de la pantalla: el pulgar
 	 * llega mejor y el precio no queda apretado contra el botón. */
@@ -1291,8 +1341,9 @@ body.tgs-lightbox-open { overflow: hidden; }
 	.tgs-landing .tgs-gallery {
 		grid-template-columns: repeat(2, 1fr);
 	}
-	.tgs-landing .tgs-recommended-grid {
-		grid-template-columns: repeat(2, 1fr);
+	.tgs-landing .tgs-recommended-grid .tgs-recommended-card {
+		flex-basis: calc((100% - 10px) / 2);
+		max-width: calc((100% - 10px) / 2);
 	}
 }
 

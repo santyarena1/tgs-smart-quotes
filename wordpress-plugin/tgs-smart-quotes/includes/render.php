@@ -212,6 +212,44 @@ function tgs_sq_installment_line( $plan, array $d = array() ) {
 }
 
 /**
+ * Financiación detallada para el hero ({{cuotas_detalle}}):
+ *   Hasta 6 cuotas sin interés del precio de lista con Tarjeta BBVA*
+ *   · 3 cuotas sin interés de $X
+ *   · 6 cuotas sin interés de $Y
+ *   MÁS OPCIONES DE PAGO  (abre el panel de formas de pago)
+ * Solo lista los planes SIN interés; los demás quedan en el panel. Vacío si
+ * el presupuesto no tiene cuotas.
+ */
+function tgs_sq_installments_detail_html( array $d ) {
+	$plans = array();
+	foreach ( (array) $d['installments'] as $plan ) {
+		if ( is_array( $plan ) && ! empty( $plan['installments'] ) && ! empty( $plan['installmentCents'] ) && tgs_sq_plan_sin_interes( $plan ) ) {
+			$plans[] = $plan;
+		}
+	}
+	if ( ! $plans ) {
+		return '';
+	}
+	usort( $plans, function ( $a, $b ) { return (int) $a['installments'] <=> (int) $b['installments']; } );
+	$max   = end( $plans );
+	$banks = array_values( array_unique( array_filter( array_map( function ( $plan ) { return trim( (string) ( $plan['bank'] ?? '' ) ); }, $plans ) ) ) );
+	$head  = 'Hasta ' . (int) $max['installments'] . ' cuotas sin interés del precio de lista';
+	if ( $banks ) {
+		$head .= ' con Tarjeta ' . implode( ' / ', $banks );
+	}
+	$html  = '<div class="tgs-fin-detail">';
+	$html .= '<div class="tgs-fin-detail__head">' . esc_html( $head ) . tgs_sq_financing_mark( $d ) . '</div>';
+	$html .= '<ul class="tgs-fin-detail__list">';
+	foreach ( $plans as $plan ) {
+		$html .= '<li><b>' . (int) $plan['installments'] . ' cuotas sin interés</b> de ' . wp_kses_post( wc_price( ( (int) $plan['installmentCents'] ) / 100 ) ) . '</li>';
+	}
+	$html .= '</ul>';
+	$html .= '<button type="button" class="tgs-fin-detail__more" data-gx-pay-open>Más opciones de pago</button>';
+	$html .= '</div>';
+	return $html;
+}
+
+/**
  * Bloque de precio del hero: transferencia (precio principal), efectivo
  * (secundario) y, si hay cuotas cargadas, la mejor financiación.
  */
@@ -971,6 +1009,7 @@ function tgs_sq_placeholder_values( array $d ) {
 		'precio_transferencia' => $price( $d['price_transfer'] ),
 		'caja_precios'         => tgs_sq_price_html( $d ),
 		'cuotas'               => $cuotas,
+		'cuotas_detalle'       => tgs_sq_installments_detail_html( $d ),
 		'formas_de_pago'       => tgs_sq_payment_html( $d ),
 		'descripcion'          => wp_kses_post( $description ),
 		'imagen_destacada'     => $imagen,

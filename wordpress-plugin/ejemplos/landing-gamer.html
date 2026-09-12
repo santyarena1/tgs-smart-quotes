@@ -1292,7 +1292,7 @@
 					<li><span class="gx-label">Efectivo</span><span>{{precio_efectivo}}</span></li>
 					<li><span class="gx-label">Lista</span><s>{{precio_lista}}</s></li>
 				</ul>
-				<p class="gx-fin">{{cuotas}}</p>
+				{{cuotas_detalle}}
 			</div>
 			<!-- Alternativa: si en algún momento preferís la caja de precios que
 			     arma el plugin (mismos datos, diseño propio del plugin), borrá el
@@ -1309,8 +1309,8 @@
 			     del motivo, que es lo que lo vuelve un CTA y no un ícono suelto. -->
 			<div class="gx-ask">
 				<div class="gx-ask__txt">
-					<strong>¿La querés con otra configuración?</strong>
-					<span>Cambiamos placa de video, memoria, almacenamiento o gabinete y te pasamos el precio actualizado.</span>
+					<strong>¿Querés agregarle RAM, más almacenamiento o cambiar algún componente?</strong>
+					<span>Mandanos un WhatsApp y te la cotizamos a tu gusto, con el precio actualizado.</span>
 				</div>
 				{{boton_whatsapp}}
 			</div>
@@ -1476,6 +1476,14 @@
 	});
 	var cerrar = bar.querySelector('[data-gx-pay-close]');
 	if (cerrar) { cerrar.addEventListener('click', function () { abrir(false); }); }
+	// "Más opciones de pago" del hero ({{cuotas_detalle}}) abre el mismo panel.
+	var abridores = document.querySelectorAll('[data-gx-pay-open]');
+	for (var i = 0; i < abridores.length; i++) {
+		abridores[i].addEventListener('click', function () {
+			abrir(true);
+			bar.scrollIntoView({ behavior: 'smooth', block: 'end' });
+		});
+	}
 	document.addEventListener('keydown', function (e) {
 		if (e.key === 'Escape' && !panel.hidden) { abrir(false); }
 	});

@@ -47,7 +47,7 @@ type EnrichmentItem = {name: string; quantity: number; line: string | null};
  * las PCs para que el pipeline regenere los textos con el formato nuevo
  * (v2: rango de FPS estimado por juego).
  */
-const ENRICHMENT_FORMAT = 'v2';
+const ENRICHMENT_FORMAT = 'v3';
 
 /**
  * Hash estable de los ítems, de la lista de juegos a analizar y del formato:
