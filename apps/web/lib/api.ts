@@ -285,9 +285,23 @@ export function deleteThumbnailAiReference(id: string): Promise<{ok: true}> {
 
 export type RecutSummary = {recut: string[]; kept: number; failed: string[]; missing: number; detail: string};
 
-/** Rehace con el modelo de segmentación las fotos del presupuesto que no fueron recortadas con él. */
-export function recutQuoteImages(versionId: string, options: {force?: boolean} = {}): Promise<RecutSummary> {
-  return api<RecutSummary>(`/external-module/quotes/${versionId}/recut-images`, {method: 'POST', body: options});
+export type RecutJobStatus = {jobId: string; status: 'RUNNING' | 'DONE' | 'FAILED'; error?: string} & Partial<RecutSummary>;
+
+/**
+ * Rehace con el modelo de segmentación las fotos del presupuesto que no
+ * fueron recortadas con él. Corre en segundo plano en la API: se arranca y
+ * se consulta cada 2 s hasta que termina (varias fotos llevan minutos).
+ */
+export async function recutQuoteImages(versionId: string, options: {force?: boolean} = {}, onProgress?: (elapsedMs: number) => void): Promise<RecutSummary> {
+  const started = await api<{jobId: string}>(`/external-module/quotes/${versionId}/recut-images`, {method: 'POST', body: options});
+  const t0 = Date.now();
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const job = await api<RecutJobStatus>(`/external-module/recut-jobs/${started.jobId}`);
+    onProgress?.(Date.now() - t0);
+    if (job.status === 'DONE') return {recut: job.recut ?? [], kept: job.kept ?? 0, failed: job.failed ?? [], missing: job.missing ?? 0, detail: job.detail ?? ''};
+    if (job.status === 'FAILED') throw new Error(job.error ?? 'La revisión de recortes falló');
+  }
 }
 
 /** Genera (o regenera) la miniatura de una PC con IA. Cada llamada es una imagen nueva. */

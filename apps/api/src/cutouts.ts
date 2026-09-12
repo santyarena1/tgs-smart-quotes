@@ -109,6 +109,39 @@ export async function recutVersionImages(versionId: string, userId: string | nul
   return summary;
 }
 
+/**
+ * Revisión en segundo plano: recortar 6–8 fotos con el modelo lleva más de
+ * lo que aguanta el proxy (la petición se cortaba con "internal server
+ * error"). El endpoint arranca el trabajo y devuelve un id; el front lo
+ * consulta hasta que termina. En memoria: alcanza para una instancia y los
+ * resultados se olvidan a la hora.
+ */
+export type RecutJob = {id: string; versionId: string; status: 'RUNNING' | 'DONE' | 'FAILED'; startedAt: number; summary?: RecutSummary; detail?: string; error?: string};
+const jobs = new Map<string, RecutJob>();
+
+export function startRecutJob(versionId: string, userId: string | null, opts: {force?: boolean} = {}): RecutJob {
+  for (const [id, job] of jobs) if (Date.now() - job.startedAt > 3_600_000) jobs.delete(id);
+  const running = [...jobs.values()].find((job) => job.versionId === versionId && job.status === 'RUNNING');
+  if (running) return running;
+  const job: RecutJob = {id: randomUUID(), versionId, status: 'RUNNING', startedAt: Date.now()};
+  jobs.set(job.id, job);
+  void recutVersionImages(versionId, userId, opts)
+    .then((summary) => {
+      job.status = 'DONE';
+      job.summary = summary;
+      job.detail = describeRecut(summary);
+    })
+    .catch((error) => {
+      job.status = 'FAILED';
+      job.error = error instanceof Error ? error.message : String(error);
+    });
+  return job;
+}
+
+export function getRecutJob(id: string): RecutJob | null {
+  return jobs.get(id) ?? null;
+}
+
 export function describeRecut(summary: RecutSummary): string {
   const parts: string[] = [];
   if (summary.recut.length) parts.push(`${summary.recut.length} foto${summary.recut.length === 1 ? '' : 's'} recortada${summary.recut.length === 1 ? '' : 's'} de nuevo: ${summary.recut.join(', ')}`);

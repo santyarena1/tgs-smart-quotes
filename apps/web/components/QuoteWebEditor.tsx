@@ -327,7 +327,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     setActionError(null);
     setRecutNotice(null);
     try {
-      const summary = await recutQuoteImages(version.id, { force });
+      const summary = await recutQuoteImages(version.id, { force }, (elapsed) => setRecutNotice(`Revisando recortes… ${Math.round(elapsed / 1000)} s (unos 10–30 s por foto)`));
       setRecutNotice(summary.detail);
       if (summary.recut.length) {
         await load();
