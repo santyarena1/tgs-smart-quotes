@@ -205,9 +205,15 @@
 				return new Intl.NumberFormat( 'es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 } ).format( value );
 			} catch ( e ) { return '$ ' + Math.round( value ); }
 		}
+		// Monitor elegido en la ficha: el campo oculto del formulario de Woo, o
+		// (si el diseño propio no trae el formulario) la tarjeta marcada en la
+		// sección "Sumale un monitor". Antes solo se miraba el campo: sin
+		// formulario, el modal creía que no había monitor y ofrecía monitores.
 		function selectedMonitor() {
 			var input = document.querySelector( '[data-tgs-addon-monitor]' );
-			return input && input.value ? input.value : '';
+			if ( input && input.value ) { return input.value; }
+			var pick = document.querySelector( '.tgs-monitor-pick.is-selected' );
+			return pick ? ( pick.getAttribute( 'data-monitor-id' ) || '' ) : '';
 		}
 
 		// Alta por AJAX con el endpoint estándar de WooCommerce (wc-ajax=add_to_cart).

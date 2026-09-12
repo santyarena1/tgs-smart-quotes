@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.20.1' => array(
+			'ARREGLO: con un monitor elegido, el modal igual ofrecía monitores y el monitor no entraba al carrito. Causa: en el diseño propio {{boton_carrito}} salía vacío (Woo no tenía el producto en contexto), así que no existía el campo del monitor. Ahora el botón de compra se imprime siempre y el modal lee el monitor marcado en la sección.',
+		),
 		'2.20.0' => array(
 			'Modal más grande: tarjetas de 320 px con foto de 104 px, carrusel más lento (se frena al pasar el mouse).',
 			'"Ver todos (N)" por grupo: grilla con toda la categoría o todos los elegidos, con "Volver".',

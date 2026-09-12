@@ -983,9 +983,23 @@ function tgs_sq_placeholder_values( array $d ) {
 
 	$cart = '';
 	if ( $d['product'] && function_exists( 'woocommerce_template_single_add_to_cart' ) ) {
+		// La plantilla de Woo lee el global $product; en este template no pasa
+		// por el loop, así que se fija a mano. Si aun así no imprime nada, va
+		// un formulario mínimo: sin él no había botón de compra en el hero ni
+		// campo para el monitor elegido.
+		global $product;
+		$previous_product = $product;
+		$product          = $d['product'];
 		ob_start();
 		woocommerce_template_single_add_to_cart();
-		$cart = (string) ob_get_clean();
+		$cart    = trim( (string) ob_get_clean() );
+		$product = $previous_product;
+		if ( '' === $cart || false === strpos( $cart, 'form' ) ) {
+			$cart = '<form class="cart" method="post" action="' . esc_url( add_query_arg( 'add-to-cart', $d['product_id'], $d['permalink'] ) ) . '" enctype="multipart/form-data">'
+				. '<button type="submit" name="add-to-cart" value="' . esc_attr( $d['product_id'] ) . '" class="single_add_to_cart_button button alt">Agregar al carrito</button>'
+				. '<input type="hidden" name="tgs_addon_monitor" value="" data-tgs-addon-monitor>'
+				. '</form>';
+		}
 	}
 
 	$description = (string) $d['description'];
