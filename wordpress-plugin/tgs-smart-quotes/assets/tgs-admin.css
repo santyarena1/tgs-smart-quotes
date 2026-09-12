@@ -332,6 +332,9 @@
 .tgs-admin .tgs-picker__actions { display: flex; gap: 4px; align-items: center; }
 .tgs-admin .tgs-picker__pos { min-width: 22px; text-align: center; font-weight: 700; color: var(--tgs-muted); font-size: 12px; }
 .tgs-admin .tgs-picker__actions .tgs-btn[disabled] { opacity: .35; cursor: default; }
+.tgs-admin .tgs-picker__star { color: #b45309; }
+.tgs-admin .tgs-picker__star.is-on { background: #fbbf24; border-color: #f59e0b; color: #1a1200; }
+.tgs-admin .tgs-picker__card.is-featured { border-color: #f59e0b; background: #fffbeb; }
 
 .tgs-admin .tgs-btn--danger {
 	color: var(--tgs-accent-dark);

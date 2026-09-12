@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.18.1
+ * Version: 2.19.0
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.18.1' );
+define( 'TGS_SQ_VERSION', '2.19.0' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -56,6 +56,8 @@ define( 'TGS_SQ_OPTION_DEFAULT_VARIANT', 'tgs_sq_default_variant' );
 define( 'TGS_SQ_OPTION_MONITOR_CATEGORY', 'tgs_sq_monitor_category' );
 // Monitores elegidos a mano (IDs de producto), van primero en la sección.
 define( 'TGS_SQ_OPTION_MONITOR_PRODUCTS', 'tgs_sq_monitor_products' );
+// Monitor "más elegido" (ID) de la lista de Ajustes.
+define( 'TGS_SQ_OPTION_MONITOR_FEATURED', 'tgs_sq_monitor_featured' );
 // Categoría en la que entran las PCs nuevas al publicarse (0 = "TGS").
 define( 'TGS_SQ_OPTION_DEFAULT_CATEGORY', 'tgs_sq_default_category' );
 // Métodos de envío (por título, uno por línea) que no se muestran en la ficha.

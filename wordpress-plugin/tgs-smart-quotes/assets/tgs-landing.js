@@ -219,9 +219,12 @@
 
 		function carousel( group ) {
 			var pct = group.key === 'monitor' ? cfg.monitorDiscountPct : cfg.discountPct;
-			var cards = group.items.map( function ( p ) {
+			// El "más elegido" va primero y con etiqueta.
+			var items = group.items.slice().sort( function ( a, b ) { return ( b.featured ? 1 : 0 ) - ( a.featured ? 1 : 0 ); } );
+			var cards = items.map( function ( p ) {
 				var off = pct ? p.price * ( 1 - pct / 100 ) : 0;
-				return '<div class="tgs-up__card" data-up-id="' + esc( p.id ) + '">'
+				return '<div class="tgs-up__card' + ( p.featured ? ' tgs-up__card--featured' : '' ) + '" data-up-id="' + esc( p.id ) + '">'
+					+ ( p.featured ? '<span class="tgs-up__star">★ Más elegido</span>' : '' )
 					+ '<a class="tgs-up__media" href="' + esc( p.url ) + '" target="_blank" rel="noopener">' + ( p.image ? '<img src="' + esc( p.image ) + '" alt="" loading="lazy">' : '' ) + '</a>'
 					+ '<div class="tgs-up__body">'
 					+ '<span class="tgs-up__name">' + esc( p.name ) + '</span>'
@@ -234,10 +237,10 @@
 			} ).join( '' );
 			// Carrusel infinito: la tira va duplicada y se desplaza con CSS; con
 			// pocos productos se repite más veces para que nunca quede un hueco.
-			var times = group.items.length >= 6 ? 2 : 4;
+			var times = items.length >= 6 ? 2 : 4;
 			var track = '';
 			for ( var i = 0; i < times; i++ ) { track += cards; }
-			var seconds = Math.max( 18, group.items.length * times * 3.2 );
+			var seconds = Math.max( 18, items.length * times * 3.2 );
 			return '<section class="tgs-up__group" data-up-group="' + esc( group.key ) + '">'
 				+ '<header class="tgs-up__ghead"><h3>' + esc( group.label ) + ( pct ? ' <em class="tgs-up__gpct">−' + pct + '%</em>' : '' ) + '</h3><span>' + esc( group.kicker ) + '</span></header>'
 				+ '<div class="tgs-up__viewport"><div class="tgs-up__track" style="animation-duration:' + seconds + 's">' + track + '</div></div>'

@@ -182,6 +182,7 @@ function tgs_sq_page_settings() {
 		}
 		update_option( TGS_SQ_OPTION_MONITOR_CATEGORY, (int) ( $_POST['monitor_category'] ?? 0 ) );
 		update_option( TGS_SQ_OPTION_MONITOR_PRODUCTS, array_values( array_filter( array_map( 'absint', (array) ( $_POST['monitor_products'] ?? array() ) ) ) ) );
+		update_option( TGS_SQ_OPTION_MONITOR_FEATURED, (int) ( $_POST['monitor_featured'] ?? 0 ) );
 		update_option( TGS_SQ_OPTION_DEFAULT_CATEGORY, (int) ( $_POST['default_category'] ?? 0 ) );
 		update_option( TGS_SQ_OPTION_HIDDEN_SHIPPING, sanitize_textarea_field( wp_unslash( $_POST['hidden_shipping'] ?? '' ) ) );
 		update_option( TGS_SQ_OPTION_GUARD_PUBLISHED, empty( $_POST['guard_published'] ) ? '0' : '1' );
@@ -282,7 +283,7 @@ function tgs_sq_page_settings() {
 							</div>
 							<div class="tgs-field tgs-field--wide">
 								<label for="monitor_search">Monitores elegidos</label>
-								<?php tgs_sq_render_monitor_picker( $monitor_products, 'monitor_products[]', 'monitor_search' ); ?>
+								<?php tgs_sq_render_monitor_picker( $monitor_products, 'monitor_products[]', 'monitor_search', 'monitor_featured', (int) get_option( TGS_SQ_OPTION_MONITOR_FEATURED, 0 ) ); ?>
 								<p class="description">Van primero en la sección, en este orden (▲ ▼ para ordenar). Se pueden combinar con la categoría de abajo, que completa hasta el máximo por variante. Cada variante de diseño puede usar esta lista o elegir la suya (Variantes → Sumale un monitor). Acordate de tocar "Guardar".</p>
 							</div>
 							<div class="tgs-field">
@@ -361,11 +362,14 @@ function tgs_sq_page_settings() {
  * resultados se pueden tildar varios y agregarlos de una, o agregar todos.
  * Lista: ▲ ▼ manual, o reordenar todo por precio / nombre.
  */
-function tgs_sq_render_monitor_picker( array $ids, $input_name, $search_id ) {
+function tgs_sq_render_monitor_picker( array $ids, $input_name, $search_id, $featured_name = '', $featured_id = 0 ) {
 	$categories = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => true, 'orderby' => 'name' ) );
 	$categories = is_wp_error( $categories ) ? array() : $categories;
 	?>
 	<div class="tgs-picker" data-tgs-monitor-picker data-picker-name="<?php echo esc_attr( $input_name ); ?>">
+		<?php if ( $featured_name ) : ?>
+			<input type="hidden" name="<?php echo esc_attr( $featured_name ); ?>" value="<?php echo esc_attr( (int) $featured_id ); ?>" data-picker-featured>
+		<?php endif; ?>
 		<div class="tgs-picker__toolbar">
 			<input type="text" id="<?php echo esc_attr( $search_id ); ?>" autocomplete="off" placeholder="Buscar por nombre o SKU (ej: samsung 24, 165hz)… o dejá vacío y filtrá por categoría" data-picker-search>
 			<select data-picker-category>
@@ -419,6 +423,9 @@ function tgs_sq_render_monitor_picker( array $ids, $input_name, $search_id ) {
 						</span>
 						<span class="tgs-picker__actions">
 							<span class="tgs-picker__pos"></span>
+							<?php if ( $featured_name ) : ?>
+								<button type="button" class="tgs-btn tgs-btn--small tgs-picker__star" data-star title="Marcar como &quot;más elegido&quot;">★</button>
+							<?php endif; ?>
 							<button type="button" class="tgs-btn tgs-btn--small" data-move="up" title="Subir">▲</button>
 							<button type="button" class="tgs-btn tgs-btn--small" data-move="down" title="Bajar">▼</button>
 							<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-remove title="Quitar">✕</button>
@@ -891,6 +898,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'monitors_count'    => max( 1, min( 12, (int) ( $_POST['monitors_count'] ?? 6 ) ) ),
 				'monitors_source'   => 'custom' === ( $_POST['monitors_source'] ?? '' ) ? 'custom' : 'settings',
 				'monitors_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['variant_monitor_products'] ?? array() ) ) ) ),
+				'monitors_featured' => (int) ( $_POST['variant_monitor_featured'] ?? 0 ),
 				'upsell_enabled'           => ! empty( $_POST['upsell_enabled'] ),
 				'upsell_discount_pct'      => max( 0, min( 90, (int) ( $_POST['upsell_discount_pct'] ?? 0 ) ) ),
 				'upsell_monitor_discount_pct' => max( 0, min( 90, (int) ( $_POST['upsell_monitor_discount_pct'] ?? 0 ) ) ),
@@ -899,6 +907,9 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'upsell_no_monitor_text'   => sanitize_textarea_field( wp_unslash( $_POST['upsell_no_monitor_text'] ?? '' ) ),
 				'upsell_keyboard_category' => (int) ( $_POST['upsell_keyboard_category'] ?? 0 ),
 				'upsell_keyboard_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['upsell_keyboard_products'] ?? array() ) ) ) ),
+				'upsell_keyboard_featured' => (int) ( $_POST['upsell_keyboard_featured'] ?? 0 ),
+				'upsell_mouse_featured'    => (int) ( $_POST['upsell_mouse_featured'] ?? 0 ),
+				'upsell_headset_featured'  => (int) ( $_POST['upsell_headset_featured'] ?? 0 ),
 				'upsell_mouse_category'    => (int) ( $_POST['upsell_mouse_category'] ?? 0 ),
 				'upsell_mouse_products'    => array_values( array_filter( array_map( 'absint', (array) ( $_POST['upsell_mouse_products'] ?? array() ) ) ) ),
 				'upsell_headset_category'  => (int) ( $_POST['upsell_headset_category'] ?? 0 ),
@@ -1213,7 +1224,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 									<option value="custom" <?php selected( $extra['monitors_source'] ?? 'settings', 'custom' ); ?>>Elegir monitores solo para esta variante</option>
 								</select>
 								<div data-monitors-custom style="margin-top:10px;<?php echo 'custom' === ( $extra['monitors_source'] ?? 'settings' ) ? '' : 'display:none'; ?>">
-									<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra['monitors_products'] ?? array() ) ), 'variant_monitor_products[]', 'variant_monitor_search' ); ?>
+									<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra['monitors_products'] ?? array() ) ), 'variant_monitor_products[]', 'variant_monitor_search', 'variant_monitor_featured', (int) ( $extra['monitors_featured'] ?? 0 ) ); ?>
 									<p class="description">Solo estos, en este orden. Si la lista queda vacía, la sección no se muestra en las PCs con esta variante.</p>
 								</div>
 							</div>
@@ -1279,7 +1290,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 									) );
 									?>
 									<p class="description"><?php echo esc_html( $group_meta['label'] ); ?> — elegidos (van primero; la categoría completa hasta 12):</p>
-									<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra[ 'upsell_' . $group_key . '_products' ] ?? array() ) ), 'upsell_' . $group_key . '_products[]', 'upsell_' . $group_key . '_search' ); ?>
+									<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra[ 'upsell_' . $group_key . '_products' ] ?? array() ) ), 'upsell_' . $group_key . '_products[]', 'upsell_' . $group_key . '_search', 'upsell_' . $group_key . '_featured', (int) ( $extra[ 'upsell_' . $group_key . '_featured' ] ?? 0 ) ); ?>
+									<p class="description">★ marca el "más elegido": va primero y con etiqueta en el modal.</p>
 								</div>
 							<?php endforeach; ?>
 						</div>

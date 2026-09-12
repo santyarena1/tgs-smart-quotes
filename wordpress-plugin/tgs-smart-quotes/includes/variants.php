@@ -104,6 +104,7 @@ function tgs_sq_default_extra() {
 		// 'custom' = solo los de 'monitors_products' de esta variante.
 		'monitors_source'    => 'settings',
 		'monitors_products'  => array(),
+		'monitors_featured'  => 0,
 		// Modal "Completá tu setup" después de agregar al carrito (ver upsell.php).
 		'upsell_enabled'           => true,
 		'upsell_discount_pct'      => 10,
@@ -113,6 +114,9 @@ function tgs_sq_default_extra() {
 		'upsell_no_monitor_text'   => 'Ya sé, ya sé: tenés monitor y "no necesitás otro". Pero mirá igual los que tenemos, porque a este precio y con {{descuento_monitor}}% extra no vas a encontrar uno mejor en ningún lado.',
 		'upsell_keyboard_category' => 0,
 		'upsell_keyboard_products' => array(),
+		'upsell_keyboard_featured' => 0,
+		'upsell_mouse_featured'    => 0,
+		'upsell_headset_featured'  => 0,
 		'upsell_mouse_category'    => 0,
 		'upsell_mouse_products'    => array(),
 		'upsell_headset_category'  => 0,

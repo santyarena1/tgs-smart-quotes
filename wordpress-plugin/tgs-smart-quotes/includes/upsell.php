@@ -151,7 +151,8 @@ function tgs_sq_upsell_data( array $d, $variant_slug ) {
 	foreach ( tgs_sq_upsell_groups() as $key => $meta ) {
 		$products = tgs_sq_upsell_group_products( $extra, $key );
 		if ( $products ) {
-			$groups[] = array( 'key' => $key, 'label' => $meta['label'], 'kicker' => $meta['kicker'], 'items' => array_map( 'tgs_sq_upsell_item', $products ) );
+			$featured = (int) ( $extra[ "upsell_{$key}_featured" ] ?? 0 );
+			$groups[] = array( 'key' => $key, 'label' => $meta['label'], 'kicker' => $meta['kicker'], 'items' => array_map( function ( $product ) use ( $featured ) { return tgs_sq_upsell_item( $product, $featured ); }, $products ) );
 		}
 	}
 	// Monitores: solo se ofrecen si no eligió uno (lo decide el JS).
@@ -181,14 +182,20 @@ function tgs_sq_upsell_data( array $d, $variant_slug ) {
 		'text'          => (string) ( $extra['upsell_text'] ?? '' ),
 		'noMonitorText' => (string) ( $extra['upsell_no_monitor_text'] ?? '' ),
 		'groups'        => $groups,
-		'monitors'      => $monitors ? array( 'key' => 'monitor', 'label' => 'Monitores', 'kicker' => 'Ya sé, ya tenés uno…', 'items' => array_map( 'tgs_sq_upsell_item', $monitors ) ) : null,
+		'monitors'      => $monitors ? array( 'key' => 'monitor', 'label' => 'Monitores', 'kicker' => 'Ya sé, ya tenés uno…', 'items' => array_map( function ( $product ) use ( $extra ) { return tgs_sq_upsell_item( $product, tgs_sq_monitor_featured_id( $extra ) ); }, $monitors ) ) : null,
 	);
 }
 
-function tgs_sq_upsell_item( $product ) {
+/** Monitor "más elegido": el de la variante (lista propia) o el de Ajustes. */
+function tgs_sq_monitor_featured_id( array $extra ) {
+	return 'custom' === ( $extra['monitors_source'] ?? 'settings' ) ? (int) ( $extra['monitors_featured'] ?? 0 ) : (int) get_option( TGS_SQ_OPTION_MONITOR_FEATURED, 0 );
+}
+
+function tgs_sq_upsell_item( $product, $featured_id = 0 ) {
 	$price = (float) $product->get_price();
 	return array(
 		'id'        => $product->get_id(),
+		'featured'  => $featured_id && (int) $product->get_id() === (int) $featured_id,
 		'name'      => $product->get_name(),
 		'price'     => $price,
 		'priceHtml' => wp_strip_all_tags( wc_price( $price ) ),

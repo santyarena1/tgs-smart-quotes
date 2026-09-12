@@ -25,6 +25,8 @@
 
 	function initPicker(root) {
 		var inputName = root.getAttribute('data-picker-name') || 'monitor_products[]';
+		// "Más elegido": uno por lista, va primero y con etiqueta en la ficha/modal.
+		var featuredInput = root.querySelector('[data-picker-featured]');
 		var $ = function (sel) { return root.querySelector(sel); };
 		var input = $('[data-picker-search]');
 		var category = $('[data-picker-category]');
@@ -52,6 +54,17 @@
 			var items = list.querySelectorAll('[data-picker-item]');
 			empty.hidden = items.length > 0;
 			chosenCount.textContent = String(items.length);
+			if (featuredInput) {
+				var stillThere = false;
+				for (var s = 0; s < items.length; s++) {
+					var on = items[s].getAttribute('data-picker-item') === featuredInput.value;
+					items[s].classList.toggle('is-featured', on);
+					var starBtn = items[s].querySelector('[data-star]');
+					if (starBtn) { starBtn.classList.toggle('is-on', on); starBtn.title = on ? 'Es el "más elegido"' : 'Marcar como "más elegido"'; }
+					if (on) { stillThere = true; }
+				}
+				if (!stillThere) { featuredInput.value = ''; }
+			}
 			for (var i = 0; i < items.length; i++) {
 				items[i].querySelector('[data-move="up"]').disabled = i === 0;
 				items[i].querySelector('[data-move="down"]').disabled = i === items.length - 1;
@@ -67,6 +80,7 @@
 			var actions = mode === 'result'
 				? '<button type="button" class="tgs-btn tgs-btn--small tgs-btn--primary" data-add>Agregar</button>'
 				: '<span class="tgs-picker__pos"></span>'
+					+ (featuredInput ? '<button type="button" class="tgs-btn tgs-btn--small tgs-picker__star" data-star title="Marcar como &quot;más elegido&quot;">★</button>' : '')
 					+ '<button type="button" class="tgs-btn tgs-btn--small" data-move="up" title="Subir">▲</button>'
 					+ '<button type="button" class="tgs-btn tgs-btn--small" data-move="down" title="Bajar">▼</button>'
 					+ '<button type="button" class="tgs-btn tgs-btn--small tgs-btn--danger" data-remove title="Quitar">✕</button>'
@@ -200,6 +214,12 @@
 			if (!el) { return; }
 			if (e.target.closest('[data-remove]')) {
 				el.remove();
+				refresh();
+				return;
+			}
+			if (e.target.closest('[data-star]') && featuredInput) {
+				var id = el.getAttribute('data-picker-item');
+				featuredInput.value = featuredInput.value === id ? '' : id;
 				refresh();
 				return;
 			}

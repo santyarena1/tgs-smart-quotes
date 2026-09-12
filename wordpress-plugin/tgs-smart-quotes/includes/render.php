@@ -859,10 +859,15 @@ function tgs_sq_monitors_html( array $d ) {
 	echo '<h2>' . esc_html( $title ) . '</h2>';
 	echo '<p class="tgs-monitors-lead">Elegí uno y se agrega al carrito junto con la PC. Tocalo de nuevo para sacarlo.</p>';
 	echo '<div class="tgs-monitors-grid">';
+	$featured_id = tgs_sq_monitor_featured_id( (array) $d['extra'] );
+	usort( $monitors, function ( $a, $b ) use ( $featured_id ) { return ( (int) $b->get_id() === $featured_id ? 1 : 0 ) - ( (int) $a->get_id() === $featured_id ? 1 : 0 ); } );
 	foreach ( $monitors as $monitor ) {
 		$pid   = $monitor->get_id();
 		$thumb = get_the_post_thumbnail_url( $pid, 'woocommerce_thumbnail' );
-		echo '<div class="tgs-monitor-card">';
+		echo '<div class="tgs-monitor-card' . ( (int) $pid === $featured_id ? ' tgs-monitor-card--featured' : '' ) . '">';
+		if ( (int) $pid === $featured_id ) {
+			echo '<span class="tgs-monitor-star">★ Más elegido</span>';
+		}
 		echo '<button type="button" class="tgs-monitor-pick" aria-pressed="false" data-monitor-id="' . esc_attr( $pid ) . '" data-monitor-name="' . esc_attr( $monitor->get_name() ) . '" data-monitor-price="' . esc_attr( (float) $monitor->get_price() ) . '">';
 		echo '<span class="tgs-monitor-media">';
 		if ( $thumb ) {
