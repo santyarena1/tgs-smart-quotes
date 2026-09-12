@@ -1611,3 +1611,123 @@ body.tgs-up-open { overflow: hidden; }
 	0%, 100% { transform: translateY(0) rotate(-2deg); }
 	50% { transform: translateY(-3px) rotate(2deg); }
 }
+
+/* ---- Modal: versión grande + "Ver todos" + vista previa ---- */
+.tgs-up__box { width: min(1280px, 100%); padding: 22px 24px 16px; }
+.tgs-up__title { font-size: clamp(24px, 2.8vw, 34px); }
+.tgs-up__text { font-size: 14.5px; }
+.tgs-up__badge { width: 88px; height: 88px; font-size: 28px; }
+.tgs-up__badge small { font-size: 10px; }
+.tgs-up__groups { gap: 10px; margin-top: 14px; }
+.tgs-up__group { padding: 10px 0 8px; }
+.tgs-up__ghead { gap: 12px; padding: 0 14px 6px; align-items: center; }
+.tgs-up__ghead h3 { font-size: 20px; }
+.tgs-up__ghead span { font-size: 13px; }
+.tgs-up__all {
+	all: unset; cursor: pointer; margin-left: auto; font: inherit; font-size: 13px; font-weight: 800; color: #fff;
+	padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06);
+	transition: background .15s ease, border-color .15s ease;
+}
+.tgs-up__all:hover { background: rgba(227,27,35,.25); border-color: rgba(227,27,35,.7); }
+.tgs-up__track { gap: 12px; padding: 14px 14px 6px; }
+.tgs-up__card { flex: 0 0 320px; gap: 12px; padding: 10px; cursor: pointer; border-radius: 14px; }
+.tgs-up__media { flex: 0 0 104px; width: 104px; height: 104px; border-radius: 10px; }
+.tgs-up__body { gap: 6px; }
+.tgs-up__name { font-size: 13.5px; min-height: 2.4em; }
+.tgs-up__price s { font-size: 12px; }
+.tgs-up__price b { font-size: 17px; }
+.tgs-up__actions { display: flex; gap: 6px; align-items: center; }
+.tgs-up__actions .tgs-up__add { flex: 1 1 auto; padding: 8px 10px; font-size: 12.5px; border-radius: 9px; }
+.tgs-up__peek {
+	all: unset; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; color: rgba(248,250,252,.85);
+	padding: 8px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,.2);
+}
+.tgs-up__peek:hover { background: rgba(255,255,255,.1); color: #fff; }
+.tgs-up__body-wrap { min-height: 200px; }
+.tgs-up__box.is-swap .tgs-up__body-wrap { animation: tgs-up-swap .28s ease both; }
+@keyframes tgs-up-swap { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Sub-vistas (grilla / preview) */
+.tgs-up__sub { margin-top: 12px; }
+.tgs-up__subhead { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.tgs-up__subhead h3 { margin: 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.tgs-up__subhead span { font-size: 13px; color: rgba(248,250,252,.6); }
+.tgs-up__back {
+	all: unset; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; color: #fff;
+	padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06);
+}
+.tgs-up__back:hover { background: rgba(255,255,255,.14); }
+.tgs-up__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; padding-top: 12px; }
+.tgs-up__grid .tgs-up__card { flex: none; }
+/* Vista previa */
+.tgs-up__pv { display: grid; grid-template-columns: minmax(260px, 440px) 1fr; gap: 24px; align-items: start; }
+.tgs-up__pv-media { position: relative; background: #fff; border-radius: 16px; overflow: hidden; aspect-ratio: 1; display: grid; place-items: center; }
+.tgs-up__pv-media img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.tgs-up__star--big { top: 12px; left: 12px; font-size: 13px; padding: 5px 12px; }
+.tgs-up__pv-body { display: grid; gap: 14px; align-content: start; }
+.tgs-up__pv-name { margin: 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; line-height: 1.1; }
+.tgs-up__pv-desc { margin: 0; font-size: 14px; line-height: 1.5; color: rgba(248,250,252,.78); }
+.tgs-up__pv-price { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tgs-up__pv-price s { font-size: 16px; color: rgba(248,250,252,.45); }
+.tgs-up__pv-price b { font-family: "Rajdhani", "Inter", sans-serif; font-size: 40px; font-weight: 700; line-height: 1; }
+.tgs-up__pv-price em { font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #E31B23; background: rgba(227,27,35,.15); border: 1px solid rgba(227,27,35,.5); border-radius: 999px; padding: 4px 10px; }
+.tgs-up__add--big { padding: 16px 22px; font-size: 16px; border-radius: 12px; box-shadow: 0 10px 30px rgba(227,27,35,.45); animation: tgs-up-glow 2s ease-in-out infinite; }
+.tgs-up__pv-link { font-size: 13px; color: rgba(248,250,252,.65); text-decoration: underline; text-underline-offset: 3px; }
+.tgs-up__pv-link:hover { color: #fff; }
+@media (max-width: 720px) {
+	.tgs-up__card { flex-basis: 270px; }
+	.tgs-up__pv { grid-template-columns: 1fr; }
+	.tgs-up__grid { grid-template-columns: 1fr; }
+	.tgs-up__all { font-size: 12px; padding: 5px 10px; }
+}
+
+/* ---- Modal en celular: hoja inferior con scroll, listas verticales, CTAs fijos ---- */
+@media (max-width: 720px) {
+	.tgs-up { padding: 0; align-items: end; }
+	.tgs-up__box {
+		width: 100%; max-height: 94vh; max-height: 94dvh; border-radius: 22px 22px 0 0;
+		padding: 16px 14px 0; display: flex; flex-direction: column;
+		animation: tgs-up-sheet .35s cubic-bezier(.2, .9, .25, 1.1) both;
+	}
+	@keyframes tgs-up-sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+	.tgs-up__close { top: 10px; right: 10px; width: 32px; height: 32px; }
+	.tgs-up__head { gap: 10px; padding-right: 40px; align-items: flex-start; }
+	.tgs-up__check { width: 34px; height: 34px; font-size: 18px; }
+	.tgs-up__title { font-size: 21px; }
+	.tgs-up__text { font-size: 13px; line-height: 1.35; }
+	.tgs-up__badge { width: 64px; height: 64px; font-size: 20px; margin-left: 0; order: -1; }
+	.tgs-up__body-wrap { flex: 1 1 auto; overflow: auto; -webkit-overflow-scrolling: touch; margin: 0 -14px; padding: 0 14px; }
+	.tgs-up__groups { gap: 8px; margin-top: 10px; }
+	/* En el celular el carrusel automático marea: lista horizontal con scroll a dedo. */
+	.tgs-up__viewport { overflow-x: auto; -webkit-mask-image: none; mask-image: none; scroll-snap-type: x mandatory; }
+	.tgs-up__track { animation: none !important; padding: 12px 10px 6px; }
+	.tgs-up__card { flex-basis: 78vw; max-width: 320px; scroll-snap-align: start; }
+	.tgs-up__media { flex-basis: 84px; width: 84px; height: 84px; }
+	.tgs-up__ghead { flex-wrap: wrap; gap: 6px 10px; }
+	.tgs-up__ghead span { flex-basis: 100%; }
+	.tgs-up__all { margin-left: auto; }
+	.tgs-up__grid { grid-template-columns: 1fr; }
+	.tgs-up__pv-price b { font-size: 32px; }
+	.tgs-up__foot {
+		position: sticky; bottom: 0; margin: 10px -14px 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+		background: linear-gradient(180deg, rgba(10,11,16,0), #0a0b10 30%); border-top: 1px solid rgba(255,255,255,.1);
+		display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+	}
+	.tgs-up__count { grid-column: 1 / -1; margin: 0; font-size: 12.5px; }
+	.tgs-up__btn { padding: 12px 10px; font-size: 13.5px; }
+	.tgs-up__btn--link { grid-column: 1 / -1; padding: 6px; }
+}
+
+/* ---- Modal: CTAs siempre a la vista (el cuerpo scrollea, el pie no) ---- */
+.tgs-up__box { width: min(1200px, 100%); display: flex; flex-direction: column; overflow: hidden; }
+.tgs-up__body-wrap { flex: 1 1 auto; overflow: auto; min-height: 0; margin: 0 -24px; padding: 0 24px; }
+.tgs-up__foot { flex: 0 0 auto; }
+@media (max-width: 720px) {
+	.tgs-up__body-wrap { margin: 0 -14px; padding: 0 14px; }
+}
+@media (max-width: 720px) {
+	.tgs-up__badge { display: none; }
+	.tgs-up__head { padding-right: 36px; }
+	.tgs-up__ghead h3 { order: 1; }
+	.tgs-up__ghead .tgs-up__all { order: 2; margin-left: auto; }
+	.tgs-up__ghead span { order: 3; }
+}

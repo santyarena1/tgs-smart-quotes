@@ -230,34 +230,98 @@
 		var modal = null;
 		var added = {};
 
+		function groupPct( group ) { return group.key === 'monitor' ? cfg.monitorDiscountPct : cfg.discountPct; }
+		function sorted( group ) {
+			return group.items.slice().sort( function ( a, b ) { return ( b.featured ? 1 : 0 ) - ( a.featured ? 1 : 0 ); } );
+		}
+		function card( group, p ) {
+			var pct = groupPct( group );
+			var off = pct ? p.price * ( 1 - pct / 100 ) : 0;
+			return '<div class="tgs-up__card' + ( p.featured ? ' tgs-up__card--featured' : '' ) + '" data-up-id="' + esc( p.id ) + '" data-up-open="' + esc( group.key ) + ':' + esc( p.id ) + '" role="button" tabindex="0">'
+				+ ( p.featured ? '<span class="tgs-up__star">★ Más elegido</span>' : '' )
+				+ '<span class="tgs-up__media">' + ( p.image ? '<img src="' + esc( p.image ) + '" alt="" loading="lazy">' : '' ) + '</span>'
+				+ '<div class="tgs-up__body">'
+				+ '<span class="tgs-up__name">' + esc( p.name ) + '</span>'
+				+ ( pct
+					? '<span class="tgs-up__price"><s>' + esc( p.priceHtml ) + '</s> <b>' + esc( money( off ) ) + '</b></span>'
+					: '<span class="tgs-up__price"><b>' + esc( p.priceHtml ) + '</b></span>' )
+				+ '<span class="tgs-up__actions">'
+				+ '<button type="button" class="tgs-up__add" data-up-add="' + esc( p.id ) + '" data-up-kind="' + esc( group.key === 'monitor' ? 'monitor' : 'setup' ) + '" data-up-pct="' + esc( pct ) + '">' + ( pct ? 'Sumar −' + pct + '%' : 'Sumar' ) + '</button>'
+				+ '<button type="button" class="tgs-up__peek" data-up-open="' + esc( group.key ) + ':' + esc( p.id ) + '">Ver</button>'
+				+ '</span>'
+				+ '</div></div>';
+		}
+
+		// Carrusel infinito (tira duplicada que se desplaza sola; se frena al
+		// pasar el mouse). "Ver todos" abre la grilla completa del grupo.
 		function carousel( group ) {
-			var pct = group.key === 'monitor' ? cfg.monitorDiscountPct : cfg.discountPct;
-			// El "más elegido" va primero y con etiqueta.
-			var items = group.items.slice().sort( function ( a, b ) { return ( b.featured ? 1 : 0 ) - ( a.featured ? 1 : 0 ); } );
-			var cards = items.map( function ( p ) {
-				var off = pct ? p.price * ( 1 - pct / 100 ) : 0;
-				return '<div class="tgs-up__card' + ( p.featured ? ' tgs-up__card--featured' : '' ) + '" data-up-id="' + esc( p.id ) + '">'
-					+ ( p.featured ? '<span class="tgs-up__star">★ Más elegido</span>' : '' )
-					+ '<a class="tgs-up__media" href="' + esc( p.url ) + '" target="_blank" rel="noopener">' + ( p.image ? '<img src="' + esc( p.image ) + '" alt="" loading="lazy">' : '' ) + '</a>'
-					+ '<div class="tgs-up__body">'
-					+ '<span class="tgs-up__name">' + esc( p.name ) + '</span>'
-					+ ( pct
-						? '<span class="tgs-up__price"><s>' + esc( p.priceHtml ) + '</s> <b>' + esc( money( off ) ) + '</b></span>'
-						: '<span class="tgs-up__price"><b>' + esc( p.priceHtml ) + '</b></span>' )
-					+ '<button type="button" class="tgs-up__add" data-up-add="' + esc( p.id ) + '" data-up-kind="' + esc( group.key === 'monitor' ? 'monitor' : 'setup' ) + '" data-up-pct="' + esc( pct ) + '">'
-					+ ( pct ? 'Sumar con −' + pct + '%' : 'Sumar al carrito' ) + '</button>'
-					+ '</div></div>';
-			} ).join( '' );
-			// Carrusel infinito: la tira va duplicada y se desplaza con CSS; con
-			// pocos productos se repite más veces para que nunca quede un hueco.
-			var times = items.length >= 6 ? 2 : 4;
+			var pct = groupPct( group );
+			var items = sorted( group );
+			var cards = items.map( function ( p ) { return card( group, p ); } ).join( '' );
+			var times = items.length >= 5 ? 2 : 4;
 			var track = '';
 			for ( var i = 0; i < times; i++ ) { track += cards; }
-			var seconds = Math.max( 18, items.length * times * 3.2 );
+			var seconds = Math.max( 30, items.length * times * 6 );
 			return '<section class="tgs-up__group" data-up-group="' + esc( group.key ) + '">'
-				+ '<header class="tgs-up__ghead"><h3>' + esc( group.label ) + ( pct ? ' <em class="tgs-up__gpct">−' + pct + '%</em>' : '' ) + '</h3><span>' + esc( group.kicker ) + '</span></header>'
+				+ '<header class="tgs-up__ghead"><h3>' + esc( group.label ) + ( pct ? ' <em class="tgs-up__gpct">−' + pct + '%</em>' : '' ) + '</h3><span>' + esc( group.kicker ) + '</span>'
+				+ '<button type="button" class="tgs-up__all" data-up-all="' + esc( group.key ) + '">Ver todos (' + items.length + ') →</button></header>'
 				+ '<div class="tgs-up__viewport"><div class="tgs-up__track" style="animation-duration:' + seconds + 's">' + track + '</div></div>'
 				+ '</section>';
+		}
+
+		// Vista "Ver todos": grilla con todos los productos del grupo.
+		function gridView( group ) {
+			var pct = groupPct( group );
+			return '<div class="tgs-up__sub">'
+				+ '<header class="tgs-up__subhead"><button type="button" class="tgs-up__back" data-up-home>← Volver</button>'
+				+ '<h3>' + esc( group.label ) + ( pct ? ' <em class="tgs-up__gpct">−' + pct + '%</em>' : '' ) + '</h3><span>' + esc( group.kicker ) + '</span></header>'
+				+ '<div class="tgs-up__grid">' + sorted( group ).map( function ( p ) { return card( group, p ); } ).join( '' ) + '</div>'
+				+ '</div>';
+		}
+
+		// Vista previa de un producto: foto grande, precio con descuento y CTA.
+		function previewView( group, p ) {
+			var pct = groupPct( group );
+			var off = pct ? p.price * ( 1 - pct / 100 ) : 0;
+			return '<div class="tgs-up__sub tgs-up__preview">'
+				+ '<header class="tgs-up__subhead"><button type="button" class="tgs-up__back" data-up-back="' + esc( group.key ) + '">← Volver</button><span>' + esc( group.label ) + '</span></header>'
+				+ '<div class="tgs-up__pv">'
+				+ '<div class="tgs-up__pv-media">' + ( p.imageLarge || p.image ? '<img src="' + esc( p.imageLarge || p.image ) + '" alt="">' : '' ) + ( p.featured ? '<span class="tgs-up__star tgs-up__star--big">★ Más elegido</span>' : '' ) + '</div>'
+				+ '<div class="tgs-up__pv-body">'
+				+ '<h3 class="tgs-up__pv-name">' + esc( p.name ) + '</h3>'
+				+ ( p.description ? '<p class="tgs-up__pv-desc">' + esc( p.description ) + '</p>' : '' )
+				+ '<div class="tgs-up__pv-price">'
+				+ ( pct ? '<s>' + esc( p.priceHtml ) + '</s><b>' + esc( money( off ) ) + '</b><em>−' + pct + '% solo ahora</em>' : '<b>' + esc( p.priceHtml ) + '</b>' )
+				+ '</div>'
+				+ '<button type="button" class="tgs-up__add tgs-up__add--big" data-up-add="' + esc( p.id ) + '" data-up-kind="' + esc( group.key === 'monitor' ? 'monitor' : 'setup' ) + '" data-up-pct="' + esc( pct ) + '">' + ( pct ? 'Sumar al carrito con −' + pct + '%' : 'Sumar al carrito' ) + '</button>'
+				+ '<a class="tgs-up__pv-link" href="' + esc( p.url ) + '" target="_blank" rel="noopener">Ver ficha completa ↗</a>'
+				+ '</div></div></div>';
+		}
+
+		var groupsShown = [];
+		function findGroup( key ) {
+			for ( var i = 0; i < groupsShown.length; i++ ) { if ( groupsShown[ i ].key === key ) { return groupsShown[ i ]; } }
+			return null;
+		}
+		function findItem( group, id ) {
+			for ( var i = 0; i < group.items.length; i++ ) { if ( String( group.items[ i ].id ) === String( id ) ) { return group.items[ i ]; } }
+			return null;
+		}
+		function setView( html ) {
+			var body = modal.querySelector( '[data-up-body]' );
+			body.innerHTML = html;
+			body.scrollTop = 0;
+			var box = modal.querySelector( '.tgs-up__box' );
+			box.classList.remove( 'is-swap' );
+			void box.offsetWidth;
+			box.classList.add( 'is-swap' );
+			syncAdded();
+		}
+		function homeView() {
+			setView( '<div class="tgs-up__groups">' + groupsShown.map( carousel ).join( '' ) + '</div>' );
+		}
+		function syncAdded() {
+			Object.keys( added ).forEach( function ( id ) { markAdded( id, 'added' ); } );
 		}
 
 		function build( hasMonitor ) {
@@ -267,8 +331,8 @@
 			};
 			var text = fill( cfg.text );
 			var noMon = fill( cfg.noMonitorText );
-			var groups = cfg.groups.slice();
-			if ( ! hasMonitor && cfg.monitors ) { groups.unshift( cfg.monitors ); }
+			groupsShown = cfg.groups.slice();
+			if ( ! hasMonitor && cfg.monitors ) { groupsShown.unshift( cfg.monitors ); }
 			var html = '<div class="tgs-up" role="dialog" aria-modal="true" aria-label="Completá tu setup">'
 				+ '<div class="tgs-up__box">'
 				+ '<button type="button" class="tgs-up__close" data-up-close aria-label="Cerrar">✕</button>'
@@ -281,7 +345,7 @@
 				+ '</div>'
 				+ ( pct ? '<span class="tgs-up__badge">−' + pct + '%<small>solo ahora</small></span>' : '' )
 				+ '</div>'
-				+ '<div class="tgs-up__groups">' + groups.map( carousel ).join( '' ) + '</div>'
+				+ '<div class="tgs-up__body-wrap" data-up-body></div>'
 				+ '<footer class="tgs-up__foot">'
 				+ '<span class="tgs-up__count" data-up-count></span>'
 				+ '<a class="tgs-up__btn tgs-up__btn--ghost" href="' + esc( cfg.cartUrl ) + '">Ver carrito</a>'
@@ -294,10 +358,26 @@
 			modal = wrap.firstChild;
 			document.body.appendChild( modal );
 			document.body.classList.add( 'tgs-up-open' );
+			homeView();
 			modal.addEventListener( 'click', function ( e ) {
 				if ( e.target === modal || e.target.closest( '[data-up-close]' ) ) { close(); return; }
 				var btn = e.target.closest( '[data-up-add]' );
-				if ( btn ) { addUpsell( btn.getAttribute( 'data-up-add' ), btn.getAttribute( 'data-up-kind' ), btn.getAttribute( 'data-up-pct' ) ); }
+				if ( btn ) { addUpsell( btn.getAttribute( 'data-up-add' ), btn.getAttribute( 'data-up-kind' ), btn.getAttribute( 'data-up-pct' ) ); return; }
+				var all = e.target.closest( '[data-up-all]' );
+				if ( all ) { var g = findGroup( all.getAttribute( 'data-up-all' ) ); if ( g ) { setView( gridView( g ) ); } return; }
+				if ( e.target.closest( '[data-up-home]' ) ) { homeView(); return; }
+				var back = e.target.closest( '[data-up-back]' );
+				if ( back ) { var gb = findGroup( back.getAttribute( 'data-up-back' ) ); if ( gb ) { setView( gridView( gb ) ); } else { homeView(); } return; }
+				var open = e.target.closest( '[data-up-open]' );
+				if ( open ) {
+					var parts = open.getAttribute( 'data-up-open' ).split( ':' );
+					var go = findGroup( parts[ 0 ] );
+					var item = go && findItem( go, parts[ 1 ] );
+					if ( item ) { setView( previewView( go, item ) ); }
+				}
+			} );
+			modal.addEventListener( 'keydown', function ( e ) {
+				if ( ( e.key === 'Enter' || e.key === ' ' ) && e.target.matches( '.tgs-up__card' ) ) { e.preventDefault(); e.target.click(); }
 			} );
 			document.addEventListener( 'keydown', onKey );
 			updateCount();

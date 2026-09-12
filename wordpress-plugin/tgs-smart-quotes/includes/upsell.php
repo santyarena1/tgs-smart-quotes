@@ -25,7 +25,7 @@ function tgs_sq_upsell_groups() {
 }
 
 /** Productos de un grupo: primero los elegidos, después la categoría, hasta $count. */
-function tgs_sq_upsell_group_products( array $extra, $group, $count = 12 ) {
+function tgs_sq_upsell_group_products( array $extra, $group, $count = 40 ) {
 	$ids         = array_values( array_filter( array_map( 'absint', (array) ( $extra[ "upsell_{$group}_products" ] ?? array() ) ) ) );
 	$category_id = (int) ( $extra[ "upsell_{$group}_category" ] ?? 0 );
 	$products    = array();
@@ -156,7 +156,7 @@ function tgs_sq_upsell_data( array $d, $variant_slug ) {
 		}
 	}
 	// Monitores: solo se ofrecen si no eligió uno (lo decide el JS).
-	$monitors = tgs_sq_monitor_products( (int) ( $extra['monitors_count'] ?? 6 ), $extra );
+	$monitors = tgs_sq_monitor_products( max( 12, (int) ( $extra['monitors_count'] ?? 6 ) ), $extra );
 	if ( ! $groups && ! $monitors ) {
 		return null;
 	}
@@ -200,6 +200,8 @@ function tgs_sq_upsell_item( $product, $featured_id = 0 ) {
 		'price'     => $price,
 		'priceHtml' => html_entity_decode( wp_strip_all_tags( wc_price( $price, array( 'decimals' => 0 ) ) ), ENT_QUOTES, 'UTF-8' ),
 		'image'     => (string) get_the_post_thumbnail_url( $product->get_id(), 'woocommerce_thumbnail' ),
+		'imageLarge' => (string) get_the_post_thumbnail_url( $product->get_id(), 'woocommerce_single' ),
+		'description' => mb_substr( trim( wp_strip_all_tags( (string) $product->get_short_description() ?: (string) $product->get_description() ) ), 0, 260 ),
 		'url'       => get_permalink( $product->get_id() ),
 	);
 }

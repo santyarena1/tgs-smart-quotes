@@ -10,6 +10,14 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.20.0' => array(
+			'Modal más grande: tarjetas de 320 px con foto de 104 px, carrusel más lento (se frena al pasar el mouse).',
+			'"Ver todos (N)" por grupo: grilla con toda la categoría o todos los elegidos, con "Volver".',
+			'Vista previa al tocar un producto: foto grande, nombre, descripción corta, precio tachado + con descuento, botón grande "Sumar al carrito con −X%" y link a la ficha.',
+			'Hasta 40 productos por grupo (los elegidos primero) y al menos 12 monitores.',
+			'Celular: el modal es una hoja inferior con scroll, listas deslizables a dedo (sin carrusel automático) y los botones "Ver carrito" / "Finalizar compra" fijos abajo.',
+			'En todas las pantallas el pie con los CTAs queda siempre a la vista; scrollea solo el contenido.',
+		),
 		'2.19.2' => array(
 			'Ajustes: esta lista de novedades con la versión instalada, para verificar cada subida.',
 		),
