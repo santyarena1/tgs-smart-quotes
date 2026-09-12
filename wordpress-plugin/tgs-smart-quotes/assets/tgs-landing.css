@@ -1518,6 +1518,7 @@ body.tgs-up-open { overflow: hidden; }
 .tgs-up__ghead { display: flex; align-items: baseline; gap: 10px; padding: 0 16px 8px; }
 .tgs-up__ghead h3 { margin: 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .tgs-up__ghead span { font-size: 12.5px; color: rgba(248,250,252,.55); }
+.tgs-up__gpct { margin-left: 6px; font-style: normal; background: rgba(227,27,35,.15); border: 1px solid rgba(227,27,35,.5); border-radius: 999px; padding: 1px 9px; vertical-align: middle; font-family: "Rajdhani", "Inter", sans-serif; font-size: 18px; font-weight: 700; color: #E31B23; }
 .tgs-up__viewport { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); }
 .tgs-up__track { display: flex; gap: 12px; width: max-content; padding: 0 12px; animation: tgs-up-marquee linear infinite; }
 .tgs-up__viewport:hover .tgs-up__track, .tgs-up__viewport:focus-within .tgs-up__track { animation-play-state: paused; }

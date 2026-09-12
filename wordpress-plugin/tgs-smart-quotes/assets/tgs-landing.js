@@ -218,17 +218,18 @@
 		var added = {};
 
 		function carousel( group ) {
+			var pct = group.key === 'monitor' ? cfg.monitorDiscountPct : cfg.discountPct;
 			var cards = group.items.map( function ( p ) {
-				var off = cfg.discountPct ? p.price * ( 1 - cfg.discountPct / 100 ) : 0;
+				var off = pct ? p.price * ( 1 - pct / 100 ) : 0;
 				return '<div class="tgs-up__card" data-up-id="' + esc( p.id ) + '">'
 					+ '<a class="tgs-up__media" href="' + esc( p.url ) + '" target="_blank" rel="noopener">' + ( p.image ? '<img src="' + esc( p.image ) + '" alt="" loading="lazy">' : '' ) + '</a>'
 					+ '<div class="tgs-up__body">'
 					+ '<span class="tgs-up__name">' + esc( p.name ) + '</span>'
-					+ ( cfg.discountPct
+					+ ( pct
 						? '<span class="tgs-up__price"><s>' + esc( p.priceHtml ) + '</s> <b>' + esc( money( off ) ) + '</b></span>'
 						: '<span class="tgs-up__price"><b>' + esc( p.priceHtml ) + '</b></span>' )
-					+ '<button type="button" class="tgs-up__add" data-up-add="' + esc( p.id ) + '">'
-					+ ( cfg.discountPct ? 'Sumar con −' + cfg.discountPct + '%' : 'Sumar al carrito' ) + '</button>'
+					+ '<button type="button" class="tgs-up__add" data-up-add="' + esc( p.id ) + '" data-up-kind="' + esc( group.key === 'monitor' ? 'monitor' : 'setup' ) + '" data-up-pct="' + esc( pct ) + '">'
+					+ ( pct ? 'Sumar con −' + pct + '%' : 'Sumar al carrito' ) + '</button>'
 					+ '</div></div>';
 			} ).join( '' );
 			// Carrusel infinito: la tira va duplicada y se desplaza con CSS; con
@@ -238,15 +239,18 @@
 			for ( var i = 0; i < times; i++ ) { track += cards; }
 			var seconds = Math.max( 18, group.items.length * times * 3.2 );
 			return '<section class="tgs-up__group" data-up-group="' + esc( group.key ) + '">'
-				+ '<header class="tgs-up__ghead"><h3>' + esc( group.label ) + '</h3><span>' + esc( group.kicker ) + '</span></header>'
+				+ '<header class="tgs-up__ghead"><h3>' + esc( group.label ) + ( pct ? ' <em class="tgs-up__gpct">−' + pct + '%</em>' : '' ) + '</h3><span>' + esc( group.kicker ) + '</span></header>'
 				+ '<div class="tgs-up__viewport"><div class="tgs-up__track" style="animation-duration:' + seconds + 's">' + track + '</div></div>'
 				+ '</section>';
 		}
 
 		function build( hasMonitor ) {
 			var pct = cfg.discountPct;
-			var text = ( cfg.text || '' ).replace( /\{\{\s*descuento\s*\}\}/g, String( pct ) );
-			var noMon = ( cfg.noMonitorText || '' ).replace( /\{\{\s*descuento\s*\}\}/g, String( pct ) );
+			var fill = function ( s ) {
+				return ( s || '' ).replace( /\{\{\s*descuento_monitor\s*\}\}/g, String( cfg.monitorDiscountPct || 0 ) ).replace( /\{\{\s*descuento\s*\}\}/g, String( pct ) );
+			};
+			var text = fill( cfg.text );
+			var noMon = fill( cfg.noMonitorText );
 			var groups = cfg.groups.slice();
 			if ( ! hasMonitor && cfg.monitors ) { groups.unshift( cfg.monitors ); }
 			var html = '<div class="tgs-up" role="dialog" aria-modal="true" aria-label="Completá tu setup">'
@@ -277,7 +281,7 @@
 			modal.addEventListener( 'click', function ( e ) {
 				if ( e.target === modal || e.target.closest( '[data-up-close]' ) ) { close(); return; }
 				var btn = e.target.closest( '[data-up-add]' );
-				if ( btn ) { addUpsell( btn.getAttribute( 'data-up-add' ) ); }
+				if ( btn ) { addUpsell( btn.getAttribute( 'data-up-add' ), btn.getAttribute( 'data-up-kind' ), btn.getAttribute( 'data-up-pct' ) ); }
 			} );
 			document.addEventListener( 'keydown', onKey );
 			updateCount();
@@ -293,20 +297,21 @@
 		function updateCount() {
 			var n = Object.keys( added ).length;
 			var el = modal && modal.querySelector( '[data-up-count]' );
-			if ( el ) { el.textContent = n ? ( n === 1 ? '1 producto sumado' : n + ' productos sumados' ) + ( cfg.discountPct ? ' con −' + cfg.discountPct + '%' : '' ) : ''; }
+			if ( el ) { el.textContent = n ? ( n === 1 ? '1 producto sumado con descuento' : n + ' productos sumados con descuento' ) : ''; }
 		}
 		function markAdded( id, state ) {
 			var buttons = modal.querySelectorAll( '[data-up-add="' + id + '"]' );
 			for ( var i = 0; i < buttons.length; i++ ) {
+				var pct = Number( buttons[ i ].getAttribute( 'data-up-pct' ) ) || 0;
 				buttons[ i ].disabled = state !== 'idle';
 				buttons[ i ].classList.toggle( 'is-added', state === 'added' );
-				buttons[ i ].textContent = state === 'busy' ? 'Sumando…' : state === 'added' ? '✓ En el carrito' : ( cfg.discountPct ? 'Sumar con −' + cfg.discountPct + '%' : 'Sumar al carrito' );
+				buttons[ i ].textContent = state === 'busy' ? 'Sumando…' : state === 'added' ? '✓ En el carrito' : ( pct ? 'Sumar con −' + pct + '%' : 'Sumar al carrito' );
 			}
 		}
-		function addUpsell( id ) {
+		function addUpsell( id, kind ) {
 			if ( added[ id ] ) { return; }
 			markAdded( id, 'busy' );
-			addToCart( id, { tgs_upsell: cfg.variant } )
+			addToCart( id, { tgs_upsell: cfg.variant, tgs_upsell_kind: kind || 'setup' } )
 				.then( function () { added[ id ] = true; markAdded( id, 'added' ); updateCount(); } )
 				.catch( function () { markAdded( id, 'idle' ); } );
 		}

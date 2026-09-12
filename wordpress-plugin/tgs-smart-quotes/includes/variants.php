@@ -107,9 +107,10 @@ function tgs_sq_default_extra() {
 		// Modal "Completá tu setup" después de agregar al carrito (ver upsell.php).
 		'upsell_enabled'           => true,
 		'upsell_discount_pct'      => 10,
+		'upsell_monitor_discount_pct' => 5,
 		'upsell_headline'          => 'Pssst… ¡ya está en tu carrito! 🎉',
 		'upsell_text'              => 'Ahora que estamos: si sumás un teclado, un mouse o auriculares en este mismo paso, te llevás {{descuento}}% de descuento en cualquiera de estos. Después de esta pantalla, el descuento se va.',
-		'upsell_no_monitor_text'   => 'Ya sé, ya sé: tenés monitor y "no necesitás otro". Pero mirá igual los que tenemos, porque a este precio y con {{descuento}}% extra no vas a encontrar uno mejor en ningún lado.',
+		'upsell_no_monitor_text'   => 'Ya sé, ya sé: tenés monitor y "no necesitás otro". Pero mirá igual los que tenemos, porque a este precio y con {{descuento_monitor}}% extra no vas a encontrar uno mejor en ningún lado.',
 		'upsell_keyboard_category' => 0,
 		'upsell_keyboard_products' => array(),
 		'upsell_mouse_category'    => 0,

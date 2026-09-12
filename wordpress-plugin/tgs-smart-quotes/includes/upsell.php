@@ -62,50 +62,20 @@ function tgs_sq_upsell_group_products( array $extra, $group, $count = 12 ) {
 	return array_slice( $products, 0, $count );
 }
 
-function tgs_sq_upsell_coupon_code( $variant_slug ) {
-	return 'TGS-SETUP-' . strtoupper( preg_replace( '/[^a-z0-9]/i', '', (string) $variant_slug ) ?: 'DEFAULT' );
+/** Cupón de periféricos (kind 'setup') o de monitores (kind 'monitor'). */
+function tgs_sq_upsell_coupon_code( $variant_slug, $kind = 'setup' ) {
+	return ( 'monitor' === $kind ? 'TGS-MONITOR-' : 'TGS-SETUP-' ) . strtoupper( preg_replace( '/[^a-z0-9]/i', '', (string) $variant_slug ) ?: 'DEFAULT' );
 }
 
-/**
- * Crea o actualiza el cupón del modal para una variante: porcentaje sobre
- * los productos/categorías del modal (más los monitores), sin límite de
- * usos, no publicado en ningún lado. Si el descuento es 0 se deja
- * inactivo (papelera).
- */
-function tgs_sq_upsell_ensure_coupon( array $variant ) {
-	if ( ! class_exists( 'WC_Coupon' ) ) {
-		return '';
-	}
-	$extra = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
-	$code  = tgs_sq_upsell_coupon_code( $variant['slug'] ?? 'default' );
-	$pct   = max( 0, min( 90, (int) ( $extra['upsell_discount_pct'] ?? 0 ) ) );
-	$id    = wc_get_coupon_id_by_code( $code );
-	if ( ! $pct ) {
+/** Crea/actualiza un cupón porcentual restringido a productos/categorías; lo desactiva si pct = 0. */
+function tgs_sq_upsell_write_coupon( $code, $pct, array $product_ids, array $categories, $description ) {
+	$id = wc_get_coupon_id_by_code( $code );
+	$product_ids = array_values( array_unique( array_filter( array_map( 'absint', $product_ids ) ) ) );
+	$categories  = array_values( array_unique( array_filter( array_map( 'absint', $categories ) ) ) );
+	if ( ! $pct || ( ! $product_ids && ! $categories ) ) {
 		if ( $id ) {
 			wp_trash_post( $id );
 		}
-		return '';
-	}
-	$product_ids = array();
-	$categories  = array();
-	foreach ( array_keys( tgs_sq_upsell_groups() ) as $group ) {
-		$product_ids = array_merge( $product_ids, array_map( 'absint', (array) ( $extra[ "upsell_{$group}_products" ] ?? array() ) ) );
-		if ( ! empty( $extra[ "upsell_{$group}_category" ] ) ) {
-			$categories[] = (int) $extra[ "upsell_{$group}_category" ];
-		}
-	}
-	// Monitores: los de la variante o los de Ajustes, con su categoría.
-	if ( 'custom' === ( $extra['monitors_source'] ?? 'settings' ) ) {
-		$product_ids = array_merge( $product_ids, array_map( 'absint', (array) ( $extra['monitors_products'] ?? array() ) ) );
-	} else {
-		$product_ids = array_merge( $product_ids, tgs_sq_monitor_product_ids() );
-		if ( tgs_sq_monitor_category_id() ) {
-			$categories[] = tgs_sq_monitor_category_id();
-		}
-	}
-	$product_ids = array_values( array_unique( array_filter( $product_ids ) ) );
-	$categories  = array_values( array_unique( array_filter( $categories ) ) );
-	if ( ! $product_ids && ! $categories ) {
 		return '';
 	}
 	$coupon = new WC_Coupon( $id ?: 0 );
@@ -120,9 +90,51 @@ function tgs_sq_upsell_ensure_coupon( array $variant ) {
 	$coupon->set_individual_use( false );
 	$coupon->set_exclude_sale_items( false );
 	$coupon->set_usage_limit( 0 );
-	$coupon->set_description( 'Cupón automático de TGS Smart Quotes: descuento del modal "Completá tu setup" (variante ' . ( $variant['name'] ?? $variant['slug'] ?? '' ) . '). No lo edites: se regenera al guardar la variante.' );
+	$coupon->set_description( $description );
 	$coupon->save();
 	return $code;
+}
+
+/**
+ * Crea o actualiza el cupón del modal para una variante: porcentaje sobre
+ * los productos/categorías del modal (más los monitores), sin límite de
+ * usos, no publicado en ningún lado. Si el descuento es 0 se deja
+ * inactivo (papelera).
+ */
+function tgs_sq_upsell_ensure_coupon( array $variant, $kind = 'setup' ) {
+	if ( ! class_exists( 'WC_Coupon' ) ) {
+		return '';
+	}
+	$extra = wp_parse_args( $variant['extra'] ?? array(), tgs_sq_default_extra() );
+	$slug  = $variant['slug'] ?? 'default';
+	$name  = $variant['name'] ?? $slug;
+	$note  = 'Cupón automático de TGS Smart Quotes (variante ' . $name . '). No lo edites: se regenera al guardar la variante.';
+	if ( 'monitor' === $kind ) {
+		$pct = max( 0, min( 90, (int) ( $extra['upsell_monitor_discount_pct'] ?? 0 ) ) );
+		if ( 'custom' === ( $extra['monitors_source'] ?? 'settings' ) ) {
+			$ids  = (array) ( $extra['monitors_products'] ?? array() );
+			$cats = array();
+		} else {
+			$ids  = tgs_sq_monitor_product_ids();
+			$cats = array( tgs_sq_monitor_category_id() );
+		}
+		return tgs_sq_upsell_write_coupon( tgs_sq_upsell_coupon_code( $slug, 'monitor' ), $pct, $ids, $cats, 'Descuento de monitores del modal "Completá tu setup". ' . $note );
+	}
+	$pct = max( 0, min( 90, (int) ( $extra['upsell_discount_pct'] ?? 0 ) ) );
+	$ids  = array();
+	$cats = array();
+	foreach ( array_keys( tgs_sq_upsell_groups() ) as $group ) {
+		$ids = array_merge( $ids, (array) ( $extra[ "upsell_{$group}_products" ] ?? array() ) );
+		if ( ! empty( $extra[ "upsell_{$group}_category" ] ) ) {
+			$cats[] = (int) $extra[ "upsell_{$group}_category" ];
+		}
+	}
+	return tgs_sq_upsell_write_coupon( tgs_sq_upsell_coupon_code( $slug, 'setup' ), $pct, $ids, $cats, 'Descuento de periféricos del modal "Completá tu setup". ' . $note );
+}
+
+/** Los dos cupones de una variante (periféricos y monitores). */
+function tgs_sq_upsell_ensure_coupons( array $variant ) {
+	return array_filter( array( tgs_sq_upsell_ensure_coupon( $variant, 'setup' ), tgs_sq_upsell_ensure_coupon( $variant, 'monitor' ) ) );
 }
 
 /**
@@ -147,9 +159,15 @@ function tgs_sq_upsell_data( array $d, $variant_slug ) {
 	if ( ! $groups && ! $monitors ) {
 		return null;
 	}
-	$coupon = $pct ? tgs_sq_upsell_coupon_code( $variant_slug ) : '';
+	$variant     = tgs_sq_get_variant( $variant_slug ) ?: array( 'slug' => $variant_slug, 'extra' => $extra );
+	$coupon      = $pct ? tgs_sq_upsell_coupon_code( $variant_slug, 'setup' ) : '';
 	if ( $coupon && ! wc_get_coupon_id_by_code( $coupon ) ) {
-		$coupon = tgs_sq_upsell_ensure_coupon( tgs_sq_get_variant( $variant_slug ) ?: array( 'slug' => $variant_slug, 'extra' => $extra ) );
+		$coupon = tgs_sq_upsell_ensure_coupon( $variant, 'setup' );
+	}
+	$monitor_pct    = max( 0, min( 90, (int) ( $extra['upsell_monitor_discount_pct'] ?? 0 ) ) );
+	$monitor_coupon = $monitor_pct ? tgs_sq_upsell_coupon_code( $variant_slug, 'monitor' ) : '';
+	if ( $monitor_coupon && ! wc_get_coupon_id_by_code( $monitor_coupon ) ) {
+		$monitor_coupon = tgs_sq_upsell_ensure_coupon( $variant, 'monitor' );
 	}
 	return array(
 		'ajaxUrl'       => WC_AJAX::get_endpoint( 'add_to_cart' ),
@@ -158,6 +176,7 @@ function tgs_sq_upsell_data( array $d, $variant_slug ) {
 		'productId'     => (int) $d['product_id'],
 		'variant'       => (string) $variant_slug,
 		'discountPct'   => $coupon ? $pct : 0,
+		'monitorDiscountPct' => $monitor_coupon ? $monitor_pct : 0,
 		'headline'      => (string) ( $extra['upsell_headline'] ?? '' ),
 		'text'          => (string) ( $extra['upsell_text'] ?? '' ),
 		'noMonitorText' => (string) ( $extra['upsell_no_monitor_text'] ?? '' ),
@@ -194,16 +213,18 @@ function tgs_sq_upsell_data_html( array $d, $variant_slug ) {
  */
 add_action( 'woocommerce_add_to_cart', function () {
 	$variant_slug = sanitize_title( wp_unslash( $_REQUEST['tgs_upsell'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$kind         = 'monitor' === ( $_REQUEST['tgs_upsell_kind'] ?? '' ) ? 'monitor' : 'setup'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( '' === $variant_slug || ! WC()->cart ) {
 		return;
 	}
 	$variant = tgs_sq_get_variant( $variant_slug );
-	if ( ! $variant || empty( $variant['extra']['upsell_enabled'] ) || empty( $variant['extra']['upsell_discount_pct'] ) ) {
+	$pct_key = 'monitor' === $kind ? 'upsell_monitor_discount_pct' : 'upsell_discount_pct';
+	if ( ! $variant || empty( $variant['extra']['upsell_enabled'] ) || empty( $variant['extra'][ $pct_key ] ) ) {
 		return;
 	}
-	$code = tgs_sq_upsell_coupon_code( $variant_slug );
+	$code = tgs_sq_upsell_coupon_code( $variant_slug, $kind );
 	if ( ! wc_get_coupon_id_by_code( $code ) ) {
-		$code = tgs_sq_upsell_ensure_coupon( $variant );
+		$code = tgs_sq_upsell_ensure_coupon( $variant, $kind );
 	}
 	if ( $code && ! WC()->cart->has_discount( $code ) ) {
 		WC()->cart->apply_coupon( $code );

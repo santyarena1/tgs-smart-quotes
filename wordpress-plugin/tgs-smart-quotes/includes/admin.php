@@ -893,6 +893,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'monitors_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['variant_monitor_products'] ?? array() ) ) ) ),
 				'upsell_enabled'           => ! empty( $_POST['upsell_enabled'] ),
 				'upsell_discount_pct'      => max( 0, min( 90, (int) ( $_POST['upsell_discount_pct'] ?? 0 ) ) ),
+				'upsell_monitor_discount_pct' => max( 0, min( 90, (int) ( $_POST['upsell_monitor_discount_pct'] ?? 0 ) ) ),
 				'upsell_headline'          => sanitize_text_field( wp_unslash( $_POST['upsell_headline'] ?? '' ) ),
 				'upsell_text'              => sanitize_textarea_field( wp_unslash( $_POST['upsell_text'] ?? '' ) ),
 				'upsell_no_monitor_text'   => sanitize_textarea_field( wp_unslash( $_POST['upsell_no_monitor_text'] ?? '' ) ),
@@ -910,8 +911,8 @@ function tgs_sq_render_variant_editor( $slug ) {
 
 		tgs_sq_save_variant( $variant );
 		// El cupón del modal se regenera con lo recién guardado.
-		$coupon = tgs_sq_upsell_ensure_coupon( tgs_sq_get_variant( $posted_slug ) ?: $variant );
-		echo '<div class="notice notice-success"><p>Variante guardada.' . ( $coupon ? ' Cupón del modal: <code>' . esc_html( $coupon ) . '</code>.' : '' ) . '</p></div>';
+		$coupons = tgs_sq_upsell_ensure_coupons( tgs_sq_get_variant( $posted_slug ) ?: $variant );
+		echo '<div class="notice notice-success"><p>Variante guardada.' . ( $coupons ? ' Cupones del modal: <code>' . esc_html( implode( '</code>, <code>', $coupons ) ) . '</code>.' : '' ) . '</p></div>';
 		$slug    = $posted_slug;
 		$variant = tgs_sq_get_variant( $slug );
 	}
@@ -1239,7 +1240,15 @@ function tgs_sq_render_variant_editor( $slug ) {
 									<input type="number" id="upsell_discount_pct" name="upsell_discount_pct" value="<?php echo esc_attr( (int) ( $extra['upsell_discount_pct'] ?? 0 ) ); ?>" min="0" max="90">
 									<span class="tgs-suffix">%</span>
 								</div>
-								<p class="description">0 = sin descuento (el modal igual se muestra). Se aplica solo a lo que se suma desde el modal.</p>
+								<p class="description">Para teclados, mouse y auriculares. 0 = sin descuento (el modal igual se muestra). Se aplica solo a lo que se suma desde el modal.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="upsell_monitor_discount_pct">Descuento para monitores (si no eligió uno)</label>
+								<div class="tgs-inputgroup">
+									<input type="number" id="upsell_monitor_discount_pct" name="upsell_monitor_discount_pct" value="<?php echo esc_attr( (int) ( $extra['upsell_monitor_discount_pct'] ?? 0 ) ); ?>" min="0" max="90">
+									<span class="tgs-suffix">%</span>
+								</div>
+								<p class="description">Cupón aparte, solo para los monitores del modal. <code>{{descuento_monitor}}</code> en los textos.</p>
 							</div>
 							<div class="tgs-field">
 								<label for="upsell_headline">Título del modal</label>
@@ -1248,7 +1257,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 							<div class="tgs-field tgs-field--wide">
 								<label for="upsell_text">Texto (con monitor elegido o sin monitores para ofrecer)</label>
 								<textarea id="upsell_text" name="upsell_text" rows="2"><?php echo esc_textarea( $extra['upsell_text'] ?? '' ); ?></textarea>
-								<p class="description"><code>{{descuento}}</code> se reemplaza por el porcentaje.</p>
+								<p class="description"><code>{{descuento}}</code> = descuento de periféricos, <code>{{descuento_monitor}}</code> = descuento de monitores.</p>
 							</div>
 							<div class="tgs-field tgs-field--wide">
 								<label for="upsell_no_monitor_text">Texto extra si NO eligió monitor</label>
