@@ -1513,9 +1513,9 @@ body.tgs-up-open { overflow: hidden; }
 	animation: tgs-up-pulse 1.8s ease-in-out infinite;
 }
 .tgs-up__badge small { font-size: 9px; font-family: "Inter", sans-serif; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-top: 2px; }
-.tgs-up__groups { display: grid; gap: 8px; margin-top: 12px; }
-.tgs-up__group { border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: rgba(255,255,255,.025); padding: 8px 0 8px; }
-.tgs-up__ghead { display: flex; align-items: baseline; gap: 10px; padding: 0 14px 6px; }
+.tgs-up__groups { display: grid; gap: 6px; margin-top: 10px; }
+.tgs-up__group { border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: rgba(255,255,255,.025); padding: 6px 0 4px; }
+.tgs-up__ghead { display: flex; align-items: baseline; gap: 10px; padding: 0 14px 2px; }
 .tgs-up__ghead h3 { margin: 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .tgs-up__ghead span { font-size: 12px; color: rgba(248,250,252,.55); }
 .tgs-up__gpct { margin-left: 6px; font-size: 14px; font-style: normal; background: rgba(227,27,35,.15); border: 1px solid rgba(227,27,35,.5); border-radius: 999px; padding: 1px 9px; vertical-align: middle; font-family: "Rajdhani", "Inter", sans-serif; font-size: 18px; font-weight: 700; color: #E31B23; }

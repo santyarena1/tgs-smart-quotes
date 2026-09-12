@@ -198,7 +198,7 @@ function tgs_sq_upsell_item( $product, $featured_id = 0 ) {
 		'featured'  => $featured_id && (int) $product->get_id() === (int) $featured_id,
 		'name'      => $product->get_name(),
 		'price'     => $price,
-		'priceHtml' => wp_strip_all_tags( wc_price( $price ) ),
+		'priceHtml' => html_entity_decode( wp_strip_all_tags( wc_price( $price, array( 'decimals' => 0 ) ) ), ENT_QUOTES, 'UTF-8' ),
 		'image'     => (string) get_the_post_thumbnail_url( $product->get_id(), 'woocommerce_thumbnail' ),
 		'url'       => get_permalink( $product->get_id() ),
 	);

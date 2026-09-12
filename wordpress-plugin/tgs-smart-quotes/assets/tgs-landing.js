@@ -1,6 +1,19 @@
 (function () {
 	'use strict';
 
+	// Arranque robusto: en este sitio otro script frena DOMContentLoaded con
+	// stopImmediatePropagation() y los handlers registrados después nunca
+	// corrían (el modal no abría). Se corre ya si el DOM está parseado y, si
+	// no, se escucha DOMContentLoaded Y window.load, con un solo disparo.
+	function ready( fn ) {
+		var done = false;
+		function run() { if ( ! done ) { done = true; fn(); } }
+		if ( document.readyState !== 'loading' ) { run(); return; }
+		document.addEventListener( 'DOMContentLoaded', run );
+		window.addEventListener( 'load', run );
+		setTimeout( function () { if ( document.readyState !== 'loading' ) { run(); } }, 1500 );
+	}
+
 	// Corrige el alto del spacer del header fijo con la medida real
 	// (el CSS trae un valor fallback para el primer pintado).
 	function fixHeaderSpacer() {
@@ -17,7 +30,7 @@
 
 	// Visor de fotos: se abre al tocar la foto del hero o la de un componente.
 	// Las fotos salen del JSON que imprime el plugin (#tgs-gallery-data).
-	document.addEventListener( 'DOMContentLoaded', function () {
+	ready( function () {
 		var dataEl = document.getElementById( 'tgs-gallery-data' );
 		if ( ! dataEl ) {
 			return;
@@ -114,7 +127,7 @@
 	// "Sumale un monitor": elegir uno lo deja anotado en el campo oculto del
 	// formulario de compra y en los links ?add-to-cart= (barra flotante), así
 	// el servidor lo suma al carrito junto con la PC. Tocar el elegido lo saca.
-	document.addEventListener( 'DOMContentLoaded', function () {
+	ready( function () {
 		var section = document.querySelector( '[data-tgs-monitors]' );
 		if ( ! section ) {
 			return;
@@ -175,7 +188,7 @@
 	// por AJAX y recién ahí se abre el modal con los carruseles (ver
 	// includes/upsell.php). Si el AJAX falla, el formulario sigue su curso
 	// normal, así nunca se pierde una venta por el modal.
-	document.addEventListener( 'DOMContentLoaded', function () {
+	ready( function () {
 		var dataEl = document.getElementById( 'tgs-upsell-data' );
 		if ( ! dataEl || ! window.fetch ) { return; }
 		var cfg;
@@ -207,7 +220,7 @@
 					if ( ! json || json.error ) { throw new Error( 'add_to_cart_failed' ); }
 					// Actualiza el mini-carrito del tema (si usa los fragments de Woo).
 					if ( window.jQuery && json.fragments ) {
-						window.jQuery( document.body ).trigger( 'added_to_cart', [ json.fragments, json.cart_hash ] );
+						try { window.jQuery( document.body ).trigger( 'added_to_cart', [ json.fragments, json.cart_hash ] ); } catch ( e ) { /* un handler del tema no puede frenar el modal */ }
 					}
 					return json;
 				} );
@@ -328,8 +341,21 @@
 			var buttons = document.querySelectorAll( 'form.cart button[type="submit"], .tgs-sticky a.button' );
 			for ( var i = 0; i < buttons.length; i++ ) { buttons[ i ].classList.add( 'is-loading' ); }
 			addToCart( cfg.productId, { tgs_addon_monitor: monitor } )
-				.then( function () { busy = false; build( Boolean( monitor ) ); } )
-				.catch( function () { busy = false; fallback(); } )
+				.then( function () {
+					busy = false;
+					// Ya está en el carrito: si el modal fallara por lo que sea, no se
+					// vuelve a agregar (nada de reenviar el formulario): se va al carrito.
+					try {
+						build( Boolean( monitor ) );
+					} catch ( err ) {
+						if ( window.console ) { console.error( 'tgs upsell modal', err ); }
+						window.location.href = cfg.cartUrl;
+					}
+				}, function ( err ) {
+					busy = false;
+					if ( window.console ) { console.warn( 'tgs upsell add_to_cart', err ); }
+					fallback();
+				} )
 				.then( function () { for ( var j = 0; j < buttons.length; j++ ) { buttons[ j ].classList.remove( 'is-loading' ); } } );
 		}
 		var forms = document.querySelectorAll( 'form.cart' );
@@ -355,10 +381,10 @@
 
 	window.addEventListener( 'load', fixHeaderSpacer );
 	window.addEventListener( 'resize', fixHeaderSpacer );
-	document.addEventListener( 'DOMContentLoaded', fixHeaderSpacer );
+	ready( fixHeaderSpacer );
 
 	// Barra flotante de compra (mobile): aparece después de scrollear el hero.
-	document.addEventListener( 'DOMContentLoaded', function () {
+	ready( function () {
 		var sticky = document.querySelector( '.tgs-sticky' );
 		var hero = document.querySelector( '.tgs-hero' );
 		if ( ! sticky || ! hero || typeof IntersectionObserver === 'undefined' ) {
