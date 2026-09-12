@@ -217,6 +217,7 @@ function tgs_sq_page_settings() {
 		?>
 
 		<div class="tgs-cards">
+			<?php tgs_sq_changelog_card(); ?>
 			<form method="post">
 				<?php wp_nonce_field( 'tgs_sq_settings', 'tgs_sq_settings_nonce' ); ?>
 				<div class="tgs-card">

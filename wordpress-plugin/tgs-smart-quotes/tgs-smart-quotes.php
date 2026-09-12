@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.19.1
+ * Version: 2.19.2
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.19.1' );
+define( 'TGS_SQ_VERSION', '2.19.2' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -72,6 +72,7 @@ require_once TGS_SQ_DIR . 'includes/render.php';
 require_once TGS_SQ_DIR . 'includes/admin.php';
 require_once TGS_SQ_DIR . 'includes/guard.php';
 require_once TGS_SQ_DIR . 'includes/upsell.php';
+require_once TGS_SQ_DIR . 'includes/changelog.php';
 
 /**
  * Aviso si WooCommerce no está activo: el plugin no puede hacer nada sin él.
