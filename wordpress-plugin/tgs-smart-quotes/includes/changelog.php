@@ -10,6 +10,11 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.21.0' => array(
+			'Modal: carrusel con flechas en las puntas de cada fila (en PC avanza solo de a uno cada 3,5 s y las flechas saltan una página; en celular no avanza solo y las flechas pasan de a un producto), contador "1 / N" y vuelta al principio al llegar al final. Se fue la cinta automática que en celular unificaba las filas.',
+			'Barra de compra con monitor elegido: el precio grande pasa a ser el total (PC + monitor) y las cuotas se recalculan; arriba aparece una mini barra con "PC $X + Monitor $Y = Total $Z · N cuotas de $Q" (en celular solo "Con monitor: nombre"). Al quitar el monitor vuelve todo.',
+			'Modal: contenido más grande (tarjetas de 380 px, foto 132 px, textos y botones más grandes) y el degradado del carrusel solo a la derecha (el "más elegido" ya no queda tapado).',
+		),
 		'2.20.1' => array(
 			'ARREGLO: con un monitor elegido, el modal igual ofrecía monitores y el monitor no entraba al carrito. Causa: en el diseño propio {{boton_carrito}} salía vacío (Woo no tenía el producto en contexto), así que no existía el campo del monitor. Ahora el botón de compra se imprime siempre y el modal lee el monitor marcado en la sección.',
 		),

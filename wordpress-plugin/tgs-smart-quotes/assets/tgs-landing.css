@@ -1068,6 +1068,26 @@ body.tgs-lightbox-open { overflow: hidden; }
 }
 .tgs-landing .tgs-monitors-summary strong { color: var(--tgs-accent); }
 
+/* Mini barra "PC + monitor" arriba de la barra de compra. */
+.tgs-minibar {
+	display: block; width: 100%; padding: 6px 16px; font-size: 13px; line-height: 1.35; color: #fff;
+	background: linear-gradient(90deg, rgba(227,27,35,.28), rgba(227,27,35,.08)); border-bottom: 1px solid rgba(227,27,35,.45);
+	animation: tgs-minibar-in .3s ease both;
+}
+.tgs-minibar__full { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tgs-minibar__full b { font-weight: 700; }
+.tgs-minibar__full i { font-style: normal; color: rgba(255,255,255,.55); margin: 0 4px; }
+.tgs-minibar__full strong { font-weight: 800; color: #fff; }
+.tgs-minibar__full em { font-style: normal; color: #fbbf24; font-weight: 700; }
+.tgs-minibar__short { display: none; font-size: 12px; }
+.tgs-landing .tgs-sticky .tgs-minibar { margin: 0 0 6px; }
+@keyframes tgs-minibar-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 720px) {
+	.tgs-minibar { padding: 4px 12px; }
+	.tgs-minibar__full { display: none; }
+	.tgs-minibar__short { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
 /* ==========================================================================
    FINANCIACIÓN DETALLADA ({{cuotas_detalle}})
    ========================================================================== */
@@ -1519,7 +1539,7 @@ body.tgs-up-open { overflow: hidden; }
 .tgs-up__ghead h3 { margin: 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .tgs-up__ghead span { font-size: 12px; color: rgba(248,250,252,.55); }
 .tgs-up__gpct { margin-left: 6px; font-size: 14px; font-style: normal; background: rgba(227,27,35,.15); border: 1px solid rgba(227,27,35,.5); border-radius: 999px; padding: 1px 9px; vertical-align: middle; font-family: "Rajdhani", "Inter", sans-serif; font-size: 18px; font-weight: 700; color: #E31B23; }
-.tgs-up__viewport { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); }
+.tgs-up__viewport { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 0, #000 96%, transparent); mask-image: linear-gradient(90deg, #000 0, #000 96%, transparent); }
 .tgs-up__track { display: flex; gap: 10px; width: max-content; padding: 12px 12px 4px; animation: tgs-up-marquee linear infinite; }
 .tgs-up__viewport:hover .tgs-up__track, .tgs-up__viewport:focus-within .tgs-up__track { animation-play-state: paused; }
 /* Tarjeta horizontal y baja: foto a la izquierda, datos y botón a la derecha,
@@ -1731,3 +1751,72 @@ body.tgs-up-open { overflow: hidden; }
 	.tgs-up__ghead .tgs-up__all { order: 2; margin-left: auto; }
 	.tgs-up__ghead span { order: 3; }
 }
+
+/* ---- Modal: contenido más grande (v2.21) ---- */
+.tgs-up__box { width: min(1400px, 100%); }
+.tgs-up__title { font-size: clamp(26px, 3vw, 38px); }
+.tgs-up__text { font-size: 15.5px; max-width: 900px; }
+.tgs-up__ghead h3 { font-size: 24px; }
+.tgs-up__ghead span { font-size: 14px; }
+.tgs-up__gpct { font-size: 16px; }
+.tgs-up__all { font-size: 14px; padding: 8px 14px; }
+.tgs-up__track { gap: 14px; padding: 16px 16px 8px; }
+.tgs-up__card { flex: 0 0 380px; gap: 14px; padding: 12px; }
+.tgs-up__media { flex: 0 0 132px; width: 132px; height: 132px; border-radius: 12px; }
+.tgs-up__name { font-size: 15px; line-height: 1.25; min-height: 2.5em; }
+.tgs-up__price s { font-size: 13px; }
+.tgs-up__price b { font-size: 21px; }
+.tgs-up__actions .tgs-up__add { padding: 11px 12px; font-size: 14px; border-radius: 10px; }
+.tgs-up__peek { padding: 11px 12px; font-size: 13px; }
+.tgs-up__star { font-size: 11px; padding: 3px 10px; }
+.tgs-up__grid { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+.tgs-up__btn { padding: 12px 20px; font-size: 15px; }
+@media (max-width: 720px) {
+	.tgs-up__card { flex-basis: 82vw; max-width: 380px; }
+	.tgs-up__media { flex-basis: 96px; width: 96px; height: 96px; }
+	.tgs-up__name { font-size: 13.5px; }
+	.tgs-up__grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Carrusel con flechas (reemplaza la cinta automática) ---- */
+.tgs-up__row { position: relative; display: flex; align-items: center; gap: 6px; padding: 0 6px; }
+.tgs-up__viewport {
+	flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
+	scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none;
+	-webkit-mask-image: none !important; mask-image: none !important;
+}
+.tgs-up__viewport::-webkit-scrollbar { display: none; }
+.tgs-up__track { animation: none !important; width: max-content; padding: 14px 4px 8px; }
+.tgs-up__card { scroll-snap-align: start; }
+.tgs-up__arrow {
+	all: unset; cursor: pointer; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+	display: grid; place-items: center; font-size: 30px; line-height: 1; font-weight: 700; color: #fff;
+	background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+	transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.tgs-up__arrow:hover { background: #E31B23; border-color: #E31B23; transform: scale(1.06); }
+.tgs-up__pos { margin-left: auto; font-size: 12.5px; font-weight: 700; color: rgba(248,250,252,.55); letter-spacing: .04em; }
+.tgs-up__ghead .tgs-up__all { margin-left: 10px; }
+@media (max-width: 720px) {
+	.tgs-up__row { padding: 0; gap: 4px; }
+	.tgs-up__arrow { width: 36px; height: 36px; font-size: 26px; }
+	.tgs-up__viewport { scroll-snap-type: x mandatory; }
+	.tgs-up__card { flex-basis: calc(100vw - 118px); max-width: none; }
+	.tgs-up__group { padding: 8px 0 6px; }
+	.tgs-up__ghead { padding: 0 10px 4px; }
+	.tgs-up__ghead h3 { font-size: 18px; order: 1; }
+	.tgs-up__ghead .tgs-up__pos { order: 2; margin-left: auto; }
+	.tgs-up__ghead .tgs-up__all { order: 3; margin-left: 0; font-size: 12px; padding: 5px 10px; }
+	.tgs-up__ghead span { order: 4; flex-basis: 100%; font-size: 12px; }
+}
+@media (max-width: 720px) {
+	.tgs-up__ghead { flex-wrap: nowrap; align-items: center; gap: 8px; }
+	.tgs-up__ghead span:not(.tgs-up__pos) { display: none; }
+	.tgs-up__ghead .tgs-up__pos { order: 2; margin-left: auto; white-space: nowrap; }
+	.tgs-up__ghead .tgs-up__all { order: 3; white-space: nowrap; }
+	.tgs-up__card { flex: 0 0 auto; }
+}
+/* Sin esto la grilla de grupos se ensanchaba al ancho de la tira (min-width auto). */
+.tgs-up, .tgs-up * { box-sizing: border-box; }
+.tgs-up__groups { grid-template-columns: minmax(0, 1fr); }
+.tgs-up__group, .tgs-up__row, .tgs-up__viewport { min-width: 0; max-width: 100%; }

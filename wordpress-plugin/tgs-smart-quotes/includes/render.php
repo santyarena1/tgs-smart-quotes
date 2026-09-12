@@ -854,8 +854,13 @@ function tgs_sq_monitors_html( array $d ) {
 	}
 	$title    = $d['extra']['monitors_title'] ?? 'Sumale un monitor';
 	$pc_price = (float) $d['product']->get_price();
+	// Datos para la mini barra "PC + monitor": precio de lista (base de las
+	// cuotas) y el mejor plan, para recalcular "N cuotas de $X" con el total.
+	$best     = tgs_sq_best_installment_plan( $d['installments'] );
+	$pc_list  = $d['price_list'] > 0 ? $d['price_list'] / 100 : $pc_price;
 	ob_start();
-	echo '<section class="tgs-section-card tgs-monitors" data-tgs-monitors data-pc-price="' . esc_attr( $pc_price ) . '" data-currency="' . esc_attr( get_woocommerce_currency() ) . '">';
+	echo '<section class="tgs-section-card tgs-monitors" data-tgs-monitors data-pc-price="' . esc_attr( $pc_price ) . '" data-pc-list="' . esc_attr( $pc_list ) . '" data-pc-title="' . esc_attr( $d['title'] ) . '" data-currency="' . esc_attr( get_woocommerce_currency() ) . '"'
+		. ( $best ? ' data-best-n="' . (int) $best['installments'] . '" data-best-bps="' . (int) ( $best['interestBps'] ?? 0 ) . '" data-best-bank="' . esc_attr( (string) ( $best['bank'] ?? '' ) ) . '"' : '' ) . '>';
 	echo '<h2>' . esc_html( $title ) . '</h2>';
 	echo '<p class="tgs-monitors-lead">Elegí uno y se agrega al carrito junto con la PC. Tocalo de nuevo para sacarlo.</p>';
 	echo '<div class="tgs-monitors-grid">';

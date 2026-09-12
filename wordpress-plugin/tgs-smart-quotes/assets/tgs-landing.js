@@ -137,7 +137,16 @@
 		var summaryName = section.querySelector( '[data-monitor-summary-name]' );
 		var summaryTotal = section.querySelector( '[data-monitor-summary-total]' );
 		var pcPrice = parseFloat( section.getAttribute( 'data-pc-price' ) ) || 0;
+		var pcList = parseFloat( section.getAttribute( 'data-pc-list' ) ) || pcPrice;
+		var pcTitle = section.getAttribute( 'data-pc-title' ) || 'PC';
+		var bestN = parseInt( section.getAttribute( 'data-best-n' ) || '0', 10 );
+		var bestBps = parseInt( section.getAttribute( 'data-best-bps' ) || '0', 10 );
 		var currency = section.getAttribute( 'data-currency' ) || 'ARS';
+		// Precios originales de la barra de compra, para restaurarlos al quitar el monitor.
+		var barPriceEls = document.querySelectorAll( '.gx-buybar__value, .tgs-sticky-price' );
+		var barPriceOriginal = Array.prototype.map.call( barPriceEls, function ( el ) { return el.innerHTML; } );
+		var barFinEls = document.querySelectorAll( '.gx-barfin__line' );
+		var barFinOriginal = Array.prototype.map.call( barFinEls, function ( el ) { return el.innerHTML; } );
 		var formatter;
 		try {
 			formatter = new Intl.NumberFormat( 'es-AR', { style: 'currency', currency: currency, maximumFractionDigits: 0 } );
@@ -169,6 +178,41 @@
 					summaryTotal.textContent = money( pcPrice + price );
 				}
 			}
+			updateBar( id, name, price );
+		}
+
+		// Barra de compra: con monitor, el precio grande pasa a ser el total y
+		// aparece una mini barra arriba con el detalle (PC + monitor = total,
+		// N cuotas de $X). Sin monitor, se restaura todo.
+		function updateBar( id, name, price ) {
+			// Solo la barra más externa: en el diseño propio la barra del plugin va adentro de la del diseño.
+			var bars = document.querySelectorAll( '.gx-buybar' ).length ? document.querySelectorAll( '.gx-buybar' ) : document.querySelectorAll( '.tgs-sticky' );
+			var i;
+			document.querySelectorAll( '.tgs-minibar' ).forEach( function ( el ) { el.remove(); } );
+			if ( ! id ) {
+				for ( i = 0; i < barPriceEls.length; i++ ) { barPriceEls[ i ].innerHTML = barPriceOriginal[ i ]; }
+				for ( i = 0; i < barFinEls.length; i++ ) { barFinEls[ i ].innerHTML = barFinOriginal[ i ]; }
+				return;
+			}
+			var total = pcPrice + price;
+			var esc = function ( t ) { return String( t ).replace( /[&<>"]/g, function ( c ) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ c ]; } ); };
+			var cuota = '';
+			if ( bestN > 0 ) {
+				var per = ( ( pcList + price ) * ( 1 + bestBps / 10000 ) ) / bestN;
+				cuota = bestN + ' cuotas' + ( bestBps === 0 ? ' sin interés' : '' ) + ' de ' + money( per );
+			}
+			for ( i = 0; i < barPriceEls.length; i++ ) { barPriceEls[ i ].textContent = money( total ); }
+			for ( i = 0; i < barFinEls.length; i++ ) { if ( cuota ) { barFinEls[ i ].textContent = cuota; } }
+			var html = '<div class="tgs-minibar" role="status">'
+				// Lo importante primero (total y cuotas): si no entra, se corta el nombre del monitor, no el total.
+				+ '<span class="tgs-minibar__full">'
+				+ '<strong>Total ' + esc( money( total ) ) + '</strong>'
+				+ ( cuota ? ' <em>· ' + esc( cuota ) + '</em>' : '' )
+				+ ' <i>—</i> <b>PC</b> ' + esc( money( pcPrice ) ) + ' <i>+</i> <b>' + esc( name ) + '</b> ' + esc( money( price ) )
+				+ '</span>'
+				+ '<span class="tgs-minibar__short">✓ Con monitor: <b>' + esc( name ) + '</b></span>'
+				+ '</div>';
+			for ( i = 0; i < bars.length; i++ ) { bars[ i ].insertAdjacentHTML( 'afterbegin', html ); }
 		}
 		for ( var p = 0; p < picks.length; p++ ) {
 			( function ( pick ) {
@@ -260,19 +304,73 @@
 
 		// Carrusel infinito (tira duplicada que se desplaza sola; se frena al
 		// pasar el mouse). "Ver todos" abre la grilla completa del grupo.
+		// Carrusel con flechas en las puntas: en escritorio avanza solo de a un
+		// producto cada 3,5 s (se frena al pasar el mouse) y las flechas saltan
+		// una página; en celular no avanza solo y las flechas pasan de a uno.
+		// Al llegar al final vuelve al principio (sensación de infinito).
 		function carousel( group ) {
 			var pct = groupPct( group );
 			var items = sorted( group );
 			var cards = items.map( function ( p ) { return card( group, p ); } ).join( '' );
-			var times = items.length >= 5 ? 2 : 4;
-			var track = '';
-			for ( var i = 0; i < times; i++ ) { track += cards; }
-			var seconds = Math.max( 30, items.length * times * 6 );
 			return '<section class="tgs-up__group" data-up-group="' + esc( group.key ) + '">'
 				+ '<header class="tgs-up__ghead"><h3>' + esc( group.label ) + ( pct ? ' <em class="tgs-up__gpct">−' + pct + '%</em>' : '' ) + '</h3><span>' + esc( group.kicker ) + '</span>'
+				+ '<span class="tgs-up__pos" data-up-pos>1 / ' + items.length + '</span>'
 				+ '<button type="button" class="tgs-up__all" data-up-all="' + esc( group.key ) + '">Ver todos (' + items.length + ') →</button></header>'
-				+ '<div class="tgs-up__viewport"><div class="tgs-up__track" style="animation-duration:' + seconds + 's">' + track + '</div></div>'
+				+ '<div class="tgs-up__row">'
+				+ '<button type="button" class="tgs-up__arrow tgs-up__arrow--prev" data-up-prev aria-label="Anterior">‹</button>'
+				+ '<div class="tgs-up__viewport" data-up-viewport><div class="tgs-up__track">' + cards + '</div></div>'
+				+ '<button type="button" class="tgs-up__arrow tgs-up__arrow--next" data-up-next aria-label="Siguiente">›</button>'
+				+ '</div>'
 				+ '</section>';
+		}
+
+		var autoTimers = [];
+		function stopAuto() {
+			autoTimers.forEach( clearInterval );
+			autoTimers = [];
+		}
+		function cardStep( viewport ) {
+			var first = viewport.querySelector( '.tgs-up__card' );
+			if ( ! first ) { return viewport.clientWidth; }
+			var gap = parseFloat( getComputedStyle( viewport.querySelector( '.tgs-up__track' ) ).columnGap || getComputedStyle( viewport.querySelector( '.tgs-up__track' ) ).gap ) || 12;
+			return first.getBoundingClientRect().width + gap;
+		}
+		function slide( viewport, dir, byPage ) {
+			var step = cardStep( viewport );
+			var amount = byPage ? Math.max( step, Math.floor( viewport.clientWidth / step ) * step ) : step;
+			var max = viewport.scrollWidth - viewport.clientWidth;
+			var target = viewport.scrollLeft + dir * amount;
+			if ( dir > 0 && viewport.scrollLeft >= max - 4 ) { target = 0; }
+			if ( dir < 0 && viewport.scrollLeft <= 4 ) { target = max; }
+			viewport.scrollTo( { left: Math.max( 0, Math.min( max, target ) ), behavior: 'smooth' } );
+		}
+		function updatePos( viewport ) {
+			var group = viewport.closest( '.tgs-up__group' );
+			var pos = group && group.querySelector( '[data-up-pos]' );
+			if ( ! pos ) { return; }
+			var total = viewport.querySelectorAll( '.tgs-up__card' ).length;
+			var index = Math.min( total, Math.round( viewport.scrollLeft / cardStep( viewport ) ) + 1 );
+			pos.textContent = index + ' / ' + total;
+		}
+		function initCarousels() {
+			stopAuto();
+			var desktop = window.matchMedia( '(min-width: 721px)' ).matches;
+			modal.querySelectorAll( '[data-up-viewport]' ).forEach( function ( viewport ) {
+				viewport.addEventListener( 'scroll', function () { updatePos( viewport ); }, { passive: true } );
+				if ( ! desktop ) {
+					// En celular cada tarjeta ocupa el ancho visible entre las flechas.
+					var w = Math.max( 200, viewport.clientWidth - 8 );
+					viewport.querySelectorAll( '.tgs-up__card' ).forEach( function ( c ) { c.style.flexBasis = w + 'px'; c.style.maxWidth = w + 'px'; } );
+				}
+				updatePos( viewport );
+				if ( ! desktop ) { return; }
+				var paused = false;
+				viewport.addEventListener( 'mouseenter', function () { paused = true; } );
+				viewport.addEventListener( 'mouseleave', function () { paused = false; } );
+				autoTimers.push( setInterval( function () {
+					if ( ! paused && document.body.contains( viewport ) ) { slide( viewport, 1, false ); }
+				}, 3500 ) );
+			} );
 		}
 
 		// Vista "Ver todos": grilla con todos los productos del grupo.
@@ -317,6 +415,7 @@
 			var body = modal.querySelector( '[data-up-body]' );
 			body.innerHTML = html;
 			body.scrollTop = 0;
+			initCarousels();
 			var box = modal.querySelector( '.tgs-up__box' );
 			box.classList.remove( 'is-swap' );
 			void box.offsetWidth;
@@ -369,6 +468,12 @@
 				if ( e.target === modal || e.target.closest( '[data-up-close]' ) ) { close(); return; }
 				var btn = e.target.closest( '[data-up-add]' );
 				if ( btn ) { addUpsell( btn.getAttribute( 'data-up-add' ), btn.getAttribute( 'data-up-kind' ), btn.getAttribute( 'data-up-pct' ) ); return; }
+				var arrow = e.target.closest( '[data-up-prev], [data-up-next]' );
+				if ( arrow ) {
+					var vp = arrow.parentNode.querySelector( '[data-up-viewport]' );
+					if ( vp ) { slide( vp, arrow.hasAttribute( 'data-up-next' ) ? 1 : -1, window.matchMedia( '(min-width: 721px)' ).matches ); }
+					return;
+				}
 				var all = e.target.closest( '[data-up-all]' );
 				if ( all ) { var g = findGroup( all.getAttribute( 'data-up-all' ) ); if ( g ) { setView( gridView( g ) ); } return; }
 				if ( e.target.closest( '[data-up-home]' ) ) { homeView(); return; }
@@ -391,6 +496,7 @@
 		function onKey( e ) { if ( e.key === 'Escape' ) { close(); } }
 		function close() {
 			if ( ! modal ) { return; }
+			stopAuto();
 			modal.remove();
 			modal = null;
 			document.body.classList.remove( 'tgs-up-open' );
