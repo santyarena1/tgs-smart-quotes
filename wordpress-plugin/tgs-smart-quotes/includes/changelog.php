@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.21.4' => array(
+			'Sumale un monitor: el resumen de abajo se rediseñó como tarjeta con tilde, "Monitor elegido: X", el cálculo "PC $A + Monitor $B = $Total" y la aclaración de que entran juntos al carrito; con más aire respecto de las tarjetas (antes era una línea mal redactada y pegada).',
+		),
 		'2.21.3' => array(
 			'Modal en celular: el título y los textos scrollean junto con el contenido (antes quedaban fijos y tapaban los productos); solo los botones del pie quedan fijos.',
 			'Etiqueta "−10% solo ahora" rediseñada: chip horizontal con rayo, degradado y brillo, en vez del círculo torcido.',

@@ -136,6 +136,8 @@
 		var summary = section.querySelector( '.tgs-monitors-summary' );
 		var summaryName = section.querySelector( '[data-monitor-summary-name]' );
 		var summaryTotal = section.querySelector( '[data-monitor-summary-total]' );
+		var summaryPc = section.querySelector( '[data-monitor-summary-pc]' );
+		var summaryPrice = section.querySelector( '[data-monitor-summary-price]' );
 		var pcPrice = parseFloat( section.getAttribute( 'data-pc-price' ) ) || 0;
 		var pcList = parseFloat( section.getAttribute( 'data-pc-list' ) ) || pcPrice;
 		var pcTitle = section.getAttribute( 'data-pc-title' ) || 'PC';
@@ -176,6 +178,8 @@
 				if ( id ) {
 					summaryName.textContent = name;
 					summaryTotal.textContent = money( pcPrice + price );
+					if ( summaryPc ) { summaryPc.textContent = money( pcPrice ); }
+					if ( summaryPrice ) { summaryPrice.textContent = money( price ); }
 				}
 			}
 			updateBar( id, name, price );

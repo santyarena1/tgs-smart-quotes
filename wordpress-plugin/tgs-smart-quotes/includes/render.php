@@ -889,7 +889,14 @@ function tgs_sq_monitors_html( array $d ) {
 		echo '</div>';
 	}
 	echo '</div>';
-	echo '<p class="tgs-monitors-summary" hidden>Al agregar al carrito entra la PC + <strong data-monitor-summary-name></strong>. Total: <strong data-monitor-summary-total></strong></p>';
+	// Resumen debajo de las tarjetas: qué monitor eligió y cómo se compone el total.
+	echo '<div class="tgs-monitors-summary" hidden>'
+		. '<span class="tgs-monitors-summary__check">✓</span>'
+		. '<span class="tgs-monitors-summary__body">'
+		. '<span class="tgs-monitors-summary__title">Monitor elegido: <strong data-monitor-summary-name></strong></span>'
+		. '<span class="tgs-monitors-summary__calc">PC <b data-monitor-summary-pc></b> <i>+</i> Monitor <b data-monitor-summary-price></b> <i>=</i> <strong data-monitor-summary-total></strong></span>'
+		. '<span class="tgs-monitors-summary__hint">Al tocar "Agregar al carrito" entran los dos juntos.</span>'
+		. '</span></div>';
 	echo '</section>';
 	return ob_get_clean();
 }
