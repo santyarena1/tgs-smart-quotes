@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.21.1' => array(
+			'Recomendadas: miniatura CUADRADA que ocupa todo el recuadro (sin bordes ni grilla de fondo), de a 3 por fila y centradas aunque el diseño propio pegado sea viejo; se usa la versión grande de la imagen (antes 300 px estirados).',
+		),
 		'2.21.0' => array(
 			'Modal: carrusel con flechas en las puntas de cada fila (en PC avanza solo de a uno cada 3,5 s y las flechas saltan una página; en celular no avanza solo y las flechas pasan de a un producto), contador "1 / N" y vuelta al principio al llegar al final. Se fue la cinta automática que en celular unificaba las filas.',
 			'Barra de compra con monitor elegido: el precio grande pasa a ser el total (PC + monitor) y las cuotas se recalculan; arriba aparece una mini barra con "PC $X + Monitor $Y = Total $Z · N cuotas de $Q" (en celular solo "Con monitor: nombre"). Al quitar el monitor vuelve todo.',

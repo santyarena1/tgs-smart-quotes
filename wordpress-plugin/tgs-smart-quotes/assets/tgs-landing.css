@@ -1820,3 +1820,13 @@ body.tgs-up-open { overflow: hidden; }
 .tgs-up, .tgs-up * { box-sizing: border-box; }
 .tgs-up__groups { grid-template-columns: minmax(0, 1fr); }
 .tgs-up__group, .tgs-up__row, .tgs-up__viewport { min-width: 0; max-width: 100%; }
+
+/* Recomendadas: la grilla y el tamaño de tarjeta los fija el plugin aunque un
+ * diseño propio viejo traiga su propio grid (de a 3, centradas, foto cuadrada). */
+.tgs-landing .tgs-recommended-grid { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 14px !important; grid-template-columns: none !important; }
+.tgs-landing .tgs-recommended-grid .tgs-recommended-card { flex: 0 1 calc((100% - 28px) / 3) !important; max-width: calc((100% - 28px) / 3) !important; width: auto !important; }
+.tgs-landing .tgs-recommended-media { aspect-ratio: 1 / 1 !important; padding: 0 !important; display: block !important; }
+.tgs-landing .tgs-recommended-media img { object-fit: cover !important; padding: 0 !important; width: 100% !important; height: 100% !important; }
+@media (max-width: 900px) {
+	.tgs-landing .tgs-recommended-grid .tgs-recommended-card { flex-basis: calc((100% - 14px) / 2) !important; max-width: calc((100% - 14px) / 2) !important; }
+}

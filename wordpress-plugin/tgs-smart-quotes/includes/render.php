@@ -716,7 +716,7 @@ function tgs_sq_recommended_html( array $d ) {
 		// Primero la imagen destacada de WooCommerce (copia local que el plugin
 		// baja al publicar); la URL del sistema queda de respaldo por si aún no
 		// se descargó.
-		$thumb   = get_the_post_thumbnail_url( $pid, 'woocommerce_thumbnail' ) ?: get_post_meta( $pid, TGS_SQ_META_THUMBNAIL, true );
+		$thumb   = get_the_post_thumbnail_url( $pid, 'large' ) ?: get_post_meta( $pid, TGS_SQ_META_THUMBNAIL, true );
 		$product = wc_get_product( $pid );
 		echo '<a class="tgs-recommended-card" href="' . esc_url( get_permalink( $pid ) ) . '">';
 		/* El contenedor de la imagen va siempre para que todas las tarjetas

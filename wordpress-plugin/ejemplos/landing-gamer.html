@@ -828,41 +828,40 @@
 	font-weight: 800;
 }
 
-/* --- Recomendadas --- */
-.tgs-landing.tgs-custom .tgs-recommended-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: var(--gx-sm);
-}
+/* --- Recomendadas ---
+   De a 3 por fila (lo arma el plugin; si hay menos, centradas). La miniatura
+   es CUADRADA, como la imagen que genera el sistema, y ocupa todo el recuadro
+   sin bordes ni grilla de fondo. */
 .tgs-landing.tgs-custom .tgs-recommended-card {
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	gap: 0;
+	padding: 0;
 	background: var(--gx-bg);
 	border: 1px solid var(--gx-line);
 	border-radius: var(--gx-r);
 	overflow: hidden;
 	text-decoration: none;
-	transition: border-color .15s ease;
+	transition: border-color .15s ease, transform .15s ease;
 }
 .tgs-landing.tgs-custom .tgs-recommended-card:hover {
-	transform: none;
+	transform: translateY(-3px);
 	border-color: var(--gx-accent-line);
 }
 .tgs-landing.tgs-custom .tgs-recommended-media {
-	display: grid;
-	place-items: center;
-	aspect-ratio: 4 / 3;
-	background:
-		linear-gradient(var(--gx-line-soft) 1px, transparent 1px) 0 0 / 26px 26px,
-		linear-gradient(90deg, var(--gx-line-soft) 1px, transparent 1px) 0 0 / 26px 26px,
-		var(--gx-panel);
-	border-bottom: 1px solid var(--gx-line);
+	display: block;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	background: #0a0b10;
+	border-radius: 0;
+	overflow: hidden;
 }
 .tgs-landing.tgs-custom .tgs-recommended-card img {
+	display: block;
 	width: 100%;
 	height: 100%;
-	object-fit: contain;
-	padding: 10px;
+	object-fit: cover;
+	padding: 0;
 }
 .tgs-landing.tgs-custom .tgs-recommended-body {
 	display: grid;
