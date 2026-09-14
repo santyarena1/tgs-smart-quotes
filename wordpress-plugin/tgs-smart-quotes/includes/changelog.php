@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.21.2' => array(
+			'Modal en PC: todo entra en pantalla sin deslizar. El modal usa el alto de la ventana y, si las filas no entran, el contenido se achica en bloque (con 3 filas en 1080p queda a tamaño natural; con 4 filas o pantallas más bajas, al ~65-75 %).',
+		),
 		'2.21.1' => array(
 			'Recomendadas: miniatura CUADRADA que ocupa todo el recuadro (sin bordes ni grilla de fondo), de a 3 por fila y centradas aunque el diseño propio pegado sea viejo; se usa la versión grande de la imagen (antes 300 px estirados).',
 		),

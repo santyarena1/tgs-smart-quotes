@@ -1830,3 +1830,11 @@ body.tgs-up-open { overflow: hidden; }
 @media (max-width: 900px) {
 	.tgs-landing .tgs-recommended-grid .tgs-recommended-card { flex-basis: calc((100% - 14px) / 2) !important; max-width: calc((100% - 14px) / 2) !important; }
 }
+
+/* En escritorio el modal ocupa el alto de la pantalla y el contenido se
+ * ajusta con zoom (ver fitToScreen) para que no haga falta deslizar. */
+@media (min-width: 721px) {
+	.tgs-up__box { height: calc(100vh - 32px); max-height: calc(100vh - 32px); }
+	.tgs-up__body-wrap { overflow: hidden; }
+	.tgs-up__sub { overflow: auto; max-height: 100%; }
+}

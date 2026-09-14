@@ -421,7 +421,29 @@
 			void box.offsetWidth;
 			box.classList.add( 'is-swap' );
 			syncAdded();
+			fitToScreen();
 		}
+
+		// Escritorio: que TODO entre sin scroll. Si el contenido (filas) supera el
+		// alto disponible, se achica en bloque con zoom (mínimo 55 %). Con 3 filas
+		// en 1080p queda a tamaño natural; con 4 filas o pantallas bajas, un poco
+		// más chico, pero sin deslizar. En celular no aplica (ahí se scrollea).
+		function fitToScreen() {
+			var body = modal.querySelector( '[data-up-body]' );
+			var groups = body.querySelector( '.tgs-up__groups' );
+			if ( ! groups || ! window.matchMedia( '(min-width: 721px)' ).matches ) { body.style.zoom = ''; return; }
+			body.style.zoom = '';
+			var box = modal.querySelector( '.tgs-up__box' );
+			var head = modal.querySelector( '.tgs-up__head' );
+			var foot = modal.querySelector( '.tgs-up__foot' );
+			var available = box.clientHeight - head.offsetHeight - foot.offsetHeight - 44;
+			var needed = groups.scrollHeight;
+			if ( needed > available && available > 0 ) {
+				body.style.zoom = String( Math.max( 0.55, Math.floor( ( available / needed ) * 100 ) / 100 ) );
+			}
+		}
+		window.addEventListener( 'resize', function () { if ( modal ) { fitToScreen(); } } );
+
 		function homeView() {
 			setView( '<div class="tgs-up__groups">' + groupsShown.map( carousel ).join( '' ) + '</div>' );
 		}
