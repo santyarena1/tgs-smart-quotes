@@ -10,6 +10,10 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.2' => array(
+			'Guía de la ficha rediseñada al estilo del resto del diseño: sin recuadro gris, una línea roja vertical, "EN ESTA FICHA" en mono con cuadrado rojo, secciones en Rajdhani mayúsculas y marcador rojo en la sección activa; botón Comprar con corte diagonal. En celular, la hoja inferior con borde rojo.',
+			'La guía ya no lista secciones sin título real ("…", íconos), ni "Girala en 3D" (vive en el hero), ni secciones de ejemplo dentro de comentarios del diseño propio. "La PC" pasa a "Sobre la PC". Sin hero del plugin, "Comprar" vuelve arriba de todo. Para excluir una sección a mano: data-tgs-guide="".',
+		),
 		'2.23.1' => array(
 			'Combos por PC: el aviso post-carrito muestra solo los combos que se le asociaron a esa PC en TGS Smart Quotes (editor web de la PC → "Combos para esta PC"), en ese orden. Sin combos asociados, no se ofrece ninguno. Antes salían todos los combos publicados.',
 		),

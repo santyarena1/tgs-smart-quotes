@@ -354,6 +354,7 @@
 			return ( header ? header.offsetHeight : 0 ) + 16;
 		}
 		function go( id ) {
+			if ( id === 'top' ) { window.scrollTo( { top: 0, behavior: 'smooth' } ); return; }
 			var el = document.getElementById( id );
 			if ( ! el ) { return; }
 			var top = el.getBoundingClientRect().top + window.pageYOffset - headerOffset();

@@ -441,6 +441,7 @@ add_action( 'woocommerce_cart_calculate_fees', function ( $cart ) {
  */
 function tgs_sq_guide_labels() {
 	return array(
+		'la pc'           => 'Sobre la PC',
 		'juegos'          => 'Rendimiento estimado',
 		'componentes'     => 'Componentes',
 		'descripción'     => 'Descripción',
@@ -456,15 +457,35 @@ function tgs_sq_guide_inject( $html ) {
 	$index   = 0;
 	$labels  = tgs_sq_guide_labels();
 	$source  = $html;
+	// Rangos de comentarios HTML: un <section> de ejemplo dentro de un
+	// comentario del diseño propio no es una sección de la ficha.
+	$comments = array();
+	if ( preg_match_all( '/<!--.*?-->/s', $source, $cm, PREG_OFFSET_CAPTURE ) ) {
+		foreach ( $cm[0] as $c ) {
+			$comments[] = array( (int) $c[1], (int) $c[1] + strlen( $c[0] ) );
+		}
+	}
+	// Secciones que no van en la guía aunque tengan título (el visor 3D vive en el hero).
+	$skip = array( 'girala en 3d', '3d', 'visor 3d', 'modelo 3d' );
 	$html    = preg_replace_callback(
 		'/<section\b([^>]*)>/i',
-		function ( $m ) use ( &$entries, &$index, $labels, $source ) {
+		function ( $m ) use ( &$entries, &$index, $labels, $source, $comments, $skip ) {
 			$attrs = $m[1][0];
 			$open  = $m[0][0];
+			$at    = (int) $m[0][1];
+			foreach ( $comments as $range ) {
+				if ( $at >= $range[0] && $at < $range[1] ) {
+					return $open;
+				}
+			}
 			$label = '';
 			$hero  = false;
 			if ( preg_match( '/data-tgs-guide="([^"]*)"/i', $attrs, $g ) ) {
+				// data-tgs-guide="" = esta sección no va en la guía.
 				$label = html_entity_decode( $g[1], ENT_QUOTES, 'UTF-8' );
+				if ( '' === trim( $label ) ) {
+					return $open;
+				}
 			} elseif ( preg_match( '/class="[^"]*\btgs-hero\b[^"]*"/i', $attrs ) ) {
 				$label = 'La PC';
 				$hero  = true;
@@ -475,10 +496,14 @@ function tgs_sq_guide_inject( $html ) {
 					$label = trim( html_entity_decode( wp_strip_all_tags( $h[1] ), ENT_QUOTES, 'UTF-8' ) );
 				}
 			}
-			if ( '' === $label ) {
+			// Sin título real (vacío, puntos suspensivos, un ícono) no hay entrada.
+			if ( mb_strlen( preg_replace( '/[^\p{L}\p{N}]/u', '', $label ) ) < 2 ) {
 				return $open;
 			}
-			$key   = mb_strtolower( $label );
+			$key = mb_strtolower( trim( $label ) );
+			if ( in_array( $key, $skip, true ) ) {
+				return $open;
+			}
 			$label = $labels[ $key ] ?? $label;
 			if ( preg_match( '/\sid="([^"]+)"/i', $attrs, $id_match ) ) {
 				$id = $id_match[1];
@@ -504,11 +529,12 @@ function tgs_sq_guide_html( array $entries, array $d ) {
 	}
 	$has_setup = (bool) array_filter( $entries, function ( $e ) { return $e['setup']; } );
 	$hero      = current( array_filter( $entries, function ( $e ) { return ! empty( $e['hero'] ); } ) );
-	$buy_id    = $hero ? $hero['id'] : $entries[0]['id'];
+	// Sin hero del plugin (diseño propio), "Comprar" vuelve arriba de todo.
+	$buy_id    = $hero ? $hero['id'] : 'top';
 	ob_start();
 	echo '<nav class="tgs-guide" data-tgs-guide-nav aria-label="Secciones de la ficha">';
 	echo '<div class="tgs-guide__box">';
-	echo '<span class="tgs-guide__title">En esta ficha</span>';
+	echo '<span class="tgs-guide__title"><i></i>En esta ficha</span>';
 	echo '<ol class="tgs-guide__list">';
 	foreach ( $entries as $entry ) {
 		echo '<li><a href="#' . esc_attr( $entry['id'] ) . '" class="tgs-guide__link' . ( $entry['setup'] ? ' tgs-guide__link--setup' : '' ) . '" data-guide-target="' . esc_attr( $entry['id'] ) . '">'

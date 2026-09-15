@@ -1990,38 +1990,60 @@ body.tgs-up-open { overflow: hidden; }
 
 /* =====================================================================
  * Guía de la ficha: rail fijo a la izquierda en pantallas anchas; en el
- * resto, botón flotante que abre la lista como hoja inferior.
+ * resto, botón flotante que abre la lista como hoja inferior. Sin caja:
+ * una línea roja, títulos en mono mayúsculas y marcador rojo en la
+ * sección activa, como el resto del diseño gamer.
  * ===================================================================== */
 .tgs-guide { font-family: var(--tgs-font, Inter, system-ui, sans-serif); color: var(--tgs-text, #f8fafc); }
-.tgs-guide__box {
-	display: grid; gap: 4px; padding: 14px 12px;
-	background: color-mix(in srgb, var(--tgs-bg, #080B12) 86%, #fff); border: 1px solid rgba(255,255,255,.12); border-radius: 18px;
-	box-shadow: 0 22px 50px -24px rgba(0,0,0,.85);
+.tgs-guide__box { display: grid; gap: 2px; padding: 0 0 0 16px; position: relative; }
+.tgs-guide__box::before {
+	content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+	background: linear-gradient(180deg, var(--tgs-accent, #E31B23), rgba(227,27,35,.06));
 }
-.tgs-guide__title { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(248,250,252,.5); padding: 0 8px 6px; }
-.tgs-guide__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tgs-guide__title {
+	display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 0;
+	font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+	color: var(--tgs-accent, #E31B23);
+}
+.tgs-guide__title i { display: inline-block; width: 7px; height: 7px; background: var(--tgs-accent, #E31B23); }
+.tgs-guide__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
 .tgs-guide__link {
-	display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
-	color: rgba(248,250,252,.68); text-decoration: none; border-left: 2px solid transparent; transition: background .2s ease, color .2s ease;
+	position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 16px;
+	font-family: "Rajdhani", var(--tgs-font, Inter, sans-serif); font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; line-height: 1.2;
+	color: rgba(248,250,252,.5); text-decoration: none; transition: color .2s ease, padding-left .2s ease;
 }
-.tgs-guide__link:hover { background: rgba(255,255,255,.06); color: #fff; }
-.tgs-guide__link.is-active { color: #fff; background: rgba(255,255,255,.08); border-left-color: var(--tgs-accent, #E31B23); }
+.tgs-guide__link::before {
+	content: ""; position: absolute; left: 0; top: 50%; width: 6px; height: 6px; transform: translateY(-50%) scale(0);
+	background: var(--tgs-accent, #E31B23); box-shadow: 0 0 10px rgba(227,27,35,.8); transition: transform .2s ease;
+}
+.tgs-guide__link:hover { color: #fff; }
+.tgs-guide__link.is-active { color: #fff; padding-left: 20px; }
+.tgs-guide__link.is-active::before { transform: translateY(-50%) scale(1); }
 .tgs-guide__link--setup { color: #fdba74; }
-.tgs-guide__flame { font-size: 14px; }
-.tgs-guide__fire { margin: 8px 8px 0; padding: 8px 10px; border-radius: 10px; background: rgba(249,115,22,.16); border: 1px solid rgba(249,115,22,.5); font-size: 12.5px; font-weight: 700; color: #fdba74; }
-.tgs-guide__buy {
-	margin: 10px 4px 0; padding: 11px 12px; border-radius: 12px; text-align: center; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
-	background: var(--tgs-accent, #E31B23); color: #fff !important; text-decoration: none;
+.tgs-guide__link--setup.is-active { color: #fdba74; }
+.tgs-guide__flame { font-size: 13px; }
+.tgs-guide__fire {
+	margin: 10px 0 0; padding: 7px 10px; border-left: 2px solid #f97316;
+	font-family: "JetBrains Mono", Consolas, monospace; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #fdba74;
 }
+.tgs-guide__buy {
+	margin: 14px 0 0; padding: 11px 14px; text-align: center;
+	font-family: "Rajdhani", var(--tgs-font, Inter, sans-serif); font-size: 15px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+	background: linear-gradient(90deg, #ff2a33, var(--tgs-accent, #E31B23)); color: #fff !important; text-decoration: none;
+	clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+	box-shadow: 0 10px 30px -14px rgba(227,27,35,.9);
+}
+.tgs-guide__buy:hover { filter: brightness(1.08); }
 .tgs-guide-fab {
 	all: unset; box-sizing: border-box; cursor: pointer; position: fixed; left: 12px; bottom: max(84px, calc(env(safe-area-inset-bottom, 0px) + 84px)); z-index: 9998;
-	display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 999px;
-	background: color-mix(in srgb, var(--tgs-bg, #080B12) 80%, #fff); border: 1px solid rgba(255,255,255,.18); color: #fff;
-	font-family: var(--tgs-font, Inter, sans-serif); font-size: 13px; font-weight: 800; box-shadow: 0 16px 40px -18px rgba(0,0,0,.9);
-	-webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+	display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px;
+	background: rgba(8,11,18,.92); border: 1px solid rgba(227,27,35,.55); color: #fff;
+	font-family: "Rajdhani", var(--tgs-font, Inter, sans-serif); font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+	box-shadow: 0 16px 40px -18px rgba(0,0,0,.9);
+	clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
 @media (min-width: 1400px) {
-	.tgs-guide { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); width: 210px; z-index: 9990; }
+	.tgs-guide { position: fixed; left: 24px; top: 50%; transform: translateY(-50%); width: 200px; z-index: 9990; }
 	.tgs-guide-fab { display: none; }
 	/* Le hacemos lugar al rail sin tocar el ancho de las secciones. */
 	body.tgs-managed-page .tgs-landing { padding-left: max(clamp(16px, 4vw, 56px), 250px); }
@@ -2029,11 +2051,16 @@ body.tgs-up-open { overflow: hidden; }
 @media (max-width: 1399px) {
 	.tgs-guide {
 		position: fixed; left: 0; right: 0; bottom: 0; z-index: 100001; transform: translateY(110%); visibility: hidden;
-		transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .3s; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px));
+		transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .3s;
 	}
 	.tgs-guide.is-open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility 0s; }
-	.tgs-guide__box { border-radius: 18px; max-height: 70vh; overflow: auto; }
+	.tgs-guide__box {
+		padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); max-height: 70vh; overflow: auto;
+		background: rgba(8,11,18,.97); border-top: 2px solid var(--tgs-accent, #E31B23); box-shadow: 0 -20px 50px -20px rgba(0,0,0,.9);
+	}
+	.tgs-guide__box::before { display: none; }
 	.tgs-guide__list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+	.tgs-guide__link { padding-left: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
 	.tgs-landing .tgs-fire__fill, .tgs-landing .tgs-fire.is-on .tgs-fire__icon { animation: none; }
