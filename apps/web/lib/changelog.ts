@@ -8,6 +8,20 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.0",
+    date: "2026-09-15",
+    title: "Potenciá tu setup, combos y publicación más prolija",
+    items: [
+      "Preparar y publicar: el título y la miniatura se rehacen solos cuando cambian los componentes (antes quedaban con el procesador o el gabinete de la versión anterior); lo que cargaste a mano se respeta siempre",
+      "Editor web: selector \"Versión a publicar\" para preparar y subir cualquier versión del presupuesto (por ejemplo, volver a la que está en la tienda si en la nueva se deshabilitó algo); los botones dicen qué versión suben",
+      "Miniatura y foto principal: el gabinete es el de la línea Gabinete; si no tiene foto ya no se usa otro componente (avisa para cargarla)",
+      "Quitar fondo: el modelo decide también los huecos blancos encerrados; ya no se agujerea el frente blanco de la caja de un procesador",
+      "Combos para la tienda: presupuesto con \"Es combo para la tienda\" (Presupuestos → Nuevo), % de descuento inverso (el precio del presupuesto es el final; el tachado sale de precio / (1 − %)) y visible u oculto en la tienda, todo desde Publicación web → pestaña Combos; título, textos y miniatura collage con IA/sistema",
+      "Combos por PC: en el editor web de cada PC, \"Combos para esta PC\" elige cuáles se le ofrecen y en qué orden; si la PC está publicada, se re-publica sola",
+      "Plugin de WordPress 2.23.4 (hay que subirlo): sección \"Potenciá tu setup\" en la ficha con una pestaña por categoría (monitores, teclados, mouse, auriculares, red, sillas, escritorios, mouse pads y dos libres), un producto por categoría, descuento \"fuego\" de N extras × % calculado en el carrito, guía lateral de secciones (hoja inferior en celular), aviso post-carrito con los combos de esa PC, combos ocultos solo comprables desde ahí",
+    ],
+  },
+  {
     version: "0.5.0",
     date: "2026-09-11",
     title: "Publicación web: un botón que prepara todo",
