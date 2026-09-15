@@ -305,7 +305,7 @@ export async function recutQuoteImages(versionId: string, options: {force?: bool
 }
 
 /** Genera (o regenera) la miniatura de una PC con IA. Cada llamada es una imagen nueva. */
-export function generateFamilyThumbnailAi(familyId: string, options: {regenerateCase?: boolean} = {}): Promise<{thumbnailUrl: string; detail: string}> {
+export function generateFamilyThumbnailAi(familyId: string, options: {regenerateCase?: boolean; versionId?: string | null} = {}): Promise<{thumbnailUrl: string; detail: string}> {
   return api<{thumbnailUrl: string; detail: string}>(`/external-module/quote-families/${familyId}/thumbnail/generate`, {method: 'POST', body: options});
 }
 

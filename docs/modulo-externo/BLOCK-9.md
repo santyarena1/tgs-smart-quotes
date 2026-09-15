@@ -36,8 +36,8 @@
 | descriptions | Descripción corta con IA (`generateProductDescription`) para cada componente sin descripción: producto de catálogo → `Product.description` (reutilizable), ítem manual → `QuoteItem.webDescription` | todos tienen descripción |
 | hero | `heroAssetId`/`heroImageUrl` = foto del gabinete (línea o nombre con gabinete/case/chasis/tower) | ya había hero |
 | enrichment | `runQuoteEnrichment` (IA v2) | `itemsHash` igual y ya hay descripción y título |
-| title | `webTitle` = `PC GAMER | CPU - RAM xxGB - DISCO - GPU | WINDOWS N` armado por reglas desde los nombres de los ítems (`apps/api/src/quote-title.ts`); la IA (`specs`) solo rellena lo que las reglas no leyeron. Sin CPU legible no se propone título. `WINDOWS 11` va siempre (todas las PC salen con Windows); si un ítem indica otra versión de Windows se respeta. `webTagline` = `enrichment.tagline` | ya tenían valor |
-| thumbnail | plantilla activa + foto del gabinete → `quote-thumbnails/<familia>/…jpg` | ya había miniatura, o no hay plantilla activa / foto |
+| title | `webTitle` = `PC GAMER | CPU - RAM xxGB - DISCO - GPU | WINDOWS N` armado por reglas desde los nombres de los ítems (`apps/api/src/quote-title.ts`); la IA (`specs`) solo rellena lo que las reglas no leyeron. Sin CPU legible no se propone título. `WINDOWS 11` va siempre (todas las PC salen con Windows); si un ítem indica otra versión de Windows se respeta. `webTagline` = `enrichment.tagline`. Si los propuso el sistema (`QuoteFamily.webTitleAuto`) se vuelven a proponer cuando cambian los componentes; editarlos a mano (PUT publish-settings) apaga el flag y desde ahí se respetan siempre. "Regenerar" lo vuelve a prender | título cargado a mano, o el automático sigue igual |
+| thumbnail | plantilla activa + foto del gabinete → `quote-thumbnails/<familia>/…jpg`. Las generadas por el sistema quedan con `thumbnailAuto=true` y `thumbnailInputsHash` (foto del gabinete + título + componentes, `thumbnailInputsHash()` en `thumbnail-ai.ts`): si alguno cambió se rehace. Subir una a mano pone `thumbnailAuto=false` y se respeta siempre | miniatura subida a mano, o la automática con los mismos insumos, o no hay plantilla activa / foto |
 | model3d | informativo | — |
 | publish | `publishQuote(familyId, {versionId})` | `publish: false` |
 
@@ -47,6 +47,7 @@ Un paso que falla no frena a los demás; solo un fallo de `publish` marca la cor
 
 - `GET /external-module/quote-families/:id/publication` → publicación + `publishedVersionNumber`, `activeVersionNumber`, `isStale`, `webTitle`, `webTagline`.
 - `POST .../publish` `{versionId?}` (default: la fijada, o la activa si nunca se publicó), `POST .../unpublish`, `GET .../publish-preview?versionId=`.
+- El editor web (`QuoteWebEditor`) trabaja sobre la versión activa, pero tiene un selector para elegir otra versión del presupuesto: todo lo que hace (preparar, publicar, enriquecimiento, vista previa, miniatura) usa la elegida. Sirve para volver a subir una versión anterior si en la nueva se deshabilitó un componente. "Publicada (versión anterior)" se calcula contra la versión elegida.
 - `PUT .../publish-settings` `{autoRepublish?, webTitle?, webTagline?}`.
 - `POST .../generate-title` `{versionId?, apply?}`: rehace título (reglas + specs de la IA) y bajada a pedido; con `apply` los guarda pisando lo que había. Botón "Regenerar título y bajada con IA" en el editor.
 - `POST /external-module/quotes/:versionId/enrich` (manual), `PUT .../enrichment` acepta los campos nuevos.

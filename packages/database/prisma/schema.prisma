@@ -556,6 +556,15 @@ model QuoteFamily {
   webTitle             String?
   /// Bajada corta que acompaña al título en la ficha (una oración).
   webTagline           String?
+  /// true si el título y la bajada los propuso el sistema ("Preparar y
+  /// publicar" o "Regenerar"): en ese caso se vuelven a proponer cuando cambian
+  /// los componentes. Se apaga al editarlos a mano, y ahí se respetan siempre.
+  webTitleAuto         Boolean               @default(false)
+  /// Ídem para la miniatura: true si la generó el sistema. `thumbnailInputsHash`
+  /// resume con qué se armó (foto del gabinete, título, componentes) para
+  /// rehacerla solo cuando alguno de esos cambió.
+  thumbnailAuto        Boolean               @default(false)
+  thumbnailInputsHash  String?
   /// La publicación en la tienda es una por presupuesto: si se crea una versión
   /// nueva, la tienda sigue mostrando la versión que se publicó hasta que
   /// alguien decida actualizarla (ver WebPublication.quoteVersionId).

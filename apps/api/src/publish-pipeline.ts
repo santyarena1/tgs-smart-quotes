@@ -19,7 +19,7 @@ import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
 import {enrichmentItemsHash, gamesToAnalyze, generateProductDescription, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
-import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable} from './thumbnail-ai.js';
+import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable, thumbnailInputsHash} from './thumbnail-ai.js';
 import {describeRecut, recutVersionImages} from './cutouts.js';
 import {pickCaseItem} from './case-detect.js';
 
@@ -518,39 +518,62 @@ async function ensureEnrichment(versionId: string, userId: string): Promise<{sta
   return {status: 'DONE', detail: `${current ? 'Regenerados' : 'Generados'}: descripción, ${games} juegos analizados, programas y compatibilidad${ai.cacheHit ? ' (desde caché)' : ''}`};
 }
 
+/**
+ * Título y bajada de la tienda. Si están vacíos se proponen. Si los propuso
+ * el sistema (webTitleAuto) y los componentes cambiaron, se vuelven a
+ * proponer para que la ficha no quede con el procesador o la placa de la
+ * versión anterior. Si los escribió alguien a mano, se respetan siempre.
+ */
 async function ensureTitle(familyId: string, versionId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
-  const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {webTitle: true, webTagline: true}});
+  const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {webTitle: true, webTagline: true, webTitleAuto: true}});
   const enrichment = await db.quoteEnrichment.findUnique({where: {quoteVersionId: versionId}, select: {title: true, tagline: true}});
-  const data: {webTitle?: string; webTagline?: string} = {};
+  const data: {webTitle?: string; webTagline?: string; webTitleAuto?: boolean} = {};
   // El título con formato de specs sale de las reglas sobre los nombres; el
   // guardado por el enriquecimiento ya trae lo que la IA completó, si hubo.
   const proposedTitle = enrichment?.title ?? buildStoreTitle(await loadEnrichmentItems(versionId));
-  if (!family.webTitle?.trim() && proposedTitle) data.webTitle = proposedTitle;
-  if (!family.webTagline?.trim() && enrichment?.tagline) data.webTagline = enrichment.tagline;
+  const currentTitle = family.webTitle?.trim() ?? '';
+  const currentTagline = family.webTagline?.trim() ?? '';
+  const auto = !currentTitle || family.webTitleAuto;
+  if (auto && proposedTitle && proposedTitle !== currentTitle) data.webTitle = proposedTitle;
+  if (auto && enrichment?.tagline && enrichment.tagline !== currentTagline) data.webTagline = enrichment.tagline;
   if (!Object.keys(data).length) {
-    return family.webTitle?.trim()
-      ? {status: 'SKIPPED', detail: `Se mantiene "${family.webTitle.trim()}"`}
-      : {status: 'SKIPPED', detail: 'No se pudo leer el procesador de los componentes; se publica con el nombre interno'};
+    if (!currentTitle) return {status: 'SKIPPED', detail: 'No se pudo leer el procesador de los componentes; se publica con el nombre interno'};
+    return {status: 'SKIPPED', detail: family.webTitleAuto ? `Sigue vigente "${currentTitle}"` : `Se mantiene el título cargado a mano: "${currentTitle}"`};
   }
+  data.webTitleAuto = true;
   await db.quoteFamily.update({where: {id: familyId}, data});
-  return {status: 'DONE', detail: data.webTitle ? `Título propuesto: "${data.webTitle}"` : 'Bajada propuesta por la IA'};
+  if (data.webTitle) return {status: 'DONE', detail: currentTitle ? `Título actualizado por el cambio de componentes: "${data.webTitle}"` : `Título propuesto: "${data.webTitle}"`};
+  return {status: 'DONE', detail: 'Bajada propuesta por la IA'};
 }
 
 // ----------------------------------------------------------------- miniatura
 
+/**
+ * Miniatura de la tienda. Se genera si no hay; si la generó el sistema y
+ * cambió alguno de sus insumos (foto del gabinete, título, componentes) se
+ * rehace, así no queda el gabinete de la versión anterior. Una miniatura
+ * subida a mano se respeta siempre.
+ */
 async function ensureThumbnail(familyId: string, versionId: string, userId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
   const family = await db.quoteFamily.findUniqueOrThrow({
     where: {id: familyId},
-    select: {thumbnailUrl: true, webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}},
+    select: {thumbnailUrl: true, thumbnailAuto: true, thumbnailInputsHash: true, webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}},
   });
-  if (family.thumbnailUrl) return {status: 'SKIPPED', detail: 'Ya había miniatura'};
+  const inputsHash = await thumbnailInputsHash(familyId, versionId);
+  let regenerating = false;
+  if (family.thumbnailUrl) {
+    if (!family.thumbnailAuto) return {status: 'SKIPPED', detail: 'Se mantiene la miniatura subida a mano'};
+    if (family.thumbnailInputsHash === inputsHash) return {status: 'SKIPPED', detail: 'La miniatura sigue vigente'};
+    regenerating = true;
+  }
+  const done = (detail: string): {status: 'DONE'; detail: string} => ({status: 'DONE', detail: regenerating ? `Rehecha por el cambio de componentes o título. ${detail}` : detail});
   // Con "Miniaturas IA" activo, la miniatura la genera el modelo de imágenes a
   // partir de las referencias y la foto del gabinete. Si falta algo de la
   // configuración se avisa y se cae a la plantilla clásica.
   if ((await loadThumbnailAiSettings()).enabled) {
     try {
       const generated = await generateAiThumbnail({familyId, versionId, userId});
-      return {status: 'DONE', detail: generated.detail};
+      return done(generated.detail);
     } catch (error) {
       if (!(error instanceof ThumbnailAiUnavailable)) throw error;
       logger.warn(JSON.stringify({event: 'thumbnail_ai_unavailable', familyId, reason: error.message}));
@@ -578,8 +601,8 @@ async function ensureThumbnail(familyId: string, versionId: string, userId: stri
   }));
   const output = await renderThumbnail({rules, backgroundBuffer, productBuffer, texts});
   const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${familyId}/${randomUUID()}.jpg`, output, 'image/jpeg');
-  await db.quoteFamily.update({where: {id: familyId}, data: {thumbnailUrl: stored.url}});
-  return {status: 'DONE', detail: `Generada con la plantilla "${template.name}"`};
+  await db.quoteFamily.update({where: {id: familyId}, data: {thumbnailUrl: stored.url, thumbnailAuto: true, thumbnailInputsHash: inputsHash}});
+  return done(`Generada con la plantilla "${template.name}"`);
 }
 
 async function readOwnOrRemote(url: string): Promise<Buffer> {

@@ -103,7 +103,11 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   /** Se incrementa al publicar/guardar para forzar que la vista previa se rearme. */
   const [previewNonce, setPreviewNonce] = useState(0);
 
-  const version = quote ? getActiveVersion(quote) : null;
+  /** Versión que se está preparando/publicando. Por defecto la activa, pero
+      se puede elegir otra (p. ej. volver a subir la anterior si un componente
+      de la nueva se deshabilitó). */
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const version = quote ? (quote.versions?.find((v) => v.id === selectedVersionId) ?? getActiveVersion(quote)) : null;
 
   const refreshPublication = useCallback(async () => {
     setPublication(await loadPublication(quoteId));
@@ -307,7 +311,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     setActionError(null);
     setThumbNotice(null);
     try {
-      const next = await generateFamilyThumbnailAi(quote.id, { regenerateCase });
+      const next = await generateFamilyThumbnailAi(quote.id, { regenerateCase, versionId: version?.id ?? null });
       setQuote((prev) => (prev ? { ...prev, thumbnailUrl: next.thumbnailUrl } : prev));
       setThumbNotice(next.detail);
       setPreviewNonce((n) => n + 1);
@@ -520,7 +524,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   }
 
   const isPublished = publication?.status === "PUBLISHED";
-  const isStale = Boolean(isPublished && publication?.isStale);
+  // "Vieja" respecto de la versión elegida acá, no de la activa del presupuesto.
+  const isStale = Boolean(isPublished && publication?.quoteVersionId && publication.quoteVersionId !== version.id);
+  const activeVersion = getActiveVersion(quote);
+  const versionOptions = (quote.versions ?? []).slice().sort((a, b) => b.version - a.version);
   const busy = busyPublish || pipeline.starting || pipeline.running;
   const publishedLabel = isPublished && publication?.publishedVersionNumber
     ? `En la tienda: v${publication.publishedVersionNumber}${isStale ? ` · esta es la v${version.version}` : ""}`
@@ -539,8 +546,27 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       >
         <div style={{ display: "grid", gap: 4, minWidth: 220 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>{quote.webTitle || quote.internalName || quote.visibleNumber}</h2>
-          <span className="muted">
-            {quote.internalName} · {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
+          <span className="muted" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {quote.internalName} · {quote.visibleNumber} ·
+            {versionOptions.length > 1 ? (
+              <select
+                value={version.id}
+                disabled={busy}
+                onChange={(e) => setSelectedVersionId(e.target.value)}
+                title="Qué versión del presupuesto se prepara y se sube a la tienda"
+                style={{ fontSize: 13, padding: "2px 6px" }}
+              >
+                {versionOptions.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    v{v.version} · {formatArs(v.totalSaleCents)}
+                    {v.id === activeVersion?.id ? " · activa" : ""}
+                    {publication?.quoteVersionId === v.id ? " · en la tienda" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>v{version.version} · {formatArs(version.totalSaleCents)}</>
+            )}
           </span>
           {publishedLabel ? <span className="muted" style={{ fontSize: 12.5 }}>{publishedLabel}</span> : null}
         </div>
@@ -587,6 +613,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
           <Alert tone="info">
             La tienda sigue mostrando la v{publication?.publishedVersionNumber} tal como se publicó. La v{version.version} no se
             envía hasta que la actualices desde acá.
+            {activeVersion && activeVersion.id !== version.id ? ` Elegiste una versión distinta de la activa (v${activeVersion.version}).` : ""}
           </Alert>
         </div>
       ) : null}

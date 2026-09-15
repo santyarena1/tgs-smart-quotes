@@ -215,7 +215,11 @@ async function mergeEdgesWithModel(colorPng: Buffer, modelPng: Buffer): Promise<
   // 3) Combinación:
   //    - "Afuera" según el relleno: decide el modelo (recupera superficies
   //      claras del producto que el relleno se comió, como una caja plateada).
-  //    - Hueco encerrado según el relleno: queda transparente (blanco puro).
+  //    - Hueco encerrado según el relleno: también decide el modelo. El
+  //      relleno borra cualquier mancha de blanco puro que no toque el borde,
+  //      y eso agujereaba el frente blanco de la caja de un procesador o una
+  //      etiqueta; el modelo distingue el hueco real (el aro de un cooler,
+  //      que deja ver el fondo) de una superficie blanca del producto.
   //    - Producto según el relleno: se respeta, salvo en la franja pegada al
   //      afuera, donde el modelo puede sacar sombra y halo.
   const out = Buffer.from(color.data);
@@ -223,12 +227,12 @@ async function mergeEdgesWithModel(colorPng: Buffer, modelPng: Buffer): Promise<
   for (let flat = 0; flat < total; flat++) {
     const index = flat * channels;
     const m = model.data[index + 3]! < 48 ? 0 : model.data[index + 3]!;
-    if (outside[flat]) {
+    if (isBgF(flat)) {
       out[index] = model.data[index]!;
       out[index + 1] = model.data[index + 1]!;
       out[index + 2] = model.data[index + 2]!;
       out[index + 3] = m;
-    } else if (!isBgF(flat)) {
+    } else {
       const d = distance[flat]!;
       if (d > 0) {
         const weight = d <= band / 2 ? 1 : Math.max(0, 1 - (d - band / 2) / (band / 2));

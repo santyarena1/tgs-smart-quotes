@@ -1,5 +1,5 @@
 import {BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Put, Req} from '@nestjs/common';
-import {randomUUID} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
 import sharp from 'sharp';
 import {createAiClient, describeOpenAiError, generateThumbnailImage, type ImageQuality, type ImageSize} from '@tgs/ai';
 import {decryptSecret} from '@tgs/config';
@@ -190,7 +190,7 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
   const jpeg = await sharp(png).jpeg({quality: 92}).toBuffer();
   const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${opts.familyId}/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
   await db.$transaction([
-    db.quoteFamily.update({where: {id: opts.familyId}, data: {thumbnailUrl: stored.url}}),
+    db.quoteFamily.update({where: {id: opts.familyId}, data: {thumbnailUrl: stored.url, thumbnailAuto: true, thumbnailInputsHash: await thumbnailInputsHash(opts.familyId, opts.versionId)}}),
     ...(opts.userId ? [db.auditLog.create({data: {userId: opts.userId, entityType: 'QuoteFamily', entityId: opts.familyId, action: 'GENERATE_THUMBNAIL_LAYOUT', next: {url: stored.url, headline}}})] : []),
   ]);
   return {url: stored.url, detail: `Plantilla TGS: título ${useGpu ? 'con la placa de video' : 'con el procesador'}, ${rows.length} filas, ${caseDetail}`};
@@ -225,6 +225,24 @@ function sniffMime(buffer: Buffer): string {
  */
 async function normalizeInput(buffer: Buffer): Promise<Buffer> {
   return sharp(buffer).resize(1536, 1536, {fit: 'inside', withoutEnlargement: true}).png().toBuffer();
+}
+
+/**
+ * Resumen de los insumos con los que se arma la miniatura: la foto del
+ * gabinete, el título y los componentes. Se guarda en la familia al generar
+ * y el pipeline lo compara para saber si la miniatura quedó vieja (cambió el
+ * gabinete, se rehizo el recorte, cambió el título o algún componente).
+ */
+export async function thumbnailInputsHash(familyId: string, versionId: string): Promise<string> {
+  const [family, items, caseItem] = await Promise.all([
+    db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
+    db.quoteItem.findMany({where: {versionId}, select: {frozenName: true, quantity: true}}),
+    findCaseItem(versionId),
+  ]);
+  const caseUrl = caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? '';
+  const title = family.webTitle?.trim() || family.internalName;
+  const canonical = items.map((item) => `${item.quantity}x${item.frozenName.trim().toLowerCase()}`).sort().join('|');
+  return createHash('sha256').update(`${caseUrl}#${title}#${canonical}`).digest('hex').slice(0, 32);
 }
 
 async function findCaseItem(versionId: string) {
@@ -403,7 +421,7 @@ export async function generateAiThumbnail(opts: {familyId: string; versionId: st
   const jpeg = await sharp(output).flatten({background: '#ffffff'}).jpeg({quality: 92}).toBuffer();
   const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${opts.familyId}/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
   await db.$transaction([
-    db.quoteFamily.update({where: {id: opts.familyId}, data: {thumbnailUrl: stored.url}}),
+    db.quoteFamily.update({where: {id: opts.familyId}, data: {thumbnailUrl: stored.url, thumbnailAuto: true, thumbnailInputsHash: await thumbnailInputsHash(opts.familyId, opts.versionId)}}),
     db.aiRequest.create({
       data: {
         task: 'THUMBNAIL_IMAGE',
