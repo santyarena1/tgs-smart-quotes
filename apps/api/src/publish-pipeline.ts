@@ -521,9 +521,10 @@ async function findCaseItem(versionId: string) {
       product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {id: true, url: true}}}},
     },
   });
-  // El que más parece gabinete entre los que tienen foto (ver case-detect.ts).
-  const withPhoto = items.filter((item) => item.webImageUrl || item.product?.assets[0]?.url);
-  const item = pickCaseItem(withPhoto.map((entry) => ({name: entry.frozenName, line: entry.line?.name ?? null, entry})))?.entry;
+  // El que más parece gabinete entre TODOS los ítems (ver case-detect.ts):
+  // el de la línea "Gabinete" gana. Si no tiene foto, no se lo reemplaza por
+  // otro componente con foto (salía cualquier cosa como foto principal).
+  const item = pickCaseItem(items.map((entry) => ({name: entry.frozenName, line: entry.line?.name ?? null, entry})))?.entry;
   if (!item) return null;
   // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
   if (item.webImageUrl) return {name: item.frozenName, assetId: null, imageUrl: item.webImageUrl};

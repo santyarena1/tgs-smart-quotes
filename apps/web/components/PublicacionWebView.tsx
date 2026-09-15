@@ -36,7 +36,7 @@ type ConfigDraft = {
 /** El test de conexión ahora informa además la versión del plugin instalado. */
 type TestResult = { ok: boolean; detail?: string; version?: string | null };
 
-type FilterId = "todos" | "publicados" | "pendientes" | "errores";
+type FilterId = "todos" | "publicados" | "pendientes" | "errores" | "combos";
 
 const emptyDraft: ConfigDraft = {
   wpBaseUrl: "",
@@ -233,6 +233,7 @@ export function PublicacionWebView() {
     return quotes.filter((quote) => {
       if (term && !`${quote.internalName} ${quote.webTitle ?? ""} ${quote.visibleNumber}`.toLowerCase().includes(term)) return false;
       const status = publications[quote.id]?.status;
+      if (filter === "combos") return quote.kind === "COMBO";
       if (filter === "publicados") return status === "PUBLISHED";
       if (filter === "errores") return status === "FAILED";
       if (filter === "pendientes") return status !== "PUBLISHED" && status !== "FAILED";
@@ -352,7 +353,7 @@ export function PublicacionWebView() {
       <section className="card card-pad" style={{ marginTop: 20, display: "grid", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h3 className="panel-title" style={{ margin: 0 }}>
-            PCs armadas ({counts.total})
+            PCs armadas y combos ({counts.total})
           </h3>
           <div style={{ maxWidth: 280, width: "100%" }}>
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nombre o número" />
@@ -365,11 +366,20 @@ export function PublicacionWebView() {
             { id: "publicados", label: `Publicadas (${counts.publicados})` },
             { id: "pendientes", label: `Sin publicar (${counts.pendientes})` },
             { id: "errores", label: `Con error (${counts.errores})` },
+            { id: "combos", label: `Combos (${quotes.filter((quote) => quote.kind === "COMBO").length})` },
           ]}
           active={filter}
           onChange={setFilter}
         />
 
+        {filter === "combos" ? (
+          <Alert tone="info">
+            Un combo es un presupuesto común marcado como <strong>"Es combo para la tienda"</strong>: se crea desde <strong>Presupuestos → Nuevo</strong>,
+            cargando los productos (teclado, mouse, silla…) y tildando esa casilla abajo de "Es PC armada". El precio del presupuesto es el precio final;
+            acá, en el editor de cada combo, se configura el % de descuento (que genera el precio tachado) y si es visible en la tienda o solo se ofrece
+            al agregar una PC al carrito. Después, "Preparar y publicar" igual que una PC.
+          </Alert>
+        ) : null}
         {quotesError ? <Alert tone="error">{quotesError}</Alert> : null}
         {quotesLoading ? (
           <Loading label="Cargando presupuestos…" />
@@ -417,7 +427,10 @@ export function PublicacionWebView() {
                         </span>
                       )}
                       <div style={{ display: "grid", gap: 4 }}>
-                        <strong>{quote.webTitle || quote.internalName || quote.visibleNumber}</strong>
+                        <strong>
+                          {quote.webTitle || quote.internalName || quote.visibleNumber}
+                          {quote.kind === "COMBO" ? <span className="badge" style={{ marginLeft: 8 }}>Combo</span> : null}
+                        </strong>
                         <span className="muted">
                           {quote.webTitle ? `${quote.internalName} · ` : ""}
                           {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}

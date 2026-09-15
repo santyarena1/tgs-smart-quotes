@@ -96,6 +96,19 @@ describe('título de la tienda con formato de specs', () => {
   });
 });
 
+describe('detección del gabinete', () => {
+  it('la marca sola no hace gabinete: gana el de la línea Gabinete aunque otro tenga marca de gabinetes', async () => {
+    const {pickCaseItem, scoreCaseCandidate} = await import('./case-detect.js');
+    expect(scoreCaseCandidate({name: 'Memoria Corsair Vengeance 16GB', line: 'Memoria RAM'})).toBe(0);
+    const picked = pickCaseItem([
+      {name: 'Memoria Corsair Vengeance 16GB', line: 'Memoria RAM'},
+      {name: 'Sentey A8 Vidrio Templado', line: 'Gabinete'},
+    ]);
+    expect(picked?.name).toBe('Sentey A8 Vidrio Templado');
+    expect(pickCaseItem([{name: 'Memoria Corsair Vengeance 16GB', line: 'Memoria RAM'}])).toBeNull();
+  });
+});
+
 describe('título de un combo', () => {
   it('une los nombres con + y acota a 120 caracteres', async () => {
     const {buildComboTitle} = await import('./quote-enrichment.js');

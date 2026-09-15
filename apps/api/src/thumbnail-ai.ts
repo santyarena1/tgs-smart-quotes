@@ -149,6 +149,8 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
   const items = await db.quoteItem.findMany({where: {versionId: opts.versionId}, orderBy: {position: 'asc'}, select: {frozenName: true, quantity: true, line: {select: {name: true}}}});
   const caseItem = await findCaseItem(opts.versionId);
   // Primero la foto elegida para el gabinete en el presupuesto; el hero solo si no hay gabinete con foto.
+  // Si hay gabinete pero sin foto, no se usa la de otro componente: se avisa.
+  if (caseItem && !caseItem.imageUrl) throw new ThumbnailAiUnavailable(`El gabinete «${caseItem.name}» no tiene foto: cargale una en Componentes`);
   const caseUrl = caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? null;
   if (!caseUrl) throw new ThumbnailAiUnavailable('No hay foto del gabinete para armar la miniatura');
 
@@ -257,10 +259,11 @@ async function findCaseItem(versionId: string) {
       product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {url: true}}}},
     },
   });
-  // El que más parece gabinete (ver case-detect.ts); si ninguno tiene foto,
-  // igual se devuelve el nombre para que el placeholder {{gabinete}} salga.
-  const withPhoto = items.filter((item) => item.webImageUrl || item.product?.assets[0]?.url);
-  const candidates = (withPhoto.length ? withPhoto : items).map((entry) => ({name: entry.frozenName, line: entry.line?.name ?? null, entry}));
+  // El que más parece gabinete (ver case-detect.ts) entre TODOS los ítems:
+  // el de la línea "Gabinete" gana siempre. Si ese no tiene foto, se devuelve
+  // igual sin imagen (el nombre sirve para {{gabinete}}) y el llamador cae al
+  // hero: antes se tomaba otro componente con foto y salía cualquier cosa.
+  const candidates = items.map((entry) => ({name: entry.frozenName, line: entry.line?.name ?? null, entry}));
   const item = pickCaseItem(candidates)?.entry;
   if (!item) return null;
   // La foto cargada en el ítem manda sobre la del producto de catálogo (igual que al publicar).
@@ -347,6 +350,8 @@ export async function generateAiThumbnail(opts: {familyId: string; versionId: st
   });
   const caseItem = await findCaseItem(opts.versionId);
   // Primero la foto elegida para el gabinete en el presupuesto; el hero solo si no hay gabinete con foto.
+  // Si hay gabinete pero sin foto, no se usa la de otro componente: se avisa.
+  if (caseItem && !caseItem.imageUrl) throw new ThumbnailAiUnavailable(`El gabinete «${caseItem.name}» no tiene foto: cargale una en Componentes`);
   const caseUrl = caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? null;
   if (!caseUrl) throw new ThumbnailAiUnavailable('No hay foto del gabinete para generar la miniatura');
 

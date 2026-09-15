@@ -20,8 +20,14 @@ export function scoreCaseCandidate(item: CaseCandidate): number {
   const line = item.line ?? '';
   const name = item.name;
   let score = 0;
-  if (LINE_CASE.test(line)) score += 10;
-  if (NAME_CASE.test(name)) score += 6;
+  const lineIsCase = LINE_CASE.test(line);
+  const nameIsCase = NAME_CASE.test(name);
+  // Sin la línea ni la palabra en el nombre no es gabinete: la marca sola
+  // (una RAM Corsair, un SSD XPG) no alcanza, si no salía cualquier
+  // componente como "gabinete" cuando el gabinete real no tenía foto.
+  if (!lineIsCase && !nameIsCase) return 0;
+  if (lineIsCase) score += 10;
+  if (nameIsCase) score += 6;
   if (CASE_BRANDS.test(name)) score += 2;
   if (ACCESSORY.test(name)) score -= 8;
   // Fuentes y coolers a veces dicen "para gabinete ATX": la línea manda.
