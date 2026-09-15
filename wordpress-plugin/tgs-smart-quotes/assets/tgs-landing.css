@@ -2010,17 +2010,22 @@ body.tgs-up-open { overflow: hidden; }
 .tgs-guide__link {
 	position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 16px;
 	font-family: "Rajdhani", var(--tgs-font, Inter, sans-serif); font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; line-height: 1.2;
-	color: rgba(248,250,252,.5); text-decoration: none; transition: color .2s ease, padding-left .2s ease;
+	color: rgba(248,250,252,.5); text-decoration: none;
+	transform-origin: left center;
+	transition: color .25s ease, padding-left .25s ease, transform .25s cubic-bezier(.2, .8, .2, 1), text-shadow .25s ease;
 }
 .tgs-guide__link::before {
 	content: ""; position: absolute; left: 0; top: 50%; width: 6px; height: 6px; transform: translateY(-50%) scale(0);
 	background: var(--tgs-accent, #E31B23); box-shadow: 0 0 10px rgba(227,27,35,.8); transition: transform .2s ease;
 }
 .tgs-guide__link:hover { color: #fff; }
-.tgs-guide__link.is-active { color: #fff; padding-left: 20px; }
-.tgs-guide__link.is-active::before { transform: translateY(-50%) scale(1); }
+/* Sección actual: en rojo, un poco más grande y con el marcador latiendo. */
+.tgs-guide__link.is-active { color: var(--tgs-accent, #E31B23); padding-left: 22px; transform: scale(1.12); text-shadow: 0 0 18px rgba(227,27,35,.45); }
+.tgs-guide__link.is-active::before { transform: translateY(-50%) scale(1); animation: tgs-guide-pulse 1.6s ease-in-out infinite; }
 .tgs-guide__link--setup { color: #fdba74; }
-.tgs-guide__link--setup.is-active { color: #fdba74; }
+.tgs-guide__link--setup.is-active { color: #fb923c; text-shadow: 0 0 18px rgba(249,115,22,.5); }
+@keyframes tgs-guide-pulse { 0%, 100% { box-shadow: 0 0 6px rgba(227,27,35,.6); } 50% { box-shadow: 0 0 16px 3px rgba(227,27,35,.95); } }
+@media (prefers-reduced-motion: reduce) { .tgs-guide__link, .tgs-guide__link.is-active::before { transition: none; animation: none; } }
 .tgs-guide__flame { font-size: 13px; }
 .tgs-guide__fire {
 	margin: 10px 0 0; padding: 7px 10px; border-left: 2px solid #f97316;

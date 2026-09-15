@@ -363,15 +363,34 @@
 		// El rail se ubica debajo del header fijo del sitio (que no reserva
 		// espacio), así nunca lo pisa aunque la lista sea larga.
 		function placeRail() {
-			nav.style.setProperty( '--tgs-guide-top', ( headerOffset() + 12 ) + 'px' );
+			// A la altura del hero (donde arranca la ficha), nunca pegado al header.
+			var hero = document.querySelector( '.tgs-hero, .gx-hero, .tgs-landing' );
+			var heroTop = hero ? hero.getBoundingClientRect().top + window.pageYOffset : 0;
+			var top = Math.max( headerOffset() + 48, Math.round( heroTop ) );
+			nav.style.setProperty( '--tgs-guide-top', top + 'px' );
 		}
 		placeRail();
 		window.addEventListener( 'load', placeRail );
 		window.addEventListener( 'resize', placeRail );
+		// Una sección adentro de un panel fijo (las formas de pago viven en la
+		// barra de compra del diseño propio) no tiene posición en la página:
+		// no se puede scrollear hasta ella, hay que abrir el panel.
+		function inFixedPanel( el ) {
+			for ( var node = el; node && node !== document.body; node = node.parentElement ) {
+				var pos = window.getComputedStyle( node ).position;
+				if ( pos === 'fixed' || pos === 'sticky' ) { return node; }
+			}
+			return null;
+		}
 		function go( id ) {
 			if ( id === 'top' ) { window.scrollTo( { top: 0, behavior: 'smooth' } ); return; }
 			var el = document.getElementById( id );
 			if ( ! el ) { return; }
+			if ( inFixedPanel( el ) ) {
+				var opener = document.querySelector( '[data-gx-pay-open]' );
+				if ( opener ) { opener.click(); }
+				return;
+			}
 			var top = el.getBoundingClientRect().top + window.pageYOffset - headerOffset();
 			window.scrollTo( { top: Math.max( 0, top ), behavior: 'smooth' } );
 		}
@@ -387,7 +406,9 @@
 			var y = window.pageYOffset + window.innerHeight * 0.4;
 			var active = null;
 			for ( var j = 0; j < targets.length; j++ ) {
-				if ( targets[ j ].el.offsetTop <= y ) { active = targets[ j ]; }
+				if ( inFixedPanel( targets[ j ].el ) ) { continue; }
+				var top = targets[ j ].el.getBoundingClientRect().top + window.pageYOffset;
+				if ( top <= y ) { active = targets[ j ]; }
 			}
 			for ( var k = 0; k < targets.length; k++ ) { targets[ k ].link.classList.toggle( 'is-active', targets[ k ] === active ); }
 		}

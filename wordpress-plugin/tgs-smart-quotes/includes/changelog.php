@@ -10,6 +10,10 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.4' => array(
+			'Guía: arranca a la altura del hero (donde empieza la ficha), bien separada del header. La sección actual se ve en rojo, un poco más grande y con el marcador latiendo (animación suave al cambiar).',
+			'Guía: "Formas de pago" ahora abre el panel de pagos de la barra de compra (en el diseño propio esa sección vive adentro de un panel fijo y no se podía scrollear hasta ella); esas secciones tampoco se marcan como "actual".',
+		),
 		'2.23.3' => array(
 			'Potenciá tu setup: un solo producto por categoría. Elegir otro de la misma pestaña reemplaza al anterior (cada pestaña dice "Elegí uno.").',
 			'La guía ya no pisa la barra superior del sitio: arranca debajo del header fijo (medido en vivo) y, si la lista es larga, scrollea por dentro.',
