@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.6' => array(
+			'Combos: vuelven a usar el MISMO diseño propio de su variante (2.23.5 les ponía la ficha de bloques del plugin y se veía distinto). Solo cambian los textos y secciones que hablaban de una PC: "PC armada" → "Combo", "Armada y testeada" → "Combo con descuento", "La PC" → "El combo" ("Qué es este combo"), "Componentes" → "Qué incluye", "Compartir esta PC" → "Compartir este combo", el cierre; sin juegos, compatibilidad, monitores/Potenciá tu setup ni 3D; "Recomendadas" pasa a "Otros combos"; el precio de lista tachado es el del descuento del combo. En variantes de bloques, la ficha de combo de 2.23.5.',
+		),
 		'2.23.5' => array(
 			'Ficha propia para los combos: hero (miniatura, título, tachado, precio y compra, kicker "THE GAMER SHOP · COMBO"), "Qué incluye" con las fotos de los productos, descripción, formas de pago, envíos y "Otros combos". Ya no usa el diseño de la PC: sin "Sobre la PC", "Girala en 3D", juegos, monitores ni "Potenciá tu setup". Toma la paleta de la variante asignada. En la guía, "El combo".',
 		),

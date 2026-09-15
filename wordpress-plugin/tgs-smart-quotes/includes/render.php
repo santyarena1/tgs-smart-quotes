@@ -1039,6 +1039,13 @@ function tgs_sq_other_combos( array $d ) {
  * Los bloques que no tienen datos no imprimen nada, así que el placeholder
  * correspondiente queda vacío en lugar de romper la página.
  */
+/** Corre una función que imprime y devuelve su HTML. */
+function tgs_sq_capture( $fn, array $d ) {
+	ob_start();
+	$fn( $d );
+	return (string) ob_get_clean();
+}
+
 function tgs_sq_capture_block( $type, array $d ) {
 	ob_start();
 	tgs_sq_render_block( $type, $d );
@@ -1101,7 +1108,8 @@ function tgs_sq_placeholder_values( array $d ) {
 	$values = array(
 		'titulo'               => esc_html( $d['title'] ),
 		'permalink'            => esc_url( $d['permalink'] ),
-		'precio_lista'         => $price( $d['price_list'] ),
+		// Combos: el "precio de lista" es el tachado (descuento inverso).
+		'precio_lista'         => ! empty( $d['is_combo'] ) && tgs_sq_combo_pricing( $d['product_id'] )['regularCents'] ? $price( tgs_sq_combo_pricing( $d['product_id'] )['regularCents'] ) : $price( $d['price_list'] ),
 		'precio_efectivo'      => $price( $d['price_cash'] ),
 		'precio_transferencia' => $price( $d['price_transfer'] ),
 		'caja_precios'         => tgs_sq_price_html( $d ),
@@ -1122,9 +1130,9 @@ function tgs_sq_placeholder_values( array $d ) {
 		'puntos_fuertes'       => tgs_sq_highlights_html( $d ),
 		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
 		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
-		'recomendadas'         => tgs_sq_recommended_html( $d ),
+		'recomendadas'         => ! empty( $d['is_combo'] ) ? tgs_sq_capture( 'tgs_sq_other_combos', $d ) : tgs_sq_recommended_html( $d ),
 		// Con la sección nueva activa, {{monitores}} queda vacío (los monitores son una pestaña de {{potencia_setup}}).
-		'monitores'            => empty( $d['setup_active'] ) ? tgs_sq_monitors_html( $d ) : ( ! empty( $d['setup_via_monitores'] ) ? tgs_sq_setup_html( $d ) : '' ),
+		'monitores'            => ! empty( $d['is_combo'] ) ? '' : ( empty( $d['setup_active'] ) ? tgs_sq_monitors_html( $d ) : ( ! empty( $d['setup_via_monitores'] ) ? tgs_sq_setup_html( $d ) : '' ) ),
 		'potencia_setup'       => empty( $d['setup_active'] ) ? '' : tgs_sq_setup_html( $d ),
 		'boton_carrito'        => $cart,
 		'boton_whatsapp'       => tgs_sq_whatsapp_button_html( $d ),
@@ -1171,8 +1179,37 @@ function tgs_sq_render_custom_mode( array $variant, array $data ) {
 	 * ver tgs_sq_render_variant_editor()), igual que el HTML que cualquier
 	 * admin puede escribir en un post con el editor de WordPress.
 	 */
-	echo tgs_sq_apply_placeholders( tgs_sq_variant_custom_code( $variant ), $data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	$code = tgs_sq_variant_custom_code( $variant );
+	if ( ! empty( $data['is_combo'] ) ) {
+		$code = tgs_sq_combo_texts( $code );
+	}
+	echo tgs_sq_apply_placeholders( $code, $data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '</main>';
+}
+
+/**
+ * Un combo se muestra con el MISMO diseño propio que las PCs de su variante;
+ * lo único que cambia son los textos fijos que hablan de una PC. Se
+ * reemplazan las frases del diseño Landing Gamer (y variantes obvias); si
+ * el admin escribió otras, quedan como están. Los placeholders ya devuelven
+ * lo que corresponde a un combo (Qué incluye, sin juegos, sin monitores,
+ * otros combos, precio de lista = tachado).
+ */
+function tgs_sq_combo_texts( $code ) {
+	$pairs = array(
+		'/<h2>\s*(La PC|Sobre la PC)\s*<\/h2>/iu'             => '<h2>El combo</h2>',
+		'/PC armada/iu'                                          => 'Combo',
+		'/Armada y testeada/iu'                                  => 'Combo con descuento',
+		'/¿La quer[eé]s distinta\?/iu'                          => '¿Lo querés distinto?',
+		'/Compartir esta PC/iu'                                  => 'Compartir este combo',
+		'/Cambiamos placa, memoria, almacenamiento o gabinete y te pasamos el precio actualizado\. Escribinos y la armamos como la necesit[aá]s\./iu' => 'Cambiamos cualquiera de los productos y te pasamos el precio actualizado. Escribinos y lo armamos como lo necesitás.',
+		'/Arrastr[aá] para girar el gabinete y verlo de todos los [aá]ngulos\./iu' => '',
+		'/De qu[eé] se trata/iu'                                 => 'Qué es este combo',
+	);
+	foreach ( $pairs as $pattern => $replacement ) {
+		$code = (string) preg_replace( $pattern, $replacement, $code );
+	}
+	return $code;
 }
 
 /**
@@ -1215,9 +1252,8 @@ function tgs_sq_render_product( $product_id ) {
 	}
 
 	ob_start();
-	if ( ! empty( $data['is_combo'] ) ) {
-		// Un combo no es una PC: ficha propia, con la paleta de la variante
-		// pero sin diseño propio pegado, juegos, monitores ni "Sobre la PC".
+	if ( ! empty( $data['is_combo'] ) && ! $custom ) {
+		// Combo en variante de bloques: ficha propia (sin juegos, monitores ni 3D).
 		tgs_sq_render_combo_mode( $variant, $data );
 	} elseif ( $custom ) {
 		tgs_sq_render_custom_mode( $variant, $data );
