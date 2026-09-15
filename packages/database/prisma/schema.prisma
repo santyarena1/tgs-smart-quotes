@@ -9,6 +9,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Qué es la familia de cara a la tienda: una PC (o presupuesto común) o un
+/// combo de productos que se publica como un producto único con precio tachado.
+enum QuoteFamilyKind {
+  PC
+  COMBO
+}
+
 enum QuoteState {
   BORRADOR
   ENVIADO
@@ -534,6 +541,14 @@ model QuoteFamily {
   customerId           String?
   customer             Customer?             @relation(fields: [customerId], references: [id])
   isBuiltPc            Boolean               @default(false)
+  kind                 QuoteFamilyKind       @default(PC)
+  /// Combos: descuento "inverso" en puntos básicos. El precio del presupuesto
+  /// es el precio final; el tachado sale de precio / (1 − descuento). 1000 = 10 %.
+  comboDiscountBps     Int                   @default(0)
+  /// Combos: si está apagado, el producto en la tienda queda oculto (no sale
+  /// en listados ni en la búsqueda, con noindex) y solo se compra desde el
+  /// modal de la ficha de una PC.
+  storeVisible         Boolean               @default(true)
   activeVersion        Int                   @default(1)
   /// Miniatura: la imagen chica que se ve en el listado de productos de la
   /// tienda y en "Recomendadas de la casa". Se sube a mano.

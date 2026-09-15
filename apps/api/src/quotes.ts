@@ -456,6 +456,7 @@ export class QuotesController{
           requestId:body.requestId??null,
           customerId:body.customerId??null,
           isBuiltPc:body.isBuiltPc??false,
+          kind:body.kind??'PC',
           activeVersion:1,
           branchId:actor.branchId??null,
         }});
@@ -525,6 +526,7 @@ export class QuotesController{
           requestId:null,
           customerId:sourceFamily.customerId,
           isBuiltPc:sourceFamily.isBuiltPc,
+          kind:sourceFamily.kind,
           activeVersion:1,
         }});
         const version=await tx.quoteVersion.create({data:{
@@ -578,11 +580,13 @@ export class QuotesController{
           requestId?:string|null;
           customerId?:string|null;
           isBuiltPc?:boolean;
+          kind?:'PC'|'COMBO';
         }={};
         if(body.internalName!==undefined)familyData.internalName=body.internalName;
         if(body.requestId!==undefined)familyData.requestId=body.requestId;
         if(body.customerId!==undefined)familyData.customerId=body.customerId;
         if(body.isBuiltPc!==undefined)familyData.isBuiltPc=body.isBuiltPc;
+        if(body.kind!==undefined)familyData.kind=body.kind;
         const nextFamily=Object.keys(familyData).length
           ?await tx.quoteFamily.update({where:{id},data:familyData})
           :family;

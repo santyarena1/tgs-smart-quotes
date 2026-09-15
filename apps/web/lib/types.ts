@@ -350,6 +350,12 @@ export type Quote = {
   requestId: string | null;
   customerId: string | null;
   isBuiltPc: boolean;
+  /** 'COMBO' = pack de productos que se publica en la tienda como un producto único (BLOCK-10). */
+  kind?: "PC" | "COMBO";
+  /** Combos: descuento inverso en puntos básicos (1000 = 10 %). */
+  comboDiscountBps?: number;
+  /** Combos: visible en la tienda y en la búsqueda. */
+  storeVisible?: boolean;
   activeVersion: number;
   autoRepublish?: boolean;
   thumbnailUrl?: string | null;

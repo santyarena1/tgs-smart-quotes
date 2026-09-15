@@ -23,7 +23,8 @@ export async function syncAutoRepublishForProduct(productId: string): Promise<vo
       productId,
       version: {
         state: 'BORRADOR',
-        family: { autoRepublish: true, isBuiltPc: true },
+        // PCs armadas y combos de la tienda (ver BLOCK-10).
+        family: { autoRepublish: true, OR: [{ isBuiltPc: true }, { kind: 'COMBO' }] },
       },
     },
     select: { versionId: true },
@@ -47,10 +48,10 @@ async function syncOneVersion(versionId: string): Promise<void> {
       where: { id: versionId },
       include: {
         items: true,
-        family: { select: { autoRepublish: true, isBuiltPc: true, webPublication: { select: { status: true, quoteVersionId: true } } } },
+        family: { select: { autoRepublish: true, isBuiltPc: true, kind: true, webPublication: { select: { status: true, quoteVersionId: true } } } },
       },
     });
-    if (!version || version.state !== 'BORRADOR' || !version.family.autoRepublish || !version.family.isBuiltPc) {
+    if (!version || version.state !== 'BORRADOR' || !version.family.autoRepublish || !(version.family.isBuiltPc || version.family.kind === 'COMBO')) {
       return false;
     }
 

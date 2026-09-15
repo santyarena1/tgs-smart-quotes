@@ -45,6 +45,12 @@
 - Tarjeta "Potenciá tu setup": prendido, % por producto, aplica a la PC, título, texto (`{{pct}}`), pestaña por defecto, textos del aviso, y un `<details>` por ranura (prendida, nombre, cuántos, categoría, selector de productos con ★).
 - La tarjeta del modal viejo queda como "(modo viejo)": solo actúa si la sección está apagada.
 
-## Etapa 2 — Combos en TGS (pendiente)
+## Etapa 2 — Combos en TGS (construida 2026-09-15)
+
+- `QuoteFamily.kind` (`PC` | `COMBO`), `comboDiscountBps`, `storeVisible` (migración `20260915150000_quote_family_combo`). Un combo es un presupuesto común (no "PC armada") con la casilla **"Es combo para la tienda"** en el editor de presupuestos (`kind` va en create/update de `/quotes`). Se lista en Publicación web junto con las PCs (`GET /external-module/publications` y el listado filtran `isBuiltPc || kind === 'COMBO'`); la sincronización automática de precios también los toma.
+- **Descuento inverso**: el precio del presupuesto es el final; el tachado es `precio / (1 − bps/10000)` redondeado al centavo (`comboStrikeCents` en `@tgs/providers` y en `apps/web/lib/money.ts`, entero puro; test en `wordpress.test.ts`). Con $100.000 y 10 %: tachado $111.111,11. Se edita en el editor web ("Combo para la tienda": % con decimales + vista previa del tachado) vía `PUT publish-settings {comboDiscountBps}`.
+- **Visibilidad**: `storeVisible` (`PUT publish-settings {storeVisible}`). Apagado = el plugin lo publica oculto (etapa 3).
+- **Payload a WordPress** (`buildPublishPayload`): `kind`, `comboDiscountBps`, `regularPriceCents` (tachado o null), `storeVisible` (PCs: 'PC', 0, null, true).
+- **Pipeline "Preparar y publicar"** con combos: imágenes/recortes/descripciones igual; hero = producto más caro con foto (`findComboHeroItem`); textos = `ComboEnrichmentService` (`packages/ai/src/services/combo-enrichment.ts`: título, bajada, descripción corta, HTML, puntos fuertes, público; sin juegos/programas/compatibilidad; misma tarea `QUOTE_ENRICHMENT` con `format: 'combo-v1'` en el hash); `runQuoteEnrichment` despacha por `kind`; título por reglas = `buildComboTitle` ("Combo A + B + C", ≤120); miniatura = collage con sharp (`apps/api/src/combo-thumbnail.ts`: hasta 4 fotos, banda con título y etiqueta −X %; sin IA); 3D no aplica. El editor web oculta Juegos y Compatibilidad para combos.
 
 ## Etapa 3 — Combos en la tienda (pendiente)

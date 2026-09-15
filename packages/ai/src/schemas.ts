@@ -16,6 +16,11 @@ export const quoteEnrichmentSpecsSchema=z.object({cpu:z.string().nullable(),gpu:
 export const quoteEnrichmentOutputSchema=z.object({specs:quoteEnrichmentSpecsSchema,tagline:z.string(),shortDescription:z.string(),descriptionHtml:z.string(),highlights:z.array(z.string()),audience:z.string(),games:z.array(quoteEnrichmentGameOutputSchema),programs:z.array(z.object({name:z.string(),note:z.string()}).strict()),compatibility:z.array(z.string())}).strict();
 export type QuoteEnrichmentInput=z.infer<typeof quoteEnrichmentInputSchema>;
 export type QuoteEnrichmentOutput=z.infer<typeof quoteEnrichmentOutputSchema>;
+// Combos de la tienda (BLOCK-10): mismos ítems, salida sin juegos ni compatibilidad.
+export const comboEnrichmentInputSchema=z.object({items:z.array(z.object({name:z.string().min(1),quantity:z.number().int().positive(),line:z.string().nullable().optional()}).strict()).min(1)}).strict();
+export const comboEnrichmentOutputSchema=z.object({title:z.string(),tagline:z.string(),shortDescription:z.string(),descriptionHtml:z.string(),highlights:z.array(z.string()),audience:z.string()}).strict();
+export type ComboEnrichmentInput=z.infer<typeof comboEnrichmentInputSchema>;
+export type ComboEnrichmentOutput=z.infer<typeof comboEnrichmentOutputSchema>;
 
 export const requestAnalysisOutputSchema = z
   .object({

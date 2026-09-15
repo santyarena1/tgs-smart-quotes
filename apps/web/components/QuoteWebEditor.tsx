@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, apiUpload, generateFamilyThumbnailAi, recutQuoteImages } from "../lib/api";
-import { formatArs } from "../lib/money";
+import { comboStrikeCents, formatArs } from "../lib/money";
 import { getActiveVersion, type Quote } from "../lib/types";
 import { Alert, Checkbox, Field, Loading, Modal, Pill, Tabs, errorMessage } from "./shared";
 import { ProductContentEditor } from "./ProductContentEditor";
@@ -70,6 +70,9 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   const [savingTitle, setSavingTitle] = useState(false);
   const [generatingTitle, setGeneratingTitle] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
+  /** Combos: descuento inverso en % (con decimales) y visibilidad en la tienda. */
+  const [comboPctDraft, setComboPctDraft] = useState("");
+  const [savingCombo, setSavingCombo] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
   const [generatingThumb, setGeneratingThumb] = useState(false);
   const [thumbNotice, setThumbNotice] = useState<string | null>(null);
@@ -136,6 +139,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setQuote(q);
       setTitleDraft(q.webTitle ?? "");
       setTaglineDraft(q.webTagline ?? "");
+      setComboPctDraft(q.comboDiscountBps ? String(q.comboDiscountBps / 100) : "");
       setProductsById(Object.fromEntries(products.map((p) => [p.id, p])));
       const v = getActiveVersion(q);
       setPublication(await loadPublication(quoteId));
@@ -283,6 +287,24 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setGeneratingTitle(false);
     }
   };
+
+  /** Guarda el descuento inverso y/o la visibilidad del combo. */
+  const saveComboSettings = async (patch: { comboDiscountBps?: number; storeVisible?: boolean }) => {
+    if (!quote) return;
+    setSavingCombo(true);
+    setActionError(null);
+    try {
+      await api(`/external-module/quote-families/${quote.id}/publish-settings`, { method: "PUT", body: patch });
+      setQuote((prev) => (prev ? { ...prev, ...patch } : prev));
+      setPreviewNonce((n) => n + 1);
+      onChanged?.();
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setSavingCombo(false);
+    }
+  };
+  const comboPctBps = Math.round((parseFloat(comboPctDraft.replace(",", ".")) || 0) * 100);
 
   const toggleAutoRepublish = async (value: boolean) => {
     if (!quote) return;
@@ -523,6 +545,7 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     );
   }
 
+  const isCombo = quote.kind === "COMBO";
   const isPublished = publication?.status === "PUBLISHED";
   // "Vieja" respecto de la versión elegida acá, no de la activa del presupuesto.
   const isStale = Boolean(isPublished && publication?.quoteVersionId && publication.quoteVersionId !== version.id);
@@ -768,6 +791,53 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
               onChange={(v) => void toggleAutoRepublish(v)}
             />
 
+            {isCombo ? (
+              <div className="card card-pad" style={{ display: "grid", gap: 12, background: "var(--bg-soft, #f8fafc)" }}>
+                <h4 style={{ margin: 0 }}>Combo para la tienda</h4>
+                <Field
+                  label="Descuento del combo"
+                  hint="Es un descuento 'inverso': el precio del presupuesto es lo que paga el cliente y el tachado es el precio del que ese es el resultado. Con $100.000 y 10 % el tachado es $111.111."
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <input
+                      type="number"
+                      min={0}
+                      max={90}
+                      step={0.5}
+                      value={comboPctDraft}
+                      onChange={(e) => setComboPctDraft(e.target.value)}
+                      style={{ width: 110 }}
+                    />
+                    <span className="muted">%</span>
+                    <span style={{ fontSize: 14 }}>
+                      {comboPctBps > 0 ? (
+                        <>
+                          <s className="muted">{formatArs(comboStrikeCents(version.totalSaleCents, comboPctBps) ?? version.totalSaleCents)}</s>{" "}
+                          <strong>{formatArs(version.totalSaleCents)}</strong>
+                        </>
+                      ) : (
+                        <strong>{formatArs(version.totalSaleCents)}</strong>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-dark btn-sm"
+                      disabled={savingCombo || comboPctBps === (quote.comboDiscountBps ?? 0)}
+                      onClick={() => void saveComboSettings({ comboDiscountBps: comboPctBps })}
+                    >
+                      {savingCombo ? "Guardando…" : "Guardar descuento"}
+                    </button>
+                  </div>
+                </Field>
+                <Checkbox
+                  label="Visible en la tienda y en la búsqueda (apagado: oculto, solo se puede comprar desde el modal de la ficha de una PC)"
+                  checked={quote.storeVisible !== false}
+                  disabled={savingCombo}
+                  onChange={(v) => void saveComboSettings({ storeVisible: v })}
+                />
+              </div>
+            ) : null}
+
             <Field
               label="Miniatura"
               hint="Es la imagen chica que se ve en el listado de productos de la tienda y en 'Recomendadas de la casa'. La foto grande del hero se elige aparte, en el paso Componentes."
@@ -871,7 +941,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                   <input value={audienceDraft} onChange={(e) => setAudienceDraft(e.target.value)} />
                 </Field>
                 {/* Juegos y compatibilidad: la IA los estima, así que se
-                    muestran para revisarlos y corregirlos antes de publicar. */}
+                    muestran para revisarlos y corregirlos antes de publicar.
+                    Un combo no tiene PC: no aplican. */}
+                {isCombo ? null : (
+                <>
                 <Field
                   label="Juegos y rendimiento"
                   hint="Los estima la IA a partir de los componentes: no son mediciones reales. Por juego: nombre, resolución, calidad, rango de FPS y el texto que se muestra. Lo que borres no se publica."
@@ -994,6 +1067,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                     </div>
                   </div>
                 </Field>
+                </>
+                )}
 
                 <div>
                   <button type="button" className="btn-dark btn-sm" disabled={savingEnrichment} onClick={() => void saveEnrichment()}>

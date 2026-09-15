@@ -15,6 +15,19 @@ function pesosGroup(pesos: bigint): string {
 }
 
 /** Formatea centavos a pesos enteros ARS (sin decimales) solo para UI. */
+/**
+ * Precio tachado de un combo (BLOCK-10): el precio del presupuesto es el
+ * final y el tachado es el que, con el descuento aplicado, da ese final:
+ * tachado = precio / (1 − bps/10000), redondeado al centavo. Entero puro,
+ * misma cuenta que comboStrikeCents en @tgs/providers.
+ */
+export function comboStrikeCents(priceCents: string | number | bigint, discountBps: number): bigint | null {
+  const bps = BigInt(Math.max(0, Math.min(9999, Math.trunc(discountBps))));
+  if (bps === 0n) return null;
+  const divisor = 10000n - bps;
+  return (BigInt(priceCents) * 10000n + divisor / 2n) / divisor;
+}
+
 export function formatArs(cents: string | number | bigint | null | undefined): string {
   if (cents === null || cents === undefined || cents === "") return "—";
   let value: bigint;

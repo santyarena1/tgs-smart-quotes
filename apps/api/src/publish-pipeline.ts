@@ -16,7 +16,8 @@ import {thumbnailRulesSchema, type ThumbnailRules} from '@tgs/contracts';
 import {db} from '@tgs/database';
 import {getSerperKey, publishQuote, removeBackgroundDetailed, searchImages, type SerperImage} from '@tgs/providers';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
-import {enrichmentItemsHash, gamesToAnalyze, generateProductDescription, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
+import {buildComboTitle, enrichmentItemsHash, gamesToAnalyze, generateProductDescription, isComboVersion, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
+import {renderComboThumbnail} from './combo-thumbnail.js';
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable, thumbnailInputsHash} from './thumbnail-ai.js';
@@ -451,8 +452,9 @@ async function downloadImage(url: string): Promise<{buffer: Buffer; contentType:
  * a la del gabinete en vez de dejar la ficha con una imagen rota.
  */
 async function ensureHero(familyId: string, versionId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
-  const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {heroAssetId: true, heroImageUrl: true, heroAsset: {select: {status: true, url: true}}}});
-  const caseItem = await findCaseItem(versionId);
+  const family = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {kind: true, heroAssetId: true, heroImageUrl: true, heroAsset: {select: {status: true, url: true}}}});
+  // En un combo no hay gabinete: la foto principal es la del producto más caro.
+  const caseItem = family.kind === 'COMBO' ? await findComboHeroItem(versionId) : await findCaseItem(versionId);
   const items = await db.quoteItem.findMany({
     where: {versionId},
     select: {webImageUrl: true, product: {select: {assets: {where: {status: 'READY', url: {not: null}}, select: {id: true, url: true}}}}},
@@ -470,13 +472,42 @@ async function ensureHero(familyId: string, versionId: string): Promise<{status:
     ? validAssetIds.has(family.heroAssetId) && family.heroAsset?.status === 'READY' && Boolean(family.heroAsset.url)
     : Boolean(family.heroImageUrl && validUrls.has(family.heroImageUrl));
   if (heroValid) return {status: 'SKIPPED', detail: 'Se mantiene la foto principal elegida'};
-  if (!caseItem) return {status: 'SKIPPED', detail: 'No hay gabinete con foto; la ficha usa la miniatura'};
+  if (!caseItem) return {status: 'SKIPPED', detail: family.kind === 'COMBO' ? 'Ningún producto tiene foto; la ficha usa la miniatura' : 'No hay gabinete con foto; la ficha usa la miniatura'};
   if (caseItem.assetId) {
     await db.quoteFamily.update({where: {id: familyId}, data: {heroAssetId: caseItem.assetId, heroImageUrl: null}});
   } else {
     await db.quoteFamily.update({where: {id: familyId}, data: {heroImageUrl: caseItem.imageUrl, heroAssetId: null}});
   }
   return {status: 'DONE', detail: family.heroAssetId || family.heroImageUrl ? `La foto principal apuntaba a una imagen que ya no existe; se usa la de ${caseItem.name}` : `Se usa la foto de ${caseItem.name}`};
+}
+
+/** Combos: el producto más caro que tenga foto (por precio congelado × cantidad). */
+async function findComboHeroItem(versionId: string) {
+  const items = await db.quoteItem.findMany({
+    where: {versionId},
+    orderBy: {subtotalCents: 'desc'},
+    select: {
+      frozenName: true,
+      webImageUrl: true,
+      product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {id: true, url: true}}}},
+    },
+  });
+  for (const item of items) {
+    if (item.webImageUrl) return {name: item.frozenName, assetId: null, imageUrl: item.webImageUrl};
+    const asset = item.product?.assets[0];
+    if (asset?.url) return {name: item.frozenName, assetId: asset.id, imageUrl: asset.url};
+  }
+  return null;
+}
+
+/** Combos: fotos de los productos en orden de precio (para el collage). */
+async function comboItemImages(versionId: string): Promise<string[]> {
+  const items = await db.quoteItem.findMany({
+    where: {versionId},
+    orderBy: {subtotalCents: 'desc'},
+    select: {webImageUrl: true, product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {url: true}}}}},
+  });
+  return items.map((item) => item.webImageUrl ?? item.product?.assets[0]?.url ?? null).filter((url): url is string => Boolean(url));
 }
 
 async function findCaseItem(versionId: string) {
@@ -530,7 +561,7 @@ async function ensureTitle(familyId: string, versionId: string): Promise<{status
   const data: {webTitle?: string; webTagline?: string; webTitleAuto?: boolean} = {};
   // El título con formato de specs sale de las reglas sobre los nombres; el
   // guardado por el enriquecimiento ya trae lo que la IA completó, si hubo.
-  const proposedTitle = enrichment?.title ?? buildStoreTitle(await loadEnrichmentItems(versionId));
+  const proposedTitle = enrichment?.title ?? ((await isComboVersion(versionId)) ? buildComboTitle(await loadEnrichmentItems(versionId)) : buildStoreTitle(await loadEnrichmentItems(versionId)));
   const currentTitle = family.webTitle?.trim() ?? '';
   const currentTagline = family.webTagline?.trim() ?? '';
   const auto = !currentTitle || family.webTitleAuto;
@@ -567,6 +598,23 @@ async function ensureThumbnail(familyId: string, versionId: string, userId: stri
     regenerating = true;
   }
   const done = (detail: string): {status: 'DONE'; detail: string} => ({status: 'DONE', detail: regenerating ? `Rehecha por el cambio de componentes o título. ${detail}` : detail});
+  if (await isComboVersion(versionId)) {
+    const urls = await comboItemImages(versionId);
+    if (!urls.length) return {status: 'SKIPPED', detail: 'Ningún producto del combo tiene foto para armar la miniatura'};
+    const combo = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {comboDiscountBps: true}});
+    const ai = await loadThumbnailAiSettings();
+    const images = await Promise.all(urls.slice(0, 4).map((url) => readOwnOrRemote(url)));
+    const output = await renderComboThumbnail({
+      images,
+      title: family.webTitle?.trim() || family.internalName,
+      discountPct: combo.comboDiscountBps / 100,
+      accent: ai.accentColor || '#E31B23',
+      background: '#080B12',
+    });
+    const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${familyId}/${randomUUID()}.jpg`, output, 'image/jpeg');
+    await db.quoteFamily.update({where: {id: familyId}, data: {thumbnailUrl: stored.url, thumbnailAuto: true, thumbnailInputsHash: inputsHash}});
+    return done(`Collage con ${images.length} ${images.length === 1 ? 'producto' : 'productos'}`);
+  }
   // Con "Miniaturas IA" activo, la miniatura la genera el modelo de imágenes a
   // partir de las referencias y la foto del gabinete. Si falta algo de la
   // configuración se avisa y se cae a la plantilla clásica.
@@ -614,6 +662,7 @@ async function readOwnOrRemote(url: string): Promise<Buffer> {
 // ------------------------------------------------------------------------ 3D
 
 async function reportModel3d(versionId: string): Promise<{status: 'DONE' | 'SKIPPED'; detail: string}> {
+  if (await isComboVersion(versionId)) return {status: 'SKIPPED', detail: 'No aplica a combos'};
   const items = await db.quoteItem.findMany({
     where: {versionId},
     select: {frozenName: true, product: {select: {caseModel3D: {select: {status: true, glbUrl: true}}}}},

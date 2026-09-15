@@ -235,11 +235,12 @@ async function normalizeInput(buffer: Buffer): Promise<Buffer> {
  */
 export async function thumbnailInputsHash(familyId: string, versionId: string): Promise<string> {
   const [family, items, caseItem] = await Promise.all([
-    db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
+    db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {kind: true, comboDiscountBps: true, webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
     db.quoteItem.findMany({where: {versionId}, select: {frozenName: true, quantity: true}}),
     findCaseItem(versionId),
   ]);
-  const caseUrl = caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? '';
+  // Un combo no tiene gabinete: cuentan el hero y el descuento (va estampado en la miniatura).
+  const caseUrl = family.kind === 'COMBO' ? `${family.heroImageUrl ?? family.heroAsset?.url ?? ''}#${family.comboDiscountBps}` : caseItem?.imageUrl ?? family.heroImageUrl ?? family.heroAsset?.url ?? '';
   const title = family.webTitle?.trim() || family.internalName;
   const canonical = items.map((item) => `${item.quantity}x${item.frozenName.trim().toLowerCase()}`).sort().join('|');
   return createHash('sha256').update(`${caseUrl}#${title}#${canonical}`).digest('hex').slice(0, 32);

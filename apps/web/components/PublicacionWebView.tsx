@@ -101,7 +101,8 @@ export function PublicacionWebView() {
     setQuotesError(null);
     try {
       const rows = await api<Quote[]>("/quotes");
-      const pcQuotes = rows.filter((quote) => quote.isBuiltPc && getActiveVersion(quote));
+      // PCs armadas y combos de la tienda (BLOCK-10).
+      const pcQuotes = rows.filter((quote) => (quote.isBuiltPc || quote.kind === "COMBO") && getActiveVersion(quote));
       setQuotes(pcQuotes);
       // Una sola petición para todas: una por PC pasaba el rate limit.
       const all = await api<Record<string, Publication>>("/external-module/publications").catch(() => ({}) as Record<string, Publication>);

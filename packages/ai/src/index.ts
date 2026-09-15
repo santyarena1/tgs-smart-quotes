@@ -63,6 +63,7 @@ export { IntentClassificationService } from "./services/intent-classification.js
 export { SemanticSimilarityService } from "./services/semantic-similarity.js";
 export { ChatbotResponseService } from "./services/chatbot-response.js";
 export { QuoteEnrichmentService, DEFAULT_GAMES_TO_ANALYZE } from "./services/quote-enrichment.js";
+export { ComboEnrichmentService } from "./services/combo-enrichment.js";
 export {
   generateThumbnailImage,
   DEFAULT_IMAGE_MODEL,

@@ -473,6 +473,10 @@ export const quoteFamilyPublishSettingsSchema = z.object({
   autoRepublish: z.boolean().optional(),
   webTitle: z.string().trim().max(120).nullable().optional(),
   webTagline: z.string().trim().max(200).nullable().optional(),
+  /// Combos: descuento inverso en puntos básicos (1000 = 10 %); el tachado sale de precio / (1 − %).
+  comboDiscountBps: z.number().int().min(0).max(9000).optional(),
+  /// Combos: visible en la tienda y en la búsqueda (apagado = oculto, solo se compra desde el modal).
+  storeVisible: z.boolean().optional(),
 }).strict();
 export type QuoteFamilyPublishSettingsInput = z.infer<typeof quoteFamilyPublishSettingsSchema>;
 
@@ -814,6 +818,8 @@ const quoteBaseShape = {
   requestId: nullableIdSchema,
   customerId: nullableIdSchema,
   isBuiltPc: z.boolean().optional().default(false),
+  /// 'COMBO' = pack de productos que se publica en la tienda como un producto único (ver BLOCK-10).
+  kind: z.enum(['PC', 'COMBO']).optional(),
   publicObservation: z.string().trim().max(4000).nullable().optional(),
   pdfOverrides: z.record(fieldOverrideSchema).optional(),
   resolvedPdfConfig: z.record(z.unknown()).optional().default({}),
@@ -829,6 +835,7 @@ export const quoteUpdateSchema = z
     requestId: nullableIdSchema,
     customerId: nullableIdSchema,
     isBuiltPc: z.boolean().optional(),
+    kind: z.enum(['PC', 'COMBO']).optional(),
     publicObservation: z.string().trim().max(4000).nullable().optional(),
     pdfOverrides: z.record(fieldOverrideSchema).optional(),
     resolvedPdfConfig: z.record(z.unknown()).optional(),

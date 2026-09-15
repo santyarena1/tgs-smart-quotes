@@ -346,6 +346,8 @@ export function QuotesView({
   const [customerId, setCustomerId] = useState("");
   const [requestId, setRequestId] = useState("");
   const [isBuiltPc, setIsBuiltPc] = useState(false);
+  /** Combo para la tienda (BLOCK-10): se guarda como kind=COMBO en la familia. */
+  const [isCombo, setIsCombo] = useState(false);
   const [observation, setObservation] = useState("");
   const [items, setItems] = useState<ItemDraft[]>([]);
   const [editorDraftKey, setEditorDraftKey] = useState<string | null>(null);
@@ -524,6 +526,7 @@ export function QuotesView({
       setCustomerId(form.customerId);
       setRequestId(form.requestId);
       setIsBuiltPc(form.isBuiltPc);
+      setIsCombo(quote.kind === "COMBO");
       setObservation(form.observation);
       setItems(form.items);
       setEditingKey(null);
@@ -765,6 +768,30 @@ export function QuotesView({
       setError(errorMessage(err));
     } finally {
       setPdfBusy(null);
+    }
+  }
+
+  /** Marca/desmarca el presupuesto como combo de la tienda. En un presupuesto guardado se persiste al toque. */
+  async function toggleCombo(next: boolean) {
+    setIsCombo(next);
+    if (next && isBuiltPc) void toggleBuiltPc(false);
+    const draftNow = !detail || getActiveVersion(detail)?.state === "BORRADOR";
+    if (!selectedId || !draftNow) {
+      setNotice(next ? "Combo para la tienda: se publica como un producto único con precio tachado desde Publicación web." : "Ya no es combo.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/quotes/${selectedId}`, { method: "PUT", body: { kind: next ? "COMBO" : "PC" } });
+      setDetail((prev) => (prev ? { ...prev, kind: next ? "COMBO" : "PC" } : prev));
+      setNotice(next ? "Combo para la tienda activado. Cargá los productos y publicalo desde Publicación web." : "Ya no es combo.");
+      await loadList();
+    } catch (err) {
+      setIsCombo(!next);
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1513,6 +1540,7 @@ export function QuotesView({
           customerId: customerId || null,
           requestId: requestId || null,
           isBuiltPc,
+          kind: isCombo ? "COMBO" : "PC",
           publicObservation: observation.trim() || null,
           collectionIds,
           items: itemsToPayload(items),
@@ -2105,6 +2133,17 @@ export function QuotesView({
                   ? "Las líneas se listan en el presupuesto. Si no les asignás producto, no aparecen en el PDF."
                   : "PDF simple: ítems sin precio unitario (solo totales). PDF detallado: cantidad, unitario y subtotal."}
               </p>
+              <div style={{ marginTop: "0.6rem" }}>
+                <Checkbox
+                  label="Es combo para la tienda"
+                  checked={isCombo}
+                  onChange={(v) => void toggleCombo(v)}
+                  disabled={(Boolean(detail) && !isDraft) || busy}
+                />
+                <p className="section-note" style={{ marginTop: "0.35rem" }}>
+                  Pack de productos (teclado + mouse + auriculares, etc.) que se publica en la tienda como un producto único. El precio del presupuesto es el precio final; el descuento y el tachado se configuran en Publicación web.
+                </p>
+              </div>
             </div>
           </div>
           <Field label="Observación pública" htmlFor="q-obs">
@@ -2165,6 +2204,7 @@ export function QuotesView({
               Ítems ({filledItems(items).length}
               {isBuiltPc ? ` / ${items.length}` : ""})
               {isBuiltPc ? <span className="badge" style={{ marginLeft: "0.5rem" }}>PC armada</span> : null}
+              {isCombo ? <span className="badge" style={{ marginLeft: "0.5rem" }}>Combo tienda</span> : null}
             </h3>
           </div>
           {isBuiltPc ? (

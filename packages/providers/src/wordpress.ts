@@ -21,6 +21,14 @@ type LandingLayout = {
 
 export type PublishPayload = {
   externalId: string;
+  /** 'PC' (o presupuesto común) o 'COMBO' (pack que se vende como producto único). */
+  kind: 'PC' | 'COMBO';
+  /** Combos: descuento inverso en puntos básicos; 0 en PCs. */
+  comboDiscountBps: number;
+  /** Combos: precio tachado (precio / (1 − descuento)); null si no hay descuento. */
+  regularPriceCents: string | null;
+  /** Combos: visible en tienda/búsqueda. PCs: siempre true. */
+  storeVisible: boolean;
   /** Ids con los que el producto pudo haber quedado etiquetado antes (ids de versión). */
   legacyExternalIds: string[];
   versionNumber: number;
@@ -80,6 +88,18 @@ function savedLayout(value: unknown): LandingLayout {
  * Qué versión se publica: la pedida, si no la que ya está en la tienda, y si
  * el presupuesto nunca se publicó, la activa.
  */
+/**
+ * Precio tachado de un combo: el precio del presupuesto es el final y el
+ * tachado es el que, con el descuento aplicado, da ese final:
+ * tachado = precio / (1 − bps/10000), redondeado al centavo. Entero puro.
+ */
+export function comboStrikeCents(priceCents: bigint, discountBps: number): bigint | null {
+  const bps = BigInt(Math.max(0, Math.min(9999, Math.trunc(discountBps))));
+  if (bps === 0n) return null;
+  const divisor = 10000n - bps;
+  return (priceCents * 10000n + divisor / 2n) / divisor;
+}
+
 export async function resolvePublishVersionId(familyId: string, versionId?: string | null): Promise<string> {
   const family = await db.quoteFamily.findUnique({
     where: {id: familyId},
@@ -159,8 +179,15 @@ export async function buildPublishPayload(familyId: string, versionId?: string |
   const title = (family.webTitle ?? '').trim() || family.internalName || family.visibleNumber;
   const tagline = (family.webTagline ?? enriched?.tagline ?? '').trim() || null;
 
+  const isCombo = family.kind === 'COMBO';
+  const strike = isCombo ? comboStrikeCents(version.totalSaleCents, family.comboDiscountBps) : null;
+
   return {
     externalId: family.id,
+    kind: isCombo ? 'COMBO' : 'PC',
+    comboDiscountBps: isCombo ? family.comboDiscountBps : 0,
+    regularPriceCents: strike ? strike.toString() : null,
+    storeVisible: isCombo ? family.storeVisible : true,
     legacyExternalIds: family.versions.map((entry) => entry.id),
     versionNumber: version.version,
     title,

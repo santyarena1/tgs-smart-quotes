@@ -5,7 +5,7 @@
  */
 import {createHash} from 'node:crypto';
 import {BadGatewayException, BadRequestException} from '@nestjs/common';
-import {createAiClient, DEFAULT_AI_MODEL, DEFAULT_GAMES_TO_ANALYZE, describeOpenAiError, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
+import {ComboEnrichmentService, createAiClient, DEFAULT_AI_MODEL, DEFAULT_GAMES_TO_ANALYZE, describeOpenAiError, QuoteEnrichmentService, type AiCacheRepo} from '@tgs/ai';
 import {decryptSecret} from '@tgs/config';
 import {db} from '@tgs/database';
 import {buildStoreTitle} from './quote-title.js';
@@ -34,10 +34,20 @@ export const aiCache: AiCacheRepo = {
   },
 };
 
-export async function enrichmentService() {
+async function aiDeps() {
   const settings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
   const key = settings.enabled ? (settings.apiKeyEncrypted ? decryptSecret(settings.apiKeyEncrypted) : process.env.OPENAI_API_KEY) : undefined;
-  return new QuoteEnrichmentService({client: key ? createAiClient({apiKey: key}) : null, model: settings.model ?? DEFAULT_AI_MODEL, cache: aiCache});
+  return {client: key ? createAiClient({apiKey: key}) : null, model: settings.model ?? DEFAULT_AI_MODEL, cache: aiCache};
+}
+
+export async function enrichmentService() {
+  return new QuoteEnrichmentService(await aiDeps());
+}
+
+/** ¿La versión pertenece a un combo de la tienda (BLOCK-10)? */
+export async function isComboVersion(versionId: string): Promise<boolean> {
+  const version = await db.quoteVersion.findUnique({where: {id: versionId}, select: {family: {select: {kind: true}}}});
+  return version?.family.kind === 'COMBO';
 }
 
 type EnrichmentItem = {name: string; quantity: number; line: string | null};
@@ -87,6 +97,7 @@ export async function loadEnrichmentItems(versionId: string): Promise<Enrichment
 export async function runQuoteEnrichment(versionId: string, userId: string | null) {
   const items = await loadEnrichmentItems(versionId);
   if (!items.length) throw new Error('El presupuesto no tiene ítems');
+  if (await isComboVersion(versionId)) return runComboEnrichment(versionId, userId, items);
   const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
   const games = gamesToAnalyze(aiSettings.gamesToAnalyze);
   const {result, metadata} = await (await enrichmentService()).enrich(
@@ -129,6 +140,55 @@ export async function runQuoteEnrichment(versionId: string, userId: string | nul
     return saved;
   });
   return {enrichment: next, ai: {usedAi: metadata.usedAi, cacheHit: metadata.cacheHit, model: metadata.model}};
+}
+
+/**
+ * Combos: título, bajada, descripción y puntos fuertes; sin juegos, programas
+ * ni compatibilidad (quedan vacíos). Mismo registro QuoteEnrichment.
+ */
+async function runComboEnrichment(versionId: string, userId: string | null, items: EnrichmentItem[]) {
+  const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+  const {result, metadata} = await new ComboEnrichmentService(await aiDeps()).enrich(
+    {items},
+    {entity: {entityType: 'QuoteVersion', entityId: versionId}},
+    aiSettings.pcDescriptionPrompt,
+  );
+  const clean = (value: string | null | undefined) => (value ?? '').trim() || null;
+  const data = {
+    descriptionHtml: result.descriptionHtml,
+    gamesJson: [] as any,
+    programsJson: [] as any,
+    compatibilityJson: [] as any,
+    title: clean(result.title) ?? buildComboTitle(items),
+    tagline: clean(result.tagline),
+    shortDescription: clean(result.shortDescription),
+    highlightsJson: result.highlights.filter((entry) => entry.trim().length > 0) as any,
+    audience: clean(result.audience),
+    itemsHash: enrichmentItemsHash(items, gamesToAnalyze(aiSettings.gamesToAnalyze)),
+  };
+  const old = await db.quoteEnrichment.findUnique({where: {quoteVersionId: versionId}});
+  const next = await db.$transaction(async (tx) => {
+    const saved = await tx.quoteEnrichment.upsert({where: {quoteVersionId: versionId}, create: {quoteVersionId: versionId, ...data}, update: data});
+    await tx.auditLog.create({
+      data: {
+        userId,
+        entityType: 'QuoteEnrichment',
+        entityId: saved.id,
+        action: 'GENERATE',
+        ...(old ? {previous: JSON.parse(JSON.stringify(old, bigintSafe)) as any} : {}),
+        next: JSON.parse(JSON.stringify(saved, bigintSafe)) as any,
+      },
+    });
+    return saved;
+  });
+  return {enrichment: next, ai: {usedAi: metadata.usedAi, cacheHit: metadata.cacheHit, model: metadata.model}};
+}
+
+/** Título por reglas de un combo: "Combo" + los nombres, acotado a 120 caracteres. */
+export function buildComboTitle(items: EnrichmentItem[]): string {
+  const names = items.map((item) => item.name.trim()).filter(Boolean);
+  const title = `Combo ${names.join(' + ')}`;
+  return title.length <= 120 ? title : `${title.slice(0, 117).trimEnd()}…`;
 }
 
 const bigintSafe = (_key: string, value: unknown) => (typeof value === 'bigint' ? value.toString() : value);

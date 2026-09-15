@@ -95,3 +95,13 @@ describe('título de la tienda con formato de specs', () => {
     expect(buildStoreTitle([{name: 'Memoria 16GB', quantity: 1, line: 'Memoria RAM'}])).toBeNull();
   });
 });
+
+describe('título de un combo', () => {
+  it('une los nombres con + y acota a 120 caracteres', async () => {
+    const {buildComboTitle} = await import('./quote-enrichment.js');
+    expect(buildComboTitle([{name: 'Teclado Redragon K552', quantity: 1, line: null}, {name: 'Mouse Logitech G203', quantity: 1, line: null}])).toBe('Combo Teclado Redragon K552 + Mouse Logitech G203');
+    const long = buildComboTitle(Array.from({length: 8}, (_, i) => ({name: `Producto con nombre largo número ${i}`, quantity: 1, line: null})));
+    expect(long.length).toBeLessThanOrEqual(120);
+    expect(long.endsWith('…')).toBe(true);
+  });
+});
