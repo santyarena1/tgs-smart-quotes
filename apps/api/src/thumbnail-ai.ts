@@ -16,7 +16,7 @@ import {renderHtmlToPng} from '@tgs/pdf';
 import {removeBackgroundDetailed} from '@tgs/providers';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {extractSpecsFromItems, type StoreTitleSpecs} from './quote-title.js';
-import {buildHeadline, buildRows, DEFAULT_CASE_AI_PROMPT, DEFAULT_FOOTER, renderThumbnailHtml, type FooterBadge} from './thumbnail-layout.js';
+import {buildHeadline, buildRows, DEFAULT_CASE_AI_PROMPT, DEFAULT_FOOTER, renderThumbnailHtml, titleCase, type FooterBadge} from './thumbnail-layout.js';
 import {pickCaseItem} from './case-detect.js';
 
 /**
@@ -143,9 +143,10 @@ async function caseWithAi(sourceUrl: string, sourceBuffer: Buffer, settings: {mo
 async function generateLayoutThumbnail(opts: {familyId: string; versionId: string; userId: string | null; regenerateCase?: boolean}): Promise<{url: string; detail: string}> {
   const settings = await loadThumbnailAiSettings();
   const [family, version] = await Promise.all([
-    db.quoteFamily.findUniqueOrThrow({where: {id: opts.familyId}, select: {webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
+    db.quoteFamily.findUniqueOrThrow({where: {id: opts.familyId}, select: {kind: true, comboDiscountBps: true, webTitle: true, internalName: true, heroImageUrl: true, heroAsset: {select: {url: true}}}}),
     db.quoteVersion.findUniqueOrThrow({where: {id: opts.versionId}, select: {totalSaleCents: true}}),
   ]);
+  if (family.kind === 'COMBO') return generateComboLayoutThumbnail(opts, family, settings);
   const items = await db.quoteItem.findMany({where: {versionId: opts.versionId}, orderBy: {position: 'asc'}, select: {frozenName: true, quantity: true, line: {select: {name: true}}}});
   const caseItem = await findCaseItem(opts.versionId);
   // Primero la foto elegida para el gabinete en el presupuesto; el hero solo si no hay gabinete con foto.
@@ -196,6 +197,62 @@ async function generateLayoutThumbnail(opts: {familyId: string; versionId: strin
     ...(opts.userId ? [db.auditLog.create({data: {userId: opts.userId, entityType: 'QuoteFamily', entityId: opts.familyId, action: 'GENERATE_THUMBNAIL_LAYOUT', next: {url: stored.url, headline}}})] : []),
   ]);
   return {url: stored.url, detail: `Plantilla TGS: título ${useGpu ? 'con la placa de video' : 'con el procesador'}, ${rows.length} filas, ${caseDetail}`};
+}
+
+/**
+ * Combos (BLOCK-10): la misma plantilla TGS (logo, fondo, badges) con el
+ * título completo en capitalize, una fila por producto y, en el lugar del
+ * gabinete, un collage con las fotos recortadas de los productos (hasta 4,
+ * en orden de precio). Con descuento, etiqueta "−X%".
+ */
+async function generateComboLayoutThumbnail(
+  opts: {familyId: string; versionId: string; userId: string | null},
+  family: {comboDiscountBps: number; webTitle: string | null; internalName: string},
+  settings: Awaited<ReturnType<typeof loadThumbnailAiSettings>>,
+): Promise<{url: string; detail: string}> {
+  const items = await db.quoteItem.findMany({
+    where: {versionId: opts.versionId},
+    orderBy: {subtotalCents: 'desc'},
+    select: {frozenName: true, quantity: true, webImageUrl: true, product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {url: true}}}}},
+  });
+  if (!items.length) throw new ThumbnailAiUnavailable('El combo no tiene productos');
+  const urls = items.map((item) => item.webImageUrl ?? item.product?.assets[0]?.url ?? null).filter((url): url is string => Boolean(url));
+  if (!urls.length) throw new ThumbnailAiUnavailable('Ningún producto del combo tiene foto: cargalas en Componentes');
+  const productDataUrls = await Promise.all(
+    urls.slice(0, 4).map(async (url) => {
+      const raw = await ensureTransparentCase((await readOwnOrRemote(url)).buffer);
+      const trimmed = await sharp(raw)
+        .png()
+        .trim({threshold: 8})
+        .toBuffer()
+        .then((buffer) => sharp(buffer).resize({width: 900, height: 900, kernel: 'lanczos3', fit: 'inside', withoutEnlargement: false}).png().toBuffer())
+        .catch(() => raw);
+      return toDataUrl(trimmed);
+    }),
+  );
+  const title = titleCase(family.webTitle?.trim() || family.internalName);
+  const rows = items.slice(0, 6).map((item) => ({icon: 'check' as const, label: 'INCLUYE', value: titleCase(item.frozenName).slice(0, 40) + (item.quantity > 1 ? ` ×${item.quantity}` : '')}));
+  const logo = settings.logoUrl ? await readOwnOrRemote(settings.logoUrl).catch(() => null) : null;
+  const [width, height] = settings.size.split('x').map(Number) as [number, number];
+  const html = renderThumbnailHtml({
+    width,
+    height,
+    accent: settings.accentColor,
+    logoDataUrl: logo ? toDataUrl(logo.buffer, logo.mime) : null,
+    caseDataUrl: '',
+    headline: {kicker: 'COMBO GAMER', line1: '', line2: '', line3: null},
+    rows,
+    footer: footerBadges(settings.footerJson),
+    combo: {title, productDataUrls, discountPct: family.comboDiscountBps / 100},
+  });
+  const png = await renderHtmlToPng(html, {width, height});
+  const jpeg = await sharp(png).jpeg({quality: 92}).toBuffer();
+  const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${opts.familyId}/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
+  await db.$transaction([
+    db.quoteFamily.update({where: {id: opts.familyId}, data: {thumbnailUrl: stored.url, thumbnailAuto: true, thumbnailInputsHash: await thumbnailInputsHash(opts.familyId, opts.versionId)}}),
+    ...(opts.userId ? [db.auditLog.create({data: {userId: opts.userId, entityType: 'QuoteFamily', entityId: opts.familyId, action: 'GENERATE_THUMBNAIL_LAYOUT', next: {url: stored.url, title, combo: true}}})] : []),
+  ]);
+  return {url: stored.url, detail: `Plantilla TGS (combo): ${productDataUrls.length} ${productDataUrls.length === 1 ? 'producto' : 'productos'} en collage, ${rows.length} filas${family.comboDiscountBps ? `, −${family.comboDiscountBps / 100}%` : ''}`};
 }
 
 async function loadReferences() {
@@ -332,7 +389,9 @@ export class ThumbnailAiUnavailable extends Error {}
 export async function generateAiThumbnail(opts: {familyId: string; versionId: string; userId: string | null; regenerateCase?: boolean}): Promise<{url: string; detail: string}> {
   const settings = await loadThumbnailAiSettings();
   if (!settings.enabled) throw new ThumbnailAiUnavailable('Generación de miniaturas desactivada (Ajustes → Miniaturas)');
-  if (settings.mode !== 'AI_SCENE') return generateLayoutThumbnail(opts);
+  // Un combo no tiene gabinete que ambientar: siempre la plantilla TGS con el collage.
+  const kind = await db.quoteFamily.findUnique({where: {id: opts.familyId}, select: {kind: true}});
+  if (settings.mode !== 'AI_SCENE' || kind?.kind === 'COMBO') return generateLayoutThumbnail(opts);
   const client = await openAiClient();
   if (!client) throw new ThumbnailAiUnavailable('Falta la clave de OpenAI (Ajustes → IA)');
   const references = await loadReferences();

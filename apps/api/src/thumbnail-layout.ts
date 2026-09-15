@@ -36,7 +36,7 @@ function embeddedFontCss(): string {
  */
 
 export type ThumbnailRow = {icon: RowIcon; label: string; value: string};
-export type RowIcon = 'cpu' | 'board' | 'ram' | 'storage' | 'gpu' | 'psu' | 'cooler' | 'case';
+export type RowIcon = 'cpu' | 'board' | 'ram' | 'storage' | 'gpu' | 'psu' | 'cooler' | 'case' | 'check';
 export type FooterIcon = 'shield' | 'star' | 'headset' | 'truck' | 'check' | 'bolt';
 export type FooterBadge = {icon: FooterIcon; line1: string; line2: string};
 export type Headline = {kicker: string; line1: string; line2: string; line3: string | null};
@@ -52,7 +52,29 @@ export type LayoutInput = {
   headline: Headline;
   rows: ThumbnailRow[];
   footer: FooterBadge[];
+  /**
+   * Combos (BLOCK-10): en vez del gabinete, un collage con las fotos de los
+   * productos; el título va completo, en capitalize y a varias líneas; las
+   * filas listan lo que incluye; etiqueta con el descuento.
+   */
+  combo?: {title: string; productDataUrls: string[]; discountPct: number};
 };
+
+/**
+ * "Capitalize" de un título: cada palabra con mayúscula inicial y el resto en
+ * minúscula, salvo las siglas cortas (RGB, TKL, PC, 4K, RTX) que se respetan.
+ */
+export function titleCase(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (/\d/.test(word) || (word.length <= 4 && word === word.toUpperCase() && /[A-Z]/.test(word))) return word;
+      const lower = word.toLocaleLowerCase('es-AR');
+      return lower.charAt(0).toLocaleUpperCase('es-AR') + lower.slice(1);
+    })
+    .join(' ');
+}
 
 export const DEFAULT_FOOTER: FooterBadge[] = [
   {icon: 'shield', line1: 'COMPONENTES', line2: 'DE CALIDAD'},
@@ -198,6 +220,7 @@ const ROW_ICONS: Record<RowIcon, string> = {
   psu: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
   cooler: '<circle cx="12" cy="12" r="2.5"/><path d="M12 9.5C12 5 9 3 6 3c0 4 2 6 6 6.5M14.5 12c4.5 0 6.5-3 6.5-6-4 0-6 2-6.5 6M12 14.5c0 4.5 3 6.5 6 6.5 0-4-2-6-6-6.5M9.5 12C5 12 3 15 3 18c4 0 6-2 6.5-6"/>',
   case: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M9 9h6"/><circle cx="12" cy="16" r="2.5"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
 };
 
 const FOOTER_ICONS: Record<FooterIcon, string> = {
@@ -238,6 +261,18 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   const logo = input.logoDataUrl
     ? `<img class="logo" src="${input.logoDataUrl}" alt="">`
     : `<div class="logo-text"><span class="lt1">THE</span><span class="lt2">GAMER</span><span class="lt3">SHOP</span></div>`;
+  const combo = input.combo ?? null;
+  // Collage: hasta 4 fotos en el lugar del gabinete (1: entera; 2: lado a
+  // lado; 3: una grande y dos chicas; 4: grilla), cada una con su sombra.
+  const collage = combo
+    ? `<div class="collage n${Math.min(4, combo.productDataUrls.length)}">${combo.productDataUrls.slice(0, 4).map((url) => `<div class="cell"><img src="${url}" alt=""></div>`).join('')}</div>`
+    : '';
+  const headlineHtml = combo
+    ? `<div class="kicker">${esc(input.headline.kicker)}</div><div class="ct">${esc(combo.title)}</div>`
+    : `<div class="kicker">${esc(input.headline.kicker)}</div>
+  <div class="h1">${esc(input.headline.line1)}</div>
+  <div class="h2">${esc(input.headline.line2)}</div>
+  ${input.headline.line3 ? `<div class="h3">${esc(input.headline.line3)}</div>` : ''}`;
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8">
 <style>
@@ -285,19 +320,32 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   .btxt span { font-size: 21px; font-weight: 600; color: #fff; text-transform: uppercase; }
   .btxt strong { font-size: 21px; font-weight: 800; color: var(--accent); text-transform: uppercase; }
   .sep { width: 1px; height: 56px; background: rgba(255,255,255,.18); flex: 0 0 1px; }
-</style></head><body>
+  /* Combos */
+  .ct { margin-top: 6px; font-size: 68px; font-weight: 900; line-height: 1.02; letter-spacing: -.015em; color: #fff; text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .ct + .rule { margin-top: 18px; }
+  .combo .val { text-transform: none; font-weight: 700; }
+  .combo .lbl { font-size: calc(18px * var(--rs)); }
+  .collage { position: absolute; z-index: 1; right: 40px; top: 240px; width: ${designW - 680}px; height: ${designH - 440}px; display: grid; gap: 22px; }
+  .collage.n1 { grid-template-columns: 1fr; }
+  .collage.n2 { grid-template-columns: 1fr 1fr; }
+  .collage.n3 { grid-template-columns: 1.15fr 1fr; grid-template-rows: 1fr 1fr; }
+  .collage.n3 .cell:first-child { grid-row: 1 / 3; }
+  .collage.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .cell { display: grid; place-items: center; padding: 14px; background: radial-gradient(ellipse at 50% 60%, rgba(255,255,255,.06), transparent 70%); border-radius: 22px; }
+  .cell img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 24px 30px rgba(0,0,0,.8)) drop-shadow(0 0 50px color-mix(in srgb, var(--accent) 18%, transparent)); }
+  .off { position: absolute; z-index: 3; right: 44px; top: 44px; width: 168px; height: 168px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 58px; font-weight: 900; letter-spacing: -.02em; box-shadow: 0 16px 40px rgba(0,0,0,.6), 0 0 40px color-mix(in srgb, var(--accent) 60%, transparent); transform: rotate(8deg); }
+  .off small { display: block; font-size: 18px; font-weight: 700; letter-spacing: .12em; text-align: center; margin-top: -6px; }
+</style></head><body class="${combo ? 'combo' : ''}">
 <div class="vignette"></div>
 <div class="left">
   ${logo}
-  <div class="kicker">${esc(input.headline.kicker)}</div>
-  <div class="h1">${esc(input.headline.line1)}</div>
-  <div class="h2">${esc(input.headline.line2)}</div>
-  ${input.headline.line3 ? `<div class="h3">${esc(input.headline.line3)}</div>` : ''}
+  ${headlineHtml}
   <div class="rule"></div>
   <div class="rows">${rowsHtml}</div>
 </div>
-<div class="floor"></div>
-<div class="case"><img src="${input.caseDataUrl}" alt=""></div>
+${combo ? collage : `<div class="floor"></div>
+<div class="case"><img src="${input.caseDataUrl}" alt=""></div>`}
+${combo && combo.discountPct > 0 ? `<div class="off"><div>−${esc(String(Math.round(combo.discountPct * 10) / 10).replace('.', ','))}%<small>DESCUENTO</small></div></div>` : ''}
 <div class="footer">${footerHtml}</div>
 <script>
   // Título grande: si una línea no entra en la columna, se achica hasta que entre.
@@ -309,6 +357,9 @@ export function renderThumbnailHtml(input: LayoutInput): string {
   function fit() {
     var max = document.querySelector('.left').clientWidth;
     document.querySelectorAll('.h1, .h2, .h3').forEach(function (el) { shrink(el, max, 30); });
+    // Título de combo: a varias líneas; si ocupa más de 4 líneas, se achica.
+    var ct = document.querySelector('.ct');
+    if (ct) { var cs = 68; while (ct.getBoundingClientRect().height > cs * 1.02 * 4 && cs > 36) { cs -= 2; ct.style.fontSize = cs + 'px'; } }
     // Valores de las filas: una sola línea; si no entra, se achica la letra.
     document.querySelectorAll('.val').forEach(function (el) { shrink(el, el.parentNode.clientWidth, 15); });
     // Si la columna pisa el pie, se achican las filas de a poco (--rs).

@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.1",
+    date: "2026-09-15",
+    title: "Miniatura de combos con la plantilla TGS",
+    items: [
+      "Combos: la miniatura usa la plantilla TGS (logo, fondo, badges) con el título completo en capitalize, una fila por producto incluido, collage con las fotos recortadas de los productos (hasta 4) y etiqueta −X % de descuento; tanto en Preparar y publicar como en Generar del editor (antes salía la plantilla de PC con un gabinete)",
+      "El título de los combos se guarda en capitalize (Combo Gamer Esencial: Teclado + Mouse) y no en mayúsculas",
+    ],
+  },
+  {
     version: "0.6.0",
     date: "2026-09-15",
     title: "Potenciá tu setup, combos y publicación más prolija",

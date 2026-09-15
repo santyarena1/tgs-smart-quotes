@@ -118,3 +118,11 @@ describe('título de un combo', () => {
     expect(long.endsWith('…')).toBe(true);
   });
 });
+
+describe('capitalize del título de un combo', () => {
+  it('pone mayúscula inicial y respeta siglas cortas y números', async () => {
+    const {titleCase} = await import('./thumbnail-layout.js');
+    expect(titleCase('COMBO HATSUNE MIKU GAMER: TECLADO + MOUSE RGB 4K')).toBe('Combo Hatsune Miku Gamer: Teclado + Mouse RGB 4K');
+    expect(titleCase('combo gamer esencial')).toBe('Combo Gamer Esencial');
+  });
+});

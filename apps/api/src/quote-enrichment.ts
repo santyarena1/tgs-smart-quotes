@@ -9,6 +9,7 @@ import {ComboEnrichmentService, createAiClient, DEFAULT_AI_MODEL, DEFAULT_GAMES_
 import {decryptSecret} from '@tgs/config';
 import {db} from '@tgs/database';
 import {buildStoreTitle} from './quote-title.js';
+import {titleCase} from './thumbnail-layout.js';
 
 export const aiCache: AiCacheRepo = {
   async findCached(task, inputHash) {
@@ -159,7 +160,7 @@ async function runComboEnrichment(versionId: string, userId: string | null, item
     gamesJson: [] as any,
     programsJson: [] as any,
     compatibilityJson: [] as any,
-    title: clean(result.title) ?? buildComboTitle(items),
+    title: titleCase(clean(result.title) ?? buildComboTitle(items)),
     tagline: clean(result.tagline),
     shortDescription: clean(result.shortDescription),
     highlightsJson: result.highlights.filter((entry) => entry.trim().length > 0) as any,

@@ -17,7 +17,6 @@ import {db} from '@tgs/database';
 import {getSerperKey, publishQuote, removeBackgroundDetailed, searchImages, type SerperImage} from '@tgs/providers';
 import {loadMediaStorage, ownStorageKeyFromUrl, readMedia} from '@tgs/storage';
 import {buildComboTitle, enrichmentItemsHash, gamesToAnalyze, generateProductDescription, isComboVersion, loadEnrichmentItems, runQuoteEnrichment} from './quote-enrichment.js';
-import {renderComboThumbnail} from './combo-thumbnail.js';
 import {buildStoreTitle} from './quote-title.js';
 import {renderThumbnail} from './thumbnail-render.js';
 import {generateAiThumbnail, loadThumbnailAiSettings, ThumbnailAiUnavailable, thumbnailInputsHash} from './thumbnail-ai.js';
@@ -500,16 +499,6 @@ async function findComboHeroItem(versionId: string) {
   return null;
 }
 
-/** Combos: fotos de los productos en orden de precio (para el collage). */
-async function comboItemImages(versionId: string): Promise<string[]> {
-  const items = await db.quoteItem.findMany({
-    where: {versionId},
-    orderBy: {subtotalCents: 'desc'},
-    select: {webImageUrl: true, product: {select: {assets: {where: {status: 'READY', url: {not: null}}, orderBy: [{isPrimary: 'desc'}, {createdAt: 'desc'}], take: 1, select: {url: true}}}}},
-  });
-  return items.map((item) => item.webImageUrl ?? item.product?.assets[0]?.url ?? null).filter((url): url is string => Boolean(url));
-}
-
 async function findCaseItem(versionId: string) {
   const items = await db.quoteItem.findMany({
     where: {versionId},
@@ -600,21 +589,14 @@ async function ensureThumbnail(familyId: string, versionId: string, userId: stri
   }
   const done = (detail: string): {status: 'DONE'; detail: string} => ({status: 'DONE', detail: regenerating ? `Rehecha por el cambio de componentes o título. ${detail}` : detail});
   if (await isComboVersion(versionId)) {
-    const urls = await comboItemImages(versionId);
-    if (!urls.length) return {status: 'SKIPPED', detail: 'Ningún producto del combo tiene foto para armar la miniatura'};
-    const combo = await db.quoteFamily.findUniqueOrThrow({where: {id: familyId}, select: {comboDiscountBps: true}});
-    const ai = await loadThumbnailAiSettings();
-    const images = await Promise.all(urls.slice(0, 4).map((url) => readOwnOrRemote(url)));
-    const output = await renderComboThumbnail({
-      images,
-      title: family.webTitle?.trim() || family.internalName,
-      discountPct: combo.comboDiscountBps / 100,
-      accent: ai.accentColor || '#E31B23',
-      background: '#080B12',
-    });
-    const stored = await (await loadMediaStorage()).put(`quote-thumbnails/${familyId}/${randomUUID()}.jpg`, output, 'image/jpeg');
-    await db.quoteFamily.update({where: {id: familyId}, data: {thumbnailUrl: stored.url, thumbnailAuto: true, thumbnailInputsHash: inputsHash}});
-    return done(`Collage con ${images.length} ${images.length === 1 ? 'producto' : 'productos'}`);
+    // Combos: siempre la plantilla TGS con el collage de productos (ver thumbnail-ai.ts).
+    try {
+      const generated = await generateAiThumbnail({familyId, versionId, userId});
+      return done(generated.detail);
+    } catch (error) {
+      if (error instanceof ThumbnailAiUnavailable) return {status: 'SKIPPED', detail: error.message};
+      throw error;
+    }
   }
   // Con "Miniaturas IA" activo, la miniatura la genera el modelo de imágenes a
   // partir de las referencias y la foto del gabinete. Si falta algo de la
