@@ -10,6 +10,12 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.0' => array(
+			'NUEVO — Combos de la tienda: los presupuestos marcados "Es combo para la tienda" en TGS Smart Quotes se publican como un producto único con precio tachado (descuento inverso: el precio es el final y el tachado sale de precio / (1 − %)). El tachado y la etiqueta −X% se ven en la ficha (hero y barra de compra) y en el modal; no se toca el precio regular/oferta de WooCommerce. La sección "Componentes" pasa a llamarse "Qué incluye".',
+			'Combos ocultos ("Visible en la tienda" apagado en TGS): quedan fuera de listados, búsqueda y sitemap, con noindex, sin botón de compra en su URL, y solo se pueden agregar al carrito desde el aviso post-carrito de una PC (tgs_combo_from). Los visibles se compran normal.',
+			'Aviso post-carrito: si el cliente NO eligió extras en "Potenciá tu setup", ofrece los combos (título, productos que incluye, tachado, precio, −X%, "Sumar al carrito"). Configurable por variante: prendido, cuántos, título y texto. Los combos no suman al descuento del fuego.',
+			'Recomendadas de la casa: ya no incluye combos.',
+		),
 		'2.22.0' => array(
 			'NUEVO — "Potenciá tu setup": sección de la ficha con una pestaña por categoría (Monitores, Teclados, Mouse, Auriculares, Wifi y red, Sillas, Escritorios, Mouse pads y dos libres) y pocos productos por pestaña. Lo elegido entra al carrito junto con la PC. Se configura por variante (categoría de Woo + elegidos + cuántos mostrar por pestaña; pestaña abierta por defecto). Con esta sección activa, el modal de carruseles de "Completá tu setup" no se muestra y "Sumale un monitor" pasa a ser la pestaña Monitores.',
 			'Descuento "fuego": N extras × % por producto (1 % por defecto, sin tope), con barra que se va llenando y el ahorro en vivo en la sección, en la barra de compra y en la guía. Se elige si aplica también a la PC o solo a los extras. El descuento real lo calcula el carrito con lo que quedó adentro (si el cliente saca un extra, baja solo) y sale como línea "🔥 Descuento setup", no como cupón.',

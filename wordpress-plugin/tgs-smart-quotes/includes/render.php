@@ -94,6 +94,9 @@ function tgs_sq_collect_product_data( $product_id ) {
 		'highlights'   => $decode( TGS_SQ_META_HIGHLIGHTS ),
 		'audience'     => (string) $meta( TGS_SQ_META_AUDIENCE ),
 		'gallery'      => $decode( TGS_SQ_META_GALLERY ),
+		// Combos (BLOCK-10): precio tachado y si está oculto (solo desde el modal).
+		'is_combo'     => tgs_sq_is_combo( $product_id ),
+		'combo_hidden' => tgs_sq_combo_hidden( $product_id ),
 		'extra'        => tgs_sq_default_extra(),
 	);
 }
@@ -148,7 +151,12 @@ function tgs_sq_block_hero( array $d ) {
 	echo '<div class="tgs-buybox">';
 	echo tgs_sq_price_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '<div class="tgs-actions">';
-	woocommerce_template_single_add_to_cart();
+	if ( ! empty( $d['combo_hidden'] ) ) {
+		// Combo oculto: no se compra suelto; se ofrece al agregar una PC.
+		echo '<p class="tgs-combo-note">Este combo se agrega junto con una PC: elegí tu PC y sumalo cuando la agregues al carrito.</p>';
+	} else {
+		woocommerce_template_single_add_to_cart();
+	}
 	echo tgs_sq_whatsapp_button_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo '</div>';
 	echo '</div>';
@@ -258,6 +266,9 @@ function tgs_sq_price_html( array $d ) {
 	ob_start();
 	echo '<div class="tgs-price">';
 	echo '<span class="tgs-price-label">Transferencia</span>';
+	if ( ! empty( $d['is_combo'] ) ) {
+		echo tgs_sq_combo_strike_html( $d['product_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
 	echo '<strong class="tgs-price-value">' . wp_kses_post( wc_price( $d['price_transfer'] / 100 ) ) . '</strong>';
 	echo '<span class="tgs-price-cash">Efectivo ' . wp_kses_post( wc_price( $d['price_cash'] / 100 ) ) . '</span>';
 	$best = tgs_sq_best_installment_plan( $d['installments'] );
@@ -272,9 +283,13 @@ function tgs_sq_sticky_html( array $d ) {
 	if ( ! $d['product'] ) {
 		return '';
 	}
+	if ( ! empty( $d['combo_hidden'] ) ) {
+		return '';
+	}
 	$label = $d['extra']['sticky_label'] ?? 'Agregar al carrito';
 	return '<div class="tgs-sticky" aria-hidden="true"><div class="tgs-sticky-info"><span class="tgs-sticky-name">'
 		. esc_html( $d['title'] ) . '</span><strong class="tgs-sticky-price">'
+		. ( ! empty( $d['is_combo'] ) ? tgs_sq_combo_strike_html( $d['product_id'] ) : '' )
 		. wp_kses_post( $d['product']->get_price_html() )
 		. '</strong></div><a href="' . esc_url( $d['product']->add_to_cart_url() ) . '" class="button">' . esc_html( $label ) . '</a></div>';
 }
@@ -291,7 +306,7 @@ function tgs_sq_block_specs( array $d ) {
 	if ( empty( $d['items'] ) ) {
 		return;
 	}
-	echo '<section class="tgs-section-card"><h2>Componentes</h2><div class="tgs-items">';
+	echo '<section class="tgs-section-card"><h2>' . ( ! empty( $d['is_combo'] ) ? 'Qué incluye' : 'Componentes' ) . '</h2><div class="tgs-items">';
 	foreach ( $d['items'] as $item ) {
 		echo '<div class="tgs-item">';
 		/* El recuadro va siempre, tenga imagen o no: así todas las filas de la
@@ -689,6 +704,12 @@ function tgs_sq_get_recommended_products( $product_id, $price_cents, $count = 4 
 					'value'   => array( max( 0, $min ), $max ),
 					'compare' => 'BETWEEN',
 					'type'    => 'NUMERIC',
+				),
+				// Solo PCs: un combo no es "otra PC de precio parecido".
+				array(
+					'relation' => 'OR',
+					array( 'key' => TGS_SQ_META_KIND, 'compare' => 'NOT EXISTS' ),
+					array( 'key' => TGS_SQ_META_KIND, 'value' => 'COMBO', 'compare' => '!=' ),
 				),
 			),
 		) );
@@ -1146,9 +1167,11 @@ function tgs_sq_render_product( $product_id ) {
 	$has_setup_ph = $custom && false !== strpos( $custom_code, '{{potencia_setup}}' );
 	$has_mon_ph   = $custom && false !== strpos( $custom_code, '{{monitores}}' );
 	$setup_shown  = $custom ? ( $has_setup_ph || $has_mon_ph ) : (bool) array_filter( (array) ( $variant['blocks'] ?? array() ), function ( $b ) { return 'setup' === ( $b['type'] ?? '' ) && ! empty( $b['visible'] ); } );
-	$data['setup_active']        = $setup_shown && tgs_sq_setup_enabled( $data['extra'] );
+	$data['setup_active']        = $setup_shown && tgs_sq_setup_enabled( $data['extra'] ) && empty( $data['is_combo'] );
 	$data['setup_via_monitores'] = $data['setup_active'] && $custom && ! $has_setup_ph;
-	if ( ! $data['setup_active'] ) {
+	// El modal viejo de carruseles solo en PCs sin la sección nueva; en la
+	// ficha de un combo no se ofrece nada más.
+	if ( ! $data['setup_active'] && empty( $data['is_combo'] ) ) {
 		tgs_sq_upsell_data_html( $data, $variant_slug );
 	}
 

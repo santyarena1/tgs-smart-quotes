@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TGS Smart Quotes
  * Description: Publica presupuestos de TGS-SMART-QUOTES como productos de WooCommerce, con una ficha de producto 100% custom (independiente del tema) y variantes de diseño elegibles desde WordPress.
- * Version: 2.22.0
+ * Version: 2.23.0
  * Author: The Gamer Shop
  * Text Domain: tgs-smart-quotes
  *
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TGS_SQ_VERSION', '2.22.0' );
+define( 'TGS_SQ_VERSION', '2.23.0' );
 define( 'TGS_SQ_FILE', __FILE__ );
 define( 'TGS_SQ_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TGS_SQ_URL', plugin_dir_url( __FILE__ ) );
@@ -46,6 +46,11 @@ define( 'TGS_SQ_META_DESCRIPTION', '_tgs_description_html' );
 define( 'TGS_SQ_META_POWER', '_tgs_power' );
 define( 'TGS_SQ_META_GAMES', '_tgs_games' );
 define( 'TGS_SQ_META_COMPATIBILITY', '_tgs_compatibility' );
+// Combos de la tienda (BLOCK-10): tipo, descuento inverso, tachado y visibilidad.
+define( 'TGS_SQ_META_KIND', '_tgs_kind' );
+define( 'TGS_SQ_META_COMBO_DISCOUNT_BPS', '_tgs_combo_discount_bps' );
+define( 'TGS_SQ_META_REGULAR_PRICE', '_tgs_regular_price_cents' );
+define( 'TGS_SQ_META_STORE_VISIBLE', '_tgs_store_visible' );
 
 define( 'TGS_SQ_OPTION_HMAC_SECRET', 'tgs_sq_hmac_secret' );
 define( 'TGS_SQ_OPTION_VARIANTS', 'tgs_sq_variants' );
@@ -73,6 +78,7 @@ require_once TGS_SQ_DIR . 'includes/admin.php';
 require_once TGS_SQ_DIR . 'includes/guard.php';
 require_once TGS_SQ_DIR . 'includes/upsell.php';
 require_once TGS_SQ_DIR . 'includes/setup.php';
+require_once TGS_SQ_DIR . 'includes/combos.php';
 require_once TGS_SQ_DIR . 'includes/changelog.php';
 
 /**

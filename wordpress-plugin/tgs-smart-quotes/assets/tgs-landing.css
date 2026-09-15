@@ -2038,3 +2038,51 @@ body.tgs-up-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
 	.tgs-landing .tgs-fire__fill, .tgs-landing .tgs-fire.is-on .tgs-fire__icon { animation: none; }
 }
+
+/* =====================================================================
+ * Combos de la tienda (includes/combos.php): precio tachado en la ficha y
+ * tarjetas de combos en el aviso post-carrito.
+ * ===================================================================== */
+.tgs-landing .tgs-combo-strike { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.tgs-landing .tgs-combo-strike s { color: var(--tgs-muted); font-size: 18px; font-weight: 600; }
+.tgs-landing .tgs-combo-off, .tgs-sticky .tgs-combo-off {
+	display: inline-block; padding: 3px 9px; border-radius: 999px; background: var(--tgs-accent, #E31B23); color: #fff;
+	font-style: normal; font-size: 12.5px; font-weight: 800; letter-spacing: .02em;
+}
+.tgs-landing .tgs-sticky .tgs-combo-strike { display: inline-flex; margin: 0 8px 0 0; }
+.tgs-landing .tgs-sticky .tgs-combo-strike s { font-size: 12px; }
+.tgs-landing .tgs-combo-note {
+	margin: 0; padding: 12px 14px; border-radius: var(--tgs-r-md); background: var(--tgs-card-2); border: 1px solid var(--tgs-card-border);
+	font-size: 14px; color: var(--tgs-text-soft); line-height: 1.45;
+}
+.tgs-done--combos .tgs-done__box { width: min(1080px, 100%); text-align: left; justify-items: stretch; max-height: calc(100vh - 32px); overflow: auto; }
+.tgs-done--combos .tgs-done__check { justify-self: center; }
+.tgs-done--combos .tgs-done__title, .tgs-done--combos .tgs-done__pc { text-align: center; }
+.tgs-combos { display: grid; gap: 10px; margin-top: 8px; }
+.tgs-combos__title { margin: 6px 0 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: 22px; font-weight: 700; }
+.tgs-combos__text { margin: 0; font-size: 14px; color: rgba(248,250,252,.72); }
+.tgs-combos__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 6px; }
+.tgs-combo-card {
+	display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
+	background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+}
+.tgs-combo-card__media { position: relative; display: block; aspect-ratio: 1 / 1; background: rgba(255,255,255,.03); }
+.tgs-combo-card__media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tgs-combo-card__pct { position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 999px; background: #E31B23; color: #fff; font-size: 13px; font-weight: 800; }
+.tgs-combo-card__body { display: grid; gap: 6px; padding: 12px 14px 14px; }
+.tgs-combo-card__name { font-size: 15px; font-weight: 800; line-height: 1.25; }
+.tgs-combo-card__items { font-size: 12.5px; color: rgba(248,250,252,.62); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tgs-combo-card__price { font-size: 15px; }
+.tgs-combo-card__price s { color: rgba(248,250,252,.5); font-size: 13px; }
+.tgs-combo-card__price strong { color: #fdba74; font-size: 17px; font-weight: 800; }
+.tgs-combo-card__actions { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.tgs-combo-card__add { flex: 1 1 auto; animation: none !important; }
+.tgs-combo-card__add.is-added { background: #16a34a !important; box-shadow: none; }
+.tgs-combo-card__add:disabled { opacity: .85; cursor: default; }
+.tgs-combo-card__link { font-size: 12.5px; color: rgba(248,250,252,.6); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.tgs-combo-card__link:hover { color: #fff; }
+@media (max-width: 720px) {
+	.tgs-combos__grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+	.tgs-combo-card__body { padding: 10px; }
+	.tgs-combo-card__actions { flex-wrap: wrap; }
+}

@@ -53,4 +53,14 @@
 - **Payload a WordPress** (`buildPublishPayload`): `kind`, `comboDiscountBps`, `regularPriceCents` (tachado o null), `storeVisible` (PCs: 'PC', 0, null, true).
 - **Pipeline "Preparar y publicar"** con combos: imágenes/recortes/descripciones igual; hero = producto más caro con foto (`findComboHeroItem`); textos = `ComboEnrichmentService` (`packages/ai/src/services/combo-enrichment.ts`: título, bajada, descripción corta, HTML, puntos fuertes, público; sin juegos/programas/compatibilidad; misma tarea `QUOTE_ENRICHMENT` con `format: 'combo-v1'` en el hash); `runQuoteEnrichment` despacha por `kind`; título por reglas = `buildComboTitle` ("Combo A + B + C", ≤120); miniatura = collage con sharp (`apps/api/src/combo-thumbnail.ts`: hasta 4 fotos, banda con título y etiqueta −X %; sin IA); 3D no aplica. El editor web oculta Juegos y Compatibilidad para combos.
 
-## Etapa 3 — Combos en la tienda (pendiente)
+## Etapa 3 — Combos en la tienda (construida 2026-09-15, plugin 2.23.0)
+
+- `includes/combos.php`. El sync (`product-sync.php`) guarda `_tgs_kind`, `_tgs_combo_discount_bps`, `_tgs_regular_price_cents`, `_tgs_store_visible` y fija `catalog_visibility` = `hidden` cuando `storeVisible=false` (fuera de listados y búsqueda de Woo). No se toca el precio regular/oferta de Woo: el tachado se muestra solo en la ficha (`tgs_sq_combo_strike_html` en el hero y la barra flotante) y en el modal.
+- Ocultos: `wp_robots` noindex/nofollow, fuera del sitemap de WordPress, sin botón de compra en su URL (nota "se agrega junto con una PC"), sin barra flotante, y `woocommerce_add_to_cart_validation` rechaza el alta salvo que venga `tgs_combo_from=<PC>` con esa PC en el carrito. En el carrito se ve "Combo para: <PC>".
+- Ficha de un combo: bloques normales; "Componentes" → "Qué incluye"; sin "Potenciá tu setup" ni modal viejo; Recomendadas excluye combos (`_tgs_kind != COMBO`).
+- Modal post-carrito: `tgs_sq_combos_modal_data()` entra en `#tgs-setup-data.combos` (hasta `combos_count`, visibles y ocultos, orden `menu_order` + precio). Si el cliente no eligió extras, `.tgs-done--combos` muestra las tarjetas (`tgs-combo-card`: miniatura, −X%, nombre, qué incluye, tachado + precio, "Sumar al carrito" → AJAX con `tgs_combo_from`, "Ver combo" solo si es visible). Con extras elegidos, el aviso corto de siempre. Variante: `combos_enabled`, `combos_count`, `combos_headline`, `combos_text`. Con la sección sin grupos pero combos activos, el JSON igual se imprime y el JS intercepta el agregar al carrito.
+
+## Pendiente / ideas
+
+- Contador de uso (clicks en Sumar / Ver combo / cerrar sin sumar) para medir el modal y el fuego.
+- Filtros por atributo (marca, inalámbrico, switch) dentro de cada pestaña de "Potenciá tu setup" cuando haya más productos por categoría.

@@ -56,6 +56,11 @@ function tgs_sq_setup_default_extra() {
 		'setup_default_group' => 'monitor',
 		'setup_done_title'    => '¡Ya está en tu carrito! 🎉',
 		'setup_done_text'     => 'Podés finalizar la compra ahora o seguir mirando.',
+		// Combos (BLOCK-10 etapa 3): se ofrecen en el aviso post-carrito si no eligió extras.
+		'combos_enabled'      => true,
+		'combos_count'        => 4,
+		'combos_headline'     => 'Completá tu setup con un combo',
+		'combos_text'         => 'Packs armados por nosotros con descuento. Se suman a tu PC en un toque.',
 	);
 	foreach ( tgs_sq_setup_groups() as $key => $meta ) {
 		// Prendidos por defecto los que ya existían como grupos del modal y el monitor.
@@ -182,7 +187,9 @@ function tgs_sq_setup_data( array $d ) {
 			'items'  => array_map( function ( $product ) use ( $featured ) { return tgs_sq_upsell_item( $product, $featured ); }, $products ),
 		);
 	}
-	if ( ! $groups ) {
+	// Sin grupos con productos igual puede haber combos para el aviso post-carrito.
+	$combos = tgs_sq_combos_modal_data( $d );
+	if ( ! $groups && ! $combos ) {
 		return null;
 	}
 	$default = sanitize_key( (string) ( $extra['setup_default_group'] ?? 'monitor' ) );
@@ -202,10 +209,11 @@ function tgs_sq_setup_data( array $d ) {
 		'currency'    => get_woocommerce_currency(),
 		'pct'         => tgs_sq_setup_pct( $extra ),
 		'applyPc'     => ! empty( $extra['setup_apply_pc'] ),
-		'defaultKey'  => in_array( $default, $keys, true ) ? $default : $keys[0],
+		'defaultKey'  => in_array( $default, $keys, true ) ? $default : ( $keys[0] ?? '' ),
 		'doneTitle'   => (string) ( $extra['setup_done_title'] ?? '' ),
 		'doneText'    => (string) ( $extra['setup_done_text'] ?? '' ),
 		'groups'      => $groups,
+		'combos'      => $combos,
 	);
 }
 
@@ -214,6 +222,11 @@ function tgs_sq_setup_html( array $d ) {
 	$data = tgs_sq_setup_data( $d );
 	if ( ! $data ) {
 		return '';
+	}
+	$json = '<script type="application/json" id="tgs-setup-data">' . wp_json_encode( $data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG ) . '</script>';
+	if ( ! $data['groups'] ) {
+		// Solo combos: el JS igual intercepta el agregar al carrito para ofrecerlos.
+		return $json;
 	}
 	$extra = (array) $d['extra'];
 	$pct   = $data['pct'];
@@ -275,7 +288,7 @@ function tgs_sq_setup_html( array $d ) {
 	echo '<span class="tgs-monitors-summary__hint">Al tocar "Agregar al carrito" entra todo junto con el descuento.</span></div>';
 	echo '</div>';
 	echo '</section>';
-	echo '<script type="application/json" id="tgs-setup-data">' . wp_json_encode( $data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG ) . '</script>';
+	echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	return ob_get_clean();
 }
 

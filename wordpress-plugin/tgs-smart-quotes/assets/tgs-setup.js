@@ -38,9 +38,11 @@
 	/* Sección "Potenciá tu setup"                                         */
 	/* ------------------------------------------------------------------ */
 	ready( function () {
-		var section = document.querySelector( '[data-tgs-setup]' );
 		var dataEl = document.getElementById( 'tgs-setup-data' );
-		if ( ! section || ! dataEl ) { return; }
+		if ( ! dataEl ) { return; }
+		// Sin sección (variante solo con combos) se usa un nodo suelto: todas
+		// las búsquedas dan vacío y el resto del módulo sigue funcionando.
+		var section = document.querySelector( '[data-tgs-setup]' ) || document.createElement( 'div' );
 		var cfg;
 		try { cfg = JSON.parse( dataEl.textContent || 'null' ); } catch ( e ) { return; }
 		if ( ! cfg ) { return; }
@@ -229,16 +231,55 @@
 			overlay = null;
 			document.body.classList.remove( 'tgs-up-open' );
 		}
+		// Combos (BLOCK-10 etapa 3): si no eligió extras, el aviso ofrece los
+		// packs armados desde TGS. Cada uno entra al carrito con tgs_combo_from
+		// (la PC recién agregada), que es lo que habilita a los ocultos.
+		var comboAdded = {};
+		function comboCard( c ) {
+			return '<article class="tgs-combo-card">'
+				+ '<span class="tgs-combo-card__media">' + ( c.image ? '<img src="' + esc( c.image ) + '" alt="" loading="lazy">' : '' ) + ( c.pct ? '<b class="tgs-combo-card__pct">−' + esc( String( c.pct ).replace( /\.0$/, '' ) ) + '%</b>' : '' ) + '</span>'
+				+ '<span class="tgs-combo-card__body">'
+				+ '<span class="tgs-combo-card__name">' + esc( c.name ) + '</span>'
+				+ ( c.items && c.items.length ? '<span class="tgs-combo-card__items">' + esc( c.items.join( ' + ' ) ) + '</span>' : ( c.tagline ? '<span class="tgs-combo-card__items">' + esc( c.tagline ) + '</span>' : '' ) )
+				+ '<span class="tgs-combo-card__price">' + ( c.regularHtml ? '<s>' + esc( c.regularHtml ) + '</s> ' : '' ) + '<strong>' + esc( c.priceHtml ) + '</strong></span>'
+				+ '<span class="tgs-combo-card__actions">'
+				+ '<button type="button" class="tgs-up__btn tgs-up__btn--primary tgs-combo-card__add" data-combo-add="' + esc( c.id ) + '">Sumar al carrito</button>'
+				+ ( c.hidden ? '' : '<a class="tgs-combo-card__link" href="' + esc( c.url ) + '" target="_blank" rel="noopener">Ver combo</a>' )
+				+ '</span></span></article>';
+		}
+		function markCombo( id, state ) {
+			var buttons = overlay ? overlay.querySelectorAll( '[data-combo-add="' + id + '"]' ) : [];
+			for ( var i = 0; i < buttons.length; i++ ) {
+				buttons[ i ].disabled = state !== 'idle';
+				buttons[ i ].classList.toggle( 'is-added', state === 'added' );
+				buttons[ i ].textContent = state === 'busy' ? 'Sumando…' : state === 'added' ? '✓ En el carrito' : 'Sumar al carrito';
+			}
+		}
+		function addCombo( id ) {
+			if ( comboAdded[ id ] ) { return; }
+			markCombo( id, 'busy' );
+			addToCart( id, { tgs_combo_from: String( cfg.productId ) } )
+				.then( function () { comboAdded[ id ] = true; markCombo( id, 'added' ); } )
+				.catch( function () { markCombo( id, 'idle' ); } );
+		}
 		function showDone() {
 			var n = count();
-			var html = '<div class="tgs-done" role="dialog" aria-modal="true" aria-label="' + esc( cfg.doneTitle || 'Ya está en tu carrito' ) + '">'
+			var combos = ! n && cfg.combos && cfg.combos.items && cfg.combos.items.length ? cfg.combos : null;
+			var html = '<div class="tgs-done' + ( combos ? ' tgs-done--combos' : '' ) + '" role="dialog" aria-modal="true" aria-label="' + esc( cfg.doneTitle || 'Ya está en tu carrito' ) + '">'
 				+ '<div class="tgs-done__box">'
 				+ '<button type="button" class="tgs-done__close" data-done-close aria-label="Cerrar">✕</button>'
 				+ '<span class="tgs-done__check">✓</span>'
 				+ '<h2 class="tgs-done__title">' + esc( cfg.doneTitle || '¡Ya está en tu carrito!' ) + '</h2>'
 				+ '<p class="tgs-done__pc">' + esc( cfg.pcTitle ) + ( n ? ' + ' + n + ( n === 1 ? ' extra' : ' extras' ) : '' ) + '</p>'
 				+ ( n ? '<p class="tgs-done__fire">🔥 Descuento setup <b>−' + pct() + '%</b> · ahorrás <b>' + esc( money( savings() ) ) + '</b></p>' : '' )
-				+ ( cfg.doneText ? '<p class="tgs-done__text">' + esc( cfg.doneText ) + '</p>' : '' )
+				+ ( ! combos && cfg.doneText ? '<p class="tgs-done__text">' + esc( cfg.doneText ) + '</p>' : '' )
+				+ ( combos
+					? '<div class="tgs-combos">'
+						+ '<h3 class="tgs-combos__title">' + esc( combos.headline || 'Completá tu setup con un combo' ) + '</h3>'
+						+ ( combos.text ? '<p class="tgs-combos__text">' + esc( combos.text ) + '</p>' : '' )
+						+ '<div class="tgs-combos__grid">' + combos.items.map( comboCard ).join( '' ) + '</div>'
+						+ '</div>'
+					: '' )
 				+ '<div class="tgs-done__actions">'
 				+ '<a class="tgs-up__btn tgs-up__btn--primary" href="' + esc( cfg.checkoutUrl ) + '">Finalizar compra →</a>'
 				+ '<a class="tgs-up__btn tgs-up__btn--ghost" href="' + esc( cfg.cartUrl ) + '">Ver carrito</a>'
@@ -251,7 +292,9 @@
 			document.body.appendChild( overlay );
 			document.body.classList.add( 'tgs-up-open' );
 			overlay.addEventListener( 'click', function ( e ) {
-				if ( e.target === overlay || e.target.closest( '[data-done-close]' ) ) { closeDone(); }
+				if ( e.target === overlay || e.target.closest( '[data-done-close]' ) ) { closeDone(); return; }
+				var add = e.target.closest( '[data-combo-add]' );
+				if ( add ) { addCombo( add.getAttribute( 'data-combo-add' ) ); }
 			} );
 			document.addEventListener( 'keydown', function onKey( e ) { if ( e.key === 'Escape' ) { closeDone(); document.removeEventListener( 'keydown', onKey ); } } );
 		}

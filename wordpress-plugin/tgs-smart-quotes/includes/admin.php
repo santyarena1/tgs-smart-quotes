@@ -908,6 +908,10 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'setup_default_group' => sanitize_key( $_POST['setup_default_group'] ?? 'monitor' ),
 				'setup_done_title'    => sanitize_text_field( wp_unslash( $_POST['setup_done_title'] ?? '' ) ),
 				'setup_done_text'     => sanitize_textarea_field( wp_unslash( $_POST['setup_done_text'] ?? '' ) ),
+				'combos_enabled'      => ! empty( $_POST['combos_enabled'] ),
+				'combos_count'        => max( 1, min( 8, (int) ( $_POST['combos_count'] ?? 4 ) ) ),
+				'combos_headline'     => sanitize_text_field( wp_unslash( $_POST['combos_headline'] ?? '' ) ),
+				'combos_text'         => sanitize_textarea_field( wp_unslash( $_POST['combos_text'] ?? '' ) ),
 				'upsell_enabled'           => ! empty( $_POST['upsell_enabled'] ),
 				'upsell_discount_pct'      => max( 0, min( 90, (int) ( $_POST['upsell_discount_pct'] ?? 0 ) ) ),
 				'upsell_monitor_discount_pct' => max( 0, min( 90, (int) ( $_POST['upsell_monitor_discount_pct'] ?? 0 ) ) ),
@@ -1301,6 +1305,28 @@ function tgs_sq_render_variant_editor( $slug ) {
 							<div class="tgs-field">
 								<label for="setup_done_text">Aviso al agregar al carrito — texto</label>
 								<input type="text" id="setup_done_text" name="setup_done_text" value="<?php echo esc_attr( $extra['setup_done_text'] ?? '' ); ?>">
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label class="tgs-check" style="display:flex;gap:8px;align-items:center">
+									<input type="checkbox" name="combos_enabled" value="1" <?php checked( ! empty( $extra['combos_enabled'] ) ); ?>>
+									<span>Si el cliente NO eligió extras, ofrecerle combos al agregar al carrito</span>
+								</label>
+								<p class="description">Los combos se arman y publican desde TGS Smart Quotes (presupuesto "Es combo para la tienda"), con su propio descuento y precio tachado. No suman al descuento del fuego. Los ocultos solo se pueden comprar desde acá.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="combos_count">Combos — cuántos mostrar</label>
+								<div class="tgs-inputgroup">
+									<input type="number" id="combos_count" name="combos_count" value="<?php echo esc_attr( (int) ( $extra['combos_count'] ?? 4 ) ); ?>" min="1" max="8">
+									<span class="tgs-suffix">combos</span>
+								</div>
+							</div>
+							<div class="tgs-field">
+								<label for="combos_headline">Combos — título del aviso</label>
+								<input type="text" id="combos_headline" name="combos_headline" value="<?php echo esc_attr( $extra['combos_headline'] ?? '' ); ?>">
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label for="combos_text">Combos — texto</label>
+								<input type="text" id="combos_text" name="combos_text" value="<?php echo esc_attr( $extra['combos_text'] ?? '' ); ?>">
 							</div>
 							<?php foreach ( tgs_sq_setup_groups() as $group_key => $group_meta ) : ?>
 								<?php $group_label = trim( (string) ( $extra[ "setup_{$group_key}_label" ] ?? '' ) ) ?: $group_meta['label']; ?>

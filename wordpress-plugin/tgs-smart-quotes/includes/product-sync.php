@@ -195,9 +195,12 @@ function tgs_sq_sync_product( array $payload ) {
 	// admin" (solo se fijan al crear): el título, el precio, las descripciones
 	// y el estado son del sistema; el slug es del admin, porque cambiarlo
 	// cambia la URL y rompe los enlaces ya compartidos.
+	$is_combo      = 'COMBO' === (string) ( $payload['kind'] ?? 'PC' );
+	$store_visible = ! $is_combo || ! isset( $payload['storeVisible'] ) || ! empty( $payload['storeVisible'] );
 	$product->set_name( $title );
 	$product->set_status( 'publish' );
-	$product->set_catalog_visibility( 'visible' );
+	// Combos ocultos: fuera de listados y de la búsqueda (solo se compran desde el modal).
+	$product->set_catalog_visibility( $store_visible ? 'visible' : 'hidden' );
 	$product->set_regular_price( wc_format_decimal( $price_transfer_ars, 2 ) );
 	// Descripción estándar de Woo además de la ficha custom: la leen los
 	// feeds (Google Merchant, catálogo de Facebook/Instagram), la búsqueda
@@ -270,6 +273,10 @@ function tgs_sq_sync_product( array $payload ) {
 		TGS_SQ_META_POWER           => tgs_sq_json( $payload['power'] ?? array() ),
 		TGS_SQ_META_GAMES           => tgs_sq_json( $payload['games'] ?? array() ),
 		TGS_SQ_META_COMPATIBILITY   => tgs_sq_json( $payload['compatibility'] ?? array() ),
+		TGS_SQ_META_KIND            => $is_combo ? 'COMBO' : 'PC',
+		TGS_SQ_META_COMBO_DISCOUNT_BPS => (string) (int) ( $payload['comboDiscountBps'] ?? 0 ),
+		TGS_SQ_META_REGULAR_PRICE   => (string) (int) ( $payload['regularPriceCents'] ?? 0 ),
+		TGS_SQ_META_STORE_VISIBLE   => $store_visible ? '1' : '0',
 	);
 	foreach ( $meta as $key => $value ) {
 		update_post_meta( $product_id, $key, $value );
