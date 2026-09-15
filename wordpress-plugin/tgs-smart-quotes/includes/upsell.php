@@ -142,7 +142,9 @@ function tgs_sq_upsell_ensure_coupons( array $variant ) {
  * hay productos en ningún grupo.
  */
 function tgs_sq_upsell_data( array $d, $variant_slug ) {
-	if ( empty( $d['product'] ) || empty( $d['extra']['upsell_enabled'] ) ) {
+	// Con "Potenciá tu setup" activo la oferta vive en la ficha: el modal de
+	// carruseles no se muestra.
+	if ( empty( $d['product'] ) || empty( $d['extra']['upsell_enabled'] ) || ! empty( $d['setup_active'] ) ) {
 		return null;
 	}
 	$extra  = $d['extra'];

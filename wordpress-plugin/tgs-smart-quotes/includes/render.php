@@ -44,6 +44,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	// las bloqueara o difiriera, y el título salía con la fuente del sistema.
 	wp_enqueue_style( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.css', array(), TGS_SQ_VERSION );
 	wp_enqueue_script( 'tgs-landing', TGS_SQ_URL . 'assets/tgs-landing.js', array(), TGS_SQ_VERSION, true );
+	wp_enqueue_script( 'tgs-setup', TGS_SQ_URL . 'assets/tgs-setup.js', array(), TGS_SQ_VERSION, true );
 
 	$model3d = get_post_meta( get_the_ID(), TGS_SQ_META_MODEL3D, true );
 	if ( $model3d ) {
@@ -902,6 +903,11 @@ function tgs_sq_monitors_html( array $d ) {
 }
 
 function tgs_sq_block_monitors( array $d ) {
+	// Con "Potenciá tu setup" prendido, los monitores ya son una pestaña de
+	// esa sección: no se repiten como bloque aparte.
+	if ( ! empty( $d['setup_active'] ) ) {
+		return;
+	}
 	echo tgs_sq_monitors_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
@@ -1057,7 +1063,9 @@ function tgs_sq_placeholder_values( array $d ) {
 		'galeria'              => tgs_sq_capture_block( 'gallery', $d ),
 		'compatibilidad'       => tgs_sq_capture_block( 'compatibility', $d ),
 		'recomendadas'         => tgs_sq_recommended_html( $d ),
-		'monitores'            => tgs_sq_monitors_html( $d ),
+		// Con la sección nueva activa, {{monitores}} queda vacío (los monitores son una pestaña de {{potencia_setup}}).
+		'monitores'            => empty( $d['setup_active'] ) ? tgs_sq_monitors_html( $d ) : ( ! empty( $d['setup_via_monitores'] ) ? tgs_sq_setup_html( $d ) : '' ),
+		'potencia_setup'       => empty( $d['setup_active'] ) ? '' : tgs_sq_setup_html( $d ),
 		'boton_carrito'        => $cart,
 		'boton_whatsapp'       => tgs_sq_whatsapp_button_html( $d ),
 		'barra_flotante'       => tgs_sq_sticky_html( $d ),
@@ -1127,15 +1135,33 @@ function tgs_sq_render_product( $product_id ) {
 	// Google: van en cualquiera de los dos modos, antes de la ficha.
 	tgs_sq_gallery_data_html( $data );
 	tgs_sq_structured_data_html( $data );
-	tgs_sq_upsell_data_html( $data, $variant_slug );
 
 	$custom_code = tgs_sq_variant_custom_code( $variant );
-	if ( 'custom' === tgs_sq_normalize_mode( $variant['mode'] ?? '' ) && '' !== $custom_code ) {
-		tgs_sq_render_custom_mode( $variant, $data );
-		return;
+	$custom      = 'custom' === tgs_sq_normalize_mode( $variant['mode'] ?? '' ) && '' !== $custom_code;
+	// "Potenciá tu setup" está activo si la variante lo tiene prendido y la
+	// ficha lo muestra (bloque visible, o placeholder en el diseño propio).
+	// En el diseño propio, si el código no tiene {{potencia_setup}} pero sí
+	// {{monitores}}, la sección nueva sale en el lugar de los monitores: así
+	// no hay que editar el HTML pegado para tenerla.
+	$has_setup_ph = $custom && false !== strpos( $custom_code, '{{potencia_setup}}' );
+	$has_mon_ph   = $custom && false !== strpos( $custom_code, '{{monitores}}' );
+	$setup_shown  = $custom ? ( $has_setup_ph || $has_mon_ph ) : (bool) array_filter( (array) ( $variant['blocks'] ?? array() ), function ( $b ) { return 'setup' === ( $b['type'] ?? '' ) && ! empty( $b['visible'] ); } );
+	$data['setup_active']        = $setup_shown && tgs_sq_setup_enabled( $data['extra'] );
+	$data['setup_via_monitores'] = $data['setup_active'] && $custom && ! $has_setup_ph;
+	if ( ! $data['setup_active'] ) {
+		tgs_sq_upsell_data_html( $data, $variant_slug );
 	}
 
-	tgs_sq_render_blocks_mode( $variant, $data );
+	ob_start();
+	if ( $custom ) {
+		tgs_sq_render_custom_mode( $variant, $data );
+	} else {
+		tgs_sq_render_blocks_mode( $variant, $data );
+	}
+	// La guía se arma con las secciones que la ficha realmente imprimió.
+	list( $html, $entries ) = tgs_sq_guide_inject( (string) ob_get_clean() );
+	echo tgs_sq_guide_html( $entries, $data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 /**

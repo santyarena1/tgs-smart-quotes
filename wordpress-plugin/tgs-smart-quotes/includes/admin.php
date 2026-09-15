@@ -900,6 +900,14 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'monitors_source'   => 'custom' === ( $_POST['monitors_source'] ?? '' ) ? 'custom' : 'settings',
 				'monitors_products' => array_values( array_filter( array_map( 'absint', (array) ( $_POST['variant_monitor_products'] ?? array() ) ) ) ),
 				'monitors_featured' => (int) ( $_POST['variant_monitor_featured'] ?? 0 ),
+				'setup_enabled'       => ! empty( $_POST['setup_enabled'] ),
+				'setup_title'         => sanitize_text_field( wp_unslash( $_POST['setup_title'] ?? '' ) ),
+				'setup_intro'         => sanitize_textarea_field( wp_unslash( $_POST['setup_intro'] ?? '' ) ),
+				'setup_pct'           => max( 0, min( 100, (int) ( $_POST['setup_pct'] ?? 1 ) ) ),
+				'setup_apply_pc'      => ! empty( $_POST['setup_apply_pc'] ),
+				'setup_default_group' => sanitize_key( $_POST['setup_default_group'] ?? 'monitor' ),
+				'setup_done_title'    => sanitize_text_field( wp_unslash( $_POST['setup_done_title'] ?? '' ) ),
+				'setup_done_text'     => sanitize_textarea_field( wp_unslash( $_POST['setup_done_text'] ?? '' ) ),
 				'upsell_enabled'           => ! empty( $_POST['upsell_enabled'] ),
 				'upsell_discount_pct'      => max( 0, min( 90, (int) ( $_POST['upsell_discount_pct'] ?? 0 ) ) ),
 				'upsell_monitor_discount_pct' => max( 0, min( 90, (int) ( $_POST['upsell_monitor_discount_pct'] ?? 0 ) ) ),
@@ -920,6 +928,15 @@ function tgs_sq_render_variant_editor( $slug ) {
 				'ai_disclaimer'     => sanitize_text_field( $_POST['ai_disclaimer'] ?? '' ),
 			),
 		);
+
+		foreach ( array_keys( tgs_sq_setup_groups() ) as $group_key ) {
+			$variant['extra'][ "setup_{$group_key}_enabled" ]  = ! empty( $_POST[ "setup_{$group_key}_enabled" ] );
+			$variant['extra'][ "setup_{$group_key}_label" ]    = sanitize_text_field( wp_unslash( $_POST[ "setup_{$group_key}_label" ] ?? '' ) );
+			$variant['extra'][ "setup_{$group_key}_category" ] = (int) ( $_POST[ "setup_{$group_key}_category" ] ?? 0 );
+			$variant['extra'][ "setup_{$group_key}_products" ] = array_values( array_filter( array_map( 'absint', (array) ( $_POST[ "setup_{$group_key}_products" ] ?? array() ) ) ) );
+			$variant['extra'][ "setup_{$group_key}_featured" ] = (int) ( $_POST[ "setup_{$group_key}_featured" ] ?? 0 );
+			$variant['extra'][ "setup_{$group_key}_count" ]    = max( 1, min( 12, (int) ( $_POST[ "setup_{$group_key}_count" ] ?? 4 ) ) );
+		}
 
 		tgs_sq_save_variant( $variant );
 		// El cupón del modal se regenera con lo recién guardado.
@@ -1235,8 +1252,105 @@ function tgs_sq_render_variant_editor( $slug ) {
 
 				<div class="tgs-card">
 					<div class="tgs-card__head">
-						<h2>Después de agregar al carrito: "Completá tu setup"</h2>
-						<p>Cuando el cliente agrega la PC (y el monitor, si eligió uno) al carrito, se abre un modal con carruseles de teclados, mouse y auriculares y un descuento por sumarlos en ese momento. Si no eligió monitor, también se le ofrecen monitores. El descuento se aplica con un cupón que el plugin crea solo, restringido a estos productos.</p>
+						<h2>Potenciá tu setup</h2>
+						<p>Sección de la ficha con una pestaña por categoría (monitores, teclados, mouse, auriculares, red, silla, escritorio, mouse pad y dos libres) y pocos productos en cada una. Lo que el cliente elige entra al carrito junto con la PC, y por cada producto gana un porcentaje de descuento que se calcula en el carrito (si saca un extra, baja solo). Con esta sección prendida, el modal "Completá tu setup" de abajo no se muestra. Para que aparezca en la ficha, el bloque "Potenciá tu setup" tiene que estar tildado arriba.</p>
+					</div>
+					<div class="tgs-card__body">
+						<div class="tgs-fields">
+							<div class="tgs-field tgs-field--wide">
+								<label class="tgs-check" style="display:flex;gap:8px;align-items:center">
+									<input type="checkbox" name="setup_enabled" value="1" <?php checked( ! empty( $extra['setup_enabled'] ) ); ?>>
+									<span>Usar "Potenciá tu setup" en esta variante</span>
+								</label>
+							</div>
+							<div class="tgs-field">
+								<label for="setup_pct">Descuento por cada producto sumado</label>
+								<div class="tgs-inputgroup">
+									<input type="number" id="setup_pct" name="setup_pct" value="<?php echo esc_attr( (int) ( $extra['setup_pct'] ?? 1 ) ); ?>" min="0" max="100">
+									<span class="tgs-suffix">% por producto</span>
+								</div>
+								<p class="description">Se multiplica por la cantidad de productos distintos elegidos: 3 extras = <?php echo (int) ( $extra['setup_pct'] ?? 1 ) * 3; ?>%. Sin tope.</p>
+							</div>
+							<div class="tgs-field">
+								<label class="tgs-check" style="display:flex;gap:8px;align-items:center;margin-top:26px">
+									<input type="checkbox" name="setup_apply_pc" value="1" <?php checked( ! empty( $extra['setup_apply_pc'] ) ); ?>>
+									<span>El descuento aplica también al precio de la PC (no solo a los extras)</span>
+								</label>
+							</div>
+							<div class="tgs-field">
+								<label for="setup_title">Título de la sección</label>
+								<input type="text" id="setup_title" name="setup_title" value="<?php echo esc_attr( $extra['setup_title'] ?? '' ); ?>" placeholder="Potenciá tu setup">
+							</div>
+							<div class="tgs-field">
+								<label for="setup_default_group">Pestaña abierta por defecto</label>
+								<select id="setup_default_group" name="setup_default_group">
+									<?php foreach ( tgs_sq_setup_groups() as $group_key => $group_meta ) : ?>
+										<option value="<?php echo esc_attr( $group_key ); ?>" <?php selected( $extra['setup_default_group'] ?? 'monitor', $group_key ); ?>><?php echo esc_html( trim( (string) ( $extra[ "setup_{$group_key}_label" ] ?? '' ) ) ?: ( $group_meta['label'] ?: 'Libre ' . substr( $group_key, -1 ) ) ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="tgs-field tgs-field--wide">
+								<label for="setup_intro">Texto de la sección</label>
+								<textarea id="setup_intro" name="setup_intro" rows="2"><?php echo esc_textarea( $extra['setup_intro'] ?? '' ); ?></textarea>
+								<p class="description"><code>{{pct}}</code> = el porcentaje por producto.</p>
+							</div>
+							<div class="tgs-field">
+								<label for="setup_done_title">Aviso al agregar al carrito — título</label>
+								<input type="text" id="setup_done_title" name="setup_done_title" value="<?php echo esc_attr( $extra['setup_done_title'] ?? '' ); ?>" placeholder="¡Ya está en tu carrito! 🎉">
+							</div>
+							<div class="tgs-field">
+								<label for="setup_done_text">Aviso al agregar al carrito — texto</label>
+								<input type="text" id="setup_done_text" name="setup_done_text" value="<?php echo esc_attr( $extra['setup_done_text'] ?? '' ); ?>">
+							</div>
+							<?php foreach ( tgs_sq_setup_groups() as $group_key => $group_meta ) : ?>
+								<?php $group_label = trim( (string) ( $extra[ "setup_{$group_key}_label" ] ?? '' ) ) ?: $group_meta['label']; ?>
+								<details class="tgs-field tgs-field--wide tgs-setup-group" <?php echo ! empty( $extra[ "setup_{$group_key}_enabled" ] ) ? 'open' : ''; ?>>
+									<summary style="cursor:pointer;font-weight:600;display:flex;gap:10px;align-items:center">
+										<input type="checkbox" name="setup_<?php echo esc_attr( $group_key ); ?>_enabled" value="1" <?php checked( ! empty( $extra[ "setup_{$group_key}_enabled" ] ) ); ?> onclick="event.stopPropagation()">
+										<span><?php echo esc_html( $group_label ?: 'Categoría libre ' . substr( $group_key, -1 ) ); ?></span>
+										<?php if ( 'monitor' === $group_key ) : ?><span class="description" style="font-weight:400">— usa los monitores de "Sumale un monitor" (Ajustes o esta variante)</span><?php endif; ?>
+									</summary>
+									<div class="tgs-fields" style="margin-top:12px">
+										<div class="tgs-field">
+											<label>Nombre de la pestaña</label>
+											<input type="text" name="setup_<?php echo esc_attr( $group_key ); ?>_label" value="<?php echo esc_attr( $extra[ "setup_{$group_key}_label" ] ?? '' ); ?>" placeholder="<?php echo esc_attr( $group_meta['label'] ?: 'Ej: Sillas' ); ?>">
+										</div>
+										<div class="tgs-field">
+											<label>Cuántos mostrar</label>
+											<div class="tgs-inputgroup">
+												<input type="number" name="setup_<?php echo esc_attr( $group_key ); ?>_count" value="<?php echo esc_attr( (int) ( $extra[ "setup_{$group_key}_count" ] ?? 4 ) ); ?>" min="1" max="12">
+												<span class="tgs-suffix">productos</span>
+											</div>
+										</div>
+										<?php if ( 'monitor' !== $group_key ) : ?>
+											<div class="tgs-field tgs-field--wide">
+												<label>Categoría de WooCommerce (completa hasta "cuántos mostrar")</label>
+												<?php
+												wp_dropdown_categories( array(
+													'taxonomy'          => 'product_cat',
+													'name'              => 'setup_' . $group_key . '_category',
+													'selected'          => (int) ( $extra[ "setup_{$group_key}_category" ] ?? 0 ),
+													'show_option_none'  => 'Sin categoría (solo los elegidos abajo)',
+													'option_none_value' => 0,
+													'hide_empty'        => false,
+													'hierarchical'      => true,
+												) );
+												?>
+												<p class="description">Elegidos (van primero, en este orden; ★ = "más elegido"):</p>
+												<?php tgs_sq_render_monitor_picker( array_map( 'absint', (array) ( $extra[ "setup_{$group_key}_products" ] ?? array() ) ), 'setup_' . $group_key . '_products[]', 'setup_' . $group_key . '_search', 'setup_' . $group_key . '_featured', (int) ( $extra[ "setup_{$group_key}_featured" ] ?? 0 ) ); ?>
+											</div>
+										<?php endif; ?>
+									</div>
+								</details>
+							<?php endforeach; ?>
+						</div>
+					</div>
+				</div>
+
+				<div class="tgs-card">
+					<div class="tgs-card__head">
+						<h2>Después de agregar al carrito: "Completá tu setup" (modo viejo)</h2>
+						<p>Solo se usa si "Potenciá tu setup" está apagado en esta variante. Cuando el cliente agrega la PC (y el monitor, si eligió uno) al carrito, se abre un modal con carruseles de teclados, mouse y auriculares y un descuento por sumarlos en ese momento. Si no eligió monitor, también se le ofrecen monitores. El descuento se aplica con un cupón que el plugin crea solo, restringido a estos productos.</p>
 					</div>
 					<div class="tgs-card__body">
 						<div class="tgs-fields">

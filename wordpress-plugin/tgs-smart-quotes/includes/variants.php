@@ -50,6 +50,7 @@ function tgs_sq_block_types() {
 		'payment'        => 'Formas de pago y cuotas',
 		'shipping'       => 'Envíos y retiro (zonas y costos de WooCommerce)',
 		'monitors'       => 'Sumale un monitor (se agrega al carrito con la PC)',
+		'setup'          => 'Potenciá tu setup (extras por categoría con descuento por producto)',
 		'recommended'    => 'Recomendadas de la casa (PCs de precio similar)',
 	);
 }
@@ -90,7 +91,7 @@ function tgs_sq_default_tokens() {
  * "blocks".
  */
 function tgs_sq_default_extra() {
-	return array(
+	return tgs_sq_setup_default_extra() + array(
 		'whatsapp_number'    => '',
 		'whatsapp_message'   => 'Hola! Quiero consultar por {{title}}',
 		'sticky_label'       => 'Agregar al carrito',
@@ -169,6 +170,7 @@ function tgs_sq_placeholder_docs() {
 		'compatibilidad'         => 'Sección con las notas de compatibilidad del armado.',
 		'recomendadas'           => 'Sección de "Recomendadas de la casa" (otras PCs de precio similar).',
 		'monitores'              => 'Sección "Sumale un monitor": monitores elegibles que se agregan al carrito junto con la PC (vacía si no hay categoría configurada en Ajustes).',
+		'potencia_setup'         => 'Sección "Potenciá tu setup": pestañas por categoría (monitores, teclados, mouse…) con extras que entran al carrito con la PC y el descuento que crece por cada producto.',
 		'boton_carrito'          => 'Botón de agregar al carrito de WooCommerce (con cantidad y stock).',
 		'boton_whatsapp'         => 'Botón de consulta por WhatsApp (vacío si la variante no tiene número cargado).',
 		'barra_flotante'         => 'Barra fija de compra para el celular (nombre + precio + botón).',
@@ -233,7 +235,36 @@ function tgs_sq_get_variant( $slug ) {
 	// lee como "blocks" salvo que tenga guardado explícitamente 'custom'.
 	$variant['mode']        = tgs_sq_normalize_mode( $variant['mode'] ?? '' );
 	$variant['custom_code'] = tgs_sq_variant_custom_code( $variant );
+	$variant['blocks']      = tgs_sq_complete_blocks( (array) ( $variant['blocks'] ?? array() ) );
 	return $variant;
+}
+
+/**
+ * Bloques que se agregaron al plugin después de que la variante se guardó:
+ * se suman con su visibilidad por defecto para que la ficha los muestre sin
+ * tener que reguardar cada variante. "Potenciá tu setup" entra justo
+ * después de "Sumale un monitor" (al que reemplaza); el resto, al final.
+ */
+function tgs_sq_complete_blocks( array $blocks ) {
+	$present = array();
+	foreach ( $blocks as $block ) {
+		$present[ $block['type'] ?? '' ] = true;
+	}
+	foreach ( tgs_sq_default_blocks() as $default ) {
+		if ( isset( $present[ $default['type'] ] ) ) {
+			continue;
+		}
+		$at = count( $blocks );
+		if ( 'setup' === $default['type'] ) {
+			foreach ( $blocks as $i => $block ) {
+				if ( 'monitors' === ( $block['type'] ?? '' ) ) {
+					$at = $i + 1;
+				}
+			}
+		}
+		array_splice( $blocks, $at, 0, array( $default ) );
+	}
+	return $blocks;
 }
 
 /**

@@ -10,6 +10,13 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.22.0' => array(
+			'NUEVO — "Potenciá tu setup": sección de la ficha con una pestaña por categoría (Monitores, Teclados, Mouse, Auriculares, Wifi y red, Sillas, Escritorios, Mouse pads y dos libres) y pocos productos por pestaña. Lo elegido entra al carrito junto con la PC. Se configura por variante (categoría de Woo + elegidos + cuántos mostrar por pestaña; pestaña abierta por defecto). Con esta sección activa, el modal de carruseles de "Completá tu setup" no se muestra y "Sumale un monitor" pasa a ser la pestaña Monitores.',
+			'Descuento "fuego": N extras × % por producto (1 % por defecto, sin tope), con barra que se va llenando y el ahorro en vivo en la sección, en la barra de compra y en la guía. Se elige si aplica también a la PC o solo a los extras. El descuento real lo calcula el carrito con lo que quedó adentro (si el cliente saca un extra, baja solo) y sale como línea "🔥 Descuento setup", no como cupón.',
+			'Al agregar al carrito: aviso corto ("¡Ya está en tu carrito!" + ahorro) con Finalizar compra / Ver carrito / Seguir viendo, en vez del modal de carruseles.',
+			'Guía de la ficha: índice fijo a la izquierda (pantallas anchas) con todas las secciones (La PC, Descripción, Componentes, Rendimiento estimado, Galería, Compatibilidad, Formas de pago, Envíos, Potenciá tu setup, Recomendadas…), la sección actual resaltada, el ahorro del fuego y un botón Comprar. En celular, botón "Guía" que abre la misma lista como hoja inferior. Funciona también en el diseño propio: toma las secciones con clase tgs-section-card o con data-tgs-guide="Etiqueta".',
+			'Diseño propio: placeholder {{potencia_setup}} con la sección nueva.',
+		),
 		'2.21.4' => array(
 			'Sumale un monitor: el resumen de abajo se rediseñó como tarjeta con tilde, "Monitor elegido: X", el cálculo "PC $A + Monitor $B = $Total" y la aclaración de que entran juntos al carrito; con más aire respecto de las tarjetas (antes era una línea mal redactada y pegada).',
 		),

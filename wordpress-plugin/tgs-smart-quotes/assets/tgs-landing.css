@@ -1888,3 +1888,153 @@ body.tgs-up-open { overflow: hidden; }
 @keyframes tgs-up-badge { 0%, 100% { box-shadow: 0 10px 28px rgba(227,27,35,.45), inset 0 1px 0 rgba(255,255,255,.25); } 50% { box-shadow: 0 10px 40px rgba(227,27,35,.85), inset 0 1px 0 rgba(255,255,255,.25); } }
 @keyframes tgs-up-shine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
 @media (max-width: 720px) { .tgs-up__badge { display: none !important; } }
+
+/* =====================================================================
+ * "Potenciá tu setup" (includes/setup.php): pestañas por categoría,
+ * tarjetas (reusan el diseño de "Sumale un monitor"), barra de fuego.
+ * ===================================================================== */
+.tgs-landing .tgs-setup__head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.tgs-landing .tgs-setup__head > div:first-child { flex: 1 1 320px; min-width: 0; }
+.tgs-landing .tgs-setup__intro { margin: 6px 0 0; color: var(--tgs-text-soft); font-size: 14.5px; line-height: 1.55; max-width: 60ch; }
+.tgs-landing .tgs-fire {
+	flex: 0 1 340px; min-width: 260px; display: grid; gap: 6px; padding: 12px 14px;
+	background: var(--tgs-card-2); border: 1px solid var(--tgs-card-border); border-radius: var(--tgs-r-md);
+	transition: border-color .3s ease, box-shadow .3s ease;
+}
+.tgs-landing .tgs-fire.is-on { border-color: rgba(251, 146, 60, .55); box-shadow: 0 0 0 1px rgba(251,146,60,.15), 0 12px 30px -18px rgba(249,115,22,.8); }
+.tgs-landing .tgs-fire.is-hot { border-color: rgba(249, 115, 22, .8); }
+.tgs-landing .tgs-fire.is-blazing { border-color: #f97316; box-shadow: 0 0 0 1px rgba(249,115,22,.35), 0 14px 40px -14px rgba(249,115,22,1); }
+.tgs-landing .tgs-fire__row { display: flex; align-items: center; gap: 8px; }
+.tgs-landing .tgs-fire__icon { font-size: 20px; line-height: 1; filter: grayscale(1) opacity(.5); transition: filter .3s ease, transform .3s ease; }
+.tgs-landing .tgs-fire.is-on .tgs-fire__icon { filter: none; animation: tgs-fire-flicker 1.4s ease-in-out infinite; }
+.tgs-landing .tgs-fire.is-blazing .tgs-fire__icon { transform: scale(1.25); }
+.tgs-landing .tgs-fire__label { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--tgs-muted); }
+.tgs-landing .tgs-fire__pct { margin-left: auto; font-family: "Rajdhani", var(--tgs-font); font-size: 26px; font-weight: 700; line-height: 1; color: #fb923c; }
+.tgs-landing .tgs-fire__track { height: 10px; border-radius: 999px; background: var(--tgs-bg-soft); border: 1px solid var(--tgs-line); overflow: hidden; }
+.tgs-landing .tgs-fire__fill {
+	height: 100%; border-radius: 999px; width: 0;
+	background: linear-gradient(90deg, #fbbf24 0%, #f97316 45%, #ef4444 100%);
+	background-size: 200% 100%; animation: tgs-fire-flow 2.2s linear infinite;
+	transition: width .45s cubic-bezier(.2, .8, .2, 1);
+	box-shadow: 0 0 12px rgba(249,115,22,.6);
+}
+.tgs-landing .tgs-fire__hint { font-size: 12.5px; color: var(--tgs-text-soft); line-height: 1.4; }
+@keyframes tgs-fire-flow { from { background-position: 0 0; } to { background-position: 200% 0; } }
+@keyframes tgs-fire-flicker { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-2px) rotate(3deg); } }
+
+.tgs-landing .tgs-setup__tabs {
+	display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--tgs-line);
+}
+.tgs-landing .tgs-setup__tab {
+	all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+	padding: 9px 16px; border-radius: 999px; border: 1px solid var(--tgs-line-strong); background: var(--tgs-card);
+	font: inherit; font-size: 14px; font-weight: 700; color: var(--tgs-text-soft);
+	transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+.tgs-landing .tgs-setup__tab:hover { color: var(--tgs-text); border-color: var(--tgs-accent-line); }
+.tgs-landing .tgs-setup__tab:focus-visible { outline: 2px solid var(--tgs-accent); outline-offset: 2px; }
+.tgs-landing .tgs-setup__tab.is-active { background: var(--tgs-accent); border-color: var(--tgs-accent); color: #fff; }
+.tgs-landing .tgs-setup__tab-count {
+	display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+	background: #f97316; color: #fff; font-size: 11.5px; font-weight: 800;
+}
+.tgs-landing .tgs-setup__panel { margin-top: 18px; }
+.tgs-landing .tgs-setup__kicker { margin: 0 0 12px; font-size: 13.5px; color: var(--tgs-muted); font-style: italic; }
+.tgs-landing .tgs-setup__summary {
+	margin-top: 18px; padding: 14px 16px; display: grid; gap: 10px;
+	background: linear-gradient(90deg, rgba(249,115,22,.16), rgba(249,115,22,.04)); border: 1px solid rgba(249,115,22,.45); border-radius: var(--tgs-r-md);
+	animation: tgs-minibar-in .3s ease both;
+}
+.tgs-landing .tgs-setup__summary-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.tgs-landing .tgs-setup__chip {
+	display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px; border-radius: 999px;
+	background: var(--tgs-card-2); border: 1px solid var(--tgs-card-border); font-size: 13px; color: var(--tgs-text-soft);
+}
+.tgs-landing .tgs-setup__chip b { color: var(--tgs-text); font-weight: 700; max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tgs-landing .tgs-setup__chip-x { all: unset; cursor: pointer; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; color: var(--tgs-muted); }
+.tgs-landing .tgs-setup__chip-x:hover { background: var(--tgs-accent-soft); color: var(--tgs-text); }
+.tgs-landing .tgs-setup__summary-total { display: grid; gap: 4px; font-size: 14px; color: var(--tgs-text-soft); line-height: 1.4; }
+.tgs-landing .tgs-setup__summary-total b { color: var(--tgs-text); font-weight: 700; }
+.tgs-landing .tgs-setup__summary-total i { font-style: normal; opacity: .55; margin: 0 4px; }
+.tgs-landing .tgs-setup__summary-total em { font-style: normal; color: #fb923c; font-weight: 700; }
+.tgs-landing .tgs-setup__summary-total strong { font-size: 17px; font-weight: 800; color: var(--tgs-text); }
+.tgs-minibar--fire { background: linear-gradient(90deg, rgba(249,115,22,.32), rgba(249,115,22,.08)); border-bottom-color: rgba(249,115,22,.55); }
+.tgs-minibar--fire .tgs-minibar__full b, .tgs-minibar--fire .tgs-minibar__short b { color: #fdba74; }
+
+/* Aviso post-carrito (reemplaza al modal de carruseles cuando la sección está activa). */
+.tgs-done {
+	position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; padding: 16px;
+	background: rgba(3, 4, 8, .78); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+	font-family: "Inter", system-ui, sans-serif; color: #F8FAFC; animation: tgs-up-fade .25s ease both;
+}
+.tgs-done__box {
+	position: relative; width: min(520px, 100%); padding: 32px 28px 24px; text-align: center; display: grid; gap: 10px; justify-items: center;
+	background: #0d1017; border: 1px solid rgba(255,255,255,.12); border-radius: 22px; box-shadow: 0 30px 80px -30px rgba(0,0,0,.9);
+	animation: tgs-up-pop .3s cubic-bezier(.2, .8, .2, 1) both;
+}
+.tgs-done__close { all: unset; cursor: pointer; position: absolute; top: 12px; right: 14px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 999px; color: rgba(248,250,252,.6); font-size: 14px; }
+.tgs-done__close:hover { background: rgba(255,255,255,.08); color: #fff; }
+.tgs-done__check { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 999px; background: rgba(34,197,94,.18); color: #4ade80; font-size: 28px; font-weight: 800; }
+.tgs-done__title { margin: 4px 0 0; font-family: "Rajdhani", "Inter", sans-serif; font-size: 28px; font-weight: 700; line-height: 1.1; }
+.tgs-done__pc { margin: 0; font-size: 14px; color: rgba(248,250,252,.7); }
+.tgs-done__fire { margin: 2px 0; padding: 8px 14px; border-radius: 999px; background: rgba(249,115,22,.16); border: 1px solid rgba(249,115,22,.5); font-size: 14px; }
+.tgs-done__fire b { color: #fdba74; }
+.tgs-done__text { margin: 0; font-size: 14px; color: rgba(248,250,252,.75); }
+.tgs-done__actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; width: 100%; }
+@media (max-width: 720px) {
+	.tgs-done { align-items: end; padding: 0; }
+	.tgs-done__box { border-radius: 22px 22px 0 0; width: 100%; padding: 26px 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
+	.tgs-done__actions .tgs-up__btn--primary, .tgs-done__actions .tgs-up__btn--ghost { flex: 1 1 45%; }
+	.tgs-done__actions .tgs-up__btn--link { flex-basis: 100%; }
+}
+
+/* =====================================================================
+ * Guía de la ficha: rail fijo a la izquierda en pantallas anchas; en el
+ * resto, botón flotante que abre la lista como hoja inferior.
+ * ===================================================================== */
+.tgs-guide { font-family: var(--tgs-font, Inter, system-ui, sans-serif); color: var(--tgs-text, #f8fafc); }
+.tgs-guide__box {
+	display: grid; gap: 4px; padding: 14px 12px;
+	background: color-mix(in srgb, var(--tgs-bg, #080B12) 86%, #fff); border: 1px solid rgba(255,255,255,.12); border-radius: 18px;
+	box-shadow: 0 22px 50px -24px rgba(0,0,0,.85);
+}
+.tgs-guide__title { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(248,250,252,.5); padding: 0 8px 6px; }
+.tgs-guide__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tgs-guide__link {
+	display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+	color: rgba(248,250,252,.68); text-decoration: none; border-left: 2px solid transparent; transition: background .2s ease, color .2s ease;
+}
+.tgs-guide__link:hover { background: rgba(255,255,255,.06); color: #fff; }
+.tgs-guide__link.is-active { color: #fff; background: rgba(255,255,255,.08); border-left-color: var(--tgs-accent, #E31B23); }
+.tgs-guide__link--setup { color: #fdba74; }
+.tgs-guide__flame { font-size: 14px; }
+.tgs-guide__fire { margin: 8px 8px 0; padding: 8px 10px; border-radius: 10px; background: rgba(249,115,22,.16); border: 1px solid rgba(249,115,22,.5); font-size: 12.5px; font-weight: 700; color: #fdba74; }
+.tgs-guide__buy {
+	margin: 10px 4px 0; padding: 11px 12px; border-radius: 12px; text-align: center; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+	background: var(--tgs-accent, #E31B23); color: #fff !important; text-decoration: none;
+}
+.tgs-guide-fab {
+	all: unset; box-sizing: border-box; cursor: pointer; position: fixed; left: 12px; bottom: max(84px, calc(env(safe-area-inset-bottom, 0px) + 84px)); z-index: 9998;
+	display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 999px;
+	background: color-mix(in srgb, var(--tgs-bg, #080B12) 80%, #fff); border: 1px solid rgba(255,255,255,.18); color: #fff;
+	font-family: var(--tgs-font, Inter, sans-serif); font-size: 13px; font-weight: 800; box-shadow: 0 16px 40px -18px rgba(0,0,0,.9);
+	-webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+@media (min-width: 1400px) {
+	.tgs-guide { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); width: 210px; z-index: 9990; }
+	.tgs-guide-fab { display: none; }
+	/* Le hacemos lugar al rail sin tocar el ancho de las secciones. */
+	body.tgs-managed-page .tgs-landing { padding-left: max(clamp(16px, 4vw, 56px), 250px); }
+}
+@media (max-width: 1399px) {
+	.tgs-guide {
+		position: fixed; left: 0; right: 0; bottom: 0; z-index: 100001; transform: translateY(110%); visibility: hidden;
+		transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .3s; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px));
+	}
+	.tgs-guide.is-open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility 0s; }
+	.tgs-guide__box { border-radius: 18px; max-height: 70vh; overflow: auto; }
+	.tgs-guide__list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.tgs-landing .tgs-fire__fill, .tgs-landing .tgs-fire.is-on .tgs-fire__icon { animation: none; }
+}
