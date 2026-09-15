@@ -569,15 +569,23 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       >
         <div style={{ display: "grid", gap: 4, minWidth: 220 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>{quote.webTitle || quote.internalName || quote.visibleNumber}</h2>
-          <span className="muted" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            {quote.internalName} · {quote.visibleNumber} ·
-            {versionOptions.length > 1 ? (
+          <span className="muted">
+            {quote.internalName} · {quote.visibleNumber} · v{version.version} · {formatArs(version.totalSaleCents)}
+          </span>
+          {publishedLabel ? <span className="muted" style={{ fontSize: 12.5 }}>{publishedLabel}</span> : null}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {/* Qué versión se prepara y se sube: por defecto la activa, pero se
+              puede elegir otra (p. ej. volver a subir la que está en la tienda). */}
+          {versionOptions.length > 1 ? (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+              <span className="muted">Versión a publicar</span>
               <select
                 value={version.id}
                 disabled={busy}
                 onChange={(e) => setSelectedVersionId(e.target.value)}
                 title="Qué versión del presupuesto se prepara y se sube a la tienda"
-                style={{ fontSize: 13, padding: "2px 6px" }}
+                style={{ fontSize: 13, padding: "4px 8px", fontWeight: 600 }}
               >
                 {versionOptions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -587,13 +595,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
                   </option>
                 ))}
               </select>
-            ) : (
-              <>v{version.version} · {formatArs(version.totalSaleCents)}</>
-            )}
-          </span>
-          {publishedLabel ? <span className="muted" style={{ fontSize: 12.5 }}>{publishedLabel}</span> : null}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            </label>
+          ) : null}
           <Pill tone={publicationStatusTone(publication)}>{publicationStatusLabel(publication)}</Pill>
           {isPublished && publication?.url ? (
             <a href={publication.url} target="_blank" rel="noreferrer">
@@ -609,10 +612,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             onClick={() => void pipeline.start({ versionId: version.id, publish: true })}
             title="Busca imágenes que falten, genera textos y título con IA, arma la miniatura y publica"
           >
-            {pipeline.running ? "Preparando…" : isStale ? `Preparar y actualizar a v${version.version}` : isPublished ? "Preparar y actualizar" : "Preparar y publicar"}
+            {pipeline.running ? "Preparando…" : isStale ? `Preparar y actualizar a v${version.version}` : isPublished ? `Preparar y actualizar (v${version.version})` : `Preparar y publicar v${version.version}`}
           </button>
           <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(version.id)}>
-            {busyPublish ? "Publicando…" : isStale ? `Actualizar a v${version.version} sin preparar` : isPublished ? "Actualizar sin preparar" : "Publicar sin preparar"}
+            {busyPublish ? "Publicando…" : isStale ? `Actualizar a v${version.version} sin preparar` : isPublished ? `Actualizar v${version.version} sin preparar` : `Publicar v${version.version} sin preparar`}
           </button>
           <button
             type="button"
