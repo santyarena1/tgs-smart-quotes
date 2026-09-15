@@ -10,6 +10,10 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.3' => array(
+			'Potenciá tu setup: un solo producto por categoría. Elegir otro de la misma pestaña reemplaza al anterior (cada pestaña dice "Elegí uno.").',
+			'La guía ya no pisa la barra superior del sitio: arranca debajo del header fijo (medido en vivo) y, si la lista es larga, scrollea por dentro.',
+		),
 		'2.23.2' => array(
 			'Guía de la ficha rediseñada al estilo del resto del diseño: sin recuadro gris, una línea roja vertical, "EN ESTA FICHA" en mono con cuadrado rojo, secciones en Rajdhani mayúsculas y marcador rojo en la sección activa; botón Comprar con corte diagonal. En celular, la hoja inferior con borde rojo.',
 			'La guía ya no lista secciones sin título real ("…", íconos), ni "Girala en 3D" (vive en el hero), ni secciones de ejemplo dentro de comentarios del diseño propio. "La PC" pasa a "Sobre la PC". Sin hero del plugin, "Comprar" vuelve arriba de todo. Para excluir una sección a mano: data-tgs-guide="".',

@@ -2043,7 +2043,11 @@ body.tgs-up-open { overflow: hidden; }
 	clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
 @media (min-width: 1400px) {
-	.tgs-guide { position: fixed; left: 24px; top: 50%; transform: translateY(-50%); width: 200px; z-index: 9990; }
+	.tgs-guide {
+		position: fixed; left: 24px; top: var(--tgs-guide-top, 200px); width: 200px; z-index: 9990;
+		max-height: calc(100vh - var(--tgs-guide-top, 200px) - 24px); overflow-y: auto; scrollbar-width: none;
+	}
+	.tgs-guide::-webkit-scrollbar { display: none; }
 	.tgs-guide-fab { display: none; }
 	/* Le hacemos lugar al rail sin tocar el ancho de las secciones. */
 	body.tgs-managed-page .tgs-landing { padding-left: max(clamp(16px, 4vw, 56px), 250px); }
@@ -2113,3 +2117,4 @@ body.tgs-up-open { overflow: hidden; }
 	.tgs-combo-card__body { padding: 10px; }
 	.tgs-combo-card__actions { flex-wrap: wrap; }
 }
+.tgs-landing .tgs-setup__one { color: var(--tgs-text); font-style: normal; font-weight: 700; }

@@ -191,7 +191,14 @@
 			} else {
 				var pick = section.querySelector( '[data-setup-id="' + id + '"]' );
 				if ( ! pick ) { return; }
-				selected[ id ] = { name: pick.getAttribute( 'data-setup-name' ) || '', price: parseFloat( pick.getAttribute( 'data-setup-price' ) ) || 0, group: pick.getAttribute( 'data-setup-group' ) || '' };
+				var group = pick.getAttribute( 'data-setup-group' ) || '';
+				// Un solo producto por categoría: elegir otro de la misma pestaña reemplaza al anterior.
+				order = order.filter( function ( other ) {
+					if ( selected[ other ].group !== group ) { return true; }
+					delete selected[ other ];
+					return false;
+				} );
+				selected[ id ] = { name: pick.getAttribute( 'data-setup-name' ) || '', price: parseFloat( pick.getAttribute( 'data-setup-price' ) ) || 0, group: group };
 				order.push( id );
 			}
 			for ( var i = 0; i < picks.length; i++ ) {
@@ -353,6 +360,14 @@
 			var header = document.getElementById( 'page-header' );
 			return ( header ? header.offsetHeight : 0 ) + 16;
 		}
+		// El rail se ubica debajo del header fijo del sitio (que no reserva
+		// espacio), así nunca lo pisa aunque la lista sea larga.
+		function placeRail() {
+			nav.style.setProperty( '--tgs-guide-top', ( headerOffset() + 12 ) + 'px' );
+		}
+		placeRail();
+		window.addEventListener( 'load', placeRail );
+		window.addEventListener( 'resize', placeRail );
 		function go( id ) {
 			if ( id === 'top' ) { window.scrollTo( { top: 0, behavior: 'smooth' } ); return; }
 			var el = document.getElementById( id );

@@ -259,7 +259,7 @@ function tgs_sq_setup_html( array $d ) {
 		$on = $group['key'] === $data['defaultKey'];
 		echo '<div class="tgs-setup__panel" role="tabpanel" data-setup-panel="' . esc_attr( $group['key'] ) . '"' . ( $on ? '' : ' hidden' ) . '>';
 		if ( $group['kicker'] ) {
-			echo '<p class="tgs-setup__kicker">' . esc_html( $group['kicker'] ) . '</p>';
+			echo '<p class="tgs-setup__kicker">' . esc_html( $group['kicker'] ) . ' <span class="tgs-setup__one">Elegí uno.</span></p>';
 		}
 		echo '<div class="tgs-monitors-grid tgs-setup__grid">';
 		foreach ( $group['items'] as $item ) {
