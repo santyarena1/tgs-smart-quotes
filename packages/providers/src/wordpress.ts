@@ -29,6 +29,8 @@ export type PublishPayload = {
   regularPriceCents: string | null;
   /** Combos: visible en tienda/búsqueda. PCs: siempre true. */
   storeVisible: boolean;
+  /** PCs: externalIds (ids de familia) de los combos a ofrecer en el modal, en orden. */
+  comboExternalIds: string[];
   /** Ids con los que el producto pudo haber quedado etiquetado antes (ids de versión). */
   legacyExternalIds: string[];
   versionNumber: number;
@@ -121,7 +123,7 @@ export async function buildPublishPayload(familyId: string, versionId?: string |
   const version = await db.quoteVersion.findUnique({
     where: {id: targetVersionId},
     include: {
-      family: {include: {heroAsset: true, versions: {select: {id: true}}, webPublication: true}},
+      family: {include: {heroAsset: true, versions: {select: {id: true}}, webPublication: true, combos: {orderBy: {position: 'asc'}, select: {comboFamilyId: true}}}},
       enrichment: true,
       items: {
         orderBy: {position: 'asc'},
@@ -188,6 +190,7 @@ export async function buildPublishPayload(familyId: string, versionId?: string |
     comboDiscountBps: isCombo ? family.comboDiscountBps : 0,
     regularPriceCents: strike ? strike.toString() : null,
     storeVisible: isCombo ? family.storeVisible : true,
+    comboExternalIds: isCombo ? [] : family.combos.map((entry) => entry.comboFamilyId),
     legacyExternalIds: family.versions.map((entry) => entry.id),
     versionNumber: version.version,
     title,

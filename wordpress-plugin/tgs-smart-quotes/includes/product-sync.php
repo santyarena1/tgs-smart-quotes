@@ -277,6 +277,7 @@ function tgs_sq_sync_product( array $payload ) {
 		TGS_SQ_META_COMBO_DISCOUNT_BPS => (string) (int) ( $payload['comboDiscountBps'] ?? 0 ),
 		TGS_SQ_META_REGULAR_PRICE   => (string) (int) ( $payload['regularPriceCents'] ?? 0 ),
 		TGS_SQ_META_STORE_VISIBLE   => $store_visible ? '1' : '0',
+		TGS_SQ_META_COMBOS          => tgs_sq_json( tgs_sq_sanitize_strings( $payload['comboExternalIds'] ?? array() ) ),
 	);
 	foreach ( $meta as $key => $value ) {
 		update_post_meta( $product_id, $key, $value );

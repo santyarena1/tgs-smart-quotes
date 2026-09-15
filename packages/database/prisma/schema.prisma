@@ -585,6 +585,10 @@ model QuoteFamily {
   /// alguien decida actualizarla (ver WebPublication.quoteVersionId).
   webPublication       WebPublication?
   webPublishRuns       WebPublishRun[]
+  /// Combos que se le ofrecen a esta PC al agregarla al carrito (BLOCK-10).
+  combos               QuoteFamilyCombo[]    @relation("PcCombos")
+  /// PCs a las que este combo está asociado.
+  comboOf              QuoteFamilyCombo[]    @relation("ComboOfPcs")
   /// Local donde se creó el presupuesto (snapshot fijo, no varía). Es solo informativo para
   /// listado/estadísticas: la impresión usa el local de quien imprime (ver QuotePdf.branchId).
   branchId             String?
@@ -1391,6 +1395,19 @@ model WebPublication {
 /// Corrida de "Preparar y publicar": completa lo que falta (imágenes,
 /// enriquecimiento, título, miniatura) y publica. Corre en la API en segundo
 /// plano; la pantalla la consulta por id para mostrar el progreso paso a paso.
+/// Asociación PC → combo: qué combos se ofrecen en el modal post-carrito de
+/// cada PC publicada, en orden. Se elige en el editor web de la PC.
+model QuoteFamilyCombo {
+  pcFamilyId    String
+  pcFamily      QuoteFamily @relation("PcCombos", fields: [pcFamilyId], references: [id], onDelete: Cascade)
+  comboFamilyId String
+  comboFamily   QuoteFamily @relation("ComboOfPcs", fields: [comboFamilyId], references: [id], onDelete: Cascade)
+  position      Int         @default(0)
+
+  @@id([pcFamilyId, comboFamilyId])
+  @@index([comboFamilyId])
+}
+
 model WebPublishRun {
   id             String           @id @default(uuid())
   quoteFamilyId  String

@@ -46,8 +46,34 @@ function tgs_sq_combo_strike_html( $product_id ) {
 }
 
 /**
- * Combos publicados para ofrecer en el modal: hasta $count, los visibles y
- * los ocultos por igual (el modal es justamente la puerta de los ocultos).
+ * Combos asociados a una PC en TGS (meta _tgs_combos = externalIds en
+ * orden), resueltos a productos publicados. Visibles y ocultos por igual:
+ * el modal es justamente la puerta de los ocultos.
+ */
+function tgs_sq_pc_combo_products( $pc_product_id, $count = 4 ) {
+	if ( ! function_exists( 'wc_get_product' ) ) {
+		return array();
+	}
+	$external_ids = json_decode( (string) get_post_meta( $pc_product_id, TGS_SQ_META_COMBOS, true ), true );
+	if ( ! is_array( $external_ids ) || ! $external_ids ) {
+		return array();
+	}
+	$products = array();
+	foreach ( array_slice( $external_ids, 0, max( 1, (int) $count ) ) as $external_id ) {
+		$product_id = tgs_sq_find_product_id( (string) $external_id );
+		if ( ! $product_id || 'publish' !== get_post_status( $product_id ) || ! tgs_sq_is_combo( $product_id ) ) {
+			continue;
+		}
+		$product = wc_get_product( $product_id );
+		if ( $product && $product->is_type( 'simple' ) ) {
+			$products[] = $product;
+		}
+	}
+	return $products;
+}
+
+/**
+ * Todos los combos publicados (para el admin o como respaldo), hasta $count.
  * Orden: los del admin (menu_order) y después por precio.
  */
 function tgs_sq_combo_products( $count = 4, $exclude_id = 0 ) {
@@ -174,7 +200,8 @@ function tgs_sq_combos_modal_data( array $d ) {
 	if ( empty( $extra['combos_enabled'] ) ) {
 		return null;
 	}
-	$combos = tgs_sq_combo_products( (int) ( $extra['combos_count'] ?? 4 ), (int) $d['product_id'] );
+	// Solo los combos que se le asociaron a esta PC en TGS; sin asociados, no se ofrece nada.
+	$combos = tgs_sq_pc_combo_products( (int) $d['product_id'], (int) ( $extra['combos_count'] ?? 4 ) );
 	if ( ! $combos ) {
 		return null;
 	}

@@ -14,6 +14,7 @@ import {
   publicationStatusTone,
   PublishRunPanel,
   usePublishRun,
+  type ComboSummary,
   type Publication,
 } from "./publication";
 
@@ -73,6 +74,11 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
   /** Combos: descuento inverso en % (con decimales) y visibilidad en la tienda. */
   const [comboPctDraft, setComboPctDraft] = useState("");
   const [savingCombo, setSavingCombo] = useState(false);
+  /** PCs: combos cargados en TGS y cuáles están asociados a esta PC. */
+  const [allCombos, setAllCombos] = useState<ComboSummary[]>([]);
+  const [comboIdsDraft, setComboIdsDraft] = useState<string[]>([]);
+  const [savingComboIds, setSavingComboIds] = useState(false);
+  const [comboIdsNotice, setComboIdsNotice] = useState<string | null>(null);
   const [uploadingThumb, setUploadingThumb] = useState(false);
   const [generatingThumb, setGeneratingThumb] = useState(false);
   const [thumbNotice, setThumbNotice] = useState<string | null>(null);
@@ -142,7 +148,16 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       setComboPctDraft(q.comboDiscountBps ? String(q.comboDiscountBps / 100) : "");
       setProductsById(Object.fromEntries(products.map((p) => [p.id, p])));
       const v = getActiveVersion(q);
-      setPublication(await loadPublication(quoteId));
+      const pub = await loadPublication(quoteId);
+      setPublication(pub);
+      setComboIdsDraft(pub.comboFamilyIds ?? []);
+      if (q.kind !== "COMBO") {
+        try {
+          setAllCombos(await api<ComboSummary[]>("/external-module/combos"));
+        } catch {
+          setAllCombos([]);
+        }
+      }
       if (v) {
         const familia = q as { heroAssetId?: string | null; heroImageUrl?: string | null };
         setHeroAssetId(familia.heroAssetId ?? null);
@@ -305,6 +320,36 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
     }
   };
   const comboPctBps = Math.round((parseFloat(comboPctDraft.replace(",", ".")) || 0) * 100);
+
+  /** Guarda qué combos se le ofrecen a esta PC; si está publicada, la API la re-publica sola. */
+  const saveComboIds = async () => {
+    if (!quote) return;
+    setSavingComboIds(true);
+    setActionError(null);
+    setComboIdsNotice(null);
+    try {
+      const next = await api<{ republished?: boolean; republishError?: string | null }>(`/external-module/quote-families/${quote.id}/publish-settings`, {
+        method: "PUT",
+        body: { comboFamilyIds: comboIdsDraft },
+      });
+      setPublication((prev) => (prev ? { ...prev, comboFamilyIds: comboIdsDraft } : prev));
+      setComboIdsNotice(
+        next.republishError
+          ? `Combos guardados, pero no se pudo actualizar la tienda: ${next.republishError}`
+          : next.republished
+            ? "Combos guardados y publicación actualizada en la tienda."
+            : "Combos guardados. Se envían a la tienda al publicar.",
+      );
+      onChanged?.();
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setSavingComboIds(false);
+    }
+  };
+  const toggleComboId = (id: string) =>
+    setComboIdsDraft((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const comboIdsDirty = JSON.stringify(comboIdsDraft) !== JSON.stringify(publication?.comboFamilyIds ?? []);
 
   const toggleAutoRepublish = async (value: boolean) => {
     if (!quote) return;
@@ -793,6 +838,53 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
               disabled={savingAuto}
               onChange={(v) => void toggleAutoRepublish(v)}
             />
+
+            {!isCombo ? (
+              <div className="card card-pad" style={{ display: "grid", gap: 10, background: "var(--bg-soft, #f8fafc)" }}>
+                <h4 style={{ margin: 0 }}>Combos para esta PC</h4>
+                <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                  Cuando el cliente agrega esta PC al carrito sin elegir extras, se le ofrecen estos combos (en este orden). Los combos se cargan como
+                  presupuestos con "Es combo para la tienda" y se publican desde Publicación web → Combos.
+                </p>
+                {allCombos.length === 0 ? (
+                  <span className="muted" style={{ fontSize: 13 }}>Todavía no hay combos cargados.</span>
+                ) : (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {allCombos.map((combo) => {
+                      const on = comboIdsDraft.includes(combo.id);
+                      const order = comboIdsDraft.indexOf(combo.id);
+                      return (
+                        <label key={combo.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, cursor: "pointer" }}>
+                          <input type="checkbox" checked={on} onChange={() => toggleComboId(combo.id)} disabled={savingComboIds} />
+                          {combo.thumbnailUrl ? (
+                            <img src={combo.thumbnailUrl} alt="" style={{ width: 34, height: 34, objectFit: "cover", borderRadius: 6 }} />
+                          ) : null}
+                          <span style={{ display: "grid" }}>
+                            <strong>
+                              {on ? `${order + 1}. ` : ""}
+                              {combo.webTitle || combo.internalName}
+                            </strong>
+                            <span className="muted" style={{ fontSize: 12 }}>
+                              {combo.visibleNumber}
+                              {combo.totalSaleCents ? ` · ${formatArs(combo.totalSaleCents)}` : ""}
+                              {combo.comboDiscountBps ? ` · −${combo.comboDiscountBps / 100}%` : ""}
+                              {" · "}
+                              {combo.publicationStatus === "PUBLISHED" ? (combo.storeVisible ? "publicado" : "publicado (oculto)") : "sin publicar: no se va a mostrar"}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <button type="button" className="btn-dark btn-sm" disabled={savingComboIds || !comboIdsDirty} onClick={() => void saveComboIds()}>
+                    {savingComboIds ? "Guardando…" : "Guardar combos"}
+                  </button>
+                  {comboIdsNotice ? <span className="muted" style={{ fontSize: 12.5 }}>{comboIdsNotice}</span> : null}
+                </div>
+              </div>
+            ) : null}
 
             {isCombo ? (
               <div className="card card-pad" style={{ display: "grid", gap: 12, background: "var(--bg-soft, #f8fafc)" }}>

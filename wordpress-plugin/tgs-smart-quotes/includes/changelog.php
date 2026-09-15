@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.1' => array(
+			'Combos por PC: el aviso post-carrito muestra solo los combos que se le asociaron a esa PC en TGS Smart Quotes (editor web de la PC → "Combos para esta PC"), en ese orden. Sin combos asociados, no se ofrece ninguno. Antes salían todos los combos publicados.',
+		),
 		'2.23.0' => array(
 			'NUEVO — Combos de la tienda: los presupuestos marcados "Es combo para la tienda" en TGS Smart Quotes se publican como un producto único con precio tachado (descuento inverso: el precio es el final y el tachado sale de precio / (1 − %)). El tachado y la etiqueta −X% se ven en la ficha (hero y barra de compra) y en el modal; no se toca el precio regular/oferta de WooCommerce. La sección "Componentes" pasa a llamarse "Qué incluye".',
 			'Combos ocultos ("Visible en la tienda" apagado en TGS): quedan fuera de listados, búsqueda y sitemap, con noindex, sin botón de compra en su URL, y solo se pueden agregar al carrito desde el aviso post-carrito de una PC (tgs_combo_from). Los visibles se compran normal.',

@@ -30,6 +30,22 @@ export type Publication = {
   isStale?: boolean;
   webTitle?: string | null;
   webTagline?: string | null;
+  /** PCs: combos asociados (ids de familia), en orden. */
+  comboFamilyIds?: string[];
+};
+
+/** Combo cargado en TGS (para el selector "Combos para esta PC"). */
+export type ComboSummary = {
+  id: string;
+  internalName: string;
+  visibleNumber: string;
+  webTitle: string | null;
+  thumbnailUrl: string | null;
+  comboDiscountBps: number;
+  storeVisible: boolean;
+  totalSaleCents: string | null;
+  publicationStatus: PublicationStatus;
+  url: string | null;
 };
 
 export type PublishRunStepStatus = "PENDING" | "RUNNING" | "DONE" | "SKIPPED" | "FAILED";

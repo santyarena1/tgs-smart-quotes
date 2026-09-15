@@ -1311,7 +1311,7 @@ function tgs_sq_render_variant_editor( $slug ) {
 									<input type="checkbox" name="combos_enabled" value="1" <?php checked( ! empty( $extra['combos_enabled'] ) ); ?>>
 									<span>Si el cliente NO eligió extras, ofrecerle combos al agregar al carrito</span>
 								</label>
-								<p class="description">Los combos se arman y publican desde TGS Smart Quotes (presupuesto "Es combo para la tienda"), con su propio descuento y precio tachado. No suman al descuento del fuego. Los ocultos solo se pueden comprar desde acá.</p>
+								<p class="description">Los combos se arman y publican desde TGS Smart Quotes (presupuesto "Es combo para la tienda") y se asocian a cada PC desde el editor web de la PC ("Combos para esta PC"): acá solo se muestran los de esa PC, en ese orden. Tienen su propio descuento y precio tachado, no suman al descuento del fuego, y los ocultos solo se pueden comprar desde acá.</p>
 							</div>
 							<div class="tgs-field">
 								<label for="combos_count">Combos — cuántos mostrar</label>

@@ -60,6 +60,11 @@
 - Ficha de un combo: bloques normales; "Componentes" → "Qué incluye"; sin "Potenciá tu setup" ni modal viejo; Recomendadas excluye combos (`_tgs_kind != COMBO`).
 - Modal post-carrito: `tgs_sq_combos_modal_data()` entra en `#tgs-setup-data.combos` (hasta `combos_count`, visibles y ocultos, orden `menu_order` + precio). Si el cliente no eligió extras, `.tgs-done--combos` muestra las tarjetas (`tgs-combo-card`: miniatura, −X%, nombre, qué incluye, tachado + precio, "Sumar al carrito" → AJAX con `tgs_combo_from`, "Ver combo" solo si es visible). Con extras elegidos, el aviso corto de siempre. Variante: `combos_enabled`, `combos_count`, `combos_headline`, `combos_text`. Con la sección sin grupos pero combos activos, el JSON igual se imprime y el JS intercepta el agregar al carrito.
 
+### Combos asociados por PC (plugin 2.23.1)
+
+- `QuoteFamilyCombo` (pcFamilyId, comboFamilyId, position; migración `20260915180000_quote_family_combo_links`). Se edita en el editor web de la PC ("Combos para esta PC": lista de todos los combos de `GET /external-module/combos` con su estado; se guardan con `PUT publish-settings {comboFamilyIds}` que reemplaza la lista completa y, si la PC está publicada, **la re-publica sola** — la respuesta trae `republished` / `republishError`). `publicationView` devuelve `comboFamilyIds`.
+- Payload: `comboExternalIds` (ids de familia, en orden). Plugin: meta `_tgs_combos`; `tgs_sq_pc_combo_products()` resuelve cada externalId al producto publicado (`tgs_sq_find_product_id`), salteando los sin publicar. El modal ofrece **solo** esos; sin asociados no ofrece nada. `combos_count` de la variante actúa como tope.
+
 ## Pendiente / ideas
 
 - Contador de uso (clicks en Sumar / Ver combo / cerrar sin sumar) para medir el modal y el fuego.

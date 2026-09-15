@@ -477,6 +477,8 @@ export const quoteFamilyPublishSettingsSchema = z.object({
   comboDiscountBps: z.number().int().min(0).max(9000).optional(),
   /// Combos: visible en la tienda y en la búsqueda (apagado = oculto, solo se compra desde el modal).
   storeVisible: z.boolean().optional(),
+  /// PCs: combos que se le ofrecen al agregarla al carrito, en orden (reemplaza la lista completa).
+  comboFamilyIds: z.array(idSchema).max(20).optional(),
 }).strict();
 export type QuoteFamilyPublishSettingsInput = z.infer<typeof quoteFamilyPublishSettingsSchema>;
 
