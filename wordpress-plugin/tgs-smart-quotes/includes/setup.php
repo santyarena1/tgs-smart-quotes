@@ -452,7 +452,7 @@ function tgs_sq_guide_labels() {
 	);
 }
 
-function tgs_sq_guide_inject( $html ) {
+function tgs_sq_guide_inject( $html, $hero_label = 'La PC' ) {
 	$entries = array();
 	$index   = 0;
 	$labels  = tgs_sq_guide_labels();
@@ -469,7 +469,7 @@ function tgs_sq_guide_inject( $html ) {
 	$skip = array( 'girala en 3d', '3d', 'visor 3d', 'modelo 3d' );
 	$html    = preg_replace_callback(
 		'/<section\b([^>]*)>/i',
-		function ( $m ) use ( &$entries, &$index, $labels, $source, $comments, $skip ) {
+		function ( $m ) use ( &$entries, &$index, $labels, $source, $comments, $skip, $hero_label ) {
 			$attrs = $m[1][0];
 			$open  = $m[0][0];
 			$at    = (int) $m[0][1];
@@ -487,7 +487,7 @@ function tgs_sq_guide_inject( $html ) {
 					return $open;
 				}
 			} elseif ( preg_match( '/class="[^"]*\btgs-hero\b[^"]*"/i', $attrs ) ) {
-				$label = 'La PC';
+				$label = $hero_label;
 				$hero  = true;
 			} elseif ( preg_match( '/class="[^"]*\btgs-section-card\b[^"]*"/i', $attrs ) ) {
 				// El título es el primer <h2> después de la apertura.

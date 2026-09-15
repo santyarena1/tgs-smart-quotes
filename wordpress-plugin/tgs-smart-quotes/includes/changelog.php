@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.5' => array(
+			'Ficha propia para los combos: hero (miniatura, título, tachado, precio y compra, kicker "THE GAMER SHOP · COMBO"), "Qué incluye" con las fotos de los productos, descripción, formas de pago, envíos y "Otros combos". Ya no usa el diseño de la PC: sin "Sobre la PC", "Girala en 3D", juegos, monitores ni "Potenciá tu setup". Toma la paleta de la variante asignada. En la guía, "El combo".',
+		),
 		'2.23.4' => array(
 			'Guía: arranca a la altura del hero (donde empieza la ficha), bien separada del header. La sección actual se ve en rojo, un poco más grande y con el marcador latiendo (animación suave al cambiar).',
 			'Guía: "Formas de pago" ahora abre el panel de pagos de la barra de compra (en el diseño propio esa sección vive adentro de un panel fijo y no se podía scrollear hasta ella); esas secciones tampoco se marcan como "actual".',

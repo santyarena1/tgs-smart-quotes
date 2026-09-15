@@ -142,7 +142,7 @@ function tgs_sq_block_hero( array $d ) {
 	}
 	echo '</div>';
 	echo '<div class="tgs-summary">';
-	echo '<span class="tgs-kicker">THE GAMER SHOP</span>';
+	echo '<span class="tgs-kicker">' . ( ! empty( $d['is_combo'] ) ? 'THE GAMER SHOP · COMBO' : 'THE GAMER SHOP' ) . '</span>';
 	echo '<h1 class="tgs-title">' . esc_html( $d['title'] ) . '</h1>';
 	echo tgs_sq_tagline_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo tgs_sq_highlights_html( $d ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -991,6 +991,45 @@ function tgs_sq_render_blocks_mode( array $variant, array $data ) {
 	echo '</main>';
 }
 
+/**
+ * Ficha de un combo (BLOCK-10): hero con la miniatura/foto, título, tachado y
+ * compra; "Qué incluye" con las fotos de los productos; descripción; formas
+ * de pago; envíos; y "Otros combos". Sin juegos, compatibilidad, 3D,
+ * monitores ni "Potenciá tu setup": nada de eso aplica a un pack de extras.
+ */
+function tgs_sq_render_combo_mode( array $variant, array $data ) {
+	echo '<main class="tgs-landing tgs-combo-page" style="' . esc_attr( tgs_sq_layout_style_vars( $variant['tokens'] ?? array() ) ) . '">';
+	tgs_sq_block_hero( $data );
+	tgs_sq_block_specs( $data );
+	tgs_sq_block_description( $data );
+	tgs_sq_block_payment( $data );
+	tgs_sq_block_shipping( $data );
+	tgs_sq_other_combos( $data );
+	tgs_sq_block_addtocartsticky( $data );
+	echo '</main>';
+}
+
+/** "Otros combos": los demás combos visibles de la tienda, hasta 4. */
+function tgs_sq_other_combos( array $d ) {
+	$combos = array_filter( tgs_sq_combo_products( 8, (int) $d['product_id'] ), function ( $product ) { return ! tgs_sq_combo_hidden( $product->get_id() ); } );
+	$combos = array_slice( array_values( $combos ), 0, 4 );
+	if ( ! $combos ) {
+		return;
+	}
+	echo '<section class="tgs-section-card tgs-recommended"><h2>Otros combos</h2><div class="tgs-recommended-grid">';
+	foreach ( $combos as $product ) {
+		$pid   = $product->get_id();
+		$thumb = get_the_post_thumbnail_url( $pid, 'large' ) ?: get_post_meta( $pid, TGS_SQ_META_THUMBNAIL, true );
+		echo '<a class="tgs-recommended-card" href="' . esc_url( get_permalink( $pid ) ) . '">';
+		echo '<span class="tgs-recommended-media">' . ( $thumb ? '<img src="' . esc_url( $thumb ) . '" alt="" loading="lazy">' : '' ) . '</span>';
+		echo '<span class="tgs-recommended-body">';
+		echo '<span class="tgs-recommended-name">' . esc_html( $product->get_name() ) . '</span>';
+		echo '<span class="tgs-recommended-price">' . tgs_sq_combo_strike_html( $pid ) . wp_kses_post( $product->get_price_html() ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '</span></a>';
+	}
+	echo '</div></section>';
+}
+
 /* ---------------------------------------------------------------------
  * Modo "Diseño propio (pegar código)".
  * ------------------------------------------------------------------- */
@@ -1176,13 +1215,17 @@ function tgs_sq_render_product( $product_id ) {
 	}
 
 	ob_start();
-	if ( $custom ) {
+	if ( ! empty( $data['is_combo'] ) ) {
+		// Un combo no es una PC: ficha propia, con la paleta de la variante
+		// pero sin diseño propio pegado, juegos, monitores ni "Sobre la PC".
+		tgs_sq_render_combo_mode( $variant, $data );
+	} elseif ( $custom ) {
 		tgs_sq_render_custom_mode( $variant, $data );
 	} else {
 		tgs_sq_render_blocks_mode( $variant, $data );
 	}
 	// La guía se arma con las secciones que la ficha realmente imprimió.
-	list( $html, $entries ) = tgs_sq_guide_inject( (string) ob_get_clean() );
+	list( $html, $entries ) = tgs_sq_guide_inject( (string) ob_get_clean(), ! empty( $data['is_combo'] ) ? 'El combo' : 'La PC' );
 	echo tgs_sq_guide_html( $entries, $data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
