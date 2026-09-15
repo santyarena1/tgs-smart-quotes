@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 function tgs_sq_changelog() {
 	return array(
+		'2.23.7' => array(
+			'ARREGLO: al pagar aparecía "«Mouse …» está agotado" cuando la PC se agregaba más de una vez: el extra se sumaba otra vez y superaba el stock. Ahora un extra que ya está en el carrito para esa PC no se duplica, y antes de sumarlo se valida el stock real (contando lo que ya hay en el carrito). Los productos ofrecidos en "Potenciá tu setup" y monitores tienen que tener al menos 1 unidad real.',
+		),
 		'2.23.6' => array(
 			'Combos: vuelven a usar el MISMO diseño propio de su variante (2.23.5 les ponía la ficha de bloques del plugin y se veía distinto). Solo cambian los textos y secciones que hablaban de una PC: "PC armada" → "Combo", "Armada y testeada" → "Combo con descuento", "La PC" → "El combo" ("Qué es este combo"), "Componentes" → "Qué incluye", "Compartir esta PC" → "Compartir este combo", el cierre; sin juegos, compatibilidad, monitores/Potenciá tu setup ni 3D; "Recomendadas" pasa a "Otros combos"; el precio de lista tachado es el del descuento del combo. En variantes de bloques, la ficha de combo de 2.23.5.',
 		),

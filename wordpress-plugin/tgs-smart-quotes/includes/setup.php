@@ -349,11 +349,32 @@ add_action( 'woocommerce_add_to_cart', function ( $cart_item_key, $product_id ) 
 		return;
 	}
 	$ids = array_unique( array_filter( array_map( 'absint', explode( ',', (string) wp_unslash( $_REQUEST['tgs_addon_extras'] ) ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// Extras que ya están en el carrito para esta PC: no se duplican (si la PC
+	// se agrega dos veces, el extra queda una sola vez y no pasa el stock).
+	$already = array();
+	foreach ( WC()->cart->get_cart() as $item ) {
+		if ( (int) ( $item['tgs_setup_pc'] ?? 0 ) === (int) $product_id ) {
+			$already[ (int) $item['product_id'] ] = true;
+		}
+	}
 	$adding = true;
 	foreach ( array_slice( $ids, 0, 30 ) as $extra_id ) {
-		if ( tgs_sq_is_setup_addon( $extra_id ) ) {
-			WC()->cart->add_to_cart( $extra_id, 1, 0, array(), array( 'tgs_setup_pc' => (int) $product_id ) );
+		if ( isset( $already[ $extra_id ] ) || ! tgs_sq_is_setup_addon( $extra_id ) ) {
+			continue;
 		}
+		// Stock real (contando lo que ya haya de ese producto en el carrito): si
+		// no alcanza, no se suma, en vez de dejar un carrito que no se puede pagar.
+		$product = wc_get_product( $extra_id );
+		$in_cart = 0;
+		foreach ( WC()->cart->get_cart() as $item ) {
+			if ( (int) $item['product_id'] === $extra_id ) {
+				$in_cart += (int) $item['quantity'];
+			}
+		}
+		if ( ! $product || ! $product->has_enough_stock( $in_cart + 1 ) ) {
+			continue;
+		}
+		WC()->cart->add_to_cart( $extra_id, 1, 0, array(), array( 'tgs_setup_pc' => (int) $product_id ) );
 	}
 	$adding = false;
 }, 10, 2 );

@@ -788,7 +788,9 @@ function tgs_sq_monitor_usable( $product_id ) {
 	$product = wc_get_product( $product_id );
 	// Solo productos simples: una variación necesitaría elegir atributos
 	// y eso no entra en un click desde la ficha de la PC.
-	if ( ! $product || ! $product->is_type( 'simple' ) || ! $product->is_purchasable() || ! $product->is_in_stock() ) {
+	// Con stock gestionado, tiene que haber al menos 1 unidad de verdad (un
+	// producto con 0 y estado "hay existencias" mal sincronizado no se ofrece).
+	if ( ! $product || ! $product->is_type( 'simple' ) || ! $product->is_purchasable() || ! $product->is_in_stock() || ! $product->has_enough_stock( 1 ) ) {
 		return null;
 	}
 	return $product;
