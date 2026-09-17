@@ -135,12 +135,12 @@ integration('Block 2 — presupuestos core (integración real)', () => {
     expect(events).toHaveLength(1);
   });
 
-  it('rechaza un total objetivo por debajo del costo', async () => {
+  it('acepta un total objetivo por debajo del costo (ganancia negativa)', async () => {
     const created = await createQuote();
-
-    await expect(
-      quotes.retarget(created.family.id, {targetTotalCents: '100000'} as never, actor),
-    ).rejects.toMatchObject({message: 'El total objetivo no puede ser menor al costo total'});
+    const adjusted: any = await quotes.retarget(created.family.id, {targetTotalCents: '100000'} as never, actor);
+    const version = adjusted.versions?.find((v: any) => v.version === adjusted.activeVersion) ?? adjusted.version;
+    expect(BigInt(version.totalSaleCents)).toBe(100000n);
+    expect(BigInt(version.profitCents) < 0n).toBe(true);
   });
 
   it('registra aceptación con trazabilidad y actividad', async () => {

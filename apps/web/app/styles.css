@@ -3220,3 +3220,6 @@ tr.editing {
   font-size: 0.7rem; color: rgba(231, 233, 238, 0.62);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.totals-bar strong.bad {
+  color: var(--red);
+}

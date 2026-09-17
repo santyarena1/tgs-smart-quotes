@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.2",
+    date: "2026-09-17",
+    title: "Total objetivo libre y totales en vivo",
+    items: [
+      "Ajustar total: acepta cualquier valor, también por debajo del costo (queda ganancia negativa y márgenes negativos por ítem). Si la ganancia actual es cero, reparte el mismo % a todos. Ya no tira \"El total objetivo no puede ser menor al costo total\"",
+      "Márgenes negativos permitidos en los ítems (vender por debajo del costo); el piso es -100 % (venta /usr/bin/bash)",
+      "Totales del presupuesto (costo, venta, ganancia y markup efectivo) siempre visibles debajo de la lista de componentes y calculados en vivo con lo que hay en pantalla; antes aparecían arriba y solo después de guardar. La fila del pie dice \"Total de venta\"",
+    ],
+  },
+  {
     version: "0.7.1",
     date: "2026-09-17",
     title: "Crear uno similar",

@@ -1780,6 +1780,24 @@ export function QuotesView({
     return total.toString();
   }, [items]);
 
+  /** Costo, venta, ganancia y markup efectivo de lo que hay en pantalla (no de lo guardado). */
+  const draftTotals = useMemo(() => {
+    let cost = 0n;
+    let sale = 0n;
+    for (const item of filledItems(items)) {
+      try {
+        const qty = BigInt(Math.max(0, Math.trunc(Number(item.quantity) || 0)));
+        cost += BigInt(parseArsToCents(item.costArs)) * qty;
+        sale += BigInt(parseArsToCents(item.saleArs)) * qty;
+      } catch {
+        /* ignore */
+      }
+    }
+    const profit = sale - cost;
+    const markupBps = cost === 0n ? 0 : Number((profit * 10000n + (profit < 0n ? -cost / 2n : cost / 2n)) / cost);
+    return { cost: cost.toString(), sale: sale.toString(), profit: profit.toString(), markupBps };
+  }, [items]);
+
   /** Pone el mismo % de ganancia en todos los ítems (recalcula la venta desde el costo). */
   function applyGlobalMarkup() {
     const pct = globalMarkupPct.trim().replace(",", ".");
@@ -2098,27 +2116,6 @@ export function QuotesView({
             <button type="button" className="btn-ghost btn-sm" onClick={discardRecoveredDraft}>
               Descartar y ver lo guardado
             </button>
-          </div>
-        ) : null}
-
-        {activeVersion ? (
-          <div className="totals-bar">
-            <div>
-              <span>Costo total</span>
-              <strong>{formatArs(activeVersion.totalCostCents)}</strong>
-            </div>
-            <div>
-              <span>Venta total</span>
-              <strong className="accent">{formatArs(activeVersion.totalSaleCents)}</strong>
-            </div>
-            <div>
-              <span>Ganancia</span>
-              <strong className="good">{formatArs(activeVersion.profitCents)}</strong>
-            </div>
-            <div>
-              <span>Markup efectivo</span>
-              <strong>{formatBps(activeVersion.effectiveMarkupBps)}</strong>
-            </div>
           </div>
         ) : null}
 
@@ -2721,13 +2718,32 @@ export function QuotesView({
                 <tfoot>
                   <tr className="items-total-row">
                     <td colSpan={isBuiltPc ? 5 : 4} className="items-total-label">
-                      Total del presupuesto
+                      Total de venta
                     </td>
                     <td className="right num items-total-value">{formatArs(draftTotal)}</td>
                     <td />
                   </tr>
                 </tfoot>
               </table>
+            </div>
+            {/* Totales en vivo: cambian con cada edición, no hace falta guardar para verlos. */}
+            <div className="totals-bar">
+              <div>
+                <span>Costo total</span>
+                <strong>{formatArs(draftTotals.cost)}</strong>
+              </div>
+              <div>
+                <span>Venta total</span>
+                <strong className="accent">{formatArs(draftTotals.sale)}</strong>
+              </div>
+              <div>
+                <span>Ganancia</span>
+                <strong className={BigInt(draftTotals.profit) < 0n ? "bad" : "good"}>{formatArs(draftTotals.profit)}</strong>
+              </div>
+              <div>
+                <span>Markup efectivo</span>
+                <strong>{formatBps(draftTotals.markupBps)}</strong>
+              </div>
             </div>
             <div className="quote-items-mobile mt">
               {items.map((item, index) => {
@@ -2761,7 +2777,8 @@ export function QuotesView({
                   </div> : null}
                 </article>;
               })}
-              <div className="mobile-items-total"><span>Total del presupuesto</span><strong>{formatArs(draftTotal)}</strong></div>
+              <div className="mobile-items-total"><span>Total de venta</span><strong>{formatArs(draftTotal)}</strong></div>
+              <div className="mobile-items-total"><span>Costo · Ganancia</span><strong>{formatArs(draftTotals.cost)} · {formatArs(draftTotals.profit)} ({formatBps(draftTotals.markupBps)})</strong></div>
             </div>
             </>
           )}
