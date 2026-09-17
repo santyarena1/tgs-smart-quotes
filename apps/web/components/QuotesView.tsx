@@ -1658,7 +1658,7 @@ export function QuotesView({
       applyDetail(duplicated);
       await Promise.all([loadSideData(duplicated.id), loadList()]);
       setDrawerOpen(true);
-      setNotice("Presupuesto duplicado");
+      setNotice("Listo: presupuesto nuevo creado a partir de este, con sus productos y precios.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -1983,11 +1983,13 @@ export function QuotesView({
                             Editar
                           </button>
                           <button type="button" onClick={() => void duplicateQuote(quote.id)}>
-                            Duplicar
+                            Crear uno similar
                           </button>
-                          <button type="button" onClick={() => void showHistory(quote)}>
-                            Versiones
-                          </button>
+                          {(quote.versions?.length ?? 0) > 1 ? (
+                            <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>
+                              Historial
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="btn-danger"
@@ -2038,8 +2040,8 @@ export function QuotesView({
               <div className="mobile-card-actions" onClick={(event) => event.stopPropagation()}>
                 <button type="button" onClick={() => void printQuote(quote)}>Imprimir</button>
                 <button type="button" onClick={() => void editQuote(quote)}>Editar</button>
-                <button type="button" onClick={() => void duplicateQuote(quote.id)}>Duplicar</button>
-                <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>Versiones</button>
+                <button type="button" onClick={() => void duplicateQuote(quote.id)}>Crear uno similar</button>
+                {(quote.versions?.length ?? 0) > 1 ? <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>Historial</button> : null}
                 <button type="button" className="btn-danger" onClick={() => void deleteQuote(quote)}>Eliminar</button>
               </div>
             </article>;
@@ -2844,8 +2846,8 @@ export function QuotesView({
                 </div>
                 {activeVersion ? (
                   <div className="form-actions">
-                    <button type="button" disabled={busy} onClick={() => void duplicateQuote()}>
-                      {busy ? "Procesando…" : "Duplicar"}
+                    <button type="button" disabled={busy} onClick={() => void duplicateQuote()} title="Crea un presupuesto nuevo con los mismos productos y precios, para arrancar desde acá">
+                      {busy ? "Procesando…" : "Crear uno similar"}
                     </button>
                     <Pill tone={STATE_TONE[activeVersion.state]}>
                       v{activeVersion.version} · {STATE_LABEL[activeVersion.state]}
@@ -2923,8 +2925,12 @@ export function QuotesView({
 
               <div className="quote-history">
                 <div>
-                  <h4 className="ops-subtitle">Versiones y PDF</h4>
-                  <p className="muted">Elegí una versión para ver sus componentes, descargar el PDF o restaurarla.</p>
+                  <h4 className="ops-subtitle">{(detail.versions?.length ?? 0) > 1 ? "Historial de versiones enviadas y PDF" : "PDF"}</h4>
+                  <p className="muted">
+                    {(detail.versions?.length ?? 0) > 1
+                      ? "Cada versión es lo que se le mandó al cliente en su momento. Podés ver sus componentes, descargar el PDF o restaurarla."
+                      : "Guardar no crea versiones: para arrancar otro presupuesto a partir de este, usá \"Crear uno similar\"."}
+                  </p>
                   {!detail.versions?.length ? (
                     <p className="muted">Todavía no hay versiones.</p>
                   ) : (

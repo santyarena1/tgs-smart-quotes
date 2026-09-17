@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.1",
+    date: "2026-09-17",
+    title: "Crear uno similar",
+    items: [
+      "Presupuestos: \"Duplicar\" pasa a llamarse \"Crear uno similar\" (nuevo presupuesto con los mismos productos y precios). El botón \"Versiones\" se muestra solo si el presupuesto tiene más de una versión (ahora \"Historial\"), y el panel del editor explica que guardar no crea versiones",
+    ],
+  },
+  {
     version: "0.7.0",
     date: "2026-09-17",
     title: "Versiones con sentido, tienda al día y ganancia general",
