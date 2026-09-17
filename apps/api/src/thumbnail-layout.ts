@@ -64,12 +64,17 @@ export type LayoutInput = {
  * "Capitalize" de un título: cada palabra con mayúscula inicial y el resto en
  * minúscula, salvo las siglas cortas (RGB, TKL, PC, 4K, RTX) que se respetan.
  */
+const TITLE_ACRONYMS = new Set(['RGB', 'TKL', 'PC', 'USB', 'LED', 'SSD', 'HDD', 'RAM', 'RTX', 'GTX', 'RX', 'CPU', 'GPU', 'AMD', 'HDMI', 'DPI', 'XL', 'XXL', 'ATX', 'TGS', 'PS', 'TV', 'AIO', 'OLED', 'IPS', 'VA', 'TN', 'HZ', 'MHZ', 'GHZ', 'GB', 'TB', 'NVME', 'DDR4', 'DDR5', 'WIFI', 'BT']);
 export function titleCase(value: string): string {
   return value
     .trim()
     .split(/\s+/)
     .map((word) => {
-      if (/\d/.test(word) || (word.length <= 4 && word === word.toUpperCase() && /[A-Z]/.test(word))) return word;
+      // Siglas conocidas y palabras con números se respetan en mayúsculas; el
+      // resto va Capitalizado (en un título todo en MAYÚSCULAS no se puede
+      // distinguir "MIKU" de "RGB" por el largo).
+      const bare = word.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (/\d/.test(word) || TITLE_ACRONYMS.has(bare)) return word.toUpperCase();
       const lower = word.toLocaleLowerCase('es-AR');
       return lower.charAt(0).toLocaleUpperCase('es-AR') + lower.slice(1);
     })
