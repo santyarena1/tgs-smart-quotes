@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.2",
+    date: "2026-09-17",
+    title: "Presupuestos: precios exactos, ajustes que se quedan y numeración correlativa",
+    items: [
+      "Redondeo y \"Total de venta objetivo\" ahora se mantienen: los precios guardados vuelven exactos al reabrir (antes el editor los recalculaba desde el % de ganancia truncado y 50.000 volvía como 49.998,50 en la siguiente guardada) y, después de ajustar el total o sincronizar precios, ya no se pisa el resultado con el borrador viejo del navegador",
+      "\"Error interno\" al guardar (ej. TGS-20260804-0005): el borrador guardado en el navegador traía un cliente que se había borrado; ahora se avisa \"El cliente elegido ya no existe\" y el borrador recuperado no lo manda. El aviso de borrador recuperado es más claro y explica que el nombre/cliente/precios pueden diferir de lo guardado",
+      "Número de presupuesto: TGS-fecha-correlativo con correlativo único para todo el sistema (antes arrancaba de 1 cada día y se repetían -0003 en distintas fechas). Sigue desde el mayor existente",
+    ],
+  },
+  {
     version: "0.6.1",
     date: "2026-09-15",
     title: "Miniatura de combos con la plantilla TGS",

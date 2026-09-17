@@ -225,11 +225,35 @@ async function masterPrices(tx:any,items:ReadonlyArray<{productId?:string|null}>
   return new Map(products.map(product=>[product.id,product.updatedAt]));
 }
 
+/**
+ * Número visible: TGS-<fecha>-<correlativo>. La fecha es la de creación; el
+ * correlativo es ÚNICO para todo el sistema y siempre crece (antes arrancaba
+ * de 1 cada día y el mismo "-0003" aparecía en muchas fechas). Se toma el
+ * mayor correlativo existente (o la cantidad de presupuestos, lo que sea
+ * mayor) y se le suma uno.
+ */
 async function nextVisibleNumber(tx:any){
   const ymd=new Date().toISOString().slice(0,10).replaceAll('-','');
-  const prefix=`TGS-${ymd}-`;
-  const count=await tx.quoteFamily.count({where:{visibleNumber:{startsWith:prefix}}});
-  return formatVisibleNumber(ymd,count+1);
+  const rows:Array<{max:number|null}>=await tx.$queryRaw`SELECT MAX(CAST(SUBSTRING("visibleNumber" FROM '[0-9]+$') AS INTEGER))::int AS max FROM "QuoteFamily"`;
+  const maxSequence=Number(rows[0]?.max??0);
+  const total=await tx.quoteFamily.count();
+  return formatVisibleNumber(ymd,Math.max(maxSequence,total)+1);
+}
+
+/**
+ * Cliente y solicitud tienen que existir: un borrador guardado en el
+ * navegador puede traer un cliente que se borró después, y la base lo
+ * rechazaba con un "error interno" (clave foránea). Mejor un aviso claro.
+ */
+async function assertQuoteRefs(tx:any,body:{customerId?:string|null;requestId?:string|null}){
+  if(body.customerId){
+    const customer=await tx.customer.findUnique({where:{id:body.customerId},select:{id:true}});
+    if(!customer)throw new BadRequestException('El cliente elegido ya no existe. Elegí otro o dejalo vacío.');
+  }
+  if(body.requestId){
+    const request=await tx.quoteRequest.findUnique({where:{id:body.requestId},select:{id:true}});
+    if(!request)throw new BadRequestException('La solicitud vinculada ya no existe. Quitala del presupuesto.');
+  }
 }
 
 export const quoteInclude={
@@ -445,6 +469,7 @@ export class QuotesController{
   ){
     try{
       return await db.$transaction(async tx=>{
+        await assertQuoteRefs(tx,body);
         const visibleNumber=await nextVisibleNumber(tx);
         const masters=await masterPrices(tx,body.items);
         const itemRows=buildItemRows(body.items,masters);
@@ -573,6 +598,7 @@ export class QuotesController{
   ){
     try{
       return await db.$transaction(async tx=>{
+        await assertQuoteRefs(tx,body);
         const family=await loadFamily(tx,id);
         const version=activeVersion(family);
         const familyData:{

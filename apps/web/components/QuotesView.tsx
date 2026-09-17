@@ -500,7 +500,10 @@ export function QuotesView({
         markupPct: bpsToPct(item.markupBps),
         saleArs: centsToInput(item.salePriceCents ?? "0"),
         observation: item.observation ?? "",
-        priceMode: "markup" as const,
+        // El precio guardado manda: en modo "markup" el editor recalculaba la
+        // venta desde un % truncado y un precio redondeado o ajustado al total
+        // volvía cambiado ($150.000 → $149.998,50) en la siguiente guardada.
+        priceMode: "sale" as const,
       }));
       const fallback: QuoteLocalDraft = {
         internalName: quote.internalName,
@@ -518,6 +521,11 @@ export function QuotesView({
       const recovered = stored && JSON.stringify(stored) !== baseline ? stored : null;
       if (stored && !recovered) removeQuoteDraft(key);
       const form = recovered ?? fallback;
+      // El borrador local puede traer un cliente borrado desde entonces: la API
+      // lo rechazaría ("error interno" por la clave foránea). Se cae al del servidor.
+      if (recovered && recovered.customerId && !customers.some((customer) => customer.id === recovered.customerId)) {
+        form.customerId = fallback.customerId;
+      }
       draftFallbackRef.current = fallback;
       draftBaselineRef.current = baseline;
       setEditorDraftKey(key);
@@ -534,7 +542,7 @@ export function QuotesView({
       setReplaceItemKey(null);
       setSaveReason("");
     },
-    [pcLines, productById],
+    [pcLines, productById, customers],
   );
 
   useEffect(() => {
@@ -706,6 +714,9 @@ export function QuotesView({
   }
 
   async function reloadDetail(id: string, restoreLocalDraft = true) {
+    // Si el servidor cambió el presupuesto (ajuste de total, sync de precios…),
+    // el borrador local quedó viejo: se descarta para no pisar el cambio recién hecho.
+    if (!restoreLocalDraft) removeQuoteDraft(quoteDraftKey(id));
     applyDetail(await api<Quote>(`/quotes/${id}`), restoreLocalDraft);
     await loadSideData(id);
   }
@@ -743,7 +754,7 @@ export function QuotesView({
         `${detail.visibleNumber}-V${version}-${kind}.pdf`,
       );
       setNotice(`PDF ${kind === "SIMPLE" ? "simple" : "detallado"} listo.`);
-      await reloadDetail(selectedId);
+      await reloadDetail(selectedId, false);
       await loadList();
     } catch (err) {
       setError(errorMessage(err));
@@ -855,7 +866,7 @@ export function QuotesView({
         body: { mode: "all", updateMaster: false },
       });
       setNotice("Precios sincronizados desde el catálogo.");
-      await reloadDetail(selectedId);
+      await reloadDetail(selectedId, false);
       await loadList();
     } catch (err) {
       setError(errorMessage(err));
@@ -1688,7 +1699,7 @@ export function QuotesView({
       });
       setNotice("Total ajustado.");
       setRetargetArs("");
-      await reloadDetail(selectedId);
+      await reloadDetail(selectedId, false);
       await loadList();
     } catch (err) {
       setError(errorMessage(err));
@@ -2046,12 +2057,15 @@ export function QuotesView({
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="ok">{notice}</Alert> : null}
         {draftRecovered ? (
-          <p className="section-note">
-            Se recuperó un borrador sin guardar.{" "}
-            <button type="button" className="btn-ghost" onClick={discardRecoveredDraft}>
-              Descartarlo
+          <div className="alert alert-info" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <span>
+              <strong>Estás viendo un borrador sin guardar</strong> de este presupuesto (quedó en este navegador). Puede tener un nombre, cliente o
+              precios distintos de los guardados.
+            </span>
+            <button type="button" className="btn-ghost btn-sm" onClick={discardRecoveredDraft}>
+              Descartar y ver lo guardado
             </button>
-          </p>
+          </div>
         ) : null}
 
         {activeVersion ? (
