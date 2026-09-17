@@ -317,3 +317,43 @@ export async function unpublishQuote(familyId: string) {
     data: {status: 'UNPUBLISHED', url: null, lastError: null, lastErrorAt: null},
   });
 }
+
+/**
+ * Republicación SOLO de precios, sobre la foto de la última publicación.
+ *
+ * La usa la sincronización automática con el catálogo: la tienda recibe el
+ * contenido que ya estaba aprobado (título, componentes, textos, miniatura)
+ * con los precios y cuotas de ahora. Una edición a medias que todavía no se
+ * publicó no se filtra. Si no hay foto guardada (publicación vieja), cae a
+ * la publicación completa.
+ */
+export async function republishPricesFromSnapshot(familyId: string) {
+  const publication = await db.webPublication.findUnique({where: {quoteFamilyId: familyId}});
+  const snapshot = publication?.payloadSnapshot as PublishPayload | null | undefined;
+  if (!publication || !snapshot || typeof snapshot !== 'object' || !('externalId' in snapshot)) {
+    return publishQuote(familyId, {versionId: publication?.quoteVersionId ?? null});
+  }
+  const fresh = await buildPublishPayload(familyId, publication.quoteVersionId);
+  const items = snapshot.items.map((item, index) => {
+    const current = fresh.items[index];
+    // Mismo ítem (por nombre): precios nuevos; si la lista cambió, se deja como estaba.
+    if (!current || current.name !== item.name) return item;
+    return {...item, specs: {...item.specs, unitPriceCents: current.specs.unitPriceCents, subtotalCents: current.specs.subtotalCents}};
+  });
+  const payload: PublishPayload = {
+    ...snapshot,
+    priceListCents: fresh.priceListCents,
+    priceCashCents: fresh.priceCashCents,
+    priceTransferCents: fresh.priceTransferCents,
+    installments: fresh.installments,
+    regularPriceCents: fresh.regularPriceCents,
+    items,
+  };
+  const wpResponse = await postWordpress('publish', payload);
+  if (!wpResponse?.productId) throw new WordpressPublishError('WordPress devolvió una respuesta inválida', 502);
+  const webPublication = await db.webPublication.update({
+    where: {quoteFamilyId: familyId},
+    data: {payloadSnapshot: payload as any, lastError: null, lastErrorAt: null, publishedAt: new Date(), url: wpResponse.url ?? publication.url},
+  });
+  return {webPublication, wpResponse};
+}

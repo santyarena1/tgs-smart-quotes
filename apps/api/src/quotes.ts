@@ -657,7 +657,42 @@ export class QuotesController{
           ||(body.pdfOverrides!==undefined&&!jsonEq(body.pdfOverrides,version.pdfOverrides))
           ||(body.resolvedPdfConfig!==undefined&&!jsonEq(body.resolvedPdfConfig,version.resolvedPdfConfig))
           ||(body.financingSnapshot!==undefined&&!jsonEq(body.financingSnapshot,version.financingSnapshot));
-        if(actuallyChanged){
+        // Un BORRADOR se edita EN EL LUGAR: la versión es "lo que se le mandó
+        // al cliente", no "cuántas veces se apretó guardar". Solo una versión ya
+        // enviada/aceptada (el cliente la tiene) genera una versión nueva al editarla.
+        if(actuallyChanged&&version.state==='BORRADOR'){
+          const totalsRow=pricingTotals(itemRows);
+          // Se actualizan las filas existentes en vez de borrar y recrear: el
+          // contenido web del ítem (foto y descripción cargadas a mano) vive en
+          // la fila y se conserva mientras sea el mismo producto o nombre.
+          const existing=[...version.items].sort((a:any,b:any)=>a.position-b.position);
+          for(let index=0;index<itemRows.length;index+=1){
+            const row=itemRows[index];
+            const current=existing[index];
+            if(current){
+              const sameThing=(current.productId&&current.productId===row.productId)||current.frozenName===row.frozenName;
+              await tx.quoteItem.update({where:{id:current.id},data:{...row,...(sameThing?{}:{webImageUrl:null,webImageCut:null,webDescription:null})}});
+            }else{
+              await tx.quoteItem.create({data:{...row,versionId:version.id}});
+            }
+          }
+          if(existing.length>itemRows.length){
+            await tx.quoteItem.deleteMany({where:{id:{in:existing.slice(itemRows.length).map((item:any)=>item.id)}}});
+          }
+          await touchProductsLastUsed(tx,itemRows.map((item:any)=>item.productId));
+          nextVersion=await tx.quoteVersion.update({where:{id:version.id},data:{
+            totalCostCents:totalsRow.costCents,
+            totalSaleCents:totalsRow.saleCents,
+            profitCents:totalsRow.profitCents,
+            effectiveMarkupBps:totalsRow.effectiveMarkupBps,
+            publicObservation:body.publicObservation===undefined?version.publicObservation:body.publicObservation,
+            pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):version.pdfOverrides,
+            resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):version.resolvedPdfConfig,
+            financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):version.financingSnapshot,
+            lastActivityAt:new Date(),
+          }});
+          items=await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}});
+        }else if(actuallyChanged){
           const totalsRow=pricingTotals(itemRows);
           const nextNumber=Math.max(...family.versions.map((item:any)=>item.version))+1;
           nextVersion=await tx.quoteVersion.create({data:{

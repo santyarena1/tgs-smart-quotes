@@ -26,7 +26,7 @@ export type Publication = {
   publishedVersionNumber?: number | null;
   activeVersionId?: string | null;
   activeVersionNumber?: number | null;
-  /** La tienda muestra una versión anterior a la activa del presupuesto. */
+  /** La tienda tiene una copia vieja: otra versión, o contenido editado después de publicar. */
   isStale?: boolean;
   webTitle?: string | null;
   webTagline?: string | null;
@@ -65,7 +65,7 @@ export const EMPTY_PUBLICATION: Publication = { status: "DRAFT", url: null, last
 
 export function publicationStatusLabel(publication: Publication | undefined | null): string {
   const status = publication?.status;
-  if (status === "PUBLISHED") return publication?.isStale ? "Publicada (versión anterior)" : "Publicada";
+  if (status === "PUBLISHED") return publication?.isStale ? "Publicada · cambios sin publicar" : "Publicada · al día";
   if (status === "FAILED") return "Error al publicar";
   if (status === "UNPUBLISHED") return "Despublicada";
   return "Sin publicar";

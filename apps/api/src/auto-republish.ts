@@ -14,7 +14,7 @@
  */
 
 import { db } from '@tgs/database';
-import { publishQuote } from '@tgs/providers';
+import { republishPricesFromSnapshot } from '@tgs/providers';
 import { pricingTotals } from './quotes.js';
 
 export async function syncAutoRepublishForProduct(productId: string): Promise<void> {
@@ -98,6 +98,7 @@ async function syncOneVersion(versionId: string): Promise<void> {
   });
 
   if (shouldRepublish) {
-    await publishQuote(shouldRepublish, { versionId });
+    // Solo precios sobre la foto publicada: una edición a medias no se filtra.
+    await republishPricesFromSnapshot(shouldRepublish);
   }
 }

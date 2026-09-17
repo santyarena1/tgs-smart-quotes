@@ -637,6 +637,9 @@ model QuoteVersion {
   staleNotifiedAt    DateTime?
   autoClosedAt       DateTime?
   createdAt          DateTime           @default(now())
+  /// Última modificación del contenido (ítems, totales, observación). Sirve
+  /// para saber si la tienda quedó con una copia vieja ("cambios sin publicar").
+  updatedAt          DateTime           @default(now()) @updatedAt
   items              QuoteItem[]
   pdfs               QuotePdf[]
   attempts           QuoteSendAttempt[]

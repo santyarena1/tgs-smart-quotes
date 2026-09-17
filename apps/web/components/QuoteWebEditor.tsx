@@ -592,8 +592,9 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
 
   const isCombo = quote.kind === "COMBO";
   const isPublished = publication?.status === "PUBLISHED";
-  // "Vieja" respecto de la versión elegida acá, no de la activa del presupuesto.
-  const isStale = Boolean(isPublished && publication?.quoteVersionId && publication.quoteVersionId !== version.id);
+  // Cambios sin publicar: otra versión elegida que la publicada, o (misma
+  // versión) contenido editado después de la última publicación (lo dice la API).
+  const isStale = Boolean(isPublished && publication?.quoteVersionId && (publication.quoteVersionId !== version.id || publication.isStale));
   const activeVersion = getActiveVersion(quote);
   const versionOptions = (quote.versions ?? []).slice().sort((a, b) => b.version - a.version);
   const busy = busyPublish || pipeline.starting || pipeline.running;
@@ -657,10 +658,10 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
             onClick={() => void pipeline.start({ versionId: version.id, publish: true })}
             title="Busca imágenes que falten, genera textos y título con IA, arma la miniatura y publica"
           >
-            {pipeline.running ? "Preparando…" : isStale ? `Preparar y actualizar a v${version.version}` : isPublished ? `Preparar y actualizar (v${version.version})` : `Preparar y publicar v${version.version}`}
+            {pipeline.running ? "Preparando…" : isStale ? `Preparar y actualizar la tienda (v${version.version})` : isPublished ? `Preparar y actualizar (v${version.version})` : `Preparar y publicar v${version.version}`}
           </button>
           <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(version.id)}>
-            {busyPublish ? "Publicando…" : isStale ? `Actualizar a v${version.version} sin preparar` : isPublished ? `Actualizar v${version.version} sin preparar` : `Publicar v${version.version} sin preparar`}
+            {busyPublish ? "Publicando…" : isStale ? `Actualizar la tienda sin preparar (v${version.version})` : isPublished ? `Actualizar v${version.version} sin preparar` : `Publicar v${version.version} sin preparar`}
           </button>
           <button
             type="button"
@@ -682,8 +683,8 @@ export function QuoteWebEditor({ quoteId, onClose, onChanged }: Props) {
       {isStale ? (
         <div style={{ marginTop: 12 }}>
           <Alert tone="info">
-            La tienda sigue mostrando la v{publication?.publishedVersionNumber} tal como se publicó. La v{version.version} no se
-            envía hasta que la actualices desde acá.
+            La tienda sigue mostrando lo que se publicó por última vez (v{publication?.publishedVersionNumber}). Los cambios de acá no
+            se envían hasta que la actualices; los precios del catálogo sí se actualizan solos si tenés la opción prendida.
             {activeVersion && activeVersion.id !== version.id ? ` Elegiste una versión distinta de la activa (v${activeVersion.version}).` : ""}
           </Alert>
         </div>

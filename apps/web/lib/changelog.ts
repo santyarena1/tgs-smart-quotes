@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.0",
+    date: "2026-09-17",
+    title: "Versiones con sentido, tienda al día y ganancia general",
+    items: [
+      "Guardar un borrador ya no crea una versión: se edita en el lugar. Solo editar un presupuesto ya enviado o aceptado crea una versión nueva (la versión es \"qué se le mandó al cliente\", no cuántas veces se apretó guardar). Las fotos y descripciones cargadas a mano en cada componente se conservan al guardar",
+      "Publicación web: el estado pasa a \"Publicada · al día\" o \"Publicada · cambios sin publicar\" según el contenido (ítems, totales, título, miniatura) haya cambiado después de la última publicación, no según el número de versión. El botón dice \"Actualizar la tienda\"",
+      "Actualización automática de precios desde el catálogo: republica solo los precios y las cuotas sobre la foto de lo último publicado; una edición a medias no se sube hasta que la actualices",
+      "Presupuestos: \"Ganancia general\" aplica un % a todos los ítems de una vez; el % de cada línea y el general se eligen de un desplegable (10, 15, 20… 60 %) o se escriben a mano",
+    ],
+  },
+  {
     version: "0.6.2",
     date: "2026-09-17",
     title: "Presupuestos: precios exactos, ajustes que se quedan y numeración correlativa",

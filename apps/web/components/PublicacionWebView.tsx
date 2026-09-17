@@ -452,7 +452,7 @@ export function PublicacionWebView() {
                       </button>
                       {isStale ? (
                         <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void publish(quote)}>
-                          {busy ? "Actualizando…" : `Actualizar a v${version.version}`}
+                          {busy ? "Actualizando…" : "Actualizar la tienda"}
                         </button>
                       ) : null}
                       {isPublished ? (

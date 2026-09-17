@@ -89,6 +89,9 @@ type QuoteLocalDraft = {
   observation: string;
 };
 
+/** Porcentajes de ganancia habituales: aparecen en el desplegable de cada línea y del margen general (igual se puede escribir otro). */
+const MARKUP_PRESETS = ["10", "15", "20", "25", "30", "35", "40", "45", "50", "60"];
+
 const quoteDraftKey = (id: string | null) => `tgs-quote-draft-${id ?? "new"}`;
 
 function readQuoteDraft(key: string): QuoteLocalDraft | null {
@@ -356,6 +359,8 @@ export function QuotesView({
   const draftBaselineRef = useRef("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [retargetArs, setRetargetArs] = useState("");
+  /** Margen general: se aplica a todos los ítems con un click. Se elige del desplegable o se escribe. */
+  const [globalMarkupPct, setGlobalMarkupPct] = useState("");
   const [roundStepPesos, setRoundStepPesos] = useState<"" | "100" | "500" | "1000" | "5000">("");
   const [filter, setFilter] = useState("");
   const [stateFilter, setStateFilter] = useState<QuoteState | "">("");
@@ -1613,9 +1618,9 @@ export function QuotesView({
       });
       setSaveReason("");
       setNotice(
-        requestId
-          ? "Nueva versión guardada. Solicitud en Lista si seguía en preparación."
-          : "Nueva versión guardada; la anterior quedó intacta.",
+        isDraft
+          ? (requestId ? "Cambios guardados. Solicitud en Lista si seguía en preparación." : "Cambios guardados.")
+          : "Nueva versión guardada; la enviada quedó intacta.",
       );
       const savedDraftKey = quoteDraftKey(selectedId);
       removeQuoteDraft(savedDraftKey);
@@ -1774,6 +1779,32 @@ export function QuotesView({
     }
     return total.toString();
   }, [items]);
+
+  /** Pone el mismo % de ganancia en todos los ítems (recalcula la venta desde el costo). */
+  function applyGlobalMarkup() {
+    const pct = globalMarkupPct.trim().replace(",", ".");
+    if (!pct || Number.isNaN(Number(pct)) || Number(pct) < 0) {
+      setError("Escribí o elegí un % de ganancia válido.");
+      return;
+    }
+    let changed = 0;
+    setItems((prev) =>
+      prev.map((item) => {
+        if (isSlotEmpty(item)) return item;
+        changed += 1;
+        return { ...item, markupPct: pct, priceMode: "markup" as const, saleArs: saveSaleFromCost(item.costArs, pct) };
+      }),
+    );
+    setError(null);
+    setNotice(`Ganancia del ${pct} % aplicada a ${changed} ${changed === 1 ? "ítem" : "ítems"}.`);
+  }
+  const saveSaleFromCost = (costArs: string, pct: string) => {
+    try {
+      return saleFromCostAndPct(costArs, pct);
+    } catch {
+      return "";
+    }
+  };
 
   function applyRounding() {
     const step = Number(roundStepPesos);
@@ -2169,10 +2200,10 @@ export function QuotesView({
               disabled={Boolean(detail) && !isDraft}
             />
           </Field>
-          {detail && isDraft ? (
+          {detail && !isDraft ? (
             <Field
-              label="Nombre de este cambio (opcional)"
-              hint="Se ve en el historial de versiones, ayuda a identificar qué se modificó."
+              label="Nombre de esta nueva versión (opcional)"
+              hint="Editar un presupuesto ya enviado crea una versión nueva; este nombre la identifica en el historial."
               htmlFor="q-save-reason"
             >
               <input
@@ -2600,9 +2631,11 @@ export function QuotesView({
                           ) : editing ? (
                             <input
                               className="pct-input"
+                              list="tgs-markup-presets"
                               value={item.markupPct}
                               onChange={(e) => setMarkupPct(item.key, e.target.value)}
                               placeholder="30"
+                              title="Elegí un % del desplegable o escribilo"
                             />
                           ) : (
                             `${item.markupPct || "0"} %`
@@ -2711,7 +2744,7 @@ export function QuotesView({
                     <div className="item-fields">
                       <Field label="Cantidad"><input type="number" min={1} value={item.quantity} onChange={(e) => setQuantity(item.key, e.target.value)} /></Field>
                       <Field label="Costo"><MoneyInput value={item.costArs} onChange={(v) => setCost(item.key, v)} /></Field>
-                      <Field label="Markup %"><input value={item.markupPct} onChange={(e) => setMarkupPct(item.key, e.target.value)} /></Field>
+                      <Field label="Markup %"><input list="tgs-markup-presets" value={item.markupPct} onChange={(e) => setMarkupPct(item.key, e.target.value)} /></Field>
                       <Field label="Precio de venta"><MoneyInput value={item.saleArs} onChange={(v) => setSale(item.key, v)} /></Field>
                     </div>
                   </> : !empty ? <div className="item-fields mobile-item-values">
@@ -2732,6 +2765,34 @@ export function QuotesView({
           )}
 
           {filledItems(items).length > 0 && isDraft ? (
+            <>
+            <datalist id="tgs-markup-presets">
+              {MARKUP_PRESETS.map((pct) => (
+                <option key={pct} value={pct}>{pct} %</option>
+              ))}
+            </datalist>
+            <div className="quote-round-bar">
+              <div className="quote-round-copy">
+                <strong>Ganancia general</strong>
+                <span className="section-note" style={{ margin: 0 }}>
+                  Aplica el mismo % de ganancia a todos los ítems. Después podés retocar cada línea.
+                </span>
+              </div>
+              <div className="quote-round-actions">
+                <input
+                  className="pct-input"
+                  list="tgs-markup-presets"
+                  value={globalMarkupPct}
+                  onChange={(e) => setGlobalMarkupPct(e.target.value)}
+                  placeholder="% (ej: 30)"
+                  aria-label="Ganancia general en %"
+                  style={{ width: 110 }}
+                />
+                <button type="button" className="btn-ghost" disabled={!globalMarkupPct.trim() || busy} onClick={applyGlobalMarkup}>
+                  Aplicar a todos
+                </button>
+              </div>
+            </div>
             <div className="quote-round-bar">
               <div className="quote-round-copy">
                 <strong>Redondeo de precios</strong>
@@ -2763,6 +2824,7 @@ export function QuotesView({
                 </button>
               </div>
             </div>
+            </>
           ) : null}
         </div>
 
