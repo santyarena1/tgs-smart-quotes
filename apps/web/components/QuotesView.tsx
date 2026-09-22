@@ -10,11 +10,11 @@ import {
   formatBps,
   lineTotalCents,
   parseArsToCents,
-  pctFromCostAndSale,
   pctToBps,
   roundCentsToPesosStep,
   saleFromCostAndPct,
 } from "../lib/money";
+import {applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload} from "../lib/quote-item-pricing";
 import type {
   Collection,
   Combo,
@@ -293,10 +293,7 @@ function itemsToPayload(items: ItemDraft[]) {
       position,
       observation: item.observation.trim() || null,
     };
-    if (item.priceMode === "sale") {
-      return { ...base, markupBps: 0, salePriceCents: parseArsToCents(item.saleArs) };
-    }
-    return { ...base, markupBps: pctToBps(item.markupPct) };
+    return { ...base, ...itemPricePayload(item) };
   });
 }
 
@@ -505,9 +502,10 @@ export function QuotesView({
         markupPct: bpsToPct(item.markupBps),
         saleArs: centsToInput(item.salePriceCents ?? "0"),
         observation: item.observation ?? "",
-        // El precio guardado manda: en modo "markup" el editor recalculaba la
-        // venta desde un % truncado y un precio redondeado o ajustado al total
-        // volvía cambiado ($150.000 → $149.998,50) en la siguiente guardada.
+        // El precio guardado manda al reabrir: en modo "markup" el editor
+        // recalculaba la venta desde un % truncado y un precio redondeado o
+        // ajustado al total volvía cambiado. Editar el costo sí recalcula la
+        // venta y deja el margen (applyDraftCost).
         priceMode: "sale" as const,
       }));
       const fallback: QuoteLocalDraft = {
@@ -1234,45 +1232,15 @@ export function QuotesView({
   }
 
   function setCost(key: string, value: string) {
-    setItems((prev) =>
-      prev.map((x) => {
-        if (x.key !== key) return x;
-        const next = { ...x, costArs: value };
-        if (next.priceMode === "sale") next.markupPct = pctFromCostAndSale(value, next.saleArs);
-        else next.saleArs = saleFromCostAndPct(value, next.markupPct);
-        return next;
-      }),
-    );
+    setItems((prev) => prev.map((x) => (x.key === key ? applyDraftCost(x, value) : x)));
   }
 
   function setMarkupPct(key: string, value: string) {
-    setItems((prev) =>
-      prev.map((x) =>
-        x.key === key
-          ? {
-              ...x,
-              markupPct: value,
-              priceMode: "markup",
-              saleArs: saleFromCostAndPct(x.costArs, value),
-            }
-          : x,
-      ),
-    );
+    setItems((prev) => prev.map((x) => (x.key === key ? applyDraftMarkup(x, value) : x)));
   }
 
   function setSale(key: string, value: string) {
-    setItems((prev) =>
-      prev.map((x) =>
-        x.key === key
-          ? {
-              ...x,
-              saleArs: value,
-              priceMode: "sale",
-              markupPct: pctFromCostAndSale(x.costArs, value),
-            }
-          : x,
-      ),
-    );
+    setItems((prev) => prev.map((x) => (x.key === key ? applyDraftSale(x, value) : x)));
   }
 
   /* ————— product picker ————— */
@@ -1810,19 +1778,12 @@ export function QuotesView({
       prev.map((item) => {
         if (isSlotEmpty(item)) return item;
         changed += 1;
-        return { ...item, markupPct: pct, priceMode: "markup" as const, saleArs: saveSaleFromCost(item.costArs, pct) };
+        return applyDraftMarkup(item, pct);
       }),
     );
     setError(null);
     setNotice(`Ganancia del ${pct} % aplicada a ${changed} ${changed === 1 ? "ítem" : "ítems"}.`);
   }
-  const saveSaleFromCost = (costArs: string, pct: string) => {
-    try {
-      return saleFromCostAndPct(costArs, pct);
-    } catch {
-      return "";
-    }
-  };
 
   function applyRounding() {
     const step = Number(roundStepPesos);
@@ -1837,13 +1798,7 @@ export function QuotesView({
         const saleCents = parseArsToCents(item.saleArs);
         const rounded = roundCentsToPesosStep(saleCents, step);
         if (rounded !== saleCents) changed += 1;
-        const saleArs = centsToInput(rounded);
-        return {
-          ...item,
-          saleArs,
-          priceMode: "sale" as const,
-          markupPct: pctFromCostAndSale(item.costArs, saleArs),
-        };
+        return applyDraftSale(item, centsToInput(rounded));
       } catch {
         return item;
       }

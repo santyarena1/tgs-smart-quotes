@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.3",
+    date: "2026-09-22",
+    title: "Margen fijo al editar el costo",
+    items: [
+      "Presupuestos: al cambiar el costo de un ítem se mantiene el % de ganancia y se recalcula el precio de venta. El margen solo cambia si lo editás vos, redondeás o usás el ajuste de precio final objetivo",
+    ],
+  },
+  {
     version: "0.7.2",
     date: "2026-09-17",
     title: "Total objetivo libre y totales en vivo",

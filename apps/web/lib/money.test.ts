@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {centsToInput,formatArs,parseArsToCents,roundToPesoCents} from './money';
+import {centsToInput,formatArs,parseArsToCents,roundToPesoCents,saleFromCostAndPct} from './money';
 
 describe('dinero en pesos enteros',()=>{
   it('muestra pesos sin decimales',()=>{
@@ -24,5 +24,10 @@ describe('dinero en pesos enteros',()=>{
   it('el input editable es pesos con miles, sin centavos',()=>{
     expect(centsToInput(111682400n)).toBe('1.116.824');
     expect(centsToInput(50n)).toBe('1');
+  });
+
+  it('venta desde costo y margen: 30 % de $100.000 es $130.000',()=>{
+    expect(saleFromCostAndPct('100.000','30')).toBe('130.000');
+    expect(saleFromCostAndPct('200.000','30')).toBe('260.000');
   });
 });

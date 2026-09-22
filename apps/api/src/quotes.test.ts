@@ -1,7 +1,27 @@
 import {beforeAll, beforeEach, describe, expect, it} from 'vitest';
 import {db} from '@tgs/database';
 import {actorFrom, hasTestDatabase, resetDatabase, seedBaseline, type Baseline} from '@tgs/testing';
-import {CollectionsController, QuotesController, RequestsController} from './quotes.js';
+import {CollectionsController, QuotesController, RequestsController, resolveItemPricing} from './quotes.js';
+
+describe('resolveItemPricing: costo cambia la venta, no el margen', () => {
+  it('sin precio de venta usa el markup y calcula la venta', () => {
+    expect(resolveItemPricing({costCents: '100000', markupBps: 3000})).toMatchObject({
+      markupBps: 3000,
+      salePriceCents: 130000n,
+    });
+    expect(resolveItemPricing({costCents: '200000', markupBps: 3000})).toMatchObject({
+      markupBps: 3000,
+      salePriceCents: 260000n,
+    });
+  });
+
+  it('con precio de venta (total objetivo / redondeo) deriva el markup', () => {
+    expect(resolveItemPricing({costCents: '100000', markupBps: 3000, salePriceCents: '110000'})).toMatchObject({
+      markupBps: 1000,
+      salePriceCents: 110000n,
+    });
+  });
+});
 
 const integration = hasTestDatabase() ? describe : describe.skip;
 
