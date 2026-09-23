@@ -1,7 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
+import {
+  quoteCollectionLabel,
+  quotesForCollection,
+  quotesMatchingQuery,
+  type CollectionQuoteRef,
+} from "../lib/collection-quotes";
 import type { Collection, Quote } from "../lib/types";
 import {
   Alert,
@@ -12,7 +18,9 @@ import {
   Modal,
   PageHeader,
   Pill,
+  SearchInput,
   errorMessage,
+  useKeyboardNav,
 } from "./shared";
 
 type Draft = {
@@ -38,15 +46,25 @@ const empty = (): Draft => ({
   familyIds: [],
 });
 
+function asQuoteRef(quote: Quote): CollectionQuoteRef {
+  return {
+    id: quote.id,
+    visibleNumber: quote.visibleNumber,
+    internalName: quote.internalName,
+    customerName: quote.customer?.name ?? null,
+  };
+}
+
 export function CollectionsView() {
   const [items, setItems] = useState<Collection[]>([]);
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotes, setQuotes] = useState<CollectionQuoteRef[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(empty());
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [quoteQuery, setQuoteQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +75,7 @@ export function CollectionsView() {
         api<Quote[]>("/quotes").catch(() => [] as Quote[]),
       ]);
       setItems([...collections].sort((a, b) => a.sortOrder - b.sortOrder));
-      setQuotes(quoteList);
+      setQuotes(quoteList.map(asQuoteRef));
     } catch (err) {
       setError(errorMessage(err));
       setItems([]);
@@ -70,8 +88,32 @@ export function CollectionsView() {
     void load();
   }, [load]);
 
+  const associatedQuotes = useMemo(
+    () => quotesForCollection(quotes, draft.familyIds),
+    [quotes, draft.familyIds],
+  );
+  const quoteMatches = useMemo(
+    () => quotesMatchingQuery(quotes, quoteQuery, new Set(draft.familyIds)),
+    [quotes, quoteQuery, draft.familyIds],
+  );
+  const {
+    activeIndex: quoteActive,
+    setActiveIndex: setQuoteActive,
+    onKeyDown: onQuoteKeyDown,
+  } = useKeyboardNav({
+    itemCount: quoteMatches.length,
+    enabled: modalOpen && quoteMatches.length > 0,
+    resetKey: quoteQuery,
+    onSelect: (index) => {
+      const quote = quoteMatches[index];
+      if (quote) addQuote(quote.id);
+    },
+    onEscape: () => setQuoteQuery(""),
+  });
+
   function openNew() {
     setDraft({ ...empty(), sortOrder: String(items.length) });
+    setQuoteQuery("");
     setModalOpen(true);
   }
 
@@ -85,9 +127,31 @@ export function CollectionsView() {
       archived: c.archived,
       favorite: c.favorite,
       visibleInExtension: c.visibleInExtension,
-      familyIds: c.familyIds ?? [],
+      familyIds: c.familyIds ?? c.quotes?.map((quote) => quote.id) ?? [],
     });
+    setQuoteQuery("");
+    if (c.quotes?.length) {
+      setQuotes((prev) => {
+        const byId = new Map(prev.map((quote) => [quote.id, quote]));
+        for (const quote of c.quotes ?? []) byId.set(quote.id, quote);
+        return [...byId.values()];
+      });
+    }
     setModalOpen(true);
+  }
+
+  function addQuote(id: string) {
+    setDraft((prev) =>
+      prev.familyIds.includes(id) ? prev : { ...prev, familyIds: [...prev.familyIds, id] },
+    );
+    setQuoteQuery("");
+  }
+
+  function removeQuote(id: string) {
+    setDraft((prev) => ({
+      ...prev,
+      familyIds: prev.familyIds.filter((familyId) => familyId !== id),
+    }));
   }
 
   async function save(e: FormEvent) {
@@ -132,15 +196,6 @@ export function CollectionsView() {
     }
   }
 
-  function toggleFamily(id: string) {
-    setDraft((prev) => ({
-      ...prev,
-      familyIds: prev.familyIds.includes(id)
-        ? prev.familyIds.filter((x) => x !== id)
-        : [...prev.familyIds, id],
-    }));
-  }
-
   return (
     <div>
       <PageHeader
@@ -170,40 +225,57 @@ export function CollectionsView() {
         </EmptyState>
       ) : (
         <div className="gallery">
-          {items.map((c) => (
-            <article
-              key={c.id}
-              className="gal-card"
-              style={c.archived ? { opacity: 0.6 } : undefined}
-              onClick={() => openEdit(c)}
-            >
-              <div className="gal-banner">
-                <span className="gal-ico">{c.icon || "◆"}</span>
-                {c.favorite ? <span aria-label="Favorita">★</span> : null}
-              </div>
-              <div className="gal-body">
-                <h3>{c.name}</h3>
-                {c.description ? <p className="cell-sub">{c.description}</p> : null}
-                <div className="gal-meta">
-                  <Pill tone="neutral">{(c.familyIds?.length ?? 0)} presupuestos</Pill>
-                  {c.visibleInExtension ? <Pill tone="info">Extensión</Pill> : null}
-                  {c.archived ? <Pill tone="bad">Archivada</Pill> : null}
+          {items.map((c) => {
+            const associated = c.quotes?.length
+              ? c.quotes
+              : quotesForCollection(quotes, c.familyIds ?? []);
+            const extra = associated.length > 6 ? associated.length - 6 : 0;
+            return (
+              <article
+                key={c.id}
+                className="gal-card"
+                style={c.archived ? { opacity: 0.6 } : undefined}
+              >
+                <div className="gal-banner">
+                  <span className="gal-ico">{c.icon || "◆"}</span>
+                  {c.favorite ? <span aria-label="Favorita">★</span> : null}
                 </div>
-                <div className="row-actions">
-                  <button
-                    type="button"
-                    className="btn-danger btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void remove(c.id);
-                    }}
-                  >
-                    Eliminar
-                  </button>
+                <div className="gal-body">
+                  <h3>{c.name}</h3>
+                  {c.description ? <p className="cell-sub">{c.description}</p> : null}
+                  <div className="gal-meta">
+                    <Pill tone="neutral">
+                      {associated.length} presupuesto{associated.length === 1 ? "" : "s"}
+                    </Pill>
+                    {c.visibleInExtension ? <Pill tone="info">Extensión</Pill> : null}
+                    {c.archived ? <Pill tone="bad">Archivada</Pill> : null}
+                  </div>
+                  {associated.length === 0 ? (
+                    <p className="muted">Sin presupuestos asociados</p>
+                  ) : (
+                    <ul className="gal-quotes">
+                      {associated.slice(0, 6).map((quote) => (
+                        <li key={quote.id}>{quoteCollectionLabel(quote)}</li>
+                      ))}
+                      {extra > 0 ? <li className="gal-quote-more">+{extra} más</li> : null}
+                    </ul>
+                  )}
+                  <div className="row-actions">
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(c)}>
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger btn-sm"
+                      onClick={() => void remove(c.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -278,22 +350,51 @@ export function CollectionsView() {
               onChange={(visibleInExtension) => setDraft({ ...draft, visibleInExtension })}
             />
           </div>
-          <Field label="Presupuestos asociados">
-            <div className="check-grid" style={{ maxHeight: 220, overflow: "auto" }}>
-              {quotes.length === 0 ? (
-                <p className="muted">No hay presupuestos para asociar.</p>
-              ) : (
-                quotes.map((q) => (
-                  <Checkbox
-                    key={q.id}
-                    label={`${q.visibleNumber} — ${q.internalName}`}
-                    checked={draft.familyIds.includes(q.id)}
-                    onChange={() => toggleFamily(q.id)}
-                  />
-                ))
-              )}
-            </div>
-          </Field>
+          <div className="combo-editor">
+            <p className="section-label">Presupuestos asociados</p>
+            <SearchInput
+              value={quoteQuery}
+              onChange={setQuoteQuery}
+              onKeyDown={onQuoteKeyDown}
+              placeholder="Buscar presupuesto para agregar… (número, nombre o cliente)"
+            />
+            {quoteMatches.length > 0 ? (
+              <div className="picker-results inline" role="listbox">
+                {quoteMatches.map((quote, idx) => (
+                  <button
+                    key={quote.id}
+                    id={`col-quote-opt-${idx}`}
+                    type="button"
+                    role="option"
+                    aria-selected={quoteActive === idx}
+                    className={`picker-option${quoteActive === idx ? " is-active" : ""}`}
+                    onMouseEnter={() => setQuoteActive(idx)}
+                    onClick={() => addQuote(quote.id)}
+                  >
+                    <span className="po-name">{quoteCollectionLabel(quote)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {associatedQuotes.length === 0 ? (
+              <p className="muted">Todavía no hay presupuestos en esta colección. Buscá uno para agregarlo.</p>
+            ) : (
+              <ul className="col-quote-list">
+                {associatedQuotes.map((quote) => (
+                  <li key={quote.id} className="col-quote-row">
+                    <span>{quoteCollectionLabel(quote)}</span>
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      onClick={() => removeQuote(quote.id)}
+                    >
+                      Quitar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </form>
       </Modal>
     </div>

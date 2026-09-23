@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.4",
+    date: "2026-09-23",
+    title: "Colecciones: solo los presupuestos asociados",
+    items: [
+      "Colecciones: cada tarjeta lista los presupuestos que tiene (no todos los del sistema). Al lado de Eliminar hay Editar; adentro se buscan para agregar y se ven solo los asociados, con Quitar",
+    ],
+  },
+  {
     version: "0.7.3",
     date: "2026-09-22",
     title: "Margen fijo al editar el costo",

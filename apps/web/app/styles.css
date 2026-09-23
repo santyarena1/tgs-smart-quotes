@@ -2289,7 +2289,7 @@ tr.editing {
   border-radius: var(--r);
   box-shadow: var(--sh-1);
   overflow: hidden;
-  cursor: pointer;
+  cursor: default;
   transition: transform 110ms ease, box-shadow 130ms ease;
   display: flex;
   flex-direction: column;
@@ -2329,6 +2329,52 @@ tr.editing {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
+}
+
+.gal-quotes {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gal-quotes li {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gal-quotes .gal-quote-more {
+  color: var(--muted);
+}
+
+.col-quote-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.col-quote-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--canvas-2);
+  font-size: 0.88rem;
+}
+
+.col-quote-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ————— misc ————— */

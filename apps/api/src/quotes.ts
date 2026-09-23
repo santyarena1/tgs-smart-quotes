@@ -1480,12 +1480,18 @@ export class CollectionsController{
   @Get()
   async list(){
     const rows=await db.collection.findMany({
-      include:{quotes:{include:{family:true},orderBy:{sortOrder:'asc'}}},
+      include:{quotes:{include:{family:{include:{customer:true}}},orderBy:{sortOrder:'asc'}}},
       orderBy:[{sortOrder:'asc'},{name:'asc'},{id:'asc'}],
     });
     return jsonSafe(rows.map((row:any)=>({
       ...row,
       familyIds:row.quotes.map((q:any)=>q.familyId),
+      quotes:row.quotes.map((q:any)=>({
+        id:q.familyId,
+        visibleNumber:q.family.visibleNumber,
+        internalName:q.family.internalName,
+        customerName:q.family.customer?.name??null,
+      })),
     })));
   }
 

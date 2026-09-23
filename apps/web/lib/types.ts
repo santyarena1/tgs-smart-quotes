@@ -376,6 +376,13 @@ export type Quote = {
   }>;
 };
 
+export type CollectionQuoteSummary = {
+  id: string;
+  visibleNumber: string;
+  internalName: string;
+  customerName?: string | null;
+};
+
 export type Collection = {
   id: string;
   name: string;
@@ -386,6 +393,7 @@ export type Collection = {
   favorite: boolean;
   visibleInExtension: boolean;
   familyIds?: string[];
+  quotes?: CollectionQuoteSummary[];
 };
 
 export type RequestState =

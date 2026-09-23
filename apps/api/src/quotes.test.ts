@@ -188,6 +188,17 @@ integration('Block 2 — presupuestos core (integración real)', () => {
 
     expect(await db.collectionQuote.count({where: {collectionId: collection.id}})).toBe(1);
 
+    const listed: any[] = await collections.list();
+    const row = listed.find((item) => item.id === collection.id);
+    expect(row.familyIds).toEqual([created.family.id]);
+    expect(row.quotes).toEqual([
+      expect.objectContaining({
+        id: created.family.id,
+        visibleNumber: created.family.visibleNumber,
+        internalName: created.family.internalName,
+      }),
+    ]);
+
     await collections.update(collection.id, {familyIds: [created.family.id]} as never, actor);
     expect(await db.collectionQuote.count({where: {collectionId: collection.id}})).toBe(1);
 
