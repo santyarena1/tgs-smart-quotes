@@ -3,12 +3,14 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import {
+  associatedQuotesOf,
+  normalizeCollectionQuote,
   quoteCollectionLabel,
-  quotesForCollection,
   quotesMatchingQuery,
   type CollectionQuoteRef,
 } from "../lib/collection-quotes";
 import type { Collection, Quote } from "../lib/types";
+import { QuotesView } from "./QuotesView";
 import {
   Alert,
   Checkbox,
@@ -47,12 +49,19 @@ const empty = (): Draft => ({
 });
 
 function asQuoteRef(quote: Quote): CollectionQuoteRef {
-  return {
-    id: quote.id,
-    visibleNumber: quote.visibleNumber,
-    internalName: quote.internalName,
-    customerName: quote.customer?.name ?? null,
-  };
+  return (
+    normalizeCollectionQuote({
+      id: quote.id,
+      visibleNumber: quote.visibleNumber,
+      internalName: quote.internalName,
+      customerName: quote.customer?.name ?? null,
+    }) ?? {
+      id: quote.id,
+      visibleNumber: quote.visibleNumber,
+      internalName: quote.internalName,
+      customerName: quote.customer?.name ?? null,
+    }
+  );
 }
 
 export function CollectionsView() {
@@ -65,6 +74,7 @@ export function CollectionsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [quoteQuery, setQuoteQuery] = useState("");
+  const [viewing, setViewing] = useState<Collection | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,8 +84,13 @@ export function CollectionsView() {
         api<Collection[]>("/collections"),
         api<Quote[]>("/quotes").catch(() => [] as Quote[]),
       ]);
-      setItems([...collections].sort((a, b) => a.sortOrder - b.sortOrder));
+      const sorted = [...collections].sort((a, b) => a.sortOrder - b.sortOrder);
+      setItems(sorted);
       setQuotes(quoteList.map(asQuoteRef));
+      setViewing((current) => {
+        if (!current) return null;
+        return sorted.find((row) => row.id === current.id) ?? current;
+      });
     } catch (err) {
       setError(errorMessage(err));
       setItems([]);
@@ -89,7 +104,7 @@ export function CollectionsView() {
   }, [load]);
 
   const associatedQuotes = useMemo(
-    () => quotesForCollection(quotes, draft.familyIds),
+    () => associatedQuotesOf({ familyIds: draft.familyIds }, quotes),
     [quotes, draft.familyIds],
   );
   const quoteMatches = useMemo(
@@ -117,6 +132,10 @@ export function CollectionsView() {
     setModalOpen(true);
   }
 
+  function openView(c: Collection) {
+    setViewing(c);
+  }
+
   function openEdit(c: Collection) {
     setDraft({
       id: c.id,
@@ -127,7 +146,9 @@ export function CollectionsView() {
       archived: c.archived,
       favorite: c.favorite,
       visibleInExtension: c.visibleInExtension,
-      familyIds: c.familyIds ?? c.quotes?.map((quote) => quote.id) ?? [],
+      familyIds:
+        c.familyIds ??
+        associatedQuotesOf(c, quotes).map((quote) => quote.id),
     });
     setQuoteQuery("");
     if (c.quotes?.length) {
@@ -190,34 +211,71 @@ export function CollectionsView() {
     if (!window.confirm("¿Eliminar esta colección?")) return;
     try {
       await api(`/collections/${id}`, { method: "DELETE" });
+      if (viewing?.id === id) setViewing(null);
       await load();
     } catch (err) {
       setError(errorMessage(err));
     }
   }
 
+  const viewingQuotes = viewing ? associatedQuotesOf(viewing, quotes) : [];
+  const viewingFamilyIds = viewingQuotes.map((quote) => quote.id);
+
   return (
     <div>
-      <PageHeader
-        eyebrow="Organización"
-        title="Colecciones"
-        subtitle="Agrupá presupuestos en catálogos reutilizables (ej: armados destacados) visibles en la extensión."
-        actions={
-          <>
-            <button type="button" className="btn-ghost" onClick={() => void load()}>
-              Recargar
-            </button>
-            <button type="button" onClick={openNew}>
-              + Nueva colección
-            </button>
-          </>
-        }
-      />
+      {viewing ? (
+        <PageHeader
+          eyebrow="Colección"
+          title={viewing.name}
+          subtitle={viewing.description || "Presupuestos de esta colección, con las mismas acciones que en Presupuestos."}
+          actions={
+            <>
+              <button type="button" className="btn-ghost" onClick={() => setViewing(null)}>
+                ← Colecciones
+              </button>
+              <button type="button" onClick={() => openEdit(viewing)}>
+                Editar colección
+              </button>
+              <button type="button" className="btn-danger" onClick={() => void remove(viewing.id)}>
+                Eliminar
+              </button>
+            </>
+          }
+        />
+      ) : (
+        <PageHeader
+          eyebrow="Organización"
+          title="Colecciones"
+          subtitle="Agrupá presupuestos en catálogos reutilizables (ej: armados destacados) visibles en la extensión."
+          actions={
+            <>
+              <button type="button" className="btn-ghost" onClick={() => void load()}>
+                Recargar
+              </button>
+              <button type="button" onClick={openNew}>
+                + Nueva colección
+              </button>
+            </>
+          }
+        />
+      )}
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="ok">{notice}</Alert> : null}
 
-      {loading ? (
+      {viewing ? (
+        <>
+          <div className="gal-meta" style={{ marginBottom: "0.85rem" }}>
+            <Pill tone="neutral">
+              {viewingQuotes.length} presupuesto{viewingQuotes.length === 1 ? "" : "s"}
+            </Pill>
+            {viewing.visibleInExtension ? <Pill tone="info">Extensión</Pill> : null}
+            {viewing.favorite ? <Pill tone="ok">Favorita</Pill> : null}
+            {viewing.archived ? <Pill tone="bad">Archivada</Pill> : null}
+          </div>
+          <QuotesView key={viewing.id} embedded onlyFamilyIds={viewingFamilyIds} />
+        </>
+      ) : loading ? (
         <Loading />
       ) : items.length === 0 ? (
         <EmptyState icon="◆" title="Sin colecciones">
@@ -226,9 +284,7 @@ export function CollectionsView() {
       ) : (
         <div className="gallery">
           {items.map((c) => {
-            const associated = c.quotes?.length
-              ? c.quotes
-              : quotesForCollection(quotes, c.familyIds ?? []);
+            const associated = associatedQuotesOf(c, quotes);
             const extra = associated.length > 6 ? associated.length - 6 : 0;
             return (
               <article
@@ -261,8 +317,8 @@ export function CollectionsView() {
                     </ul>
                   )}
                   <div className="row-actions">
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(c)}>
-                      Editar
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => openView(c)}>
+                      Ver
                     </button>
                     <button
                       type="button"

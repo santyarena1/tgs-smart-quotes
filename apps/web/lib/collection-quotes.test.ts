@@ -1,5 +1,7 @@
 import {describe, expect, it} from "vitest";
 import {
+  associatedQuotesOf,
+  normalizeCollectionQuote,
   quoteCollectionLabel,
   quotesForCollection,
   quotesMatchingQuery,
@@ -26,5 +28,45 @@ describe("presupuestos de una colección", () => {
   it("arma la etiqueta con número, nombre y cliente", () => {
     expect(quoteCollectionLabel(quotes[0]!)).toBe("TGS-20260923-0001 · PC gamer (Ana)");
     expect(quoteCollectionLabel(quotes[1]!)).toBe("TGS-20260923-0002 · Oficina");
+    expect(quoteCollectionLabel({id: "x", visibleNumber: "", internalName: ""})).toBe("— · Sin nombre");
+  });
+
+  it("lee la fila cruda de Prisma sin dejar undefined", () => {
+    const raw = {
+      collectionId: "col",
+      familyId: "a",
+      family: {
+        id: "a",
+        visibleNumber: "TGS-20260923-0001",
+        internalName: "PC gamer",
+        customer: {name: "Ana"},
+      },
+    };
+    expect(normalizeCollectionQuote(raw)).toEqual({
+      id: "a",
+      visibleNumber: "TGS-20260923-0001",
+      internalName: "PC gamer",
+      customerName: "Ana",
+    });
+    expect(quoteCollectionLabel(normalizeCollectionQuote(raw)!)).toBe(
+      "TGS-20260923-0001 · PC gamer (Ana)",
+    );
+  });
+
+  it("completa nombre y número desde el catálogo si la relación viene vacía", () => {
+    const associated = associatedQuotesOf(
+      {
+        familyIds: ["a", "b"],
+        quotes: [
+          {familyId: "a", family: {}},
+          {id: "b"},
+        ],
+      },
+      quotes,
+    );
+    expect(associated.map((q) => quoteCollectionLabel(q))).toEqual([
+      "TGS-20260923-0001 · PC gamer (Ana)",
+      "TGS-20260923-0002 · Oficina",
+    ]);
   });
 });

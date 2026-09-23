@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.5",
+    date: "2026-09-23",
+    title: "Ver una colección como lista de presupuestos",
+    items: [
+      "Colecciones: las tarjetas muestran el número y nombre reales (ya no 'undefined'). El botón es Ver: entra a la colección, ves sus presupuestos y podés editar, imprimir, crear uno similar y lo demás igual que en Presupuestos. Editar colección está en esa vista",
+    ],
+  },
+  {
     version: "0.7.4",
     date: "2026-09-23",
     title: "Colecciones: solo los presupuestos asociados",

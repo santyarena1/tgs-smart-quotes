@@ -320,9 +320,15 @@ function validateItems(items: ItemDraft[]): string | null {
 export function QuotesView({
   initialSelectedId = null,
   onInitialSelectedConsumed,
+  onlyFamilyIds,
+  embedded = false,
 }: {
   initialSelectedId?: string | null;
   onInitialSelectedConsumed?: () => void;
+  /** Si viene, la lista se limita a esos presupuestos (vista de una colección). */
+  onlyFamilyIds?: readonly string[];
+  /** Sin encabezado ni totales de la pantalla Presupuestos: va embebido en otra vista. */
+  embedded?: boolean;
 } = {}) {
   const { quoteSeed: seedFromRequest, consumeQuoteSeed: onSeedConsumed } = useSuite();
   const [list, setList] = useState<Quote[]>([]);
@@ -403,22 +409,31 @@ export function QuotesView({
   const [newProd, setNewProd] = useState({ name: "", costArs: "", markupPct: "30" });
   const [creatingProd, setCreatingProd] = useState(false);
 
+  const familyFilterKey = onlyFamilyIds?.join(",") ?? "";
+
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const familyIds = familyFilterKey ? familyFilterKey.split(",").filter(Boolean) : [];
       const [quotesPayload, custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
-        api<{ items: Quote[] } | Quote[]>("/quotes/search", {
-          query: {
-            q: filter.trim() || undefined,
-            state: stateFilter || undefined,
-            branchId: branchFilter || undefined,
-            page: 1,
-            pageSize: 100,
-            sort: "lastActivityAt",
-            order: "desc",
-          },
-        }),
+        embedded || familyFilterKey
+          ? familyIds.length
+            ? Promise.all(familyIds.map((id) => api<Quote>(`/quotes/${id}`).catch(() => null))).then(
+                (rows) => rows.filter((row): row is Quote => Boolean(row)),
+              )
+            : Promise.resolve([] as Quote[])
+          : api<{ items: Quote[] } | Quote[]>("/quotes/search", {
+              query: {
+                q: filter.trim() || undefined,
+                state: stateFilter || undefined,
+                branchId: branchFilter || undefined,
+                page: 1,
+                pageSize: 100,
+                sort: "lastActivityAt",
+                order: "desc",
+              },
+            }),
         api<Customer[]>("/customers").catch(() => [] as Customer[]),
         api<Product[]>("/products").catch(() => [] as Product[]),
         api<QuoteRequest[]>("/requests").catch(() => [] as QuoteRequest[]),
@@ -444,7 +459,7 @@ export function QuotesView({
     } finally {
       setLoading(false);
     }
-  }, [filter, stateFilter, branchFilter]);
+  }, [embedded, familyFilterKey, familyFilterKey || embedded ? "" : filter, familyFilterKey || embedded ? "" : stateFilter, familyFilterKey || embedded ? "" : branchFilter]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -1700,7 +1715,28 @@ export function QuotesView({
       return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
     };
 
-    return [...list].sort((left, right) => {
+    let rows = [...list];
+    if (familyFilterKey) {
+      const q = filter.trim().toLowerCase();
+      if (q) {
+        rows = rows.filter((quote) => {
+          const customerName = quote.customer?.name ?? "";
+          return (
+            quote.visibleNumber.toLowerCase().includes(q) ||
+            quote.internalName.toLowerCase().includes(q) ||
+            customerName.toLowerCase().includes(q)
+          );
+        });
+      }
+      if (stateFilter) {
+        rows = rows.filter((quote) => getActiveVersion(quote)?.state === stateFilter);
+      }
+      if (branchFilter) {
+        rows = rows.filter((quote) => quote.branch?.id === branchFilter);
+      }
+    }
+
+    return rows.sort((left, right) => {
       const leftVersion = getActiveVersion(left);
       const rightVersion = getActiveVersion(right);
       if (sort === "price-asc") {
@@ -1709,13 +1745,19 @@ export function QuotesView({
       if (sort === "price-desc") {
         return compareBigInt(rightVersion?.totalSaleCents, leftVersion?.totalSaleCents);
       }
+      if (familyFilterKey) {
+        const order = new Map(familyFilterKey.split(",").map((id, index) => [id, index]));
+        const leftOrder = order.get(left.id) ?? 0;
+        const rightOrder = order.get(right.id) ?? 0;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      }
       const leftCreatedAt = leftVersion?.createdAt ? new Date(leftVersion.createdAt).getTime() : 0;
       const rightCreatedAt = rightVersion?.createdAt ? new Date(rightVersion.createdAt).getTime() : 0;
       return sort === "created-asc"
         ? leftCreatedAt - rightCreatedAt
         : rightCreatedAt - leftCreatedAt;
     });
-  }, [list, sort]);
+  }, [list, sort, familyFilterKey, filter, stateFilter, branchFilter]);
 
   const stats = useMemo(() => {
     let sent = 0;
@@ -1814,6 +1856,8 @@ export function QuotesView({
 
   return (
     <div>
+      {embedded ? null : (
+        <>
       <PageHeader
         eyebrow="Operación"
         title="Presupuestos"
@@ -1840,6 +1884,8 @@ export function QuotesView({
           accent="var(--red)"
         />
       </StatStrip>
+        </>
+      )}
 
       {error && !drawerOpen ? <Alert>{error}</Alert> : null}
       {notice && !drawerOpen ? <Alert tone="ok">{notice}</Alert> : null}
@@ -1890,7 +1936,11 @@ export function QuotesView({
         <Loading />
       ) : filtered.length === 0 ? (
         <EmptyState icon="▤" title="Sin presupuestos">
-          {filter ? "No hay coincidencias." : "Creá tu primer presupuesto para empezar."}
+          {filter
+            ? "No hay coincidencias."
+            : embedded
+              ? "Esta colección no tiene presupuestos. Editá la colección para asociar uno."
+              : "Creá tu primer presupuesto para empezar."}
         </EmptyState>
       ) : (
         <>
