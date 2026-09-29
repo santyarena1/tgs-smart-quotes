@@ -6,18 +6,47 @@ import {CurrentUser, jsonSafe, Roles, type RequestUser, ZodPipe} from './infrast
 /**
  * Gastos mensuales recurrentes.
  *
- * Un gasto es solo el concepto ("Alquiler", "Internet"): no tiene monto propio
- * ni se ajusta por IPC ni por nada. Cada mes se carga aparte lo que realmente
- * se pagó, y el módulo suma el total del período.
+ * Un gasto es el concepto ("Alquiler", "Internet"). Cada mes se carga lo que
+ * se pagó. Se puede cargar el mes actual y el inmediato siguiente (por ejemplo
+ * el 29, registrar un pago de octubre).
  *
  * Es solo para ADMIN, igual que Empleados, y además la pantalla pide una clave
  * antes de mostrarse (ver `unlock`).
  */
 
-/** Período actual en formato YYYYMM. */
-function periodoActual(): string {
-  const hoy = new Date();
-  return `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+const TZ = 'America/Argentina/Buenos_Aires';
+
+/** Período actual en formato YYYYMM (zona Argentina). */
+function periodoActual(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: TZ, year: 'numeric', month: '2-digit'}).formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '0000';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '01';
+  return `${year}${month}`;
+}
+
+function moverPeriodo(period: string, meses: number): string {
+  const year = Number(period.slice(0, 4));
+  let month = Number(period.slice(4, 6)) + meses;
+  let nextYear = year;
+  while (month > 12) {
+    month -= 12;
+    nextYear += 1;
+  }
+  while (month < 1) {
+    month += 12;
+    nextYear -= 1;
+  }
+  return `${nextYear}${String(month).padStart(2, '0')}`;
+}
+
+function periodoMaximo(date = new Date()): string {
+  return moverPeriodo(periodoActual(date), 1);
+}
+
+function asegurarPeriodoCargable(period: string) {
+  if (period > periodoMaximo()) {
+    throw new BadRequestException('Solo se puede cargar hasta el mes siguiente.');
+  }
 }
 
 const auditar = (tx: any, userId: string, entityId: string, action: string, previous: unknown, next: unknown, entityType = 'RecurringExpense') =>
@@ -79,10 +108,25 @@ export class ExpensesController {
   }
 
   @Post() async create(@Body(new ZodPipe(expenseCreateSchema)) body: ExpenseCreateInput, @CurrentUser() u: RequestUser) {
+    const period = body.period ?? periodoActual();
+    if (body.amountCents) asegurarPeriodoCargable(period);
     const ultimo = await db.recurringExpense.findFirst({orderBy: {position: 'desc'}, select: {position: true}});
     return jsonSafe(await db.$transaction(async (tx) => {
       const gasto = await tx.recurringExpense.create({data: {name: body.name, note: body.note ?? null, position: (ultimo?.position ?? 0) + 1, createdById: u.id}});
       await auditar(tx, u.id, gasto.id, 'CREATE', null, gasto);
+      if (body.amountCents) {
+        const paid = body.paid === true;
+        const pago = await tx.recurringExpensePayment.create({
+          data: {
+            expenseId: gasto.id,
+            period,
+            amountCents: BigInt(body.amountCents),
+            paid,
+            paidAt: paid ? new Date() : null,
+          },
+        });
+        await auditar(tx, u.id, pago.id, 'CREATE', null, pago, 'RecurringExpensePayment');
+      }
       return gasto;
     }));
   }
@@ -117,6 +161,7 @@ export class ExpensesController {
     @CurrentUser() u: RequestUser,
   ) {
     await requerirGasto(id);
+    asegurarPeriodoCargable(period);
     const anterior = await db.recurringExpensePayment.findUnique({where: {expenseId_period: {expenseId: id, period}}});
 
     // Sin importe se borra el registro: el mes queda "sin cargar" en vez de
@@ -133,11 +178,13 @@ export class ExpensesController {
 
     const amountCents = BigInt(body.amountCents);
     if (amountCents < 0n) throw new BadRequestException('El importe no puede ser negativo');
+    const paid = body.paid ?? anterior?.paid ?? false;
+    const paidAt = body.paid === true ? new Date() : body.paid === false ? null : anterior?.paidAt ?? null;
     const pago = await db.$transaction(async (tx) => {
       const guardado = await tx.recurringExpensePayment.upsert({
         where: {expenseId_period: {expenseId: id, period}},
-        create: {expenseId: id, period, amountCents, note: body.note ?? null},
-        update: {amountCents, note: body.note ?? null},
+        create: {expenseId: id, period, amountCents, note: body.note ?? null, paid, paidAt},
+        update: {amountCents, note: body.note ?? null, paid, paidAt},
       });
       await auditar(tx, u.id, guardado.id, anterior ? 'UPDATE' : 'CREATE', anterior, guardado, 'RecurringExpensePayment');
       return guardado;
@@ -159,6 +206,7 @@ export class ExpensesController {
     @CurrentUser() u: RequestUser,
   ) {
     await requerirGasto(id);
+    asegurarPeriodoCargable(period);
     const anterior = await db.recurringExpensePayment.findUnique({where: {expenseId_period: {expenseId: id, period}}});
     if (!anterior) {
       throw new BadRequestException('Primero guardá el importe de este mes y después confirmá el pago.');

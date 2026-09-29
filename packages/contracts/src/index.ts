@@ -1186,12 +1186,19 @@ export const navPreferencesSchema = z
 export type NavPreferences = z.infer<typeof navPreferencesSchema>;
 
 // --- Gastos mensuales recurrentes -------------------------------------------
-// El gasto es solo el concepto (no tiene monto propio); lo pagado se carga por
-// mes. Los importes viajan como centavos en string, igual que en el resto.
+// El gasto es el concepto (no tiene monto propio); el importe y si está pago
+// se pueden cargar en el alta o después, mes a mes. Los importes viajan como
+// centavos en string, igual que en el resto.
 export const expenseCreateSchema = z.object({
   name: z.string().trim().min(1).max(150),
   note: z.string().trim().max(500).nullable().optional(),
-}).strict();
+  /// Si viene, se carga el importe del período en el mismo alta (centavos).
+  amountCents: moneyCentsSchema.optional(),
+  paid: z.boolean().optional().default(false),
+  period: z.string().regex(/^\d{6}$/, 'El período debe tener formato YYYYMM').optional(),
+}).strict().refine((v) => !v.paid || !!v.amountCents, {
+  message: 'Para marcarlo como pagado, cargá el importe',
+});
 export const expenseUpdateSchema = z.object({
   name: z.string().trim().min(1).max(150).optional(),
   note: z.string().trim().max(500).nullable().optional(),
@@ -1202,6 +1209,7 @@ export const expensePaymentSchema = z.object({
   /// mismo que "pagué $0").
   amountCents: moneyCentsSchema.nullable(),
   note: z.string().trim().max(500).nullable().optional(),
+  paid: z.boolean().optional(),
 }).strict();
 export const expensesQuerySchema = z.object({
   period: z.string().regex(/^\d{6}$/, 'El período debe tener formato YYYYMM').optional(),

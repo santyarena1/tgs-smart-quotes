@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { centsToInput, formatArs, parseArsToCents } from "../lib/money";
 import {
   Alert,
+  Checkbox,
   EmptyState,
   Field,
   Loading,
@@ -15,13 +16,20 @@ import {
   StatStrip,
   errorMessage,
 } from "./shared";
+import {
+  canAdvanceExpensePeriod,
+  currentExpensePeriod,
+  expensePeriodLabel,
+  shiftExpensePeriod,
+} from "../lib/expense-period";
 
 /**
  * Gastos mensuales recurrentes.
  *
  * El gasto es solo el concepto ("Alquiler", "Internet"): no tiene monto fijo ni
- * se ajusta por IPC. Cada mes se completa lo que realmente se pagó y el módulo
- * suma el total del período.
+ * se ajusta por IPC. Al darlo de alta se puede cargar el importe y si ya está
+ * pago. Cada mes se completa lo que realmente se pagó (también el mes siguiente)
+ * y el módulo suma el total del período.
  *
  * Igual que Empleados, es solo para administradores, y además pide una clave
  * antes de mostrar nada.
@@ -51,27 +59,16 @@ type Respuesta = {
   sinCargar: number;
 };
 
-const MESES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
 function periodoActual(): string {
-  const hoy = new Date();
-  return `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+  return currentExpensePeriod();
 }
 
 function nombrePeriodo(period: string): string {
-  const anio = period.slice(0, 4);
-  const mes = Number(period.slice(4, 6));
-  return `${MESES[mes - 1] ?? ""} ${anio}`;
+  return expensePeriodLabel(period);
 }
 
 function moverPeriodo(period: string, meses: number): string {
-  const anio = Number(period.slice(0, 4));
-  const mes = Number(period.slice(4, 6)) - 1 + meses;
-  const fecha = new Date(anio, mes, 1);
-  return `${fecha.getFullYear()}${String(fecha.getMonth() + 1).padStart(2, "0")}`;
+  return shiftExpensePeriod(period, meses);
 }
 
 export function GastosView() {
@@ -91,10 +88,14 @@ export function GastosView() {
   const [guardando, setGuardando] = useState<string | null>(null);
   const [marcando, setMarcando] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState("");
+  const [nuevoMonto, setNuevoMonto] = useState("");
+  const [nuevoPagado, setNuevoPagado] = useState(false);
+  const [nuevoEnMesSiguiente, setNuevoEnMesSiguiente] = useState(false);
   const [creando, setCreando] = useState(false);
   /** Gasto cuyo nombre se está editando, y el texto en curso. */
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombres, setNombres] = useState<Record<string, string>>({});
+  const [pagados, setPagados] = useState<Record<string, boolean>>({});
   const [verArchivados, setVerArchivados] = useState(false);
 
   const entrar = async (e: React.FormEvent) => {
@@ -123,6 +124,7 @@ export function GastosView() {
       setMontos(
         Object.fromEntries(res.items.map((g) => [g.id, g.amountCents === null ? "" : centsToInput(g.amountCents)])),
       );
+      setPagados(Object.fromEntries(res.items.map((g) => [g.id, g.paid])));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -142,7 +144,10 @@ export function GastosView() {
     try {
       // Vacío borra el registro: el mes vuelve a quedar "sin cargar".
       const amountCents = texto ? parseArsToCents(texto) : null;
-      await api(`/expenses/${gasto.id}/payments/${period}`, { method: "PUT", body: { amountCents } });
+      await api(`/expenses/${gasto.id}/payments/${period}`, {
+        method: "PUT",
+        body: { amountCents, paid: amountCents ? (pagados[gasto.id] ?? gasto.paid) : false },
+      });
       await cargar();
       setAviso(texto ? `${gasto.name}: guardado.` : `${gasto.name}: se borró lo cargado de este mes.`);
     } catch (err) {
@@ -166,6 +171,7 @@ export function GastosView() {
       setAviso(pagado ? `${gasto.name}: confirmado como pagado.` : `${gasto.name}: vuelve a quedar pendiente de pago.`);
     } catch (err) {
       setError(errorMessage(err));
+      await cargar();
     } finally {
       setMarcando(null);
     }
@@ -174,13 +180,35 @@ export function GastosView() {
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevo.trim()) return;
+    const texto = nuevoMonto.trim();
+    if (nuevoPagado && !texto) {
+      setError("Para marcarlo como pagado, cargá el importe.");
+      return;
+    }
+    const hoy = periodoActual();
+    const periodDestino = nuevoEnMesSiguiente && period === hoy ? moverPeriodo(hoy, 1) : period;
     setCreando(true);
     setError(null);
     try {
-      await api("/expenses", { method: "POST", body: { name: nuevo.trim() } });
+      const body: Record<string, unknown> = { name: nuevo.trim(), period: periodDestino };
+      if (texto) {
+        body.amountCents = parseArsToCents(texto);
+        body.paid = nuevoPagado;
+      }
+      await api("/expenses", { method: "POST", body });
       setNuevo("");
-      await cargar();
-      setAviso("Gasto agregado. Aparece todos los meses hasta que lo archives.");
+      setNuevoMonto("");
+      setNuevoPagado(false);
+      setNuevoEnMesSiguiente(false);
+      if (periodDestino !== period) setPeriod(periodDestino);
+      else await cargar();
+      setAviso(
+        texto
+          ? nuevoPagado
+            ? `Gasto agregado y marcado como pagado en ${nombrePeriodo(periodDestino)}.`
+            : `Gasto agregado con el importe de ${nombrePeriodo(periodDestino)}.`
+          : "Gasto agregado. Aparece todos los meses hasta que lo archives.",
+      );
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -243,8 +271,30 @@ export function GastosView() {
     }
   };
 
-  const esMesActual = period === periodoActual();
+  const hoy = periodoActual();
+  const mesSiguiente = moverPeriodo(hoy, 1);
+  const esMesActual = period === hoy;
+  const esMesAdelantado = period > hoy;
+  const puedeAvanzar = canAdvanceExpensePeriod(period);
   const total = useMemo(() => datos?.totalCents ?? "0", [datos]);
+
+  const cambiarMontoNuevo = (valor: string) => {
+    setNuevoMonto(valor);
+    if (!valor.trim()) {
+      setNuevoPagado(false);
+      setNuevoEnMesSiguiente(false);
+    }
+  };
+
+  const cambiarPagadoFila = (gasto: Gasto, pagado: boolean) => {
+    const texto = (montos[gasto.id] ?? "").trim();
+    if (pagado && !texto) return;
+    setPagados((prev) => ({ ...prev, [gasto.id]: pagado }));
+    const amountEditado = texto !== (gasto.amountCents === null ? "" : centsToInput(gasto.amountCents));
+    if (!amountEditado && gasto.amountCents !== null) {
+      void marcarPago(gasto, pagado);
+    }
+  };
 
   if (!desbloqueado) {
     return (
@@ -279,7 +329,7 @@ export function GastosView() {
       <PageHeader
         eyebrow="Administración"
         title="Gastos mensuales"
-        subtitle="Cargá mes a mes lo que pagaste de cada gasto fijo."
+        subtitle="Alta con monto y tilde de pagado. También se puede cargar el mes siguiente."
       />
 
       {/* Selector de mes: el gasto es el mismo todos los meses, lo que cambia
@@ -296,22 +346,40 @@ export function GastosView() {
             <button
               type="button"
               className="btn-ghost btn-sm"
-              disabled={esMesActual}
+              disabled={!puedeAvanzar}
+              title={puedeAvanzar ? `Cargar pagos de ${nombrePeriodo(moverPeriodo(period, 1))}` : "Solo se puede cargar hasta el mes siguiente"}
               onClick={() => setPeriod(moverPeriodo(period, 1))}
             >
               Mes siguiente →
             </button>
             {!esMesActual ? (
-              <button type="button" className="btn-ghost btn-sm" onClick={() => setPeriod(periodoActual())}>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => setPeriod(hoy)}>
                 Ir al mes actual
               </button>
             ) : null}
+            {esMesAdelantado ? <Pill tone="ok">Mes siguiente</Pill> : null}
           </div>
           <label className="check" style={{ margin: 0 }}>
             <input type="checkbox" checked={verArchivados} onChange={(e) => setVerArchivados(e.target.checked)} />
             <span>Ver archivados</span>
           </label>
         </div>
+
+        {esMesActual && puedeAvanzar ? (
+          <Alert tone="info">
+            <span style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              Podés registrar un pago de {nombrePeriodo(mesSiguiente)} aunque todavía no sea el día 1.
+              <button type="button" className="btn-dark btn-sm" onClick={() => setPeriod(mesSiguiente)}>
+                Ir a {nombrePeriodo(mesSiguiente)}
+              </button>
+            </span>
+          </Alert>
+        ) : null}
+        {esMesAdelantado ? (
+          <Alert tone="ok">
+            Estás cargando {nombrePeriodo(period)}: los importes y tildes quedan en ese mes, no en {nombrePeriodo(hoy)}.
+          </Alert>
+        ) : null}
 
         {datos ? (
           <StatStrip>
@@ -338,7 +406,11 @@ export function GastosView() {
         ) : (
           <div style={{ display: "grid", gap: 8 }}>
             {datos.items.map((gasto) => {
-              const editado = (montos[gasto.id] ?? "") !== (gasto.amountCents === null ? "" : centsToInput(gasto.amountCents));
+              const textoMonto = montos[gasto.id] ?? "";
+              const pagadoLocal = pagados[gasto.id] ?? gasto.paid;
+              const editado =
+                textoMonto !== (gasto.amountCents === null ? "" : centsToInput(gasto.amountCents)) ||
+                pagadoLocal !== gasto.paid;
               return (
                 <div
                   key={gasto.id}
@@ -375,7 +447,7 @@ export function GastosView() {
                           ? "Sin cargar este mes"
                           : gasto.paid
                             ? `Pagado: ${formatArs(gasto.amountCents)}`
-                            : `Cargado: ${formatArs(gasto.amountCents)} — falta confirmar el pago`}
+                            : `Cargado: ${formatArs(gasto.amountCents)} — pendiente`}
                     </span>
                   </div>
 
@@ -392,39 +464,27 @@ export function GastosView() {
                     <MoneyInput
                       aria-label={`Importe pagado de ${gasto.name}`}
                       value={montos[gasto.id] ?? ""}
-                      onChange={(v) => setMontos((prev) => ({ ...prev, [gasto.id]: v }))}
+                      onChange={(v) => {
+                        setMontos((prev) => ({ ...prev, [gasto.id]: v }));
+                        if (!v.trim()) setPagados((prev) => ({ ...prev, [gasto.id]: false }));
+                      }}
                       placeholder="0"
                       style={{ width: 150 }}
+                    />
+                    <Checkbox
+                      label="Pagado"
+                      checked={pagadoLocal}
+                      disabled={marcando === gasto.id || !textoMonto.trim()}
+                      onChange={(pagado) => cambiarPagadoFila(gasto, pagado)}
                     />
                     <button
                       type="button"
                       className="btn-ghost btn-sm"
                       disabled={guardando === gasto.id || !editado}
-                      title="Guarda el importe del mes, sin darlo por pagado"
+                      title="Guarda el importe y si está pago"
                       onClick={() => void guardarMonto(gasto)}
                     >
-                      {guardando === gasto.id ? "Guardando…" : "Guardar importe"}
-                    </button>
-                    {/* Confirmar el pago es una acción aparte: se puede tener el
-                        importe cargado y todavía no haberlo pagado. */}
-                    <button
-                      type="button"
-                      className={gasto.paid ? "btn-ghost btn-sm" : "btn-dark btn-sm"}
-                      disabled={marcando === gasto.id || gasto.amountCents === null || editado}
-                      title={
-                        gasto.amountCents === null
-                          ? "Primero guardá el importe de este mes"
-                          : editado
-                            ? "Guardá el importe antes de confirmar el pago"
-                            : undefined
-                      }
-                      onClick={() => void marcarPago(gasto, !gasto.paid)}
-                    >
-                      {marcando === gasto.id
-                        ? "Guardando…"
-                        : gasto.paid
-                          ? "Marcar como no pagado"
-                          : "Confirmar pago"}
+                      {guardando === gasto.id ? "Guardando…" : "Guardar"}
                     </button>
                     <button
                       type="button"
@@ -449,19 +509,42 @@ export function GastosView() {
           </div>
         )}
 
-        <form onSubmit={crear} style={{ display: "flex", gap: 8, flexWrap: "wrap", borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+        <form onSubmit={crear} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: 14 }}>
           <input
             value={nuevo}
             onChange={(e) => setNuevo(e.target.value)}
             placeholder="Nombre del gasto (ej. Alquiler)"
-            style={{ flex: "1 1 240px" }}
+            style={{ flex: "1 1 180px" }}
           />
+          <MoneyInput
+            aria-label="Monto del gasto"
+            value={nuevoMonto}
+            onChange={cambiarMontoNuevo}
+            placeholder="Monto"
+            style={{ width: 150 }}
+          />
+          <Checkbox
+            label="Ya está pago"
+            checked={nuevoPagado}
+            disabled={!nuevoMonto.trim()}
+            onChange={setNuevoPagado}
+          />
+          {esMesActual && puedeAvanzar ? (
+            <Checkbox
+              label={`Pago de ${nombrePeriodo(mesSiguiente)}`}
+              checked={nuevoEnMesSiguiente}
+              disabled={!nuevoMonto.trim()}
+              onChange={setNuevoEnMesSiguiente}
+            />
+          ) : null}
           <button type="submit" className="btn-dark btn-sm" disabled={creando || !nuevo.trim()}>
             {creando ? "Agregando…" : "Agregar gasto"}
           </button>
         </form>
         <span className="muted" style={{ fontSize: 12.5 }}>
-          El gasto queda para todos los meses. Lo que cambia mes a mes es el importe que cargás acá.
+          {esMesAdelantado
+            ? `El alta con monto queda cargada en ${nombrePeriodo(period)}.`
+            : "El gasto queda para todos los meses. En el alta ya podés poner el monto y si está pago."}
         </span>
       </section>
     </div>

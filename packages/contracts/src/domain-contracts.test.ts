@@ -13,6 +13,8 @@ import {
   requestCreateSchema,
   calculatorConfigInputSchema,
   navItemIdSchema,
+  expenseCreateSchema,
+  expensePaymentSchema,
 } from "./index.js";
 
 describe("contratos del dominio", () => {
@@ -134,5 +136,19 @@ describe("contratos del dominio", () => {
         ],
       }).groups,
     ).toHaveLength(1);
+  });
+
+  it("en el alta de un gasto acepta monto, pagado y período del mes siguiente", () => {
+    expect(expenseCreateSchema.parse({ name: "Alquiler" }).paid).toBe(false);
+    expect(
+      expenseCreateSchema.parse({
+        name: "Alquiler",
+        amountCents: "35000000",
+        paid: true,
+        period: "202610",
+      }),
+    ).toMatchObject({ amountCents: "35000000", paid: true, period: "202610" });
+    expect(() => expenseCreateSchema.parse({ name: "Alquiler", paid: true })).toThrow();
+    expect(expensePaymentSchema.parse({ amountCents: "100", paid: true }).paid).toBe(true);
   });
 });

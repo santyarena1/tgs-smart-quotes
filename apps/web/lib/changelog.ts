@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.6",
+    date: "2026-09-29",
+    title: "Gastos: monto, pagado y mes siguiente en un paso",
+    items: [
+      "Gastos mensuales: al agregar un gasto ya se puede cargar el monto y marcar si está pago, sin pasos extra. En cada fila el tilde Pagado confirma o da de baja el pago",
+      "Se puede registrar un pago del mes siguiente (por ejemplo el 29, como si ya fuera el día 1): botón Mes siguiente, aviso en el mes actual, y tilde en el alta",
+    ],
+  },
+  {
     version: "0.7.5",
     date: "2026-09-23",
     title: "Ver una colección como lista de presupuestos",
