@@ -105,10 +105,34 @@ export type PdfLayoutStyle = {
   fontWeight?: number;
   /** Oculta el bloque (display:none) y deja que el resto del documento reacomode hacia arriba. */
   hidden?: boolean;
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
+  italic?: boolean;
+  uppercase?: boolean;
+  lineHeight?: number;
+  background?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  padding?: number;
+};
+/** Estilo global del documento (ambas plantillas). Todo opcional: vacío conserva el diseño original. */
+export type PdfLayoutDocument = {
+  accentColor?: string;
+  textColor?: string;
+  fontFamily?: string;
+  tableHeaderBg?: string;
+  tableHeaderColor?: string;
+  tableBorderColor?: string;
+  tableZebra?: boolean;
+  tableDensity?: 'compact' | 'normal' | 'comfortable';
+  cardRadius?: number;
+  cardBackground?: string;
+  cardBorderColor?: string;
 };
 export type PdfLayoutConfig = {
   version: 1;
   blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
+  document?: PdfLayoutDocument;
 };
 
 export type PdfTemplate = 'CLASICO' | 'MODERNO';
@@ -213,7 +237,9 @@ function renderRmaText(template: string, rmaUrl: string): string {
 }
 
 function hasLayoutOverrides(layout?: PdfLayoutConfig): boolean {
-  return Boolean(layout && Object.keys(layout.blocks).length > 0);
+  return Boolean(
+    layout && (Object.keys(layout.blocks).length > 0 || Object.keys(layout.document ?? {}).length > 0),
+  );
 }
 
 function cssValue(value: string): string {
@@ -263,7 +289,57 @@ function blockCss(key: PdfLayoutBlockKey, style: PdfLayoutStyle): string {
   if (style.color !== undefined) declarations.push(`color:${cssValue(style.color)}!important`);
   if (style.fontFamily !== undefined) declarations.push(`font-family:"${cssValue(style.fontFamily)}",sans-serif!important`);
   if (style.fontWeight !== undefined) declarations.push(`font-weight:${style.fontWeight}!important`);
+  if (style.textAlign !== undefined) declarations.push(`text-align:${style.textAlign}!important`);
+  if (style.italic !== undefined) declarations.push(`font-style:${style.italic ? 'italic' : 'normal'}!important`);
+  if (style.uppercase !== undefined) declarations.push(`text-transform:${style.uppercase ? 'uppercase' : 'none'}!important`);
+  if (style.lineHeight !== undefined) declarations.push(`line-height:${style.lineHeight}!important`);
+  if (style.background !== undefined) declarations.push(`background:${cssValue(style.background)}!important`);
+  if (style.borderColor !== undefined || style.borderWidth !== undefined) {
+    const width = style.borderWidth ?? 1;
+    declarations.push(
+      width > 0
+        ? `border:${width}px solid ${cssValue(style.borderColor ?? '#cccccc')}!important`
+        : 'border:none!important',
+    );
+  }
+  if (style.borderRadius !== undefined) declarations.push(`border-radius:${style.borderRadius}px!important`);
+  if (style.padding !== undefined) declarations.push(`padding:${style.padding}px!important`);
   return declarations.length ? `[data-pdf-block="${key}"]{${declarations.join(';')}}` : '';
+}
+
+/** CSS del estilo global del documento. Selecciona por clases de ambas plantillas; las que no
+ *  existan en una plantilla simplemente no aplican. Los colores ya vienen validados (#RRGGBB). */
+function documentCss(doc: PdfLayoutDocument | undefined): string {
+  if (!doc) return '';
+  const rules: string[] = [];
+  if (doc.fontFamily) rules.push(`body{font-family:"${cssValue(doc.fontFamily)}",sans-serif!important}`);
+  if (doc.textColor) rules.push(`body{color:${cssValue(doc.textColor)}!important}`);
+  if (doc.accentColor) {
+    const accent = cssValue(doc.accentColor);
+    rules.push(
+      `.title-block h1,.brand .logo-text,.brand .names .cname,.card h2,.totals .list .val,.box a,.box b.url{color:${accent}!important}`,
+      `.rule,.services{background:${accent}!important}`,
+      `.box-red{border-left-color:${accent}!important}`,
+    );
+  }
+  if (doc.tableHeaderBg) {
+    const bg = cssValue(doc.tableHeaderBg);
+    rules.push(`table.items thead th{background:${bg}!important;border-color:${bg}!important}`);
+  }
+  if (doc.tableHeaderColor) rules.push(`table.items thead th{color:${cssValue(doc.tableHeaderColor)}!important}`);
+  if (doc.tableBorderColor) {
+    const border = cssValue(doc.tableBorderColor);
+    rules.push(`table.items{border-color:${border}!important}`, `table.items td{border-bottom-color:${border}!important}`);
+  }
+  if (doc.tableZebra) rules.push('table.items tbody tr:nth-child(even) td{background:#f5f5f5!important}');
+  if (doc.tableDensity === 'compact') rules.push('table.items td{padding-top:3px!important;padding-bottom:3px!important}');
+  if (doc.tableDensity === 'comfortable') rules.push('table.items td{padding-top:9px!important;padding-bottom:9px!important}');
+  if (doc.cardRadius !== undefined) {
+    rules.push(`.card,.box,.services,.price-block{border-radius:${doc.cardRadius}px!important}`);
+  }
+  if (doc.cardBackground) rules.push(`.card,.box{background:${cssValue(doc.cardBackground)}!important}`);
+  if (doc.cardBorderColor) rules.push(`.card{border-color:${cssValue(doc.cardBorderColor)}!important}`);
+  return rules.join('');
 }
 
 /** CSS de overrides de layout por bloque (posición/tamaño/fuente/color) + anchos de columna.
@@ -286,7 +362,7 @@ function layoutBlocksCss(layout: PdfLayoutConfig): string {
         : `table.items .${className}{width:${width}px!important;max-width:${width}px!important}`;
     })
     .join('');
-  return `${styles}${columnCss}`;
+  return `${documentCss(layout.document)}${styles}${columnCss}`;
 }
 
 function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {

@@ -143,6 +143,39 @@ describe('@tgs/pdf', () => {
     expect(pdfInputHash(emptyLayout)).toBe(pdfInputHash(legacy));
   });
 
+  it('un layout con estilo de documento cambia el HTML y el hash, en ambas plantillas', () => {
+    const document = {accentColor: '#0055aa', tableHeaderBg: '#0055aa', tableZebra: true, cardRadius: 12};
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const plain = {...sample(), template};
+      const styled = {...plain, layout: {version: 1 as const, blocks: {}, document}};
+      const html = renderQuoteHtml(styled);
+      expect(html).toContain('#0055aa');
+      expect(html).toContain('nth-child(even)');
+      expect(html).toContain('border-radius:12px!important');
+      expect(pdfInputHash(styled)).not.toBe(pdfInputHash(plain));
+    }
+  });
+
+  it('aplica alineación, cursiva, mayúsculas, fondo y borde por bloque', () => {
+    const html = renderQuoteHtml({
+      ...sample(),
+      layout: {
+        version: 1,
+        blocks: {
+          footerText: {
+            textAlign: 'right', italic: true, uppercase: true, lineHeight: 1.6,
+            background: '#eeeeee', borderColor: '#111111', borderWidth: 2, borderRadius: 6, padding: 8,
+          },
+        },
+      },
+    });
+    for (const css of [
+      'text-align:right!important', 'font-style:italic!important', 'text-transform:uppercase!important',
+      'line-height:1.6!important', 'background:#eeeeee!important', 'border:2px solid #111111!important',
+      'border-radius:6px!important', 'padding:8px!important',
+    ]) expect(html).toContain(css);
+  });
+
   it('el preview del editor reproduce el content box A4 y expone hit-targets', () => {
     const html = renderPdfHtml(sample(), true);
     expect(html).toContain('data-pdf-editor-preview');
