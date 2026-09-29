@@ -42,6 +42,38 @@ const NAV_GROUPS: SidebarNavGroup[] = [
   ] },
 ];
 
+type BranchInfo = { id: string; name: string; address?: string | null };
+
+/** Etiqueta del local con la que se identifica al usuario en la barra lateral. */
+function branchLabel(branch: BranchInfo): string {
+  const name = branch.name.toLowerCase();
+  if (name.includes("naon")) return "The Gamer Shop Naon - Carhue 1409";
+  if (name.includes("lisandro") || name.includes("torre")) return "The Gamer Shop - Av. Lis de la Torre 373";
+  return branch.address ? `${branch.name} - ${branch.address}` : branch.name;
+}
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  }, []);
+  function toggle() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try {
+      window.localStorage.setItem("tgs.theme", next);
+    } catch {
+      /* sin storage: el tema dura hasta recargar */
+    }
+    setTheme(next);
+  }
+  return (
+    <button type="button" className="btn-ghost btn-sm" aria-pressed={theme === "dark"} onClick={toggle}>
+      {theme === "dark" ? "☀ Modo claro" : "☾ Modo oscuro"}
+    </button>
+  );
+}
+
 function ChangelogEntryView({ entry }: { entry: ChangelogEntry }) {
   return <article className="side-changelog-entry">
     <header><strong>v{entry.version}</strong><time dateTime={entry.date}>{entry.date}</time></header>
@@ -57,6 +89,7 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
   const active = pathname.split("/").filter(Boolean)[0] as NavId | undefined;
   const [menuOpen, setMenuOpen] = useState(false);
   const [branding, setBranding] = useState<Branding | null>(null);
+  const [branch, setBranch] = useState<BranchInfo | null>(null);
   const [externalEnabled, setExternalEnabled] = useState(false);
   const [externalChecked, setExternalChecked] = useState(false);
   const [employeePortalAvailable, setEmployeePortalAvailable] = useState(false);
@@ -72,6 +105,24 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
       .filter((item) => item.id !== "mi-cuenta" || employeePortalAvailable)
       .filter((item) => item.id !== "modulo-externo" || externalEnabled),
   })), [employeePortalAvailable, externalEnabled, user?.role]);
+
+  useEffect(() => {
+    if (!user?.branchId) {
+      setBranch(null);
+      return;
+    }
+    let cancelled = false;
+    void api<{ items: BranchInfo[] }>("/branches")
+      .then((result) => {
+        if (!cancelled) setBranch(result.items.find((item) => item.id === user.branchId) ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setBranch(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.branchId]);
 
   useEffect(() => {
     void api<Branding>("/settings/branding").then(setBranding).catch(() => setBranding(null));
@@ -163,6 +214,15 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
         ) : <span className="brand-badge">TGS</span>}
         <div className="brand-copy"><strong>{branding?.name?.trim() || "The Gamer Shop"}</strong><small>Suite de presupuestos</small></div>
       </div>
+      {branch ? (
+        <div className="side-local" title={branchLabel(branch)}>
+          <span className="side-local-dot" aria-hidden="true" />
+          <span className="side-local-copy">
+            <small>Local</small>
+            <strong>{branchLabel(branch)}</strong>
+          </span>
+        </div>
+      ) : null}
       {/* El CRM no entra en la nav personalizable: es otra aplicación, con su propio
           shell sin sidebar, así que se accede desde un botón aparte y destacado. */}
       <Link className="side-crm" href="/crm" onClick={() => setMenuOpen(false)}>
@@ -188,6 +248,7 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
           <span className="avatar">{initials(user.displayName || user.username)}</span>
           <div className="side-user-copy"><p>{user.displayName || user.username}</p><small>@{user.username}</small></div>
         </div>
+        <ThemeToggle />
         <button type="button" className="btn-ghost btn-sm" onClick={() => void logout()}>Cerrar sesión</button>
       </div>
     </aside>
