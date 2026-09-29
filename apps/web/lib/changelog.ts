@@ -13,6 +13,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Deploys de Railway más cortos",
     items: [
       "Railway: cada servicio instala solo lo que usa (la API ya no buildea la extensión ni el plugin en cada push). Chromium queda cacheado con el lockfile, no se vuelve a bajar por un cambio chico",
+      "Worker: el Dockerfile ya no compila @tgs/contracts (el worker no lo usa); ese paso tumbaba el deploy",
     ],
   },
   {
