@@ -139,6 +139,14 @@ function removeQuoteDraft(key: string): void {
 
 type QuoteSort = "created-desc" | "created-asc" | "price-asc" | "price-desc";
 
+const QUOTE_FILTERS_KEY = "tgs.quotes.filters.v1";
+const QUOTE_SORTS: { value: QuoteSort; label: string }[] = [
+  { value: "created-desc", label: "Más nuevos" },
+  { value: "created-asc", label: "Más viejos" },
+  { value: "price-asc", label: "Precio: menor a mayor" },
+  { value: "price-desc", label: "Precio: mayor a menor" },
+];
+
 const blankItem = (): ItemDraft => ({
   key: crypto.randomUUID(),
   productId: "",
@@ -370,6 +378,7 @@ export function QuotesView({
   const [branchFilter, setBranchFilter] = useState("");
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [sort, setSort] = useState<QuoteSort>("created-desc");
+  const [filtersReady, setFiltersReady] = useState(Boolean(embedded || onlyFamilyIds));
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [, setPdfs] = useState<QuotePdfRow[]>([]);
   const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | null>(null);
@@ -410,6 +419,52 @@ export function QuotesView({
   const [creatingProd, setCreatingProd] = useState(false);
 
   const familyFilterKey = onlyFamilyIds?.join(",") ?? "";
+
+  // Filtros del listado principal: se restauran al recargar la página (sessionStorage).
+  useEffect(() => {
+    if (embedded || onlyFamilyIds) return;
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(QUOTE_FILTERS_KEY) ?? "null") as {
+        filter?: unknown;
+        stateFilter?: unknown;
+        branchFilter?: unknown;
+        sort?: unknown;
+      } | null;
+      if (saved) {
+        if (typeof saved.filter === "string") setFilter(saved.filter);
+        if (typeof saved.stateFilter === "string" && (QUOTE_STATES as readonly string[]).includes(saved.stateFilter)) {
+          setStateFilter(saved.stateFilter as QuoteState);
+        }
+        if (typeof saved.branchFilter === "string") setBranchFilter(saved.branchFilter);
+        if (typeof saved.sort === "string" && QUOTE_SORTS.some((option) => option.value === saved.sort)) {
+          setSort(saved.sort as QuoteSort);
+        }
+      }
+    } catch {
+      /* sin storage o JSON inválido: se usan los valores por defecto */
+    }
+    setFiltersReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady || embedded || onlyFamilyIds) return;
+    try {
+      window.sessionStorage.setItem(
+        QUOTE_FILTERS_KEY,
+        JSON.stringify({ filter, stateFilter, branchFilter, sort }),
+      );
+    } catch {
+      /* sin storage: no se persiste */
+    }
+  }, [filtersReady, embedded, onlyFamilyIds, filter, stateFilter, branchFilter, sort]);
+
+  function clearFilters() {
+    setFilter("");
+    setStateFilter("");
+    setBranchFilter("");
+    setSort("created-desc");
+  }
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -462,11 +517,12 @@ export function QuotesView({
   }, [embedded, familyFilterKey, familyFilterKey || embedded ? "" : filter, familyFilterKey || embedded ? "" : stateFilter, familyFilterKey || embedded ? "" : branchFilter]);
 
   useEffect(() => {
+    if (!filtersReady) return;
     const handle = window.setTimeout(() => {
       void loadList();
     }, 250);
     return () => window.clearTimeout(handle);
-  }, [loadList]);
+  }, [loadList, filtersReady]);
 
   useEffect(() => {
     if (!initialSelectedId || initialOpenRef.current === initialSelectedId) return;
@@ -1890,47 +1946,68 @@ export function QuotesView({
       {error && !drawerOpen ? <Alert>{error}</Alert> : null}
       {notice && !drawerOpen ? <Alert tone="ok">{notice}</Alert> : null}
 
-      <div className="toolbar">
-        <SearchInput
-          value={filter}
-          onChange={setFilter}
-          placeholder="Buscar por número, nombre, cliente o producto"
-        />
-        <select
-          aria-label="Filtrar por estado"
-          value={stateFilter}
-          onChange={(e) => setStateFilter(e.target.value as QuoteState | "")}
-        >
-          <option value="">Todos los estados</option>
-          {QUOTE_STATES.map((s) => (
-            <option key={s} value={s}>
-              {STATE_LABEL[s]}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Filtrar por local"
-          value={branchFilter}
-          onChange={(e) => setBranchFilter(e.target.value)}
-        >
-          <option value="">Todos los locales</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Ordenar presupuestos"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as QuoteSort)}
-        >
-          <option value="created-desc">Más nuevos</option>
-          <option value="created-asc">Más viejos</option>
-          <option value="price-asc">Precio: menor a mayor</option>
-          <option value="price-desc">Precio: mayor a menor</option>
-        </select>
+      <div className="filter-bar">
+        <div className="filter-search">
+          <SearchInput
+            value={filter}
+            onChange={setFilter}
+            placeholder="Buscar por número, nombre, cliente o producto"
+          />
+        </div>
+        <label className={`filter-field${stateFilter ? " active" : ""}`}>
+          <span>Estado</span>
+          <select
+            aria-label="Filtrar por estado"
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value as QuoteState | "")}
+          >
+            <option value="">Todos</option>
+            {QUOTE_STATES.map((s) => (
+              <option key={s} value={s}>
+                {STATE_LABEL[s]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`filter-field${branchFilter ? " active" : ""}`}>
+          <span>Local</span>
+          <select
+            aria-label="Filtrar por local"
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`filter-field${sort !== "created-desc" ? " active" : ""}`}>
+          <span>Ordenar por</span>
+          <select
+            aria-label="Ordenar presupuestos"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as QuoteSort)}
+          >
+            {QUOTE_SORTS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filter || stateFilter || branchFilter || sort !== "created-desc" ? (
+          <button type="button" className="btn-ghost btn-sm filter-clear" onClick={clearFilters}>
+            Limpiar filtros
+          </button>
+        ) : null}
       </div>
+      <p className="filter-count">
+        {filtered.length} presupuesto{filtered.length === 1 ? "" : "s"}
+        {filter || stateFilter || branchFilter ? " con los filtros actuales" : ""}
+      </p>
 
       {loading ? (
         <Loading />

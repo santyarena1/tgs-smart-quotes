@@ -76,6 +76,7 @@ export function CollectionsView() {
   const [quoteQuery, setQuoteQuery] = useState("");
   const [viewing, setViewing] = useState<Collection | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Collection | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -233,6 +234,8 @@ export function CollectionsView() {
     }
   }
 
+  const previewQuotes = preview ? associatedQuotesOf(preview, quotes) : [];
+
   const viewingQuotes = viewing ? associatedQuotesOf(viewing, quotes) : [];
   const viewingFamilyIds = viewingQuotes.map((quote) => quote.id);
 
@@ -304,8 +307,18 @@ export function CollectionsView() {
             return (
               <article
                 key={c.id}
-                className="gal-card"
+                className="gal-card clickable"
                 style={c.archived ? { opacity: 0.6 } : undefined}
+                role="button"
+                tabIndex={0}
+                aria-label={`Vista previa de ${c.name}`}
+                onClick={() => setPreview(c)}
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    setPreview(c);
+                  }
+                }}
               >
                 <div className="gal-banner">
                   <span className="gal-ico">{c.icon || "◆"}</span>
@@ -331,7 +344,7 @@ export function CollectionsView() {
                       {extra > 0 ? <li className="gal-quote-more">+{extra} más</li> : null}
                     </ul>
                   )}
-                  <div className="row-actions">
+                  <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                     <button type="button" className="btn-ghost btn-sm" onClick={() => openView(c)}>
                       Ver
                     </button>
@@ -357,6 +370,75 @@ export function CollectionsView() {
           })}
         </div>
       )}
+
+      <Modal
+        open={preview !== null}
+        title={preview?.name ?? "Colección"}
+        onClose={() => setPreview(null)}
+        footer={
+          preview ? (
+            <>
+              <button type="button" className="btn-ghost" onClick={() => setPreview(null)}>
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={previewQuotes.length === 0 || downloadingId === preview.id}
+                onClick={() => void downloadCollection(preview)}
+              >
+                {downloadingId === preview.id ? "Descargando…" : "Descargar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  openView(preview);
+                  setPreview(null);
+                }}
+              >
+                Ver más
+              </button>
+            </>
+          ) : null
+        }
+      >
+        {preview ? (
+          <>
+            <div className="col-preview-head">
+              <span className="col-preview-ico">{preview.icon || "◆"}</span>
+              <div>
+                <h3 style={{ margin: 0 }}>{preview.name}</h3>
+                {preview.description ? <p className="cell-sub">{preview.description}</p> : null}
+              </div>
+            </div>
+            <div className="gal-meta">
+              <Pill tone="neutral">
+                {previewQuotes.length} presupuesto{previewQuotes.length === 1 ? "" : "s"}
+              </Pill>
+              {preview.visibleInExtension ? <Pill tone="info">Extensión</Pill> : null}
+              {preview.favorite ? <Pill tone="ok">Favorita</Pill> : null}
+              {preview.archived ? <Pill tone="bad">Archivada</Pill> : null}
+            </div>
+            {previewQuotes.length === 0 ? (
+              <p className="muted" style={{ marginTop: "0.75rem" }}>
+                Sin presupuestos asociados
+              </p>
+            ) : (
+              <ul className="col-preview-list">
+                {previewQuotes.map((quote) => (
+                  <li key={quote.id}>
+                    <span>
+                      <span className="num">{quote.visibleNumber.trim() || "—"}</span>{" "}
+                      {quote.internalName.trim() || "Sin nombre"}
+                    </span>
+                    {quote.customerName ? <span className="cust">{quote.customerName}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : null}
+      </Modal>
 
       <Modal
         open={modalOpen}
