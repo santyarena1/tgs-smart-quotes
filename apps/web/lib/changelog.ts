@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.9",
+    date: "2026-09-29",
+    title: "Colecciones, PDF y local del empleado",
+    items: [
+      "Colecciones: click en la tarjeta abre un preview con los presupuestos asociados, Descargar y Ver más",
+      "Presupuestos: filtros con etiquetas, contador, Limpiar, y se recuerdan al recargar la página",
+      "PDF: estilo global del documento, presets (TGS rojo, azul, oscuro, etc.), más opciones por bloque, deshacer/rehacer y zoom en el editor",
+      "Sidebar: se ve el local del usuario y se puede pasar a modo oscuro (queda guardado)",
+      "Empleados: al crear o editar se puede asignar el local",
+    ],
+  },
+  {
     version: "0.7.8",
     date: "2026-09-29",
     title: "Deploys de Railway más cortos",
