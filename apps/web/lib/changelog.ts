@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.8",
+    date: "2026-09-29",
+    title: "Deploys de Railway más cortos",
+    items: [
+      "Railway: cada servicio instala solo lo que usa (la API ya no buildea la extensión ni el plugin en cada push). Chromium queda cacheado con el lockfile, no se vuelve a bajar por un cambio chico",
+    ],
+  },
+  {
     version: "0.7.7",
     date: "2026-09-29",
     title: "Deploy de la API en Railway",

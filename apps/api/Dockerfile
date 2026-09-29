@@ -1,10 +1,65 @@
+# syntax=docker/dockerfile:1
+# API: pnpm solo del grafo de @tgs/api, Chromium cacheado con el lockfile.
+# Un cambio de código no vuelve a bajar node_modules ni el browser.
+
 FROM node:22-bookworm-slim AS build
 RUN corepack enable
 WORKDIR /app
 ENV CI=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY apps/extension/package.json apps/extension/package.json
+COPY packages/ai/package.json packages/ai/package.json
+COPY packages/config/package.json packages/config/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+COPY packages/database/package.json packages/database/package.json
+COPY packages/eslint-config/package.json packages/eslint-config/package.json
+COPY packages/pdf/package.json packages/pdf/package.json
+COPY packages/pricing/package.json packages/pricing/package.json
+COPY packages/providers/package.json packages/providers/package.json
+COPY packages/storage/package.json packages/storage/package.json
+COPY packages/testing/package.json packages/testing/package.json
+COPY packages/typescript-config/package.json packages/typescript-config/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/validation/package.json packages/validation/package.json
+
+RUN pnpm install --frozen-lockfile --filter @tgs/api...
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    wget \
+  && rm -rf /var/lib/apt/lists/* \
+  && pnpm --filter @tgs/pdf exec playwright install chromium
+
 COPY . .
-RUN pnpm install --frozen-lockfile \
-  && pnpm --filter @tgs/database generate \
+RUN pnpm --filter @tgs/database generate \
   && pnpm --filter @tgs/database build \
   && pnpm --filter @tgs/contracts build \
   && pnpm --filter @tgs/config build \
@@ -14,13 +69,9 @@ RUN pnpm install --frozen-lockfile \
   && pnpm --filter @tgs/validation build \
   && pnpm --filter @tgs/pdf build \
   && pnpm --filter @tgs/ai build \
-  && pnpm --filter @tgs/api build \
-  && pnpm --filter @tgs/extension build \
-  && pnpm --filter @tgs/extension zip \
-  && node infrastructure/scripts/zip-wp-plugin.mjs
+  && pnpm --filter @tgs/api build
 
 FROM node:22-bookworm-slim
-# Dependencias de sistema para Chromium (Playwright) usadas por @tgs/pdf
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -51,17 +102,12 @@ RUN apt-get update \
 RUN corepack enable
 WORKDIR /app
 COPY --from=build /app /app
+COPY --from=build /ms-playwright /ms-playwright
 ENV NODE_ENV=production
-# PDFs y uploads (logo de empresa, imágenes de reglas del chatbot) viven bajo /data.
-# En Railway hay que montar un Volume en /data para que sobrevivan a los redeploys;
-# sin volumen el filesystem es efímero y los archivos subidos se pierden al reiniciar.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PDF_LOCAL_DIR=/data/pdfs
 ENV UPLOADS_DIR=/data/uploads
-RUN mkdir -p /data/pdfs /data/uploads \
-  && cd /app/packages/pdf \
-  && npx playwright install chromium
+RUN mkdir -p /data/pdfs /data/uploads
 EXPOSE 3001
-HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
-# Migra (si el unique de cuotas quedó failed, la marca rolled-back y reintenta) + seed + arranque.
-# El seed es idempotente: crea lo que falte sin pisar ediciones; el admin toma ADMIN_USERNAME/ADMIN_PASSWORD.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=8 CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
 CMD ["sh", "-c", "pnpm --filter @tgs/database migrate:start && pnpm --filter @tgs/database seed && node apps/api/dist/main.js"]
