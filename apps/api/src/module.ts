@@ -8,7 +8,7 @@ import {CombosController} from './combos.js';
 import {FinancingController, SettingsController} from './settings.js';
 import {ExtensionSettingsController} from './extension-settings.js';
 import {UploadsController} from './uploads.js';
-import {PdfController} from './pdf.js';
+import {CollectionPdfController,PdfController} from './pdf.js';
 import {QuoteSearchController} from './search.js';
 import {SimilarityController} from './similarity.js';
 import {NotificationsController} from './notifications.js';
@@ -51,6 +51,7 @@ class HealthController {
     QuoteSearchController,
     QuotesController,
     PdfController,
+    CollectionPdfController,
     QuoteAiController,
     RequestAiController,
     CollectionsController,

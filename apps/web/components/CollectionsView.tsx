@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "../lib/api";
+import { api, downloadAuthenticated } from "../lib/api";
 import {
   associatedQuotesOf,
   normalizeCollectionQuote,
@@ -75,6 +75,7 @@ export function CollectionsView() {
   const [saving, setSaving] = useState(false);
   const [quoteQuery, setQuoteQuery] = useState("");
   const [viewing, setViewing] = useState<Collection | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -218,6 +219,20 @@ export function CollectionsView() {
     }
   }
 
+  async function downloadCollection(c: Collection) {
+    setError(null);
+    setNotice(null);
+    setDownloadingId(c.id);
+    try {
+      await downloadAuthenticated(`/collections/${c.id}/download`, `${c.name}.zip`);
+      setNotice(`Descarga de "${c.name}" lista.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   const viewingQuotes = viewing ? associatedQuotesOf(viewing, quotes) : [];
   const viewingFamilyIds = viewingQuotes.map((quote) => quote.id);
 
@@ -319,6 +334,14 @@ export function CollectionsView() {
                   <div className="row-actions">
                     <button type="button" className="btn-ghost btn-sm" onClick={() => openView(c)}>
                       Ver
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      disabled={associated.length === 0 || downloadingId === c.id}
+                      onClick={() => void downloadCollection(c)}
+                    >
+                      {downloadingId === c.id ? "Descargando…" : "Descargar"}
                     </button>
                     <button
                       type="button"
