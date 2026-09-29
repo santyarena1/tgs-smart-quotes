@@ -139,10 +139,22 @@ export type PdfLayoutBlockKey =
 export type PdfLayoutStyle = {
   x?: number; y?: number; width?: number; height?: number; fontSize?: number;
   color?: string; fontFamily?: string; fontWeight?: number;
+  hidden?: boolean;
+  textAlign?: "left" | "center" | "right" | "justify";
+  italic?: boolean; uppercase?: boolean; lineHeight?: number;
+  background?: string; borderColor?: string; borderWidth?: number;
+  borderRadius?: number; padding?: number;
+};
+export type PdfLayoutDocument = {
+  accentColor?: string; textColor?: string; fontFamily?: string;
+  tableHeaderBg?: string; tableHeaderColor?: string; tableBorderColor?: string;
+  tableZebra?: boolean; tableDensity?: "compact" | "normal" | "comfortable";
+  cardRadius?: number; cardBackground?: string; cardBorderColor?: string;
 };
 export type PdfLayoutConfig = {
   version: 1;
   blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
+  document?: PdfLayoutDocument;
 };
 export type PdfLayoutSettings = {
   id: "singleton";

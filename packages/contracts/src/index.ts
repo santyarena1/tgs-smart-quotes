@@ -194,12 +194,40 @@ export const pdfLayoutStyleSchema = z
       .optional(),
     fontWeight: z.number().int().min(300).max(900).multipleOf(100).optional(),
     hidden: z.boolean().optional(),
+    textAlign: z.enum(['left', 'center', 'right', 'justify']).optional(),
+    italic: z.boolean().optional(),
+    uppercase: z.boolean().optional(),
+    lineHeight: z.number().min(1).max(3).optional(),
+    background: color.optional(),
+    borderColor: color.optional(),
+    borderWidth: z.number().min(0).max(8).optional(),
+    borderRadius: z.number().min(0).max(24).optional(),
+    padding: z.number().min(0).max(40).optional(),
+  })
+  .strict();
+/** Estilo global del documento: se aplica a ambas plantillas (CLASICO y MODERNO). */
+export const pdfLayoutDocumentSchema = z
+  .object({
+    accentColor: color.optional(),
+    textColor: color.optional(),
+    fontFamily: z
+      .enum(['Segoe UI', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Verdana'])
+      .optional(),
+    tableHeaderBg: color.optional(),
+    tableHeaderColor: color.optional(),
+    tableBorderColor: color.optional(),
+    tableZebra: z.boolean().optional(),
+    tableDensity: z.enum(['compact', 'normal', 'comfortable']).optional(),
+    cardRadius: z.number().min(0).max(24).optional(),
+    cardBackground: color.optional(),
+    cardBorderColor: color.optional(),
   })
   .strict();
 export const pdfLayoutConfigSchema = z
   .object({
     version: z.literal(1).default(1),
     blocks: z.record(pdfLayoutBlockKeySchema, pdfLayoutStyleSchema).default({}),
+    document: pdfLayoutDocumentSchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -397,6 +425,7 @@ export type CompanySettingsInput = z.infer<typeof companySettingsInputSchema>;
 export type PdfSettingsInput = z.infer<typeof pdfSettingsInputSchema>;
 export type PdfLayoutBlockKey = z.infer<typeof pdfLayoutBlockKeySchema>;
 export type PdfLayoutStyle = z.infer<typeof pdfLayoutStyleSchema>;
+export type PdfLayoutDocument = z.infer<typeof pdfLayoutDocumentSchema>;
 export type PdfLayoutConfig = z.infer<typeof pdfLayoutConfigSchema>;
 export type PdfLayoutSettings = z.infer<typeof pdfLayoutSettingsSchema>;
 export type PdfLayoutPreviewInput = z.infer<typeof pdfLayoutPreviewInputSchema>;

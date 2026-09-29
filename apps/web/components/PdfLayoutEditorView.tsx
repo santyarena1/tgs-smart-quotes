@@ -6,11 +6,13 @@ import type {
   CompanySettings,
   PdfLayoutBlockKey,
   PdfLayoutConfig,
+  PdfLayoutDocument,
   PdfLayoutSettings,
   PdfLayoutStyle,
   PdfSettings,
 } from "../lib/types";
 import { Alert, Loading, PageHeader, errorMessage } from "./shared";
+import { PDF_PRESETS, matchingPresetId, type PdfPreset } from "../lib/pdf-presets";
 
 const BLOCKS: Array<{
   key: PdfLayoutBlockKey; label: string; text?: boolean; resize?: boolean; column?: boolean;
@@ -35,6 +37,42 @@ const BLOCKS: Array<{
   { key: "rmaBlock", label: "Políticas de RMA", text: true, resize: true, fixedContent: "rma" },
   { key: "footerText", label: "Pie de página", text: true, resize: true, fixedContent: "footer" },
 ];
+const ALIGNS: Array<{ value: NonNullable<PdfLayoutStyle["textAlign"]>; label: string; icon: string }> = [
+  { value: "left", label: "Izquierda", icon: "⇤" },
+  { value: "center", label: "Centrado", icon: "↔" },
+  { value: "right", label: "Derecha", icon: "⇥" },
+  { value: "justify", label: "Justificado", icon: "☰" },
+];
+const ZOOMS = [0.5, 0.75, 1, 1.25] as const;
+const HISTORY_LIMIT = 60;
+type SidebarTab = "field" | "document" | "fields";
+
+function ColorControl({ label, value, fallback, onChange }: {
+  label: string; value?: string; fallback: string; onChange: (value: string | undefined) => void;
+}) {
+  return (
+    <div className="pdf-field">
+      <span>{label}</span>
+      <div className="pdf-color-row">
+        <input type="color" aria-label={label} value={value ?? fallback} onChange={(e) => onChange(e.target.value)} />
+        <code>{value ?? "Original"}</code>
+        {value ? <button type="button" className="pdf-clear" aria-label={`Quitar ${label}`} onClick={() => onChange(undefined)}>×</button> : null}
+      </div>
+    </div>
+  );
+}
+
+function NumberControl({ label, value, min, max, step = 1, onChange }: {
+  label: string; value?: number; min: number; max: number; step?: number; onChange: (value: number | undefined) => void;
+}) {
+  return (
+    <label>{label}
+      <input type="number" min={min} max={max} step={step} placeholder="Original" value={value ?? ""}
+        onChange={(e) => onChange(e.target.value === "" ? undefined : Math.min(max, Math.max(min, Number(e.target.value))))} />
+    </label>
+  );
+}
+
 const FONTS = ["Segoe UI", "Arial", "Helvetica", "Georgia", "Times New Roman", "Verdana"];
 type EditorPdfLayoutStyle = PdfLayoutStyle & {hidden?: boolean};
 type EditorPdfLayoutConfig = Omit<PdfLayoutConfig, "blocks"> & {
@@ -67,7 +105,12 @@ export function PdfLayoutEditorView() {
   const [boxes, setBoxes] = useState<Partial<Record<PdfLayoutBlockKey, Box>>>({});
   const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuides>({});
   const [logoAspectRatio, setLogoAspectRatio] = useState<number | null>(null);
-  const [scale, setScale] = useState(0.8);
+  const [fitScale, setFitScale] = useState(0.8);
+  const [zoomMode, setZoomMode] = useState<"fit" | number>("fit");
+  const [tab, setTab] = useState<SidebarTab>("field");
+  const [historyTick, setHistoryTick] = useState(0);
+  const historyRef = useRef<{ stack: EditorPdfLayoutConfig[]; index: number }>({ stack: [], index: -1 });
+  const scale = zoomMode === "fit" ? fitScale : zoomMode;
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,6 +132,8 @@ export function PdfLayoutEditorView() {
       ]);
       setDraft(row.layout);
       setSaved(row.layout);
+      historyRef.current = { stack: [row.layout], index: 0 };
+      setHistoryTick((tick) => tick + 1);
       setCompany(companyRow);
       setSavedCompany(companyRow);
       setPdf(pdfRow);
@@ -105,7 +150,7 @@ export function PdfLayoutEditorView() {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const resize = () => setScale(Math.min(1, Math.max(0.35, host.clientWidth / PAGE_WIDTH)));
+    const resize = () => setFitScale(Math.min(1, Math.max(0.35, host.clientWidth / PAGE_WIDTH)));
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(host);
@@ -165,6 +210,59 @@ export function PdfLayoutEditorView() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selected]);
+
+  /** Guarda un punto de historial si el borrador cambió (los arrastres se agrupan por debounce). */
+  const commitHistory = useCallback(() => {
+    const history = historyRef.current;
+    if (history.index < 0) return;
+    const current = draftRef.current;
+    if (JSON.stringify(history.stack[history.index]) === JSON.stringify(current)) return;
+    history.stack = [...history.stack.slice(0, history.index + 1), current].slice(-HISTORY_LIMIT);
+    history.index = history.stack.length - 1;
+    setHistoryTick((tick) => tick + 1);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(commitHistory, 450);
+    return () => window.clearTimeout(timer);
+  }, [draft, commitHistory]);
+
+  const undo = useCallback(() => {
+    commitHistory();
+    const history = historyRef.current;
+    if (history.index <= 0) return;
+    history.index -= 1;
+    const previous = history.stack[history.index]!;
+    draftRef.current = previous;
+    setDraft(previous);
+    setHistoryTick((tick) => tick + 1);
+  }, [commitHistory]);
+
+  const redo = useCallback(() => {
+    const history = historyRef.current;
+    if (history.index >= history.stack.length - 1) return;
+    history.index += 1;
+    const next = history.stack[history.index]!;
+    draftRef.current = next;
+    setDraft(next);
+    setHistoryTick((tick) => tick + 1);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)
+      ) return;
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "z" && !event.shiftKey) { event.preventDefault(); undo(); }
+      else if (key === "y" || (key === "z" && event.shiftKey)) { event.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undo, redo]);
 
   useEffect(() => {
     if (loading || !company || !pdf) return;
@@ -278,6 +376,30 @@ export function PdfLayoutEditorView() {
         [selected]: { ...(current.blocks[selected] ?? {}), ...patch },
       },
     }));
+    setNotice(null);
+  }
+
+  const doc: PdfLayoutDocument = draft.document ?? {};
+  const activePreset = matchingPresetId(draft.document);
+  const canUndo = historyTick >= 0 && historyRef.current.index > 0;
+  const canRedo = historyTick >= 0 && historyRef.current.index < historyRef.current.stack.length - 1;
+
+  function patchDocument(patch: Partial<PdfLayoutDocument>) {
+    setDraft((current) => {
+      const merged = Object.fromEntries(
+        Object.entries({ ...(current.document ?? {}), ...patch }).filter(([, value]) => value !== undefined),
+      ) as PdfLayoutDocument;
+      const { document: _previous, ...rest } = current;
+      return Object.keys(merged).length ? { ...rest, document: merged } : rest;
+    });
+    setNotice(null);
+  }
+
+  function applyPreset(preset: PdfPreset) {
+    setDraft((current) => {
+      const { document: _previous, ...rest } = current;
+      return preset.document ? { ...rest, document: { ...preset.document } } : rest;
+    });
     setNotice(null);
   }
 
@@ -483,7 +605,15 @@ export function PdfLayoutEditorView() {
         <section className="pdf-preview-panel">
           <div className="pdf-preview-toolbar">
             <span>Vista previa A4 · muestra detallada</span>
-            <span>{previewing ? "Actualizando…" : `${Math.round(scale * 100)}%`}</span>
+            <div className="pdf-toolbar-tools">
+              <button type="button" className="btn-ghost btn-sm" disabled={!canUndo} onClick={undo} title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
+              <button type="button" className="btn-ghost btn-sm" disabled={!canRedo} onClick={redo} title="Rehacer (Ctrl+Y)">↷ Rehacer</button>
+              <select aria-label="Zoom" value={String(zoomMode)} onChange={(e) => setZoomMode(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
+                <option value="fit">Ajustar ({Math.round(fitScale * 100)}%)</option>
+                {ZOOMS.map((zoom) => <option key={zoom} value={zoom}>{Math.round(zoom * 100)}%</option>)}
+              </select>
+              <span>{previewing ? "Actualizando…" : ""}</span>
+            </div>
           </div>
           <div ref={hostRef} className="pdf-page-host" style={{ height: PAGE_HEIGHT * scale }}>
             <div
@@ -521,7 +651,7 @@ export function PdfLayoutEditorView() {
                       className={selected === block.key ? "pdf-block-box selected" : "pdf-block-box"}
                       style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
                       onPointerDown={(event) => startPointer(event, block.key, "move")}
-                      onClick={() => setSelected(block.key)}
+                      onClick={() => { setSelected(block.key); setTab("field"); }}
                     >
                       <span>{block.label}</span>
                       {block.resize ? (
@@ -541,6 +671,105 @@ export function PdfLayoutEditorView() {
           </div>
         </section>
         <aside className="pdf-properties">
+          <div className="pdf-tabs" role="tablist">
+            {([["field", "Campo"], ["document", "Documento"], ["fields", "Campos"]] as const).map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {tab === "document" ? (
+            <>
+          <h2>Estilo del documento</h2>
+          <p>Se aplica a todo el PDF (Simple y Detallado). Lo que dejes en “Original” conserva el diseño de la plantilla.</p>
+          <div className="pdf-presets">
+            {PDF_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={activePreset === preset.id ? "pdf-preset active" : "pdf-preset"}
+                title={preset.description}
+                onClick={() => applyPreset(preset)}
+              >
+                <span className="pdf-preset-swatches" aria-hidden="true">
+                  <i style={{ background: preset.document?.accentColor ?? "#d4171e" }} />
+                  <i style={{ background: preset.document?.tableHeaderBg ?? "#111111" }} />
+                  <i style={{ background: preset.document?.cardBackground ?? "#fafafa" }} />
+                </span>
+                <strong>{preset.name}</strong>
+                <small>{preset.description}</small>
+              </button>
+            ))}
+          </div>
+          <hr />
+          <h3>Colores y texto</h3>
+          <ColorControl label="Color de acento" value={doc.accentColor} fallback="#d4171e" onChange={(v) => patchDocument({ accentColor: v })} />
+          <ColorControl label="Color del texto" value={doc.textColor} fallback="#1a1a1a" onChange={(v) => patchDocument({ textColor: v })} />
+          <label>Tipografía general
+            <select value={doc.fontFamily ?? ""} onChange={(e) => patchDocument({ fontFamily: e.target.value || undefined })}>
+              <option value="">Original</option>
+              {FONTS.map((font) => <option key={font}>{font}</option>)}
+            </select>
+          </label>
+          <hr />
+          <h3>Tabla de artículos</h3>
+          <ColorControl label="Fondo de la cabecera" value={doc.tableHeaderBg} fallback="#111111" onChange={(v) => patchDocument({ tableHeaderBg: v })} />
+          <ColorControl label="Texto de la cabecera" value={doc.tableHeaderColor} fallback="#ffffff" onChange={(v) => patchDocument({ tableHeaderColor: v })} />
+          <ColorControl label="Color de las líneas" value={doc.tableBorderColor} fallback="#e5e5e5" onChange={(v) => patchDocument({ tableBorderColor: v })} />
+          <label>Altura de las filas
+            <select value={doc.tableDensity ?? ""} onChange={(e) => patchDocument({ tableDensity: (e.target.value || undefined) as PdfLayoutDocument["tableDensity"] })}>
+              <option value="">Original</option>
+              <option value="compact">Compacta</option>
+              <option value="normal">Normal</option>
+              <option value="comfortable">Amplia</option>
+            </select>
+          </label>
+          <label className="pdf-check">
+            <input type="checkbox" checked={doc.tableZebra === true} onChange={(e) => patchDocument({ tableZebra: e.target.checked ? true : undefined })} />
+            Filas alternadas (cebra)
+          </label>
+          <hr />
+          <h3>Tarjetas y recuadros</h3>
+          <NumberControl label="Bordes redondeados (px)" value={doc.cardRadius} min={0} max={24} onChange={(v) => patchDocument({ cardRadius: v })} />
+          <ColorControl label="Fondo" value={doc.cardBackground} fallback="#fafafa" onChange={(v) => patchDocument({ cardBackground: v })} />
+          <ColorControl label="Color del borde" value={doc.cardBorderColor} fallback="#d8d8d8" onChange={(v) => patchDocument({ cardBorderColor: v })} />
+          <button type="button" className="btn-ghost" disabled={!Object.keys(doc).length} onClick={() => applyPreset(PDF_PRESETS[0]!)}>
+            Quitar estilo del documento
+          </button>
+            </>
+          ) : tab === "fields" ? (
+            <>
+          <h2>Todos los campos</h2>
+          <div className="pdf-field-list">
+          {BLOCKS.map((block) => {
+            const isHidden = draft.blocks[block.key]?.hidden === true;
+            return (
+              <button
+                key={block.key}
+                type="button"
+                className={selected === block.key ? "pdf-field-link active" : "pdf-field-link"}
+                disabled={!isHidden && !block.column && !block.fixedContent && !boxes[block.key]}
+                onClick={() => { setSelected(block.key); setTab("field"); }}
+                style={isHidden ? {opacity: 0.55} : undefined}
+              >
+                {block.label}{isHidden ? " (oculto)" : ""}
+                <span>
+                  {isHidden
+                    ? "Oculto"
+                    : block.fixedContent
+                    ? "Texto fijo"
+                    : block.column
+                    ? `${draft.blocks[block.key]?.width ?? "Original"}`
+                    : boxes[block.key]
+                      ? "Visible"
+                      : "No aparece"}
+                </span>
+              </button>
+            );
+          })}
+          </div>
+            </>
+          ) : (<>
           <h2>{selectedMeta.label}</h2>
           {selectedMeta.fixedContent ? (
             <div className="pdf-fixed-content-editor">
@@ -627,7 +856,7 @@ export function PdfLayoutEditorView() {
           {selectedMeta.text ? (
             <>
               <label>Tamaño de letra <input type="number" min={6} max={48} value={style.fontSize ?? ""} onChange={(e) => patchStyle({ fontSize: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
-              <label>Color <input type="color" value={style.color ?? "#111111"} onChange={(e) => patchStyle({ color: e.target.value })} /></label>
+              <ColorControl label="Color del texto" value={style.color} fallback="#111111" onChange={(v) => patchStyle({ color: v })} />
               <label>Tipografía
                 <select value={style.fontFamily ?? ""} onChange={(e) => patchStyle({ fontFamily: e.target.value || undefined })}>
                   <option value="">Original</option>
@@ -640,6 +869,45 @@ export function PdfLayoutEditorView() {
                   <option value="400">Normal</option><option value="600">Seminegrita</option><option value="700">Negrita</option><option value="800">Extra negrita</option>
                 </select>
               </label>
+            </>
+          ) : null}
+          {!selectedMeta.column ? (
+            <>
+              <hr />
+              <h3>Apariencia</h3>
+              {selectedMeta.text ? (
+                <>
+                  <div className="pdf-field">
+                    <span>Alineación</span>
+                    <div className="pdf-segmented" role="group" aria-label="Alineación del texto">
+                      {ALIGNS.map((align) => (
+                        <button
+                          key={align.value}
+                          type="button"
+                          title={align.label}
+                          aria-pressed={style.textAlign === align.value}
+                          className={style.textAlign === align.value ? "active" : ""}
+                          onClick={() => patchStyle({ textAlign: style.textAlign === align.value ? undefined : align.value })}
+                        >{align.icon}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pdf-property-pair">
+                    <label className="pdf-check"><input type="checkbox" checked={style.italic === true} onChange={(e) => patchStyle({ italic: e.target.checked ? true : undefined })} /> Cursiva</label>
+                    <label className="pdf-check"><input type="checkbox" checked={style.uppercase === true} onChange={(e) => patchStyle({ uppercase: e.target.checked ? true : undefined })} /> MAYÚSCULAS</label>
+                  </div>
+                  <NumberControl label="Interlineado" value={style.lineHeight} min={1} max={3} step={0.05} onChange={(v) => patchStyle({ lineHeight: v })} />
+                </>
+              ) : null}
+              <ColorControl label="Fondo" value={style.background} fallback="#ffffff" onChange={(v) => patchStyle({ background: v })} />
+              <div className="pdf-property-pair">
+                <NumberControl label="Borde (px)" value={style.borderWidth} min={0} max={8} step={0.5} onChange={(v) => patchStyle({ borderWidth: v })} />
+                <ColorControl label="Color del borde" value={style.borderColor} fallback="#cccccc" onChange={(v) => patchStyle({ borderColor: v })} />
+              </div>
+              <div className="pdf-property-pair">
+                <NumberControl label="Redondeo (px)" value={style.borderRadius} min={0} max={24} onChange={(v) => patchStyle({ borderRadius: v })} />
+                <NumberControl label="Espaciado interno (px)" value={style.padding} min={0} max={40} onChange={(v) => patchStyle({ padding: v })} />
+              </div>
             </>
           ) : null}
           <button type="button" className="btn-ghost" onClick={() => {
@@ -656,37 +924,8 @@ export function PdfLayoutEditorView() {
           >
             {style.hidden ? "Mostrar campo" : "Ocultar campo"}
           </button>
-          <hr />
-          <h3>Todos los campos</h3>
-          <div className="pdf-field-list">
-          {BLOCKS.map((block) => {
-            const isHidden = draft.blocks[block.key]?.hidden === true;
-            return (
-              <button
-                key={block.key}
-                type="button"
-                className={selected === block.key ? "pdf-field-link active" : "pdf-field-link"}
-                disabled={!isHidden && !block.column && !block.fixedContent && !boxes[block.key]}
-                onClick={() => setSelected(block.key)}
-                style={isHidden ? {opacity: 0.55} : undefined}
-              >
-                {block.label}{isHidden ? " (oculto)" : ""}
-                <span>
-                  {isHidden
-                    ? "Oculto"
-                    : block.fixedContent
-                    ? "Texto fijo"
-                    : block.column
-                    ? `${draft.blocks[block.key]?.width ?? "Original"}`
-                    : boxes[block.key]
-                      ? "Visible"
-                      : "No aparece"}
-                </span>
-              </button>
-            );
-          })}
-          </div>
           <small>El servidor valida que el ancho total quede entre 620 y 720 px.</small>
+        </>)}
         </aside>
       </div>
     </div>

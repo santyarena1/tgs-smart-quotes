@@ -57,6 +57,15 @@ async function resolvePrinterBranch(tx: any, actor: RequestUser): Promise<{id: s
  * `version.createdAt` (no "hoy"): así el hash del PDF es estable mientras el borrador no cambie de
  * contenido, y el número de presupuesto siempre queda fechado según cuándo se creó esa versión.
  */
+/** Hay layout personalizado si tiene overrides por bloque o estilo global del documento. */
+function hasLayoutStyles(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const layout = value as {blocks?: unknown; document?: unknown};
+  const count = (part: unknown) =>
+    part && typeof part === 'object' ? Object.keys(part as object).length : 0;
+  return count(layout.blocks) > 0 || count(layout.document) > 0;
+}
+
 async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind, printerBranch: {address: string | null; phones: string | null} | null): Promise<PdfRenderInput> {
   const [company, pdfSettings, financingPlans] = await Promise.all([
     tx.companySettings.findUniqueOrThrow({where: {id: 'singleton'}}),
@@ -187,13 +196,9 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     config,
     items,
     financing,
-    layout:
-      pdfSettings.layoutJson &&
-      typeof pdfSettings.layoutJson === 'object' &&
-      !Array.isArray(pdfSettings.layoutJson) &&
-      Object.keys((pdfSettings.layoutJson as Record<string, unknown>).blocks as object ?? {}).length
-        ? (pdfSettings.layoutJson as PdfRenderInput['layout'])
-        : undefined,
+    layout: hasLayoutStyles(pdfSettings.layoutJson)
+      ? (pdfSettings.layoutJson as PdfRenderInput['layout'])
+      : undefined,
   };
 }
 
