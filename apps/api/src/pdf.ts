@@ -490,8 +490,7 @@ export class CollectionPdfController {
       }
     }
     if (errors.length) {
-      files.push({name: 'ERRORES.txt', data: Buffer.from(errors.join('
-'), 'utf8')});
+      files.push({name: 'ERRORES.txt', data: Buffer.from(errors.join('\n'), 'utf8')});
     }
     const zip = buildZip(files);
     const safeName = collection.name.replace(/[^\p{L}\p{N} _.-]+/gu, '').trim() || 'coleccion';

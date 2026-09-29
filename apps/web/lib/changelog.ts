@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.7",
+    date: "2026-09-29",
+    title: "Deploy de la API en Railway",
+    items: [
+      "API: el ZIP de colecciones no compilaba (un texto partido) y el deploy de Railway fallaba; la web se quedaba colgada esperando a la API",
+    ],
+  },
+  {
     version: "0.7.6",
     date: "2026-09-29",
     title: "Gastos: monto, pagado y mes siguiente en un paso",
