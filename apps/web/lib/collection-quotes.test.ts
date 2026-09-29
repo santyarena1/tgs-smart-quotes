@@ -69,4 +69,12 @@ describe("presupuestos de una colección", () => {
       "TGS-20260923-0002 · Oficina",
     ]);
   });
+  it("una colección sin presupuestos no trae todo el catálogo", () => {
+    expect(associatedQuotesOf({familyIds: [], quotes: []}, quotes)).toEqual([]);
+    expect(associatedQuotesOf({quotes: []}, quotes)).toEqual([]);
+  });
+
+  it("sin familyIds usa solo los presupuestos que trae la colección", () => {
+    expect(associatedQuotesOf({quotes: [{id: "c"}]}, quotes).map((q) => q.id)).toEqual(["c"]);
+  });
 });

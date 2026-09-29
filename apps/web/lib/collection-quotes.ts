@@ -68,10 +68,13 @@ export function associatedQuotesOf(
       customerName: quote.customerName || previous?.customerName || null,
     });
   }
+  // Una colección vacía (familyIds = []) no tiene presupuestos: nunca caer al catálogo completo.
   const ids =
-    collection.familyIds && collection.familyIds.length > 0
-      ? collection.familyIds
-      : [...byId.keys()];
+    collection.familyIds ??
+    (collection.quotes ?? []).flatMap((raw) => {
+      const quote = normalizeCollectionQuote(raw);
+      return quote ? [quote.id] : [];
+    });
   return quotesForCollection([...byId.values()], ids);
 }
 

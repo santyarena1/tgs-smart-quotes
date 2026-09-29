@@ -33,6 +33,7 @@ import {
 import {activeVersion,audit,loadFamily,statusEvent} from './quotes.js';
 import {CurrentUser,jsonSafe,SkipRateLimit,type RequestUser,ZodPipe} from './infrastructure.js';
 import {resolveLogoForPdf} from './branding-storage.js';
+import {buildZip} from './zip.js';
 
 // Instancia única del storage (local o S3 según env). Ver `.env.example` PDF_STORAGE_DRIVER/PDF_LOCAL_DIR/S3_*.
 const pdfStorage = createPdfStorageFromEnv(process.env);
@@ -202,7 +203,7 @@ function storageKeyFor(family: any, version: any, kind: PdfKind) {
 
 @Controller('quotes')
 export class PdfController {
-  private async generateVersionPdf(id: string, versionNumber: number, kind:PdfKind, actor: RequestUser) {
+  async generateVersionPdf(id: string, versionNumber: number, kind:PdfKind, actor: RequestUser) {
     return db.$transaction(async (tx) => {
       const family = await loadFamily(tx, id);
       const version = family.versions.find((item: any) => item.version === versionNumber);
@@ -452,6 +453,55 @@ export class PdfController {
     );
     res.header('Content-Length', String(buffer.byteLength));
     res.send(buffer);
+  }
+}
+
+/** Descarga en un ZIP el PDF simple de todos los presupuestos asociados a una colección. */
+@Controller('collections')
+export class CollectionPdfController {
+  @Get(':id/download')
+  @SkipRateLimit()
+  async download(
+    @Param('id', new ZodPipe(idSchema)) id: string,
+    @CurrentUser() actor: RequestUser,
+    @Res() res: any,
+  ) {
+    const collection = await db.collection.findUnique({
+      where: {id},
+      include: {quotes: {include: {family: true}, orderBy: {sortOrder: 'asc'}}},
+    });
+    if (!collection) throw new NotFoundException('Colección inexistente');
+    if (collection.quotes.length === 0) {
+      throw new BadRequestException('La colección no tiene presupuestos asociados');
+    }
+    const pdfs = new PdfController();
+    const files: Array<{name: string; data: Buffer}> = [];
+    const errors: string[] = [];
+    for (const row of collection.quotes as any[]) {
+      const family = row.family;
+      try {
+        const pdf: any = await pdfs.generateVersionPdf(family.id, family.activeVersion, 'SIMPLE', actor);
+        files.push({
+          name: pdfFileName(family.visibleNumber, family.activeVersion, 'SIMPLE'),
+          data: await pdfStorage.get(pdf.storageKey),
+        });
+      } catch (err) {
+        errors.push(`${family.visibleNumber}: ${err instanceof Error ? err.message : 'error'}`);
+      }
+    }
+    if (errors.length) {
+      files.push({name: 'ERRORES.txt', data: Buffer.from(errors.join('
+'), 'utf8')});
+    }
+    const zip = buildZip(files);
+    const safeName = collection.name.replace(/[^\p{L}\p{N} _.-]+/gu, '').trim() || 'coleccion';
+    res.header('Content-Type', 'application/zip');
+    res.header(
+      'Content-Disposition',
+      `attachment; filename="coleccion.zip"; filename*=UTF-8''${encodeURIComponent(`${safeName}.zip`)}`,
+    );
+    res.header('Content-Length', String(zip.byteLength));
+    res.send(zip);
   }
 }
 
