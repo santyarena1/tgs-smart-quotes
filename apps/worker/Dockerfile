@@ -28,9 +28,10 @@ COPY packages/validation/package.json packages/validation/package.json
 RUN pnpm install --frozen-lockfile --filter @tgs/worker...
 
 COPY . .
+# Solo el grafo de @tgs/worker (database, config, storage, providers).
+# No buildear @tgs/contracts: no es dependencia y pnpm --filter no lo instala.
 RUN pnpm --filter @tgs/database generate \
   && pnpm --filter @tgs/database build \
-  && pnpm --filter @tgs/contracts build \
   && pnpm --filter @tgs/config build \
   && pnpm --filter @tgs/storage build \
   && pnpm --filter @tgs/providers build \
