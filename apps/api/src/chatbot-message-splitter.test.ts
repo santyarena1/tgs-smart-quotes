@@ -47,3 +47,16 @@ describe('listas', () => {
     expect(splitChatbotAiMessages([list], list, 3)).toEqual([list]);
   });
 });
+
+describe('listas partidas por la IA', () => {
+  it('reúne en un mensaje la presentación y los renglones de la lista', () => {
+    const result = splitChatbotAiMessages(
+      ['Las formas de pago son:', '- Efectivo (en el local)', '- Transferencia\n- Tarjeta de crédito en cuotas', 'Cómo querías abonar la tuya?'],
+      '', 3,
+    );
+    expect(result).toEqual([
+      'Las formas de pago son:\n- Efectivo (en el local)\n- Transferencia\n- Tarjeta de crédito en cuotas',
+      'Cómo querías abonar la tuya?',
+    ]);
+  });
+});

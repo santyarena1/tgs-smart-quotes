@@ -13,6 +13,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Simulador: saludo una sola vez",
     items: [
       "Probar el bot: el saludo fijo (\"Hola! Somos The Gamer Shop!\") sale solo en la primera respuesta de la charla de prueba, igual que en un chat real. Antes se repetía en cada mensaje",
+      "Si la IA parte una lista en varias burbujas, se reúne en un solo mensaje con su título (\"Las formas de pago son:\" + los renglones)",
     ],
   },
   {

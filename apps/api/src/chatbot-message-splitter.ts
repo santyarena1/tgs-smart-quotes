@@ -46,6 +46,23 @@ function splitBubble(value:string,threshold:number):string[]{
   return bubbles;
 }
 
+const LIST_ITEM=/^\s*(?:[-•*]|\d+[.)])\s+/;
+
+/**
+ * La IA a veces manda cada renglón de una lista como burbuja propia. Se reúnen en
+ * un solo mensaje, junto con la línea que la presenta ("Las formas de pago son:").
+ */
+function joinListBubbles(messages:string[]):string[]{
+  const joined:string[]=[];
+  for(const message of messages){
+    const previous=joined.at(-1);
+    const previousOpensList=previous!==undefined&&(previous.trimEnd().endsWith(':')||previous.split(/\r?\n/).some(line=>LIST_ITEM.test(line)));
+    if(previousOpensList&&LIST_ITEM.test(message))joined[joined.length-1]=`${previous}\n${message}`;
+    else joined.push(message);
+  }
+  return joined;
+}
+
 /** Garantiza burbujas breves sin perder texto ni cortar URLs o precios internamente. */
 export function splitChatbotAiMessages(
   messages:string[],
@@ -53,7 +70,7 @@ export function splitChatbotAiMessages(
   maxBubbles:number,
   threshold=DEFAULT_BUBBLE_THRESHOLD,
 ):string[]{
-  const source=messages.map(message=>message.trim()).filter(Boolean);
+  const source=joinListBubbles(messages.map(message=>message.trim()).filter(Boolean));
   const split=(source.length?source:[fallbackReply.trim()])
     .filter(Boolean)
     .flatMap(message=>splitBubble(message,threshold));
