@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.5",
+    date: "2026-09-30",
+    title: "Simulador: saludo una sola vez",
+    items: [
+      "Probar el bot: el saludo fijo (\"Hola! Somos The Gamer Shop!\") sale solo en la primera respuesta de la charla de prueba, igual que en un chat real. Antes se repetía en cada mensaje",
+    ],
+  },
+  {
     version: "0.8.4",
     date: "2026-09-30",
     title: "Chatbot: reutiliza solo respuestas vigentes",

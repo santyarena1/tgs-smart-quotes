@@ -267,7 +267,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     };
     let messages=settings.multiMessage.enabled
       ?[
-          ...(!conversation.lastOutboundText&&fixedOpening?[fixedOpening]:[]),
+          // Solo en la primera respuesta del chat. El historial cubre el simulador, que
+          // no registra salientes en la conversación.
+          ...(!conversation.lastOutboundText&&!(body.recentMessages??[]).some(item=>item.direction==='OUTBOUND')&&fixedOpening?[fixedOpening]:[]),
           ...aiMessages.map(withoutFixed).filter(Boolean),
           ...(fixedClosing?[fixedClosing]:[]),
         ]
