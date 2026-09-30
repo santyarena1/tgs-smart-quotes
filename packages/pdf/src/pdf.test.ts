@@ -189,6 +189,21 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('data-pdf-block="footerText"');
   });
 
+  it('renderiza bloques de texto propios escapados y omite los ocultos', () => {
+    const layout = {
+      version: 1 as const,
+      blocks: {},
+      customBlocks: [
+        {id: 'a1', text: 'Hola <b>mundo</b>', x: 10, y: 20, width: 200, fontSize: 14},
+        {id: 'a2', text: 'oculto', x: 0, y: 0, width: 100, hidden: true},
+      ],
+    };
+    const html = renderQuoteHtml({...sample(), layout});
+    expect(html).toContain('data-pdf-block="custom:a1"');
+    expect(html).toContain('Hola &lt;b&gt;mundo&lt;/b&gt;');
+    expect(html).not.toContain('oculto');
+  });
+
   it('el logo conserva su proporción aun con un layout antiguo deformado', () => {
     const html = renderQuoteHtml({
       ...sample(),

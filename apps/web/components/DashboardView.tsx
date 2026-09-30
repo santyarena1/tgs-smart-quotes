@@ -33,6 +33,11 @@ function msToHuman(ms: number | null | undefined): string {
   return `${Math.round(hours / 24)} d`;
 }
 
+function barStyle(count: number, items: { count: number }[]): React.CSSProperties {
+  const max = Math.max(1, ...items.map((item) => item.count));
+  return { ["--bar" as string]: Math.round((count / max) * 100) } as React.CSSProperties;
+}
+
 export function DashboardView({ user }: { user: AuthUser }) {
   const [data, setData] = useState<Summary | null>(null);
   const [accepted, setAccepted] = useState<RankBlock | null>(null);
@@ -179,7 +184,7 @@ export function DashboardView({ user }: { user: AuthUser }) {
               ) : (
                 <ul className="rank-list">
                   {accepted.items.map((row) => (
-                    <li key={`a-${row.name}`}>
+                    <li key={`a-${row.name}`} style={barStyle(row.count, accepted.items)}>
                       <span>{row.name}</span>
                       <strong>{row.count}</strong>
                     </li>
@@ -197,7 +202,7 @@ export function DashboardView({ user }: { user: AuthUser }) {
               ) : (
                 <ul className="rank-list">
                   {rejected.items.map((row) => (
-                    <li key={`r-${row.name}`}>
+                    <li key={`r-${row.name}`} style={barStyle(row.count, rejected.items)}>
                       <span>{row.name}</span>
                       <strong>{row.count}</strong>
                     </li>

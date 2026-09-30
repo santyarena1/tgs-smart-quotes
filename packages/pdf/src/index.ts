@@ -129,10 +129,25 @@ export type PdfLayoutDocument = {
   cardBackground?: string;
   cardBorderColor?: string;
 };
+/** Bloque de texto libre agregado por el usuario; x/y en px desde el área imprimible. */
+export type PdfCustomBlock = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  fontSize?: number;
+  color?: string;
+  fontFamily?: string;
+  fontWeight?: number;
+  align?: 'left' | 'center' | 'right';
+  hidden?: boolean;
+};
 export type PdfLayoutConfig = {
   version: 1;
   blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
   document?: PdfLayoutDocument;
+  customBlocks?: PdfCustomBlock[];
 };
 
 export type PdfTemplate = 'CLASICO' | 'MODERNO';
@@ -238,8 +253,43 @@ function renderRmaText(template: string, rmaUrl: string): string {
 
 function hasLayoutOverrides(layout?: PdfLayoutConfig): boolean {
   return Boolean(
-    layout && (Object.keys(layout.blocks).length > 0 || Object.keys(layout.document ?? {}).length > 0),
+    layout
+      && (Object.keys(layout.blocks).length > 0
+        || Object.keys(layout.document ?? {}).length > 0
+        || layout.customBlocks?.length),
   );
+}
+
+/** Capa con los bloques de texto libre. Se ancla al área imprimible (en print, el origen del
+ *  contenedor inicial es el content box de @page; el preview del editor lo compensa por CSS). */
+function renderCustomBlocks(layout?: PdfLayoutConfig): string {
+  const blocks = (layout?.customBlocks ?? []).filter((block) => !block.hidden && block.text.trim());
+  if (!blocks.length) return '';
+  const items = blocks
+    .map((block) => {
+      const css = [
+        'position:absolute',
+        `left:${block.x}px`,
+        `top:${block.y}px`,
+        `width:${block.width}px`,
+        'white-space:pre-wrap',
+        'overflow-wrap:anywhere',
+        'z-index:3',
+        ...(block.fontSize !== undefined ? [`font-size:${block.fontSize}px`] : []),
+        ...(block.color !== undefined ? [`color:${cssValue(block.color)}`] : []),
+        ...(block.fontFamily !== undefined ? [`font-family:"${cssValue(block.fontFamily)}",sans-serif`] : []),
+        ...(block.fontWeight !== undefined ? [`font-weight:${block.fontWeight}`] : []),
+        ...(block.align ? [`text-align:${block.align}`] : []),
+      ].join(';');
+      return `<div data-pdf-block="custom:${escapeHtml(block.id)}" style="${css}">${escapeHtml(block.text)}</div>`;
+    })
+    .join('');
+  return `<div class="pdf-custom-layer" style="position:absolute;left:0;top:0;width:0;height:0">${items}</div>`;
+}
+
+function withCustomBlocks(html: string, layout?: PdfLayoutConfig): string {
+  const layer = renderCustomBlocks(layout);
+  return layer ? html.replace('</body>', () => `${layer}</body>`) : html;
 }
 
 function cssValue(value: string): string {
@@ -696,7 +746,10 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
   <footer class="footer">${escapeHtml(input.company.footerText)} · ${escapeHtml(input.company.address)} · ${escapeHtml(input.company.phones)}</footer>
 </body>
 </html>`;
-  return hasLayoutOverrides(input.layout) ? decorateLayoutHtml(html, input.layout!) : html;
+  return withCustomBlocks(
+    hasLayoutOverrides(input.layout) ? decorateLayoutHtml(html, input.layout!) : html,
+    input.layout,
+  );
 }
 
 function buildItemsRowsModerno(input: PdfRenderInput): string {
@@ -942,9 +995,12 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   <footer class="footer" data-pdf-block="footerText">${escapeHtml(input.company.footerText)}</footer>
 </body>
 </html>`;
-  return hasLayoutOverrides(input.layout)
-    ? html.replace('</style>', `${layoutBlocksCss(input.layout!)}</style>`)
-    : html;
+  return withCustomBlocks(
+    hasLayoutOverrides(input.layout)
+      ? html.replace('</style>', `${layoutBlocksCss(input.layout!)}</style>`)
+      : html,
+    input.layout,
+  );
 }
 
 /** Renderer compartido por el preview live y la generación final. `editor` agrega hit-targets aun sin overrides. */
@@ -975,6 +1031,7 @@ export function renderPdfHtml(input: PdfRenderInput, editor = false): string {
     min-height: 297mm;
     padding: 14mm 12mm;
   }
+  html[data-pdf-editor-preview] .pdf-custom-layer { left: 12mm !important; top: 14mm !important; }
 }</style>`,
     );
 }
