@@ -151,10 +151,16 @@ export type PdfLayoutDocument = {
   tableZebra?: boolean; tableDensity?: "compact" | "normal" | "comfortable";
   cardRadius?: number; cardBackground?: string; cardBorderColor?: string;
 };
+export type PdfCustomBlock = {
+  id: string; text: string; x: number; y: number; width: number;
+  fontSize?: number; color?: string; fontFamily?: string; fontWeight?: number;
+  align?: "left" | "center" | "right"; hidden?: boolean;
+};
 export type PdfLayoutConfig = {
   version: 1;
   blocks: Partial<Record<PdfLayoutBlockKey, PdfLayoutStyle>>;
   document?: PdfLayoutDocument;
+  customBlocks?: PdfCustomBlock[];
 };
 export type PdfLayoutSettings = {
   id: "singleton";

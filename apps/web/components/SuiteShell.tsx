@@ -9,6 +9,7 @@ import type { Branding, NavId } from "../lib/types";
 import { PersonalizableSidebarNav, type SidebarNavGroup } from "./PersonalizableSidebarNav";
 import { useSession } from "./SessionProvider";
 import { Modal, initials } from "./shared";
+import { saveUiMode } from "../lite/lite-mode";
 
 const ADMIN_ROUTES: NavId[] = ["usuarios", "empleados", "gastos", "publicacion-web"];
 
@@ -223,6 +224,10 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       ) : null}
+      <button type="button" className="side-lite-switch" role="switch" aria-checked="false" title="Interfaz reducida: solo crear presupuestos y ver colecciones" onClick={() => { saveUiMode("lite"); router.push("/lite"); }}>
+        <span className="side-lite-track"><span className="side-lite-knob" /></span>
+        <span className="side-lite-copy"><strong>Versión LITE</strong><small>Solo presupuestos y colecciones</small></span>
+      </button>
       {/* El CRM no entra en la nav personalizable: es otra aplicación, con su propio
           shell sin sidebar, así que se accede desde un botón aparte y destacado. */}
       <Link className="side-crm" href="/crm" onClick={() => setMenuOpen(false)}>
