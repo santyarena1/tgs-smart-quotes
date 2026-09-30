@@ -858,7 +858,7 @@ export class WhatsappController {
     const lastInbound = await db.chatbotMessageLog.findFirst({
       where: {conversationKey: chatKey, direction: 'INBOUND'},
       orderBy: {createdAt: 'desc'},
-      select: {text: true, decisionMetadata: true},
+      select: {id: true, text: true, decisionMetadata: true},
     });
     if (!lastInbound) throw new ConflictException('La conversación no tiene mensajes del cliente para responder.');
 
@@ -880,7 +880,7 @@ export class WhatsappController {
       manualSuggestion: true,
       simulation: false,
       recentMessages: await loadRecentMessages(chatKey, settings.maxRecentSnippets),
-    }, actor.id);
+    }, actor.id, lastInbound.id);
     return jsonSafe(result);
   }
 

@@ -31,8 +31,15 @@ import {
   settingsDto,
 } from './chatbot-core.js';
 
-/** Ejecuta el ciclo completo de decisión para un mensaje entrante. */
-export async function runChatbotResponse(body: ChatbotRespondInput, actorId: string) {
+/**
+ * Ejecuta el ciclo completo de decisión para un mensaje entrante.
+ *
+ * Con la Cloud API el webhook ya guardó el mensaje del cliente: se pasa su
+ * `existingInboundId` y el motor lo reutiliza en vez de registrarlo otra vez
+ * (antes eso duplicaba el mensaje en "Sugerir" y cortaba la respuesta
+ * automática como DUPLICATE por el índice único del fingerprint).
+ */
+export async function runChatbotResponse(body: ChatbotRespondInput, actorId: string, existingInboundId?: string) {
     const settings = settingsDto(await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}}));
     const conversation = await db.chatbotConversation.upsert({
       where: {chatKey: body.chatKey},
@@ -44,7 +51,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const effectiveMode = body.simulation ? 'AUTO' : body.manualSuggestion ? 'SUGGEST' : configuredMode;
 
     let inbound: any;
-    try {
+    if (existingInboundId) {
+      inbound = await db.chatbotMessageLog.findUniqueOrThrow({where: {id: existingInboundId}});
+    } else try {
       inbound = await db.chatbotMessageLog.create({data: {
         conversationKey: body.chatKey,
         direction: 'INBOUND',
@@ -82,14 +91,17 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       throw error;
     }
 
-    await db.chatbotConversation.update({
-      where: {chatKey: body.chatKey},
-      data: {
-        lastInboundFingerprint: body.messageFingerprint,
-        lastInboundText: body.message,
-        lastInboundAt: new Date(),
-      },
-    });
+    // El webhook ya actualizó la conversación con el mensaje real.
+    if (!existingInboundId) {
+      await db.chatbotConversation.update({
+        where: {chatKey: body.chatKey},
+        data: {
+          lastInboundFingerprint: body.messageFingerprint,
+          lastInboundText: body.message,
+          lastInboundAt: new Date(),
+        },
+      });
+    }
 
     // Segunda barrera del kill-switch: se evalúa en cada request y antes de invocar IA.
     if (!settings.enabled || effectiveMode === 'OFF') {

@@ -192,8 +192,9 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
     },
   });
 
+  let inboundLogId: string;
   try {
-    await db.chatbotMessageLog.create({data: {
+    ({id: inboundLogId} = await db.chatbotMessageLog.create({data: {
       conversationKey: chatKey,
       direction: 'INBOUND',
       actor: 'CUSTOMER',
@@ -213,7 +214,7 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
         // heurística de "tarjeta de anuncio" que tenía que adivinarlo del DOM.
         ...(message.referral ? {referral: message.referral} : {}),
       } as Prisma.InputJsonValue,
-    }});
+    }, select: {id: true}}));
   } catch (error) {
     // Meta reintenta los webhooks: un duplicado es esperable y no es un error.
     if (typeof error === 'object' && error !== null && 'code' in error && (error as {code?: string}).code === 'P2002') {
@@ -222,12 +223,12 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
     throw error;
   }
 
-  await maybeRespond(chatKey, content, message.id);
+  await maybeRespond(chatKey, content, message.id, inboundLogId);
   return chatKey;
 }
 
 /** Decide si corresponde generar una respuesta y, si sale automática, la encola. */
-async function maybeRespond(chatKey: string, content: ExtractedMessage, waMessageId: string): Promise<void> {
+async function maybeRespond(chatKey: string, content: ExtractedMessage, waMessageId: string, inboundLogId: string): Promise<void> {
   const settingsRow = await db.chatbotSettings.findUnique({where: {id: 'singleton'}});
   if (!settingsRow?.enabled) return;
   const settings = settingsDto(settingsRow);
@@ -258,7 +259,7 @@ async function maybeRespond(chatKey: string, content: ExtractedMessage, waMessag
       manualSuggestion: false,
       simulation: false,
       recentMessages,
-    }, systemUser?.id ?? 'system');
+    }, systemUser?.id ?? 'system', inboundLogId);
   } catch (error) {
     logger.error(JSON.stringify({
       event: 'whatsapp_respond_failed',

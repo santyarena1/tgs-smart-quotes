@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.11",
+    date: "2026-09-30",
+    title: "WhatsApp: Sugerir sin duplicar y bot automático",
+    items: [
+      "Bandeja: \"Sugerir\" ya no vuelve a agregar el último mensaje del cliente (aparecía duplicado); usa el que llegó por el webhook",
+      "Chatbot en modo automático: responde a los mensajes que llegan por la Cloud API. Antes el motor los tomaba como duplicados y no contestaba",
+    ],
+  },
+  {
     version: "0.7.10",
     date: "2026-09-30",
     title: "WhatsApp: solo el número configurado",
