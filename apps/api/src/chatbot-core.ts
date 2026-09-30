@@ -117,13 +117,16 @@ function normalizedRuleText(value: string): string {
 
 function responseMatchScore(response:ChatbotSettingsInput['responses'][number],message:string):number {
   const normalizedMessage = normalizedRuleText(message);
+  const messageWords = ` ${wordsOf(message)} `;
   if(!response.enabled)return -1;
   if(response.activators.length===0)return 0;
   let best=-1;
   for(const activator of response.activators){
     const normalizedActivator=normalizedRuleText(activator);
     if(!normalizedActivator)continue;
-    const direct=normalizedMessage.includes(normalizedActivator);
+    // Palabra o frase completa: "seña" no cuenta dentro de "diseñar".
+    const activatorWords=wordsOf(activator);
+    const direct=activatorWords.length>0&&messageWords.includes(` ${activatorWords} `);
     const similarity=direct?100:productSimilarity(normalizedMessage,normalizedActivator);
     if(direct||similarity>=response.similarityThreshold)best=Math.max(best,similarity);
   }
@@ -253,9 +256,26 @@ export function isOutsideBusinessHours(config: ChatbotSettingsInput['businessHou
   }
 }
 
+/** Minúsculas, sin tildes y solo letras/números separados por un espacio. */
+function wordsOf(value: string): string {
+  return value
+    .toLocaleLowerCase('es-AR')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9ñ]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Palabras completas, no subcadenas: "rma" no debe activarse con "información" ni
+ * "formas". Tampoco importan las tildes: "devolucion" matchea "devolución".
+ */
 export function explicitEscalation(message: string, keywords: string[]): string | null {
-  const normalized = message.toLocaleLowerCase('es-AR');
-  const match = keywords.find((keyword) => normalized.includes(keyword.toLocaleLowerCase('es-AR')));
+  const normalized = ` ${wordsOf(message)} `;
+  const match = keywords.find((keyword) => {
+    const words = wordsOf(keyword);
+    return words.length > 0 && normalized.includes(` ${words} `);
+  });
   return match ? `Regla explícita por palabra o frase: "${match}"` : null;
 }
 

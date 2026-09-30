@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.2",
+    date: "2026-09-30",
+    title: "Chatbot: palabras clave por palabra completa",
+    items: [
+      "Las palabras que derivan a una persona y los activadores de las respuestas ahora se comparan por palabra completa y sin importar tildes: \"rma\" ya no se activa con \"información\" ni \"formas\", y \"seña\" no se activa con \"diseñar\"",
+    ],
+  },
+  {
     version: "0.8.1",
     date: "2026-09-30",
     title: "Chatbot: no inventa precios ni stock",
