@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.13",
+    date: "2026-09-30",
+    title: "CRM: buscador de productos",
+    items: [
+      "Bandeja → Producto: el buscador del catálogo ya no falla con \"Invalid enum value… price-asc\" y vuelve a listar productos para enviar",
+    ],
+  },
+  {
     version: "0.7.12",
     date: "2026-09-30",
     title: "CRM: modo del bot por conversación",

@@ -462,7 +462,7 @@ export function sendWhatsappQuote(
 }
 
 export function searchCrmProducts(q: string): Promise<{items: CrmCatalogProduct[]}> {
-  return api('/catalog', {query: {q, pageSize: 20, sort: 'price-asc'}});
+  return api('/catalog', {query: {q, pageSize: 20, sort: 'price_asc'}});
 }
 
 export function crmProductImagePath(mpn: string): string {
