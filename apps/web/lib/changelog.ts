@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.10",
+    date: "2026-09-30",
+    title: "WhatsApp: solo el número configurado",
+    items: [
+      "El webhook de WhatsApp procesa únicamente los mensajes y estados del Phone Number ID configurado. Si la app de Meta recibe eventos de otros números de la empresa, se ignoran y no entran a la bandeja ni al chatbot",
+    ],
+  },
+  {
     version: "0.7.9",
     date: "2026-09-29",
     title: "Colecciones, PDF y local del empleado",

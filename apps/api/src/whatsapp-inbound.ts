@@ -44,6 +44,7 @@ type MetaStatus = {
   errors?: Array<{code?: number; title?: string; message?: string}>;
 };
 export type MetaValue = {
+  metadata?: {phone_number_id?: string; display_phone_number?: string};
   contacts?: MetaContact[];
   messages?: MetaMessage[];
   statuses?: MetaStatus[];

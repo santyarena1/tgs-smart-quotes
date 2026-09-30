@@ -285,7 +285,7 @@ export class WhatsappController {
         error: error instanceof Error ? error.message : String(error),
       }));
     });
-    void this.processWebhookBody(req.body).catch((error: unknown) => {
+    void this.processWebhookBody(req.body, row.phoneNumberId).catch((error: unknown) => {
       this.logger.error(JSON.stringify({
         event: 'whatsapp_webhook_processing_failed',
         error: error instanceof Error ? error.message : String(error),
@@ -293,12 +293,19 @@ export class WhatsappController {
     });
   }
 
-  private async processWebhookBody(body: any): Promise<void> {
+  private async processWebhookBody(body: any, phoneNumberId: string | null): Promise<void> {
     const entries = Array.isArray(body?.entry) ? body.entry : [];
     for (const entry of entries) {
       for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
         const value = change?.value as MetaValue | undefined;
         if (!value) continue;
+        // La app de Meta puede estar suscripta a cuentas con otros números. Solo
+        // se procesa lo del número configurado; lo demás no entra a la bandeja.
+        const target = value.metadata?.phone_number_id;
+        if (phoneNumberId && target && target !== phoneNumberId) {
+          this.logger.log(JSON.stringify({event: 'whatsapp_webhook_other_number', phoneNumberId: target}));
+          continue;
+        }
         for (const message of value.messages ?? []) {
           try {
             await handleInboundMessage(value, message);
