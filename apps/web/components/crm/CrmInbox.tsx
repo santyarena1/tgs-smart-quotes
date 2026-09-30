@@ -14,6 +14,7 @@ import {
   sendWhatsappSuggestion,
   deleteWhatsappConversation,
   unlinkConversationQuote,
+  updateConversationBot,
   type WhatsappConversation,
   type WhatsappConversationFilter,
   type WhatsappMessage,
@@ -186,6 +187,13 @@ export function CrmInbox() {
     await loadConversations(true);
   }
 
+  async function handleBotUpdate(body: Parameters<typeof updateConversationBot>[1]) {
+    if (!selectedKey) return;
+    await updateConversationBot(selectedKey, body);
+    await loadThread(selectedKey, true);
+    await loadConversations(true);
+  }
+
   async function handleSuggestionSend(logId: string, text: string) {
     await sendWhatsappSuggestion(logId, text);
     setNotice("Sugerencia aprobada y encolada.");
@@ -350,7 +358,7 @@ export function CrmInbox() {
         )}
       </section>
 
-      <ContextPanel conversation={selected} onAssign={handleAssign} onDelete={handleDeleteConversation} />
+      <ContextPanel conversation={selected} onAssign={handleAssign} onBotUpdate={handleBotUpdate} onDelete={handleDeleteConversation} />
 
       <PurgeDialog
         open={purgeOpen}

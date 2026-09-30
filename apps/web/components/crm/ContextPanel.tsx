@@ -16,10 +16,12 @@ import { IconExternal, IconTrash } from "./icons";
 export function ContextPanel({
   conversation,
   onAssign,
+  onBotUpdate,
   onDelete,
 }: {
   conversation: WhatsappConversation | null;
   onAssign: (userId: string | null) => Promise<void>;
+  onBotUpdate: (body: {modeOverride?: "OFF" | "SUGGEST" | "AUTO" | null; clearEscalation?: boolean}) => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
   const [users, setUsers] = useState<AuthUser[]>([]);
@@ -65,6 +67,14 @@ export function ContextPanel({
   }
 
   const progress = windowProgress(conversation.window.expiresAt);
+
+  function runBot(body: Parameters<typeof onBotUpdate>[0]) {
+    setBusy(true);
+    setError(null);
+    void onBotUpdate(body)
+      .catch((reason) => setError(errorMessage(reason)))
+      .finally(() => setBusy(false));
+  }
 
   return (
     <aside className="crm-context">
@@ -138,11 +148,31 @@ export function ContextPanel({
           <div className="crm-section-label">Escalada</div>
           <p className="crm-hint">{conversation.escalationReason || "Requiere revisión humana."}</p>
           <p className="crm-hint">Hace {relativeTime(conversation.escalatedAt)}</p>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={busy}
+            onClick={() => runBot({clearEscalation: true})}
+          >
+            Reanudar el bot
+          </button>
         </div>
       ) : null}
 
       <div className="crm-context-block">
         <div className="crm-section-label">Bot</div>
+        <select
+          className="crm-select"
+          value={conversation.modeOverride ?? ""}
+          disabled={busy}
+          onChange={(event) => runBot({modeOverride: (event.target.value || null) as "OFF" | "SUGGEST" | "AUTO" | null})}
+          aria-label="Modo del bot en esta conversación"
+        >
+          <option value="">Modo general</option>
+          <option value="OFF">Apagado</option>
+          <option value="SUGGEST">Solo sugerir</option>
+          <option value="AUTO">Automático</option>
+        </select>
         <p className="crm-hint">
           {conversation.modeOverride === "OFF"
             ? "Apagado para esta conversación."

@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.12",
+    date: "2026-09-30",
+    title: "CRM: modo del bot por conversación",
+    items: [
+      "Bandeja: en el panel derecho se elige el modo del bot solo para ese chat (Modo general, Apagado, Solo sugerir o Automático), como hacía la extensión",
+      "Si el chat está escalado aparece \"Reanudar el bot\" para quitar la escalación",
+    ],
+  },
+  {
     version: "0.7.11",
     date: "2026-09-30",
     title: "WhatsApp: Sugerir sin duplicar y bot automático",

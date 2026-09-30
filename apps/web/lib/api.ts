@@ -529,6 +529,14 @@ export function purgeWhatsappConversations(confirm: string): Promise<{
   return api('/whatsapp/conversations/purge', {method: 'POST', body: {confirm}});
 }
 
+/** Modo del bot solo para esta conversación (`null` = usa el modo general) o reanudar una escalada. */
+export function updateConversationBot(
+  chatKey: string,
+  body: {modeOverride?: 'OFF' | 'SUGGEST' | 'AUTO' | null; clearEscalation?: boolean},
+): Promise<unknown> {
+  return api(`/chatbot/conversations/${encodeURIComponent(chatKey)}`, {method: 'PUT', body});
+}
+
 /** Desvincula el presupuesto asociado a la conversación. */
 export function unlinkConversationQuote(chatKey: string): Promise<unknown> {
   return api(`/chatbot/conversations/${encodeURIComponent(chatKey)}`, {
