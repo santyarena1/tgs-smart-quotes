@@ -326,6 +326,10 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           matchedResponseId: responseMatch?.response.id??null,
           matchedResponseScore: responseMatch?.score??null,
           decisionReason: result.result.decisionReason,
+          // Lo que se aprueba desde el CRM: burbujas separadas y adjuntos, igual que en AUTO.
+          bubbles: messages,
+          attachments: resolvedAttachments,
+          quoteFollowupMessage,
           reusedResponse: reusable,
           shouldCreateRequest: result.result.shouldCreateRequest,
           requestDraft: result.result.requestDraft,
@@ -408,6 +412,10 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
         : 0,
       simulation: body.simulation,
       wouldEscalate: body.simulation&&shouldEscalate?{reason}:undefined,
+      // Para el simulador de Configuración: qué regla se activó y por qué decidió así.
+      matchedResponseId: responseMatch?.response.id??null,
+      matchedResponseScore: responseMatch?.score??null,
+      decisionReason: result.result.decisionReason??null,
       reused: reusable ?? undefined,
       attachments: resolvedAttachments,
       multiMessage:{

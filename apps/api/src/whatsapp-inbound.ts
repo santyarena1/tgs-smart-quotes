@@ -312,6 +312,23 @@ async function enqueueAutoReply(chatKey: string, result: any, settings: ReturnTy
       : [];
   if (!bubbles.length) return;
 
+  await enqueueOutbound(chatKey, result.logId, buildReplyItems(bubbles, result.attachments, result.quoteFollowupMessage, settings), {
+    initialDelaySeconds: Math.random() * Math.max(0, Math.min(120, settings.autoDelayMaxSeconds)),
+  });
+}
+
+/**
+ * Arma la respuesta del bot tal como sale por WhatsApp: una burbuja por mensaje con
+ * la demora configurada entre cada una, después los adjuntos de la respuesta
+ * configurada y el seguimiento del presupuesto. Lo usan AUTO y la aprobación de
+ * sugerencias, para que las dos salgan igual.
+ */
+export function buildReplyItems(
+  bubbles: string[],
+  attachments: unknown,
+  quoteFollowupMessage: unknown,
+  settings: ReturnType<typeof settingsDto>,
+): EnqueueItem[] {
   const items: EnqueueItem[] = bubbles.map((text, index) => ({
     kind: 'TEXT' as const,
     payload: {text},
@@ -320,7 +337,7 @@ async function enqueueAutoReply(chatKey: string, result: any, settings: ReturnTy
       : randomDelaySeconds(settings.multiMessage.betweenDelayMinSeconds, settings.multiMessage.betweenDelayMaxSeconds),
   }));
 
-  for (const attachment of (result.attachments ?? []) as any[]) {
+  for (const attachment of (Array.isArray(attachments) ? attachments : []) as any[]) {
     if (attachment?.image?.url) {
       items.push({
         kind: 'IMAGE',
@@ -341,13 +358,10 @@ async function enqueueAutoReply(chatKey: string, result: any, settings: ReturnTy
     }
   }
 
-  if (result.quoteFollowupMessage) {
-    items.push({kind: 'TEXT', payload: {text: result.quoteFollowupMessage}, delaySeconds: 2});
+  if (typeof quoteFollowupMessage === 'string' && quoteFollowupMessage.trim()) {
+    items.push({kind: 'TEXT', payload: {text: quoteFollowupMessage.trim()}, delaySeconds: 2});
   }
-
-  await enqueueOutbound(chatKey, result.logId, items, {
-    initialDelaySeconds: Math.random() * Math.max(0, Math.min(120, settings.autoDelayMaxSeconds)),
-  });
+  return items;
 }
 
 /**

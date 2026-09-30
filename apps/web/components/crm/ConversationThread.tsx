@@ -15,6 +15,35 @@ import {
 } from "./format";
 import { IconClock, IconLock, IconPaperclip } from "./icons";
 
+const strings = (value: unknown) =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+
+/** Una respuesta del bot sale en varias burbujas: se muestran como las ve el cliente. */
+function outboundParts(message: WhatsappMessage): string[] {
+  const metadata = message.decisionMetadata ?? {};
+  const sent = strings(metadata.sentBubbles);
+  if (sent.length) return sent;
+  const bubbles = message.actor === "BOT" ? strings(metadata.bubbles) : [];
+  return bubbles.length ? bubbles : [message.text];
+}
+
+/** Adjuntos que acompañaron al mensaje (el log guarda qué se encoló, no el archivo). */
+function outboundAttachments(message: WhatsappMessage): string[] {
+  const metadata = message.decisionMetadata ?? {};
+  const labels: string[] = [];
+  const quote = metadata.quote as { version?: number } | undefined;
+  if (quote) labels.push(`PDF del presupuesto V${quote.version ?? ""}`);
+  if (typeof metadata.productMpn === "string") labels.push("Foto del producto");
+  for (const attachment of (Array.isArray(metadata.attachments) ? metadata.attachments : []) as Array<{
+    image?: { url?: string; filename?: string } | null;
+    quote?: { visibleNumber?: string; version?: number } | null;
+  }>) {
+    if (attachment?.image?.url) labels.push(`Imagen ${attachment.image.filename ?? ""}`.trim());
+    if (attachment?.quote) labels.push(`PDF ${attachment.quote.visibleNumber ?? "del presupuesto"} V${attachment.quote.version ?? ""}`);
+  }
+  return labels;
+}
+
 export function ConversationThread({
   conversation,
   messages,
@@ -98,17 +127,30 @@ export function ConversationThread({
             lastDay = day;
             const delivery = deliveryLabel(message);
             const outbound = message.direction === "OUTBOUND";
+            const parts = outbound ? outboundParts(message) : [message.text];
+            const attachments = outbound ? outboundAttachments(message) : [];
 
             return (
               <div key={message.id}>
                 {showDay ? <div className="crm-day">{day}</div> : null}
+                {parts.slice(0, -1).map((part, index) => (
+                  <div key={index} className="crm-bubble-row out">
+                    <div className="crm-bubble out">
+                      {index === 0 ? <div className="crm-bubble-actor">{actorLabel(message)}</div> : null}
+                      <p className="crm-bubble-text">{part}</p>
+                    </div>
+                  </div>
+                ))}
                 <div className={outbound ? "crm-bubble-row out" : "crm-bubble-row in"}>
                   <div className={`crm-bubble ${outbound ? "out" : "in"}${message.status === "SEND_FAILED" ? " failed" : ""}`}>
-                    {outbound ? <div className="crm-bubble-actor">{actorLabel(message)}</div> : null}
-                    <p className="crm-bubble-text">{message.text}</p>
+                    {outbound && parts.length === 1 ? <div className="crm-bubble-actor">{actorLabel(message)}</div> : null}
+                    <p className="crm-bubble-text">{parts[parts.length - 1]}</p>
                     {message.mediaFilename ? (
                       <p className="crm-bubble-media"><IconPaperclip size={13} /> {message.mediaFilename}</p>
                     ) : null}
+                    {attachments.map((label) => (
+                      <p key={label} className="crm-bubble-media"><IconPaperclip size={13} /> {label}</p>
+                    ))}
                     <div className="crm-bubble-meta">
                       <span>{clockTime(message.createdAt)}</span>
                       {delivery.icon ? (

@@ -50,7 +50,8 @@ import {
   markAsRead,
   verifyNumber,
 } from './whatsapp-client.js';
-import {handleInboundMessage, handleStatusUpdate, loadRecentMessages, type MetaValue} from './whatsapp-inbound.js';
+import {buildReplyItems, handleInboundMessage, handleStatusUpdate, loadRecentMessages, type MetaValue} from './whatsapp-inbound.js';
+import {settingsDto} from './chatbot-core.js';
 import {runChatbotResponse} from './chatbot-engine.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
@@ -58,6 +59,8 @@ import {describeWindow, windowState} from './whatsapp-window.js';
 /** El operador puede editar la sugerencia antes de aprobarla. */
 const suggestionSendSchema = z.object({
   text: z.string().trim().min(1).max(4096).optional(),
+  /** Burbujas editadas por el operador; si no vienen, salen las que redactó el bot. */
+  messages: z.array(z.string().trim().min(1).max(4096)).min(1).max(10).optional(),
 }).strict();
 
 const sendQuoteSchema = z.object({
@@ -352,7 +355,8 @@ export class WhatsappController {
     @CurrentUser() user: RequestUser,
   ) {
     const now = new Date();
-    const where: Prisma.ChatbotConversationWhereInput = {};
+    // `sim:` son las charlas del simulador de Configuración → Chatbot: no son clientes.
+    const where: Prisma.ChatbotConversationWhereInput = {NOT: {chatKey: {startsWith: 'sim:'}}};
     if (query.filter === 'NO_LEIDAS') where.unreadCount = {gt: 0};
     if (query.filter === 'ESCALADAS') where.escalatedAt = {not: null};
     if (query.filter === 'MIAS') where.assignedUserId = user.id;
@@ -624,7 +628,7 @@ export class WhatsappController {
   @Post('suggestions/:logId/send')
   async sendSuggestion(
     @Param('logId') logId: string,
-    @Body(new ZodPipe(suggestionSendSchema)) body: {text?: string},
+    @Body(new ZodPipe(suggestionSendSchema)) body: {text?: string; messages?: string[]},
     @CurrentUser() actor: RequestUser,
   ) {
     const log = await db.chatbotMessageLog.findUnique({where: {id: logId}});
@@ -641,8 +645,18 @@ export class WhatsappController {
       );
     }
 
-    const text = body.text?.trim() || log.text;
+    const metadata = (log.decisionMetadata ?? {}) as Record<string, unknown>;
+    const draftBubbles = Array.isArray(metadata.bubbles)
+      ? metadata.bubbles.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : [];
+    const bubbles = body.messages?.length
+      ? body.messages
+      : body.text?.trim()
+        ? [body.text.trim()]
+        : draftBubbles.length ? draftBubbles : [log.text];
+    const text = bubbles.join('\n').trim();
     if (!text) throw new BadRequestException('La sugerencia no tiene texto para enviar.');
+    const chatbotSettings = settingsDto(await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}}));
 
     const updated = await db.chatbotMessageLog.update({
       where: {id: logId},
@@ -652,13 +666,18 @@ export class WhatsappController {
         // Se registra como humana: la decisión de enviar la tomó una persona.
         actor: 'HUMAN',
         decisionMetadata: {
-          ...((log.decisionMetadata ?? {}) as Record<string, unknown>),
+          ...metadata,
           approvedByUserId: actor.id,
           editedBeforeSending: text !== log.text,
+          sentBubbles: bubbles,
         } as Prisma.InputJsonValue,
       },
     });
-    await enqueueOutbound(log.conversationKey, updated.id, [{kind: 'TEXT', payload: {text}}]);
+    await enqueueOutbound(
+      log.conversationKey,
+      updated.id,
+      buildReplyItems(bubbles, metadata.attachments, metadata.quoteFollowupMessage, chatbotSettings),
+    );
     return jsonSafe({logId: updated.id, text});
   }
 

@@ -194,8 +194,8 @@ export function CrmInbox() {
     await loadConversations(true);
   }
 
-  async function handleSuggestionSend(logId: string, text: string) {
-    await sendWhatsappSuggestion(logId, text);
+  async function handleSuggestionSend(logId: string, messages: string[]) {
+    await sendWhatsappSuggestion(logId, messages);
     setNotice("Sugerencia aprobada y encolada.");
     if (selectedKey) await loadThread(selectedKey, true);
   }

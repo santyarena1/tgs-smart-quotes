@@ -8,6 +8,20 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.0",
+    date: "2026-09-30",
+    title: "Chatbot: configuración nueva, simulador y burbujas en sugerencias",
+    items: [
+      "Configuración → Chatbot rediseñada: el estado (encendido y modo Apagado / Solo sugerir / Automático) queda siempre arriba con un resumen de horario, burbujas, respuestas y derivación. Pestañas nuevas: Probar, Cómo habla, Mensajes y burbujas, Qué sabe, Horario, Derivar a una persona y Avanzado",
+      "Probar: simulador de chat que muestra qué contestaría el bot, en cuántas burbujas, qué respuesta configurada usó, qué adjuntaría y si derivaría. No manda nada por WhatsApp ni aparece en la bandeja",
+      "Mensajes y burbujas: vista previa en vivo de cómo le llega la respuesta al cliente, con las esperas entre burbujas",
+      "Qué sabe: respuestas plegables con resumen, buscador, duplicar y pausar. Horario con atajos (Lun a Vie 9–18, copiar el lunes) y resumen legible",
+      "Barra fija de guardado con aviso de cambios sin guardar y opción de descartarlos. Los ajustes que solo usaba la extensión de Chrome quedan aparte en Avanzado",
+      "Bandeja: al aprobar una sugerencia sale en varias burbujas (igual que en Automático), cada una editable por separado, e incluye los adjuntos de la respuesta configurada (imagen, PDF y seguimiento), que antes se perdían",
+      "Bandeja: las respuestas en varias burbujas se ven separadas en el hilo, y los mensajes muestran el PDF o la foto que se adjuntó",
+    ],
+  },
+  {
     version: "0.7.13",
     date: "2026-09-30",
     title: "CRM: buscador de productos",

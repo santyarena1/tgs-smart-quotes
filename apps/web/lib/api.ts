@@ -201,6 +201,7 @@ export type WhatsappMessage = {
   failedAt: string | null;
   waErrorCode: number | null;
   escalationReason: string | null;
+  decisionMetadata?: Record<string, unknown> | null;
   createdAt: string;
 };
 
@@ -546,10 +547,10 @@ export function unlinkConversationQuote(chatKey: string): Promise<unknown> {
 }
 
 /** Aprueba una sugerencia del bot (opcionalmente editada) y la envía. */
-export function sendWhatsappSuggestion(logId: string, text?: string): Promise<{logId: string; text: string}> {
+export function sendWhatsappSuggestion(logId: string, messages?: string[]): Promise<{logId: string; text: string}> {
   return api(`/whatsapp/suggestions/${encodeURIComponent(logId)}/send`, {
     method: 'POST',
-    body: text ? {text} : {},
+    body: messages?.length ? {messages} : {},
   });
 }
 
