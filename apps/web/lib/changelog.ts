@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.1",
+    date: "2026-09-30",
+    title: "Chatbot: no inventa precios ni stock",
+    items: [
+      "El bot ya no afirma precios, stock, plazos, cuotas ni promociones que no estén en una respuesta configurada: si le preguntan eso sin datos, deriva a una persona. El ejemplo de formato del prompt tenía un precio y lo inducía a inventar",
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-09-30",
     title: "Chatbot: configuración nueva, simulador y burbujas en sugerencias",
