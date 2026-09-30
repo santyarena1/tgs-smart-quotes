@@ -133,7 +133,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       : keywordReason;
     const reusable = localEscalationReason
       ? null
-      : await findReusableReply(body.message, settings.reuseSimilarityThreshold, inbound.id);
+      : await findReusableReply(body.message, settings.reuseSimilarityThreshold, inbound.id, settings.updatedAt);
     const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
     const key = aiSettings.apiKeyEncrypted
       ? decryptSecret(aiSettings.apiKeyEncrypted)
@@ -151,7 +151,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       ? {
           result:{
             reply:reusable.reply,
-            messages:[reusable.reply],
+            messages:reusable.bubbles,
             shouldEscalate:false,
             escalationReason:null,
             updatedSummary:null,

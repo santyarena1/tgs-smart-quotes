@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.4",
+    date: "2026-09-30",
+    title: "Chatbot: reutiliza solo respuestas vigentes",
+    items: [
+      "La reutilización de respuestas (para no gastar IA) solo toma respuestas a clientes reales generadas con la configuración actual: después de cambiar la configuración el bot ya no repite respuestas viejas, y las pruebas del simulador no se reutilizan",
+      "Una respuesta reutilizada conserva sus burbujas originales",
+    ],
+  },
+  {
     version: "0.8.3",
     date: "2026-09-30",
     title: "Chatbot: burbujas más naturales",

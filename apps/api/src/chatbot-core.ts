@@ -151,12 +151,19 @@ function replyLooksChatSpecific(reply:string,displayName:string|null|undefined):
     || /(?:\$\s*\d|ars\s*\d|\b\d{1,3}(?:[./-]\d{1,2}){1,2}\b)/i.test(reply);
 }
 
-export async function findReusableReply(message:string,threshold:number,currentInboundId:string) {
+/**
+ * Reutiliza una respuesta ya dada a una pregunta casi igual, para no gastar IA.
+ *
+ * Solo sirven respuestas de clientes reales (no del simulador `sim:`) generadas con
+ * la configuración vigente: si el bot se reconfiguró, una respuesta vieja contradice
+ * lo nuevo y hace imposible ajustarlo.
+ */
+export async function findReusableReply(message:string,threshold:number,currentInboundId:string,settingsUpdatedAt:Date) {
   if(threshold===0)return null;
   const normalized=normalizeText(message);
   if(!normalized)return null;
   const inbounds=await db.chatbotMessageLog.findMany({
-    where:{id:{not:currentInboundId},direction:'INBOUND',status:'OBSERVED'},
+    where:{id:{not:currentInboundId},direction:'INBOUND',status:'OBSERVED',NOT:{conversationKey:{startsWith:'sim:'}}},
     orderBy:{createdAt:'desc'},
     take:1000,
     include:{conversation:{select:{displayName:true}}},
@@ -186,7 +193,14 @@ export async function findReusableReply(message:string,threshold:number,currentI
   for(const item of scored){
     const outbound=outboundByInbound.get(item.candidate.id);
     if(!outbound||replyLooksChatSpecific(outbound.text,item.candidate.conversation.displayName))continue;
+    const metadata=(outbound.decisionMetadata??{}) as Record<string,unknown>;
+    if(metadata.simulated===true)continue;
+    const generatedWith=typeof metadata.settingsUpdatedAt==='string'?new Date(metadata.settingsUpdatedAt).getTime():NaN;
+    if(generatedWith!==settingsUpdatedAt.getTime())continue;
+    const stored=Array.isArray(metadata.sentBubbles)?metadata.sentBubbles:Array.isArray(metadata.bubbles)?metadata.bubbles:[];
+    const bubbles=stored.filter((bubble):bubble is string=>typeof bubble==='string'&&bubble.trim().length>0);
     return {
+      bubbles:bubbles.length?bubbles:[outbound.text],
       reply:outbound.text,
       similarity:item.similarity,
       sourceInboundLogId:item.candidate.id,
