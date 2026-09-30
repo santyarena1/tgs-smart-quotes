@@ -31,6 +31,17 @@ import {
   settingsDto,
 } from './chatbot-core.js';
 
+/** Mismo texto ignorando mayúsculas, tildes, signos y espacios: "¡Hola!" = "Hola". */
+function sameText(left: string, right: string): boolean {
+  const plain = (value: string) => value
+    .toLocaleLowerCase('es-AR')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9ñ]+/g, '');
+  const a = plain(left);
+  return a.length > 0 && a === plain(right);
+}
+
 /**
  * Ejecuta el ciclo completo de decisión para un mensaje entrante.
  *
@@ -242,20 +253,29 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       :settings.multiMessage.enabled
         ?splitChatbotAiMessages(result.result.messages,baseReply,settings.multiMessage.maxBubbles)
         :(result.result.messages.length?result.result.messages:[baseReply]).slice(0,settings.multiMessage.maxBubbles);
+    // La IA a veces repite la apertura o el cierre fijos que ya agrega el sistema:
+    // se quitan de sus burbujas (enteras o como comienzo del mensaje).
+    const fixedOpening=settings.multiMessage.openingMessage.trim();
+    const fixedClosing=settings.multiMessage.closingMessage.trim();
+    const withoutFixed=(message:string)=>{
+      let text=message.trim();
+      for(const fixed of [fixedOpening,fixedClosing].filter(Boolean)){
+        if(sameText(text,fixed))return '';
+        if(sameText(text.slice(0,fixed.length),fixed))text=text.slice(fixed.length).trim();
+      }
+      return text;
+    };
     let messages=settings.multiMessage.enabled
       ?[
-          ...(!conversation.lastOutboundText&&settings.multiMessage.openingMessage.trim()?[settings.multiMessage.openingMessage.trim()]:[]),
-          ...aiMessages.map(message=>message.trim()).filter(Boolean),
-          ...(settings.multiMessage.closingMessage.trim()?[settings.multiMessage.closingMessage.trim()]:[]),
+          ...(!conversation.lastOutboundText&&fixedOpening?[fixedOpening]:[]),
+          ...aiMessages.map(withoutFixed).filter(Boolean),
+          ...(fixedClosing?[fixedClosing]:[]),
         ]
       :[legacyReply];
     if(settings.multiMessage.enabled&&configuredUrls.length){
+      // El link va en un mensaje propio, como lo manda el equipo.
       const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
-      if(urls.length){
-        const last=messages.length-1;
-        if(last>=0)messages[last]=[messages[last],...urls].join('\n\n');
-        else messages=urls;
-      }
+      messages=[...messages,...urls];
     }
     messages=shouldEscalate?[]:messages.filter(Boolean);
     const reply=messages.join('\n');

@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.3",
+    date: "2026-09-30",
+    title: "Chatbot: burbujas más naturales",
+    items: [
+      "Si la IA repite el saludo o el cierre fijos, se quitan: el saludo sale una sola vez",
+      "Una lista (medios de pago, locales, etc.) sale entera en un mensaje con sus renglones, como la manda el equipo, en vez de aplastarse en una línea",
+      "El link de una respuesta configurada (por ejemplo, Google Maps) sale como mensaje aparte",
+    ],
+  },
+  {
     version: "0.8.2",
     date: "2026-09-30",
     title: "Chatbot: palabras clave por palabra completa",

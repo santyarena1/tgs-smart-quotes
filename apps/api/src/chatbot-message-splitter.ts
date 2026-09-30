@@ -23,6 +23,9 @@ function splitBubble(value:string,threshold:number):string[]{
   const text=value.trim();
   if(!text)return [];
   if(text.length<=threshold)return [text];
+  // Una lista (medios de pago, locales…) sale entera en un mensaje, como la manda el equipo.
+  const listLines=text.split(/\r?\n/).filter(line=>/^\s*(?:[-•*]|\d+[.)])\s+/.test(line));
+  if(listLines.length>=2)return [text];
   const sentences=text
     .split(/(?:\r?\n+|(?<=[.!?])\s+)/)
     .map(part=>part.trim())
@@ -60,5 +63,5 @@ export function splitChatbotAiMessages(
   }
   const limit=Math.max(1,Math.floor(maxBubbles));
   if(split.length<=limit)return split;
-  return [...split.slice(0,limit-1),split.slice(limit-1).join(' ')];
+  return [...split.slice(0,limit-1),split.slice(limit-1).join('\n')];
 }

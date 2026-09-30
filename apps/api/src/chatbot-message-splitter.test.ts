@@ -6,7 +6,7 @@ describe('splitChatbotAiMessages',()=>{
     const input='¡Sí, ya llegaron los monitores! El modelo 4K se ve muy bien. Voy a armarte una propuesta con un mix de productos. Te la paso en un ratito. Si querés sumar algo, avisame.';
     const result=splitChatbotAiMessages([input],input,3);
     expect(result.length).toBeGreaterThan(1);
-    expect(result.join(' ')).toBe(input);
+    expect(result.join(' ').replace(/\s+/g,' ')).toBe(input);
   });
 
   it('conserva una frase corta como una sola burbuja',()=>{
@@ -17,7 +17,7 @@ describe('splitChatbotAiMessages',()=>{
     const input='Primera idea explicada con claridad. Segunda idea con información adicional. Tercera idea para continuar. Cuarta idea que tampoco debe perderse. Quinta idea final para el cliente.';
     const result=splitChatbotAiMessages([input],input,2,70);
     expect(result).toHaveLength(2);
-    expect(result.join(' ')).toBe(input);
+    expect(result.join(' ').replace(/\s+/g,' ')).toBe(input);
   });
 
   it('no corta precios ni URLs a la mitad',()=>{
@@ -27,7 +27,7 @@ describe('splitChatbotAiMessages',()=>{
     const result=splitChatbotAiMessages([input],input,5,80);
     expect(result.some(item=>item.includes(url))).toBe(true);
     expect(result.some(item=>item.includes(price))).toBe(true);
-    expect(result.join(' ')).toBe(input);
+    expect(result.join(' ').replace(/\s+/g,' ')).toBe(input);
   });
 
   it('fusiona una última burbuja mínima con la anterior',()=>{
@@ -38,5 +38,12 @@ describe('splitChatbotAiMessages',()=>{
     );
     expect(result).toEqual(['Dale, cualquier cosa te ayudo 😊']);
     expect(result).not.toContain('😊');
+  });
+});
+
+describe('listas', () => {
+  it('una lista con viñetas queda entera en una burbuja, con sus saltos de línea', () => {
+    const list = 'Te paso las formas de pago:\n- Efectivo (precio del presupuesto)\n- Transferencia (precio del presupuesto)\n- Tarjeta de crédito en 3, 6 o 12 cuotas con interés\n- Tarjeta de débito (se cobra un recargo)';
+    expect(splitChatbotAiMessages([list], list, 3)).toEqual([list]);
   });
 });
