@@ -404,3 +404,18 @@ export async function ensureChatbotRequest(
   }});
   return {request,created:true};
 }
+
+/**
+ * Escritura de WhatsApp de una persona real: sin tildes y sin signos de apertura
+ * (¿ ¡). La ñ se respeta. Los links no se tocan.
+ */
+export function casualText(text: string): string {
+  return text
+    .split(/(\bhttps?:\/\/\S+)/)
+    .map((part, index) => (index % 2
+      ? part
+      : part
+          .replace(/[¿¡]/g, '')
+          .replace(/[áéíóúüÁÉÍÓÚÜ]/g, (char) => char.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))))
+    .join('');
+}

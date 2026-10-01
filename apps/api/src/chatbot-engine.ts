@@ -32,6 +32,7 @@ import {
   matchedResponse,
   resolveRuleAttachments,
   settingsDto,
+  casualText,
 } from './chatbot-core.js';
 
 /** Mismo texto ignorando mayúsculas, tildes, signos y espacios: "¡Hola!" = "Hola". */
@@ -303,12 +304,12 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
       messages=[...messages,...urls];
     }
-    messages=shouldEscalate?[]:messages.filter(Boolean);
+    messages=shouldEscalate?[]:messages.map(casualText).filter(Boolean);
     const reply=messages.join('\n');
     const quoteFollowupMessage=!shouldEscalate
       &&settings.multiMessage.quoteFollowup.enabled
       &&resolvedAttachments.some(attachment=>attachment.quote)
-      ?settings.multiMessage.quoteFollowup.message.trim()||null
+      ?casualText(settings.multiMessage.quoteFollowup.message.trim())||null
       :null;
     if (!shouldEscalate && !reply) throw new BadRequestException('La IA no generó una respuesta utilizable');
     if (!shouldEscalate && settings.responseStyle.avoidRepetition && reply === conversation.lastOutboundText?.trim()) {

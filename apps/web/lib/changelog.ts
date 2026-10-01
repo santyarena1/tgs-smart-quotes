@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.3",
+    date: "2026-10-01",
+    title: "El bot escribe como en el celular",
+    items: [
+      "Las respuestas del bot salen sin tildes y sin signos de apertura (¿ ¡), como escribe una persona por WhatsApp: \"Que juegos usas?\". La ñ y los links se respetan. Los mensajes de los vendedores no se tocan",
+    ],
+  },
+  {
     version: "0.15.2",
     date: "2026-10-01",
     title: "Chats que el bot atiende a cualquier hora",
