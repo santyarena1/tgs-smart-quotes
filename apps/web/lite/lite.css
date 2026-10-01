@@ -197,3 +197,12 @@
 .lite .lt-coll-new-row .lt-input { flex: 1; }
 .lite .lt-coll-new-row .lt-icon-in { flex: none; width: 64px; text-align: center; }
 .lite .lt-coll-new-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; font-size: 0.8rem; }
+
+/* ————— Alta rápida de producto ————— */
+.lite .lt-modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.45); }
+.lite .lt-modal-card { width: min(480px, 100%); gap: 0.8rem; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
+.lite .lt-modal-card h2 { margin: 0; font: 650 1.1rem var(--font); }
+.lite .lt-modal-card p { margin: 0; font-size: 0.82rem; }
+.lite .lt-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.lite .lt-modal-foot { display: flex; justify-content: flex-end; gap: 0.5rem; }
+@media (max-width: 520px) { .lite .lt-modal-grid { grid-template-columns: 1fr; } }
