@@ -20,6 +20,7 @@ import {type ChatbotRespondInput} from '@tgs/contracts';
 import {db, Prisma} from '@tgs/database';
 import {jsonSafe} from './infrastructure.js';
 import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
+import {recordUnansweredQuestion} from './bot-training.js';
 import {
   createEscalationNotification,
   ensureChatbotRequest,
@@ -227,6 +228,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
               ? `Fuera de horario. Conducta configurada: ${settings.outsideHoursBehavior.mode}. Mensaje permitido: ${settings.outsideHoursBehavior.message}`
               : 'Dentro del horario de atención.',
             responseStyle: settings.responseStyle,
+            guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
+              .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
+              .map((item) => String(item.text)),
             multiMessage:{
               maxBubbles:settings.multiMessage.maxBubbles,
               splitMode:settings.multiMessage.splitMode,
@@ -412,6 +416,12 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       }
       return {log, notification: null, action: 'AUTO_REPLY' as const, requestResult};
     });
+
+    // El modelo derivó porque no sabía: queda como pregunta para enseñarle (y se le
+    // consulta al entrenador). Las derivaciones por palabra clave o audio no cuentan.
+    if (output.action === 'ESCALATED' && !localEscalationReason && !reusable && !body.simulation) {
+      void recordUnansweredQuestion(body.chatKey, body.message, reason, output.log.id).catch(() => undefined);
+    }
 
     return jsonSafe({
       action: output.action,

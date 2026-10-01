@@ -155,7 +155,7 @@ const ChatRow = memo(function ChatRow({
           {typing ? <em>{typing.name} está escribiendo…</em> : preview || <em>Sin mensajes</em>}
         </span>
         <span className="cx-row-meta">
-          <StatusPill item={item} />
+          {item.isTrainer ? <span className="cx-pill human">🎓 Entrenador</span> : <StatusPill item={item} />}
           {item.assignedUser ? <span className="cx-pill">👤 {item.assignedUser.displayName || item.assignedUser.username}</span> : null}
           {!item.window.open && item.lastInboundAt ? <span className="cx-pill muted" title="Pasaron más de 24 h: solo plantillas">⏱ cerrada</span> : null}
           {(item.tags ?? []).slice(0, 2).map((tag) => <span key={tag} className="cx-pill tag">#{tag}</span>)}

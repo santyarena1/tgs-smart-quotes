@@ -11,6 +11,7 @@ import "./inbox.css";
 /** Secciones del CRM. Las que todavía no existen se suman en las próximas etapas. */
 const NAV = [
   { href: "/crm", label: "Bandeja", icon: "💬", match: (path: string) => path === "/crm" },
+  { href: "/crm/entrenamiento", label: "Entrenamiento", icon: "🎓", match: (path: string) => path.startsWith("/crm/entrenamiento") },
   { href: "/crm/respuestas", label: "Respuestas rápidas", icon: "⚡", match: (path: string) => path.startsWith("/crm/respuestas") },
   { href: "/crm/plantillas", label: "Plantillas", icon: "📄", match: (path: string) => path.startsWith("/crm/plantillas") },
   { href: "/configuracion?tab=chatbot", label: "Bot", icon: "🤖", match: () => false },

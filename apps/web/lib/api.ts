@@ -176,6 +176,8 @@ export type WhatsappConversation = {
   tags?: string[];
   /** Quién habló último: CUSTOMER = falta que le contestemos. */
   lastSpeaker?: 'CUSTOMER' | 'US' | null;
+  /** Es el chat de un número entrenador, no de un cliente. */
+  isTrainer?: boolean;
   lastQuoteFamilyId?: string | null;
   displayName: string | null;
   waContactName: string | null;

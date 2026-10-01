@@ -19,7 +19,7 @@ import {
 } from '@nestjs/common';
 import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
-import {conversationInclude, conversationView, pauserNames} from './crm-views.js';
+import {conversationInclude, conversationView, pauserNames, trainerKeys} from './crm-views.js';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {downloadMedia, loadCredentials} from './whatsapp-client.js';
 
@@ -80,7 +80,7 @@ async function requireConversation(chatKey: string) {
 
 async function viewOf(chatKey: string) {
   const row = await db.chatbotConversation.findUniqueOrThrow({where: {chatKey}, include: conversationInclude});
-  return jsonSafe(conversationView(row, new Date(), await pauserNames([row])));
+  return jsonSafe(conversationView(row, new Date(), await pauserNames([row]), await trainerKeys()));
 }
 
 @Controller('crm')
@@ -115,9 +115,9 @@ export class CrmController {
       })] as const)),
     ]);
     const items = rows.slice(0, query.limit);
-    const pausers = await pauserNames(items);
+    const [pausers, trainers] = await Promise.all([pauserNames(items), trainerKeys()]);
     return jsonSafe({
-      items: items.map((row) => conversationView(row, now, pausers)),
+      items: items.map((row) => conversationView(row, now, pausers, trainers)),
       nextCursor: rows.length > query.limit ? items.at(-1)?.chatKey ?? null : null,
       counts: Object.fromEntries(counts),
     });

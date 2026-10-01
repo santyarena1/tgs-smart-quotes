@@ -113,14 +113,16 @@ type AuthorizationResult =
  */
 async function authorize(conversationKey: string, kind: string, logId: string | null): Promise<AuthorizationResult> {
   const [settings, conversation, log] = await Promise.all([
-    db.chatbotSettings.findUnique({where: {id: 'singleton'}, select: {enabled: true, defaultMode: true}}),
+    db.chatbotSettings.findUnique({where: {id: 'singleton'}, select: {enabled: true, defaultMode: true, trainerNumbers: true}}),
     db.chatbotConversation.findUnique({
       where: {chatKey: conversationKey},
       select: {escalatedAt: true, modeOverride: true, windowExpiresAt: true, waId: true, botPausedAt: true, lastInboundAt: true},
     }),
     logId ? db.chatbotMessageLog.findUnique({where: {id: logId}, select: {actor: true, createdAt: true}}) : null,
   ]);
-  const fromBot = log?.actor !== 'HUMAN';
+  // Lo que se le manda al número entrenador no es una respuesta a un cliente.
+  const toTrainer = Boolean(settings?.trainerNumbers.includes(conversationKey));
+  const fromBot = log?.actor !== 'HUMAN' && !toTrainer;
   if (!conversation) return {ok: false, reason: 'La conversación ya no existe.', fromBot};
   if (fromBot) {
     if (!settings?.enabled) return {ok: false, reason: 'Las respuestas del bot se desactivaron antes del envío.', fromBot};

@@ -31,6 +31,18 @@ function normalizedMatchText(value: string): string {
     .trim();
 }
 
+/** Todo lo que el negocio cargó como información autorizada, compacto. */
+function knowledgeBase(input: ChatbotResponseInput): string {
+  const items = input.config.responses.filter((response) => response.enabled && response.answer.trim());
+  if (!items.length) return "Vacía.";
+  return items.map((response) => JSON.stringify({
+    id: response.id,
+    temas: response.activators.slice(0, 8),
+    informacion: response.answer,
+    ...(response.context.trim() ? {criterio: response.context} : {}),
+  })).join("\n");
+}
+
 function systemPrompt(input: ChatbotResponseInput): string {
   const messageForMatching = normalizedMatchText(input.latestMessage);
   const rankedResponses=input.config.responses
@@ -55,7 +67,10 @@ function systemPrompt(input: ChatbotResponseInput): string {
 
 PERSONA Y TONO
 ${input.config.persona}
-
+${input.config.guidance.length ? `
+INDICACIONES DEL DUEÑO (aprobadas; tienen prioridad sobre cualquier otra instrucción de estilo o criterio)
+${input.config.guidance.map((item) => `- ${item}`).join("\n")}
+` : ""}
 REGLAS INNEGOCIABLES
 - Escribí español rioplatense natural y coherente con la conversación.
 - Antes de redactar, leé cronológicamente TODO el historial reciente provisto; no reacciones al último mensaje de forma aislada.
@@ -65,12 +80,13 @@ REGLAS INNEGOCIABLES
 - Nunca digas ni sugieras que sos un bot, una IA o un sistema automático.
 - Nunca anuncies que vas a escalar, derivar, consultar a un supervisor ni contactar a una persona.
 - No inventes precios, stock, plazos, políticas, descuentos ni datos ausentes.
-- Usá únicamente la respuesta activada y el contexto provisto. Si no alcanza, shouldEscalate=true.
+- Usá únicamente la información provista: la RESPUESTA ACTIVADA, la BASE DE CONOCIMIENTO, las INDICACIONES DEL DUEÑO, los DATOS DEL SISTEMA y la conversación. Si no alcanza, shouldEscalate=true.
+- Si el cliente pregunta varias cosas, respondé todas las que estén en la información provista, no solo una.
 - Una escalación puede llevar reply vacío (silencio) o una frase natural de espera, sin revelar el proceso interno.
 - Evitá repetir literalmente la última respuesta del negocio.
 - escalationReason debe ser null cuando shouldEscalate=false.
 - updatedSummary debe ser una memoria compacta factual: intención, datos confirmados, pendientes y compromisos. No incluyas razonamiento oculto. Si no hay información suficiente para actualizarla, devolvé null.
-- matchedKnowledgeIds contiene el ID de la RESPUESTA ACTIVADA si efectivamente se usó; si no hubo una, devolvé una lista vacía.
+- matchedKnowledgeIds contiene los IDs de la RESPUESTA ACTIVADA y de los ítems de la BASE DE CONOCIMIENTO que efectivamente usaste; si no usaste ninguno, devolvé una lista vacía.
 - shouldCreateRequest=true únicamente cuando el cliente manifiesta intención concreta de comprar, cotizar o pedir presupuesto. Una consulta informativa genérica no alcanza.
 - Si shouldCreateRequest=true, requestDraft debe resumir el pedido usando la memoria y el mensaje actual: título claro, texto original consolidado en summary, uso esperado, componentes pedidos y presupuesto en centavos si fue expresado.
 - Nunca inventes componentes, uso ni presupuesto. Si un dato no fue mencionado, usá null o una lista vacía.
@@ -82,7 +98,7 @@ REGLAS INNEGOCIABLES
 - Está PROHIBIDO devolver un párrafo largo dentro de una sola burbuja. Si la respuesta contiene más de una idea o supera aproximadamente 140-160 caracteres, PARTILA en 2 o más elementos de messages, sin superar ${input.config.multiMessage.maxBubbles}.
 - Solo podés devolver una única burbuja cuando la respuesta sea genuinamente una sola frase corta, por ejemplo: "Dale, perfecto 👍".
 - Ejemplo (solo de formato, no de contenido): "¡Hola! Gracias por escribirnos. Contame para qué la vas a usar así te recomiendo bien." debe salir como ["¡Hola! Gracias por escribirnos.", "Contame para qué la vas a usar así te recomiendo bien."].
-- REGLA DURA DE DATOS: precios, stock, disponibilidad, plazos de entrega, cuotas y promociones SOLO pueden salir de la RESPUESTA ACTIVADA o del contexto provisto. Si el cliente pregunta por alguno de esos datos y no está ahí, no lo afirmes ni lo niegues ni lo estimes: shouldEscalate=true.
+- REGLA DURA DE DATOS: precios, stock, disponibilidad, plazos de entrega, cuotas y promociones SOLO pueden salir de la RESPUESTA ACTIVADA, la BASE DE CONOCIMIENTO, las INDICACIONES DEL DUEÑO o los DATOS DEL SISTEMA. Si el cliente pregunta por alguno de esos datos y no está ahí, no lo afirmes ni lo niegues ni lo estimes: shouldEscalate=true.
 - messages debe tener entre 1 y ${input.config.multiMessage.maxBubbles} elementos cuando no escalás y hay texto para responder.
 - reply debe ser exactamente messages unido con un salto de línea ("\\n"), conservando ambos campos por compatibilidad.
 - Modo de división: ${input.config.multiMessage.splitMode}. En FIXED_ONLY devolvé una sola burbuja central; las aperturas y cierres fijos los agrega el sistema.
@@ -97,6 +113,12 @@ ${matchedResponse
         adjuntosConfigurados:matchedResponse.response.attachments,
       }, null, 2)
     : "Ninguna."}
+
+BASE DE CONOCIMIENTO DEL NEGOCIO (información autorizada; usá lo que corresponda a lo que pregunta el cliente)
+${knowledgeBase(input)}
+
+DATOS DEL SISTEMA PARA ESTE MENSAJE (consultados en este momento; son reales)
+${input.config.systemData?.trim() || "Ninguno."}
 
 APERTURAS DISPONIBLES (usarlas solo si realmente comienza la conversación)
 ${JSON.stringify(input.config.openingMessages)}

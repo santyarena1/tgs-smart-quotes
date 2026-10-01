@@ -719,6 +719,16 @@ export const chatbotSettingsInputSchema = z
     replyDebounceSeconds: z.number().int().min(2).max(60).default(10),
     /** Horas sin mensajes del vendedor para que el bot retome un chat tomado. 0 = nunca. */
     autoResumeHours: z.number().int().min(0).max(168).default(0),
+    /** chatKeys de los números que entrenan al bot (se editan en el CRM → Entrenamiento). */
+    trainerNumbers: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+    /** Indicaciones aprobadas en el entrenamiento. */
+    guidance: z.array(z.object({
+      id: z.string(),
+      text: z.string(),
+      enabled: z.boolean(),
+      source: z.string(),
+      createdAt: z.string(),
+    }).strict()).max(200).default([]),
   })
   .strict();
 export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({

@@ -105,6 +105,8 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     recontactMaxAttempts: Number.isInteger(row.recontactMaxAttempts) ? row.recontactMaxAttempts : 1,
     replyDebounceSeconds: Number.isInteger(row.replyDebounceSeconds) ? row.replyDebounceSeconds : 10,
     autoResumeHours: Number.isInteger(row.autoResumeHours) ? row.autoResumeHours : 0,
+    trainerNumbers: Array.isArray(row.trainerNumbers) ? row.trainerNumbers : [],
+    guidance: Array.isArray(row.guidance) ? row.guidance : [],
   };
 }
 

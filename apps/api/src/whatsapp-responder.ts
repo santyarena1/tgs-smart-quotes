@@ -18,6 +18,7 @@ import {settingsDto} from './chatbot-core.js';
 import {buildReplyItems, loadRecentMessages, matchesConfiguredAutoMessage} from './whatsapp-inbound.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {loadCredentials, showTyping} from './whatsapp-client.js';
+import {handleTrainerTurn} from './bot-training.js';
 
 const logger = new Logger('WhatsappResponder');
 
@@ -34,11 +35,13 @@ const ANSWERED_STATUSES = ['SEND_PENDING', 'SENT', 'DELIVERED', 'READ'] as const
 export async function scheduleReply(chatKey: string): Promise<void> {
   const settings = await db.chatbotSettings.findUnique({
     where: {id: 'singleton'},
-    select: {enabled: true, replyDebounceSeconds: true},
+    select: {enabled: true, replyDebounceSeconds: true, trainerNumbers: true},
   });
   await cancelPendingBotReplies(chatKey, 'El cliente escribió de nuevo antes de que saliera la respuesta.');
-  if (!settings?.enabled) return;
-  const seconds = Math.max(2, Math.min(60, settings.replyDebounceSeconds));
+  // El entrenador se atiende aunque el bot esté apagado para los clientes.
+  const trainer = Boolean(settings?.trainerNumbers.includes(chatKey));
+  if (!settings?.enabled && !trainer) return;
+  const seconds = trainer ? 4 : Math.max(2, Math.min(60, settings?.replyDebounceSeconds ?? 10));
   await db.chatbotConversation.update({
     where: {chatKey},
     data: {replyDueAt: new Date(Date.now() + seconds * 1000)},
@@ -146,6 +149,25 @@ async function botActorId(): Promise<string> {
 export async function respondNow(chatKey: string): Promise<void> {
   const startedAt = new Date();
   const settingsRow = await db.chatbotSettings.findUnique({where: {id: 'singleton'}});
+  if (settingsRow?.trainerNumbers.includes(chatKey)) {
+    await handleTrainerTurn(chatKey, async (message) => {
+      // Prueba "como si fuera un cliente", en un chat simulado que no toca a nadie.
+      const result: any = await runChatbotResponse({
+        chatKey: `sim:trainer:${Date.now()}`,
+        message,
+        messageType: 'TEXT',
+        messageFingerprint: `sim:trainer:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+        manualSuggestion: false,
+        simulation: true,
+        recentMessages: [],
+      }, await botActorId());
+      return {
+        messages: Array.isArray(result?.messages) ? result.messages : [],
+        escalateReason: result?.wouldEscalate ? result.wouldEscalate.reason ?? 'sin motivo' : null,
+      };
+    });
+    return;
+  }
   if (!settingsRow?.enabled) return;
   const settings = settingsDto(settingsRow);
 

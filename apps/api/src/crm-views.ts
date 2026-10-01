@@ -18,13 +18,20 @@ export async function pauserNames(rows: Array<{botPausedById?: string | null}>):
   return new Map(users.map((user) => [user.id, user.displayName || user.username]));
 }
 
-export function conversationView(row: any, now: Date, pausers: Map<string, string> = new Map()) {
+/** Números que entrenan al bot: su chat no es de un cliente. */
+export async function trainerKeys(): Promise<Set<string>> {
+  const row = await db.chatbotSettings.findUnique({where: {id: 'singleton'}, select: {trainerNumbers: true}});
+  return new Set(row?.trainerNumbers ?? []);
+}
+
+export function conversationView(row: any, now: Date, pausers: Map<string, string> = new Map(), trainers: Set<string> = new Set()) {
   const state = windowState(row.windowExpiresAt, now);
   const lastInbound = row.lastInboundAt ? new Date(row.lastInboundAt).getTime() : 0;
   const lastOutbound = row.lastOutboundAt ? new Date(row.lastOutboundAt).getTime() : 0;
   const snoozed = row.snoozedUntil && new Date(row.snoozedUntil) > now;
   return {
     chatKey: row.chatKey,
+    isTrainer: trainers.has(row.chatKey),
     displayName: row.displayName,
     waContactName: row.waContactName,
     waId: row.waId,
