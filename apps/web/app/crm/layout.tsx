@@ -4,7 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SessionProvider, useSession } from "../../components/SessionProvider";
 import { initials } from "../../components/shared";
+import { CrmThemeProvider, ThemeSwitch } from "../../components/crm/theme";
 import "./crm.css";
+import "./inbox.css";
+
+/** Secciones del CRM. Las que todavía no existen se suman en las próximas etapas. */
+const NAV = [
+  { href: "/crm", label: "Bandeja", icon: "💬", match: (path: string) => path === "/crm" },
+  { href: "/crm/respuestas", label: "Respuestas rápidas", icon: "⚡", match: (path: string) => path.startsWith("/crm/respuestas") },
+  { href: "/crm/plantillas", label: "Plantillas", icon: "📄", match: (path: string) => path.startsWith("/crm/plantillas") },
+  { href: "/configuracion?tab=chatbot", label: "Bot", icon: "🤖", match: () => false },
+];
 
 function CrmShell({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
@@ -13,33 +23,36 @@ function CrmShell({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   return (
-    <div className="crm-shell">
-      <header className="crm-topbar">
-        <div className="crm-topbar-brand">
-          <span className="crm-mark">CRM</span>
-          <span className="crm-topbar-sub">The Gamer Shop</span>
-        </div>
-        <nav className="crm-topbar-nav" aria-label="Secciones del CRM">
-          <Link className={pathname === "/crm" ? "crm-navlink active" : "crm-navlink"} href="/crm">
-            Conversaciones
-          </Link>
-          <Link
-            className={pathname.startsWith("/crm/plantillas") ? "crm-navlink active" : "crm-navlink"}
-            href="/crm/plantillas"
-          >
-            Plantillas
-          </Link>
+    <div className="cx-shell">
+      <aside className="cx-rail" aria-label="Secciones del CRM">
+        <Link href="/crm" className="cx-rail-brand" title="CRM · The Gamer Shop">
+          <span className="cx-rail-mark">TGS</span>
+        </Link>
+        <nav className="cx-rail-nav">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={item.match(pathname) ? "cx-rail-link active" : "cx-rail-link"}
+              title={item.label}
+            >
+              <span className="cx-rail-icon" aria-hidden="true">{item.icon}</span>
+              <span className="cx-rail-label">{item.label}</span>
+            </Link>
+          ))}
         </nav>
-        <div className="crm-topbar-end">
-          <span className="crm-user" title={user.displayName || user.username}>
-            <span className="avatar">{initials(user.displayName || user.username)}</span>
+        <div className="cx-rail-end">
+          <ThemeSwitch compact />
+          <span className="cx-rail-user" title={user.displayName || user.username}>
+            {initials(user.displayName || user.username)}
           </span>
-          <Link className="crm-exit" href="/dashboard">
-            ← Volver al sistema
+          <Link className="cx-rail-link" href="/dashboard" title="Volver al sistema">
+            <span className="cx-rail-icon" aria-hidden="true">↩</span>
+            <span className="cx-rail-label">Volver al sistema</span>
           </Link>
         </div>
-      </header>
-      <div className="crm-body">{children}</div>
+      </aside>
+      <div className="cx-main">{children}</div>
     </div>
   );
 }
@@ -47,7 +60,9 @@ function CrmShell({ children }: { children: React.ReactNode }) {
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <CrmShell>{children}</CrmShell>
+      <CrmThemeProvider>
+        <CrmShell>{children}</CrmShell>
+      </CrmThemeProvider>
     </SessionProvider>
   );
 }

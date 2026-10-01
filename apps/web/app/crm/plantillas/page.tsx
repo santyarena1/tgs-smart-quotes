@@ -3,5 +3,9 @@
 import { TemplatesManager } from "../../../components/crm/TemplatesManager";
 
 export default function Page() {
-  return <TemplatesManager />;
+  return (
+    <div className="cx-page">
+      <TemplatesManager />
+    </div>
+  );
 }

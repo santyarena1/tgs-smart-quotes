@@ -8,6 +8,23 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.10.0",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 3: bandeja y conversación rediseñadas",
+    items: [
+      "CRM con barra lateral propia (Bandeja, Respuestas rápidas, Plantillas, Bot) y tema claro, oscuro o automático que se guarda por usuario",
+      "Bandeja con vistas y contadores: Todas, Mías, Sin asignar, Derivadas, Con el bot, Sin leer, Esperando al cliente, Pospuestas y Resueltas. Búsqueda por nombre, número, mensaje o etiqueta",
+      "Cada chat muestra quién lo atiende (bot o vendedor), si está derivado, la ventana de 24 h, sus etiquetas y quién más lo está mirando o escribiendo",
+      "Resolver, reabrir y posponer chats (1 h, 3 h, mañana, lunes, una semana o fecha a elección). Un mensaje del cliente reabre solo lo resuelto o pospuesto",
+      "Notas internas con @menciones (el mencionado recibe un aviso) y respuestas rápidas que se insertan escribiendo \"/\"",
+      "Se ven y escuchan las fotos, audios, videos y documentos que manda el cliente",
+      "Nombre del cliente editable, etiquetas con sugerencias, asignación al equipo, modo del bot y solicitudes en la ficha de la derecha",
+      "Ctrl+K para buscar cualquier chat o acción; J/K para pasar de chat, E para resolver, I para la ficha. Sonido y aviso del navegador cuando entra un mensaje",
+      "Las plantillas se pueden mandar con la ventana cerrada sin depender de los recontactos, y en el historial queda el texto que recibió el cliente",
+      "Funciona en el celular: lista o chat a pantalla completa y barra de navegación abajo",
+    ],
+  },
+  {
     version: "0.9.1",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 2: tiempo real",

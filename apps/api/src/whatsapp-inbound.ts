@@ -185,6 +185,9 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
       lastInboundAt: now,
       lastInboundFingerprint: message.id,
       lastMessageAt: now,
+      // El cliente volvió a escribir: un chat resuelto o pospuesto se reabre solo.
+      resolvedAt: null,
+      snoozedUntil: null,
       windowExpiresAt,
       unreadCount: {increment: 1},
       waId: message.from ?? undefined,

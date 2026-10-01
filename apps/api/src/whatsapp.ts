@@ -55,6 +55,7 @@ import {settingsDto} from './chatbot-core.js';
 import {runChatbotResponse} from './chatbot-engine.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {pauseBot, resumeBot} from './whatsapp-responder.js';
+import {conversationView, pauserNames} from './crm-views.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
 
 /** El operador puede editar la sugerencia antes de aprobarla. */
@@ -390,47 +391,12 @@ export class WhatsappController {
     });
   }
 
-  /** Nombre de quien tomó cada chat ("Bot pausado por Lucas"). */
-  private async pauserNames(rows: Array<{botPausedById?: string | null}>): Promise<Map<string, string>> {
-    const ids = [...new Set(rows.map((row) => row.botPausedById).filter((id): id is string => Boolean(id)))];
-    if (!ids.length) return new Map();
-    const users = await db.user.findMany({where: {id: {in: ids}}, select: {id: true, username: true, displayName: true}});
-    return new Map(users.map((user) => [user.id, user.displayName || user.username]));
+  private pauserNames(rows: Array<{botPausedById?: string | null}>) {
+    return pauserNames(rows);
   }
 
   private conversationView(row: any, now: Date, pausers: Map<string, string> = new Map()) {
-    const state = windowState(row.windowExpiresAt, now);
-    return {
-      bot: {
-        paused: Boolean(row.botPausedAt),
-        pausedAt: row.botPausedAt ?? null,
-        pausedBy: row.botPausedById ? pausers.get(row.botPausedById) ?? null : null,
-        pausedReason: row.botPausedReason ?? null,
-        replying: Boolean(row.replyDueAt),
-      },
-      lastMessageAt: row.lastMessageAt ?? null,
-      chatKey: row.chatKey,
-      displayName: row.displayName,
-      waContactName: row.waContactName,
-      waId: row.waId,
-      lastInboundText: row.lastInboundText,
-      lastInboundAt: row.lastInboundAt,
-      lastOutboundText: row.lastOutboundText,
-      lastOutboundAt: row.lastOutboundAt,
-      unreadCount: row.unreadCount,
-      escalatedAt: row.escalatedAt,
-      escalationReason: row.escalationReason,
-      modeOverride: row.modeOverride,
-      assignedUser: row.assignedUser ?? null,
-      activeRequest: row.activeRequest ?? null,
-      updatedAt: row.updatedAt,
-      window: {
-        open: state.open,
-        expiresAt: state.expiresAt,
-        remainingMs: state.remainingMs,
-        description: describeWindow(state),
-      },
-    };
+    return conversationView(row, now, pausers);
   }
 
   @Get('conversations/:chatKey')
@@ -629,13 +595,20 @@ export class WhatsappController {
     }
 
     const text = body.text?.trim();
+    // En el historial queda el texto que recibió el cliente, no "[plantilla]".
+    const template = body.templateId
+      ? await db.whatsappTemplate.findUnique({where: {id: body.templateId}, select: {body: true, name: true}})
+      : null;
+    const templateText = template
+      ? template.body.replace(/\{\{\s*(\d+)\s*\}\}/g, (match, index) => body.templateVariables?.[Number(index) - 1] ?? match)
+      : null;
     const log = await db.chatbotMessageLog.create({data: {
       conversationKey: chatKey,
       direction: 'OUTBOUND',
       actor: 'HUMAN',
       status: 'SEND_PENDING',
       channel: 'CLOUD_API',
-      text: text ?? (body.templateId ? '[plantilla]' : '[presupuesto]'),
+      text: text ?? templateText ?? '[presupuesto]',
       decisionMetadata: {manual: true, sentByUserId: actor.id},
     }});
 

@@ -299,6 +299,8 @@ model User {
   createdAt     DateTime              @default(now())
   lastAccessAt  DateTime?
   navPrefsJson  Json?
+  /// Tema elegido en el CRM: light | dark | system. Se guarda por usuario, no por navegador.
+  themePreference String?
   sessions      Session[]
   products      Product[]
   combos        Combo[]
@@ -1165,19 +1167,55 @@ model ChatbotConversation {
   /// Último mensaje real (entrante o saliente). Ordena la bandeja: abrir, asignar o
   /// cambiar el modo no mueve un chat de lugar.
   lastMessageAt          DateTime?
+  /// Chat cerrado por un vendedor. Un mensaje nuevo del cliente lo reabre solo.
+  resolvedAt             DateTime?
+  /// Pospuesto hasta esta fecha; también se reabre si el cliente escribe antes.
+  snoozedUntil           DateTime?
+  tags                   String[]            @default([])
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   messages               ChatbotMessageLog[]
   outboundQueue          WhatsappOutboundQueue[]
+  notes                  CrmNote[]
 
   @@index([replyDueAt])
   @@index([lastMessageAt])
+  @@index([resolvedAt])
+  @@index([snoozedUntil])
   @@index([escalatedAt])
   @@index([updatedAt])
   @@index([activeRequestId])
   @@index([lastQuoteFamilyId])
   @@index([windowExpiresAt])
   @@index([assignedUserId, updatedAt])
+}
+
+/// Nota interna de un chat: la ve el equipo, nunca el cliente.
+model CrmNote {
+  id              String              @id @default(uuid())
+  conversationKey String
+  conversation    ChatbotConversation @relation(fields: [conversationKey], references: [chatKey], onDelete: Cascade)
+  authorId        String?
+  /// Nombre al momento de escribirla: la nota se lee igual aunque el usuario cambie o se borre.
+  authorName      String
+  body            String
+  /// Ids de usuarios mencionados con @: reciben un aviso.
+  mentions        String[]            @default([])
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([conversationKey, createdAt])
+}
+
+/// Respuesta rápida del equipo: se inserta en el chat escribiendo "/" + atajo.
+model CrmQuickReply {
+  id          String   @id @default(uuid())
+  shortcut    String   @unique
+  title       String
+  body        String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 /// Registro inmutable de entradas, decisiones, sugerencias e intentos de envío del chatbot.

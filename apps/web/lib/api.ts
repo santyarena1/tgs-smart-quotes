@@ -169,6 +169,14 @@ export type WhatsappConversation = {
   /** Quién atiende: el bot, o un vendedor que lo pausó. */
   bot?: {paused: boolean; pausedAt: string | null; pausedBy: string | null; pausedReason: string | null; replying: boolean};
   lastMessageAt?: string | null;
+  /** Estado en la bandeja: del bot, de un vendedor, necesita una persona, pospuesto o resuelto. */
+  status?: 'BOT' | 'HUMAN' | 'NEEDS_HUMAN' | 'SNOOZED' | 'RESOLVED';
+  resolvedAt?: string | null;
+  snoozedUntil?: string | null;
+  tags?: string[];
+  /** Quién habló último: CUSTOMER = falta que le contestemos. */
+  lastSpeaker?: 'CUSTOMER' | 'US' | null;
+  lastQuoteFamilyId?: string | null;
   displayName: string | null;
   waContactName: string | null;
   waId: string | null;

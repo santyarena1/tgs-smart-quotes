@@ -1,7 +1,7 @@
 "use client";
 
-import { CrmInbox } from "../../components/crm/CrmInbox";
+import { Inbox } from "../../components/crm/inbox/Inbox";
 
 export default function Page() {
-  return <CrmInbox />;
+  return <Inbox />;
 }

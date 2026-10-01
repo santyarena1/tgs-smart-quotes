@@ -103,8 +103,19 @@ const emptyFin = (): FinDraft => ({
   sortOrder: "0",
 });
 
+const TAB_IDS: Tab[] = ["empresa", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "extension", "modulo-externo"];
+
+/** `?tab=chatbot` abre esa pestaña directo (lo usa el botón "Bot" del CRM). */
+function initialTab(): Tab {
+  if (typeof window === "undefined") return "empresa";
+  const requested = new URLSearchParams(window.location.search).get("tab") as Tab | null;
+  return requested && TAB_IDS.includes(requested) ? requested : "empresa";
+}
+
 export function SettingsView() {
   const [tab, setTab] = useState<Tab>("empresa");
+  // Después de montar, para no desalinear el HTML del servidor con el del navegador.
+  useEffect(() => { setTab(initialTab()); }, []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
