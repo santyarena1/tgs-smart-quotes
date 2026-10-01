@@ -17,10 +17,12 @@ export function ContextPanel({
   conversation,
   onAssign,
   onBotUpdate,
+  onOwner,
   onDelete,
 }: {
   conversation: WhatsappConversation | null;
   onAssign: (userId: string | null) => Promise<void>;
+  onOwner: (action: "take" | "release") => Promise<void>;
   onBotUpdate: (body: {modeOverride?: "OFF" | "SUGGEST" | "AUTO" | null; clearEscalation?: boolean}) => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
@@ -67,6 +69,14 @@ export function ContextPanel({
   }
 
   const progress = windowProgress(conversation.window.expiresAt);
+
+  function runOwner(action: "take" | "release") {
+    setBusy(true);
+    setError(null);
+    void onOwner(action)
+      .catch((reason) => setError(errorMessage(reason)))
+      .finally(() => setBusy(false));
+  }
 
   function runBot(body: Parameters<typeof onBotUpdate>[0]) {
     setBusy(true);
@@ -158,6 +168,29 @@ export function ContextPanel({
           </button>
         </div>
       ) : null}
+
+      <div className="crm-context-block">
+        <div className="crm-section-label">Quién atiende</div>
+        {conversation.bot?.paused ? (
+          <>
+            <p className="crm-hint">
+              <strong>{conversation.bot.pausedBy ?? "Un vendedor"}</strong> tiene el chat: el bot no responde.
+            </p>
+            <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => runOwner("release")}>
+              Devolver al bot
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="crm-hint">
+              {conversation.bot?.replying ? "El bot está por responder…" : "El bot atiende este chat."}
+            </p>
+            <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => runOwner("take")}>
+              Tomar conversación
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="crm-context-block">
         <div className="crm-section-label">Bot</div>

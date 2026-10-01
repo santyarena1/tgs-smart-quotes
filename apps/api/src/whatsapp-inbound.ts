@@ -14,9 +14,9 @@
 import {Logger} from '@nestjs/common';
 import {db, Prisma} from '@tgs/database';
 import {normalizePhone} from '@tgs/validation';
-import {runChatbotResponse} from './chatbot-engine.js';
 import {settingsDto} from './chatbot-core.js';
-import {enqueueOutbound, randomDelaySeconds, type EnqueueItem} from './whatsapp-outbound.js';
+import {randomDelaySeconds, type EnqueueItem} from './whatsapp-outbound.js';
+import {scheduleReply, typingSeconds} from './whatsapp-responder.js';
 import {windowFromInbound} from './whatsapp-window.js';
 
 const logger = new Logger('WhatsappInbound');
@@ -176,6 +176,7 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
       lastInboundText: content.text,
       lastInboundAt: now,
       lastInboundFingerprint: message.id,
+      lastMessageAt: now,
       windowExpiresAt,
       unreadCount: 1,
     },
@@ -183,6 +184,7 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
       lastInboundText: content.text,
       lastInboundAt: now,
       lastInboundFingerprint: message.id,
+      lastMessageAt: now,
       windowExpiresAt,
       unreadCount: {increment: 1},
       waId: message.from ?? undefined,
@@ -192,9 +194,8 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
     },
   });
 
-  let inboundLogId: string;
   try {
-    ({id: inboundLogId} = await db.chatbotMessageLog.create({data: {
+    await db.chatbotMessageLog.create({data: {
       conversationKey: chatKey,
       direction: 'INBOUND',
       actor: 'CUSTOMER',
@@ -214,7 +215,7 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
         // heurística de "tarjeta de anuncio" que tenía que adivinarlo del DOM.
         ...(message.referral ? {referral: message.referral} : {}),
       } as Prisma.InputJsonValue,
-    }, select: {id: true}}));
+    }});
   } catch (error) {
     // Meta reintenta los webhooks: un duplicado es esperable y no es un error.
     if (typeof error === 'object' && error !== null && 'code' in error && (error as {code?: string}).code === 'P2002') {
@@ -223,54 +224,10 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
     throw error;
   }
 
-  await maybeRespond(chatKey, content, message.id, inboundLogId);
+  // No se responde acá: se espera a que el cliente termine de escribir
+  // (ver whatsapp-responder.ts). Lo que el bot tenía en cola queda cancelado.
+  await scheduleReply(chatKey);
   return chatKey;
-}
-
-/** Decide si corresponde generar una respuesta y, si sale automática, la encola. */
-async function maybeRespond(chatKey: string, content: ExtractedMessage, waMessageId: string, inboundLogId: string): Promise<void> {
-  const settingsRow = await db.chatbotSettings.findUnique({where: {id: 'singleton'}});
-  if (!settingsRow?.enabled) return;
-  const settings = settingsDto(settingsRow);
-
-  // Los tipos que el motor no sabe leer (imagen, documento, video) se registran
-  // pero no se contestan solos: quedan visibles en el CRM para respuesta humana.
-  if (!content.supported) return;
-  if (matchesConfiguredAutoMessage(content.text, settings.ignoredAutoMessages)) return;
-
-  // Se conserva el invariante nº 1: nunca responder si el último mensaje es nuestro.
-  const last = await db.chatbotMessageLog.findFirst({
-    where: {conversationKey: chatKey},
-    orderBy: {createdAt: 'desc'},
-    select: {direction: true},
-  });
-  if (last?.direction === 'OUTBOUND') return;
-
-  const recentMessages = await loadRecentMessages(chatKey, settings.maxRecentSnippets, waMessageId);
-  const systemUser = await db.user.findFirst({where: {role: 'ADMIN', active: true}, select: {id: true}});
-
-  let result: any;
-  try {
-    result = await runChatbotResponse({
-      chatKey,
-      message: content.text,
-      messageType: content.messageType,
-      messageFingerprint: waMessageId,
-      manualSuggestion: false,
-      simulation: false,
-      recentMessages,
-    }, systemUser?.id ?? 'system', inboundLogId);
-  } catch (error) {
-    logger.error(JSON.stringify({
-      event: 'whatsapp_respond_failed',
-      chatKey,
-      error: error instanceof Error ? error.message : String(error),
-    }));
-    return;
-  }
-
-  if (result?.action !== 'AUTO_REPLY' || !result.logId) return;
-  await enqueueAutoReply(chatKey, result, settings);
 }
 
 /**
@@ -281,6 +238,7 @@ export async function loadRecentMessages(
   chatKey: string,
   limit: number,
   excludeWaMessageId?: string,
+  before?: Date,
 ): Promise<Array<{direction: 'INBOUND' | 'OUTBOUND'; text: string}>> {
   if (limit <= 0) return [];
   const rows = await db.chatbotMessageLog.findMany({
@@ -289,6 +247,7 @@ export async function loadRecentMessages(
       status: {in: ['OBSERVED', 'SENT', 'DELIVERED', 'READ']},
       text: {not: ''},
       ...(excludeWaMessageId ? {waMessageId: {not: excludeWaMessageId}} : {}),
+      ...(before ? {createdAt: {lt: before}} : {}),
     },
     orderBy: {createdAt: 'desc'},
     take: limit,
@@ -298,23 +257,6 @@ export async function loadRecentMessages(
     .reverse()
     .map((row) => ({direction: row.direction, text: row.text}))
     .filter((row) => Boolean(row.text));
-}
-
-/**
- * Encola una respuesta automática respetando las demoras que imitan cadencia humana:
- * una espera inicial aleatoria y otra entre burbujas.
- */
-async function enqueueAutoReply(chatKey: string, result: any, settings: ReturnType<typeof settingsDto>): Promise<void> {
-  const bubbles: string[] = Array.isArray(result.messages) && result.messages.length
-    ? result.messages.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0)
-    : typeof result.reply === 'string' && result.reply.trim()
-      ? [result.reply]
-      : [];
-  if (!bubbles.length) return;
-
-  await enqueueOutbound(chatKey, result.logId, buildReplyItems(bubbles, result.attachments, result.quoteFollowupMessage, settings), {
-    initialDelaySeconds: Math.random() * Math.max(0, Math.min(120, settings.autoDelayMaxSeconds)),
-  });
 }
 
 /**
@@ -329,12 +271,16 @@ export function buildReplyItems(
   quoteFollowupMessage: unknown,
   settings: ReturnType<typeof settingsDto>,
 ): EnqueueItem[] {
+  // Entre burbujas, el tiempo que tardaría una persona en tipear la siguiente,
+  // dentro del rango configurado y con algo de variación para que no sea exacto.
+  const min = settings.multiMessage.betweenDelayMinSeconds;
+  const max = Math.max(min, settings.multiMessage.betweenDelayMaxSeconds);
   const items: EnqueueItem[] = bubbles.map((text, index) => ({
     kind: 'TEXT' as const,
     payload: {text},
     delaySeconds: index === 0
       ? 0
-      : randomDelaySeconds(settings.multiMessage.betweenDelayMinSeconds, settings.multiMessage.betweenDelayMaxSeconds),
+      : Math.min(max, typingSeconds(text, min, max) * 0.8 + randomDelaySeconds(0, Math.max(0.5, (max - min) * 0.25))),
   }));
 
   for (const attachment of (Array.isArray(attachments) ? attachments : []) as any[]) {

@@ -8,6 +8,21 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.0",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 1: el bot no se pisa con los vendedores",
+    items: [
+      "Cada chat lo atiende el bot o un vendedor, nunca los dos. Si un vendedor escribe desde el CRM (texto, plantilla, presupuesto o producto), el bot se pausa en ese chat y se cancela lo que tenía en cola",
+      "Panel derecho del chat: \"Quién atiende\", con \"Tomar conversación\" y \"Devolver al bot\". El bot vuelve solo con el botón (o con la vuelta automática, si se configura)",
+      "El bot espera a que el cliente termine de escribir (10 s por defecto) y responde una sola vez a todo junto, en vez de contestar mensaje por mensaje",
+      "Mientras redacta, el cliente ve los tildes azules y \"escribiendo…\", y entre burbuja y burbuja vuelve a aparecer. Las pausas entre burbujas dependen del largo del texto",
+      "Si el cliente escribe de nuevo o un vendedor toma el chat mientras el bot redacta, esa respuesta se descarta: nunca sale algo viejo",
+      "Los mensajes de los vendedores ya no se bloquean cuando el bot está apagado o el chat fue derivado",
+      "La bandeja se ordena por el último mensaje: abrir, asignar o cambiar el modo de un chat ya no lo mueve de lugar",
+      "Si la IA falla al responder, queda registrado en el chat en vez de perderse en silencio",
+    ],
+  },
+  {
     version: "0.8.5",
     date: "2026-09-30",
     title: "Simulador: saludo una sola vez",

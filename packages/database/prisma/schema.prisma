@@ -1110,6 +1110,10 @@ model ChatbotSettings {
   maxRecentSnippets         Int         @default(20)
   summaryRefreshEvery       Int         @default(8)
   sendConfirmationTimeoutMs Int         @default(15000)
+  /// Segundos que el bot espera a que el cliente termine de escribir antes de responder.
+  replyDebounceSeconds      Int         @default(10)
+  /// Horas sin mensajes del vendedor tras las cuales el bot retoma un chat pausado. 0 = nunca.
+  autoResumeHours           Int         @default(0)
   updatedAt                 DateTime    @default(now()) @updatedAt
 }
 
@@ -1150,11 +1154,24 @@ model ChatbotConversation {
   /// Vendedor a cargo de la conversación en el CRM.
   assignedUserId         String?
   assignedUser           User?               @relation("ConversationAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  /// El bot no responde mientras un vendedor tiene el chat. Se pausa solo cuando
+  /// alguien escribe desde el CRM o toma la conversación; vuelve solo de forma explícita.
+  botPausedAt            DateTime?
+  botPausedById          String?
+  botPausedReason        String?
+  /// Respuesta del bot pendiente: se espera a que el cliente termine de escribir.
+  /// Cada entrante la corre hacia adelante; el respondedor la reclama al vencer.
+  replyDueAt             DateTime?
+  /// Último mensaje real (entrante o saliente). Ordena la bandeja: abrir, asignar o
+  /// cambiar el modo no mueve un chat de lugar.
+  lastMessageAt          DateTime?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   messages               ChatbotMessageLog[]
   outboundQueue          WhatsappOutboundQueue[]
 
+  @@index([replyDueAt])
+  @@index([lastMessageAt])
   @@index([escalatedAt])
   @@index([updatedAt])
   @@index([activeRequestId])

@@ -7,6 +7,7 @@ import {DocumentBuilder, SwaggerModule} from '@nestjs/swagger';
 import multipart from '@fastify/multipart';
 import {AppModule} from './module.js';
 import {startOutboundWorker} from './whatsapp-outbound.js';
+import {startResponder} from './whatsapp-responder.js';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({logger: true});
@@ -58,6 +59,8 @@ async function bootstrap() {
   // la que con seguridad está desplegada (sirve el webhook), y una cola que no drena
   // sería un fallo silencioso. La toma de trabajo es segura con varias instancias.
   startOutboundWorker();
+  // Responde los chats cuya espera venció (el cliente terminó de escribir).
+  startResponder();
   Logger.log(
     JSON.stringify({event: 'api_started', port: Number(process.env.PORT ?? 3001)}),
     'Bootstrap',

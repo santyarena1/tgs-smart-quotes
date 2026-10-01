@@ -15,6 +15,8 @@ import {
   deleteWhatsappConversation,
   unlinkConversationQuote,
   updateConversationBot,
+  takeConversation,
+  releaseConversation,
   type WhatsappConversation,
   type WhatsappConversationFilter,
   type WhatsappMessage,
@@ -183,6 +185,15 @@ export function CrmInbox() {
   async function handleAssign(userId: string | null) {
     if (!selectedKey) return;
     await assignWhatsappConversation(selectedKey, userId);
+    await loadThread(selectedKey, true);
+    await loadConversations(true);
+  }
+
+  async function handleOwner(action: "take" | "release") {
+    if (!selectedKey) return;
+    if (action === "take") await takeConversation(selectedKey);
+    else await releaseConversation(selectedKey);
+    setNotice(action === "take" ? "Tomaste el chat: el bot no va a responder acá." : "El chat volvió al bot.");
     await loadThread(selectedKey, true);
     await loadConversations(true);
   }
@@ -358,7 +369,7 @@ export function CrmInbox() {
         )}
       </section>
 
-      <ContextPanel conversation={selected} onAssign={handleAssign} onBotUpdate={handleBotUpdate} onDelete={handleDeleteConversation} />
+      <ContextPanel conversation={selected} onAssign={handleAssign} onBotUpdate={handleBotUpdate} onOwner={handleOwner} onDelete={handleDeleteConversation} />
 
       <PurgeDialog
         open={purgeOpen}

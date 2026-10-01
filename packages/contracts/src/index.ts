@@ -715,6 +715,10 @@ export const chatbotSettingsInputSchema = z
     maxRecentSnippets: z.number().int().min(0).max(50),
     summaryRefreshEvery: z.number().int().min(2).max(100),
     sendConfirmationTimeoutMs: z.number().int().min(3000).max(60000),
+    /** Espera para que el cliente termine de escribir antes de que responda el bot. */
+    replyDebounceSeconds: z.number().int().min(2).max(60).default(10),
+    /** Horas sin mensajes del vendedor para que el bot retome un chat tomado. 0 = nunca. */
+    autoResumeHours: z.number().int().min(0).max(168).default(0),
   })
   .strict();
 export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({

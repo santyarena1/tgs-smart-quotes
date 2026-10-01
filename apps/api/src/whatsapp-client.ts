@@ -184,6 +184,24 @@ export async function markAsRead(credentials: WhatsappCredentials, waMessageId: 
   });
 }
 
+/**
+ * Marca el mensaje como leído y muestra "escribiendo…" en el WhatsApp del cliente.
+ * Meta lo quita al enviar la respuesta o a los 25 s: se usa solo cuando de verdad
+ * se está por responder.
+ */
+export async function showTyping(credentials: WhatsappCredentials, waMessageId: string): Promise<void> {
+  await graphFetch(credentials, `${encodeURIComponent(credentials.phoneNumberId)}/messages`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: waMessageId,
+      typing_indicator: {type: 'text'},
+    }),
+  });
+}
+
 /** Verifica credenciales contra Meta y devuelve los datos públicos del número. */
 export async function verifyNumber(credentials: WhatsappCredentials) {
   const payload = await graphFetch(

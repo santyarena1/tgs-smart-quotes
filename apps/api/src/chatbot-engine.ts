@@ -121,6 +121,11 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     if (conversation.escalatedAt) {
       return {action: 'ESCALATED', effectiveMode, autoSend: false, inboundLogId: inbound.id};
     }
+    // Un vendedor tiene el chat: el bot no responde solo. Una sugerencia pedida a
+    // mano por el vendedor sí se genera (es el vendedor el que decide mandarla).
+    if (conversation.botPausedAt && !body.manualSuggestion && !body.simulation) {
+      return {action: 'PAUSED', effectiveMode, autoSend: false, inboundLogId: inbound.id};
+    }
 
     const outsideHours = isOutsideBusinessHours(settings.businessHours);
     if (outsideHours && settings.outsideHoursBehavior.mode === 'OFF') {

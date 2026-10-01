@@ -54,6 +54,7 @@ import {buildReplyItems, handleInboundMessage, handleStatusUpdate, loadRecentMes
 import {settingsDto} from './chatbot-core.js';
 import {runChatbotResponse} from './chatbot-engine.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
+import {pauseBot, resumeBot} from './whatsapp-responder.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
 
 /** El operador puede editar la sugerencia antes de aprobarla. */
@@ -372,7 +373,8 @@ export class WhatsappController {
 
     const rows = await db.chatbotConversation.findMany({
       where,
-      orderBy: {updatedAt: 'desc'},
+      // Por último mensaje real: abrir, asignar o cambiar el modo no mueve el chat de lugar.
+      orderBy: [{lastMessageAt: {sort: 'desc', nulls: 'last'}}, {chatKey: 'asc'}],
       take: query.limit + 1,
       ...(query.cursor ? {skip: 1, cursor: {chatKey: query.cursor}} : {}),
       include: {
@@ -381,15 +383,32 @@ export class WhatsappController {
       },
     });
     const items = rows.slice(0, query.limit);
+    const pausers = await this.pauserNames(items);
     return jsonSafe({
-      items: items.map((row) => this.conversationView(row, now)),
+      items: items.map((row) => this.conversationView(row, now, pausers)),
       nextCursor: rows.length > query.limit ? items[items.length - 1]?.chatKey ?? null : null,
     });
   }
 
-  private conversationView(row: any, now: Date) {
+  /** Nombre de quien tomó cada chat ("Bot pausado por Lucas"). */
+  private async pauserNames(rows: Array<{botPausedById?: string | null}>): Promise<Map<string, string>> {
+    const ids = [...new Set(rows.map((row) => row.botPausedById).filter((id): id is string => Boolean(id)))];
+    if (!ids.length) return new Map();
+    const users = await db.user.findMany({where: {id: {in: ids}}, select: {id: true, username: true, displayName: true}});
+    return new Map(users.map((user) => [user.id, user.displayName || user.username]));
+  }
+
+  private conversationView(row: any, now: Date, pausers: Map<string, string> = new Map()) {
     const state = windowState(row.windowExpiresAt, now);
     return {
+      bot: {
+        paused: Boolean(row.botPausedAt),
+        pausedAt: row.botPausedAt ?? null,
+        pausedBy: row.botPausedById ? pausers.get(row.botPausedById) ?? null : null,
+        pausedReason: row.botPausedReason ?? null,
+        replying: Boolean(row.replyDueAt),
+      },
+      lastMessageAt: row.lastMessageAt ?? null,
       chatKey: row.chatKey,
       displayName: row.displayName,
       waContactName: row.waContactName,
@@ -424,7 +443,26 @@ export class WhatsappController {
       },
     });
     if (!row) throw new NotFoundException('La conversación no existe');
-    return jsonSafe(this.conversationView(row, new Date()));
+    return jsonSafe(this.conversationView(row, new Date(), await this.pauserNames([row])));
+  }
+
+  /** "Tomar conversación": el vendedor se la asigna y el bot se calla en ese chat. */
+  @Post('conversations/:chatKey/take')
+  async take(@Param('chatKey') chatKey: string, @CurrentUser() actor: RequestUser) {
+    const exists = await db.chatbotConversation.findUnique({where: {chatKey}, select: {chatKey: true}});
+    if (!exists) throw new NotFoundException('La conversación no existe');
+    await pauseBot(chatKey, actor.id, 'Un vendedor tomó la conversación');
+    await db.chatbotConversation.update({where: {chatKey}, data: {assignedUserId: actor.id}});
+    return this.conversation(chatKey, actor);
+  }
+
+  /** "Devolver al bot": retoma con el próximo mensaje del cliente, no responde lo viejo. */
+  @Post('conversations/:chatKey/release')
+  async release(@Param('chatKey') chatKey: string, @CurrentUser() actor: RequestUser) {
+    const exists = await db.chatbotConversation.findUnique({where: {chatKey}, select: {chatKey: true}});
+    if (!exists) throw new NotFoundException('La conversación no existe');
+    await resumeBot(chatKey);
+    return this.conversation(chatKey, actor);
   }
 
   @Get('conversations/:chatKey/messages')
@@ -613,6 +651,8 @@ export class WhatsappController {
         delaySeconds: 1,
       });
     }
+    // Escribió un vendedor: el bot se calla en este chat y se cancela lo suyo en cola.
+    await pauseBot(chatKey, actor.id, 'Escribió un vendedor');
     await enqueueOutbound(chatKey, log.id, items);
     return jsonSafe({logId: log.id, queued: items.length});
   }
@@ -766,6 +806,8 @@ export class WhatsappController {
         sentByUserId: actor.id,
       },
     }});
+    // Escribió un vendedor: el bot se calla en este chat y se cancela lo suyo en cola.
+    await pauseBot(chatKey, actor.id, 'Escribió un vendedor');
     await enqueueOutbound(chatKey, log.id, [
       {kind: 'TEMPLATE', payload: {templateId: template.id, variables}},
     ]);
@@ -810,6 +852,8 @@ export class WhatsappController {
       } as Prisma.InputJsonValue,
     }});
 
+    // Escribió un vendedor: el bot se calla en este chat y se cancela lo suyo en cola.
+    await pauseBot(chatKey, actor.id, 'Escribió un vendedor');
     await enqueueOutbound(chatKey, log.id, [
       {kind: 'TEXT', payload: {text: body.message}},
       {
@@ -860,6 +904,8 @@ export class WhatsappController {
     }});
 
     // Con imagen va en una sola burbuja con pie de foto; sin imagen, solo texto.
+    // Escribió un vendedor: el bot se calla en este chat y se cancela lo suyo en cola.
+    await pauseBot(chatKey, actor.id, 'Escribió un vendedor');
     await enqueueOutbound(chatKey, log.id, product.imageUrl
       ? [{kind: 'IMAGE', payload: {productMpn: product.mpn, caption: body.text, label: `producto ${product.title}`}}]
       : [{kind: 'TEXT', payload: {text: body.text}}]);

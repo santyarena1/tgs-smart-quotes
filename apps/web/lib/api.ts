@@ -166,6 +166,9 @@ export type WhatsappWindow = {
 
 export type WhatsappConversation = {
   chatKey: string;
+  /** Quién atiende: el bot, o un vendedor que lo pausó. */
+  bot?: {paused: boolean; pausedAt: string | null; pausedBy: string | null; pausedReason: string | null; replying: boolean};
+  lastMessageAt?: string | null;
   displayName: string | null;
   waContactName: string | null;
   waId: string | null;
@@ -528,6 +531,16 @@ export function purgeWhatsappConversations(confirm: string): Promise<{
   deleted: {conversations: number; messages: number; notifications: number};
 }> {
   return api('/whatsapp/conversations/purge', {method: 'POST', body: {confirm}});
+}
+
+/** El vendedor toma el chat: se le asigna y el bot se calla ahí. */
+export function takeConversation(chatKey: string): Promise<WhatsappConversation> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/take`, {method: 'POST'});
+}
+
+/** Devuelve el chat al bot; retoma con el próximo mensaje del cliente. */
+export function releaseConversation(chatKey: string): Promise<WhatsappConversation> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/release`, {method: 'POST'});
 }
 
 /** Modo del bot solo para esta conversación (`null` = usa el modo general) o reanudar una escalada. */

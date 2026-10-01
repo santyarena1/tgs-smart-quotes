@@ -25,12 +25,14 @@ import {
   sendImage,
   sendTemplate,
   sendText,
+  showTyping,
   uploadMedia,
   WhatsappApiError,
   type WhatsappCredentials,
 } from './whatsapp-client.js';
 import {windowState} from './whatsapp-window.js';
 import {createEscalationNotification} from './chatbot-core.js';
+import {settleCancelledLog} from './whatsapp-responder.js';
 
 const logger = new Logger('WhatsappOutbound');
 
@@ -98,25 +100,38 @@ export function randomDelaySeconds(minSeconds: number, maxSeconds: number): numb
   return min + Math.random() * (max - min);
 }
 
-type AuthorizationResult = {ok: true; to: string; credentials: WhatsappCredentials} | {ok: false; reason: string};
+type AuthorizationResult =
+  | {ok: true; to: string; credentials: WhatsappCredentials; fromBot: boolean}
+  | {ok: false; reason: string; fromBot: boolean};
 
 /**
  * Revalida todo lo que pudo cambiar mientras la salida esperaba en la cola.
- * Es la traducción server-side de las barreras 4, 5 y 6 de la extensión.
+ *
+ * Las barreras del bot (apagado, chat derivado, modo OFF, chat tomado por un
+ * vendedor, cliente que volvió a escribir) se aplican SOLO a lo que redactó el bot.
+ * Lo que manda una persona nunca se frena por reglas del bot.
  */
-async function authorize(conversationKey: string, kind: string): Promise<AuthorizationResult> {
-  const [settings, conversation] = await Promise.all([
+async function authorize(conversationKey: string, kind: string, logId: string | null): Promise<AuthorizationResult> {
+  const [settings, conversation, log] = await Promise.all([
     db.chatbotSettings.findUnique({where: {id: 'singleton'}, select: {enabled: true, defaultMode: true}}),
     db.chatbotConversation.findUnique({
       where: {chatKey: conversationKey},
-      select: {escalatedAt: true, modeOverride: true, windowExpiresAt: true, waId: true},
+      select: {escalatedAt: true, modeOverride: true, windowExpiresAt: true, waId: true, botPausedAt: true, lastInboundAt: true},
     }),
+    logId ? db.chatbotMessageLog.findUnique({where: {id: logId}, select: {actor: true, createdAt: true}}) : null,
   ]);
-  if (!settings?.enabled) return {ok: false, reason: 'Las respuestas del bot se desactivaron antes del envío.'};
-  if (!conversation) return {ok: false, reason: 'La conversación ya no existe.'};
-  if (conversation.escalatedAt) return {ok: false, reason: 'El chat fue escalado mientras el mensaje esperaba en la cola.'};
-  if ((conversation.modeOverride ?? settings.defaultMode) === 'OFF') {
-    return {ok: false, reason: 'El chat quedó en modo apagado antes del envío.'};
+  const fromBot = log?.actor !== 'HUMAN';
+  if (!conversation) return {ok: false, reason: 'La conversación ya no existe.', fromBot};
+  if (fromBot) {
+    if (!settings?.enabled) return {ok: false, reason: 'Las respuestas del bot se desactivaron antes del envío.', fromBot};
+    if (conversation.botPausedAt) return {ok: false, reason: 'Un vendedor tomó el chat antes del envío.', fromBot};
+    if (conversation.escalatedAt) return {ok: false, reason: 'El chat fue derivado mientras el mensaje esperaba en la cola.', fromBot};
+    if ((conversation.modeOverride ?? settings.defaultMode) === 'OFF') {
+      return {ok: false, reason: 'El chat quedó en modo apagado antes del envío.', fromBot};
+    }
+    if (log && conversation.lastInboundAt && conversation.lastInboundAt > log.createdAt) {
+      return {ok: false, reason: 'El cliente escribió de nuevo: la respuesta quedó vieja.', fromBot};
+    }
   }
 
   // Barrera nueva: fuera de la ventana de 24 h solo se puede mandar una plantilla.
@@ -124,16 +139,17 @@ async function authorize(conversationKey: string, kind: string): Promise<Authori
     return {
       ok: false,
       reason: 'La ventana de 24 h de WhatsApp venció: Meta solo acepta plantillas aprobadas para esta conversación.',
+      fromBot,
     };
   }
 
   const to = conversation.waId ?? conversationKey.replace(/^tel:/, '');
-  if (!to) return {ok: false, reason: 'La conversación no tiene un número al que responder.'};
+  if (!to) return {ok: false, reason: 'La conversación no tiene un número al que responder.', fromBot};
 
   try {
-    return {ok: true, to, credentials: await loadCredentials()};
+    return {ok: true, to, credentials: await loadCredentials(), fromBot};
   } catch (error) {
-    return {ok: false, reason: error instanceof Error ? error.message : String(error)};
+    return {ok: false, reason: error instanceof Error ? error.message : String(error), fromBot};
   }
 }
 
@@ -308,8 +324,16 @@ export async function drainOutboundQueue(): Promise<number> {
       continue;
     }
 
-    const auth = await authorize(row.conversationKey, row.kind);
+    const auth = await authorize(row.conversationKey, row.kind, row.logId);
     if (!auth.ok) {
+      if (auth.fromBot) {
+        // Una respuesta del bot que ya no corresponde no es un error: se cancela en silencio.
+        await db.whatsappOutboundQueue.update({where: {id: row.id}, data: {status: 'CANCELLED', lastError: auth.reason}});
+        await cancelSiblings(row.logId, row.bubbleIndex, auth.reason);
+        if (row.logId) await settleCancelledLog(row.logId, auth.reason);
+        logger.log(JSON.stringify({event: 'whatsapp_bot_reply_cancelled', chatKey: row.conversationKey, reason: auth.reason}));
+        continue;
+      }
       await db.whatsappOutboundQueue.update({
         where: {id: row.id},
         data: {status: 'FAILED', lastError: auth.reason},
@@ -327,6 +351,7 @@ export async function drainOutboundQueue(): Promise<number> {
         data: {status: 'SENT', waMessageId, lastError: null},
       });
       await finishLogIfComplete(row.logId, waMessageId);
+      if (auth.fromBot) await keepTypingIfMore(row, auth.credentials);
       sent += 1;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -360,6 +385,25 @@ export async function drainOutboundQueue(): Promise<number> {
   return sent;
 }
 
+/**
+ * Meta quita "escribiendo…" en cuanto sale un mensaje. Si el bot todavía tiene
+ * burbujas por mandar, se vuelve a mostrar, como una persona que sigue tipeando.
+ */
+async function keepTypingIfMore(row: {conversationKey: string; logId: string | null; bubbleIndex: number}, credentials: WhatsappCredentials) {
+  if (!row.logId) return;
+  const next = await db.whatsappOutboundQueue.findFirst({
+    where: {logId: row.logId, status: 'PENDING', bubbleIndex: {gt: row.bubbleIndex}, kind: 'TEXT'},
+    select: {id: true},
+  });
+  if (!next) return;
+  const conversation = await db.chatbotConversation.findUnique({
+    where: {chatKey: row.conversationKey},
+    select: {lastInboundFingerprint: true},
+  });
+  if (!conversation?.lastInboundFingerprint) return;
+  await showTyping(credentials, conversation.lastInboundFingerprint).catch(() => undefined);
+}
+
 /** Marca el log como enviado recién cuando ya no quedan burbujas pendientes de esa respuesta. */
 async function finishLogIfComplete(logId: string | null, waMessageId: string) {
   if (!logId) return;
@@ -373,9 +417,10 @@ async function finishLogIfComplete(logId: string | null, waMessageId: string) {
   }).catch(() => undefined);
   const log = await db.chatbotMessageLog.findUnique({where: {id: logId}, select: {conversationKey: true, text: true}});
   if (log) {
+    const now = new Date();
     await db.chatbotConversation.update({
       where: {chatKey: log.conversationKey},
-      data: {lastOutboundText: log.text, lastOutboundAt: new Date()},
+      data: {lastOutboundText: log.text, lastOutboundAt: now, lastMessageAt: now},
     }).catch(() => undefined);
   }
 }

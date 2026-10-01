@@ -103,6 +103,8 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     recontactDays: Number.isInteger(row.recontactDays) ? row.recontactDays : 30,
     recontactPrompt: typeof row.recontactPrompt === 'string' ? row.recontactPrompt : '',
     recontactMaxAttempts: Number.isInteger(row.recontactMaxAttempts) ? row.recontactMaxAttempts : 1,
+    replyDebounceSeconds: Number.isInteger(row.replyDebounceSeconds) ? row.replyDebounceSeconds : 10,
+    autoResumeHours: Number.isInteger(row.autoResumeHours) ? row.autoResumeHours : 0,
   };
 }
 
