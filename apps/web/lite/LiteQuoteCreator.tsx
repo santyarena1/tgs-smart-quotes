@@ -371,10 +371,10 @@ export function LiteQuoteCreator() {
             </select>
           </div>
 
-          <label className="lt-check">
-            <input type="checkbox" checked={isBuiltPc} onChange={(e) => toggleBuiltPc(e.target.checked)} />
-            <span>Es PC armada <small>(un renglón por componente)</small></span>
-          </label>
+          <button type="button" className={`lt-pc${isBuiltPc ? " on" : ""}`} role="switch" aria-checked={isBuiltPc} onClick={() => toggleBuiltPc(!isBuiltPc)}>
+            <span className="lt-switch-track"><span className="lt-switch-knob" /></span>
+            <span className="lt-pc-copy"><strong>PC armada</strong><small>{isBuiltPc ? "Un renglón por componente" : "Activalo para cargar por componentes"}</small></span>
+          </button>
 
           {collections.length ? (
             <div className="lt-colls">

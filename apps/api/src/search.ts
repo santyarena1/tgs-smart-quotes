@@ -44,14 +44,22 @@ export class QuoteSearchController {
     }
     if (query.q) {
       const needle = normalizeText(query.q);
+      const digits = query.q.replace(/\D/g, '');
+      const normalizedPhone = normalizePhone(query.q);
       bundles = bundles.filter((bundle) => {
         const haystacks = [
           bundle.visibleNumber,
           bundle.internalName,
           bundle.customer?.name,
+          bundle.customer?.phone,
         ].filter(Boolean) as string[];
         if (haystacks.some((value) => normalizeText(value).includes(needle))) return true;
-        return (bundle.items ?? []).some((item: any) => normalizeText(item.frozenName).includes(needle));
+        if ((bundle.items ?? []).some((item: any) => normalizeText(item.frozenName).includes(needle))) return true;
+        if (digits.length >= 6) {
+          const phone = `${bundle.customer?.phone ?? ''}${bundle.customer?.normalizedPhone ?? ''}`.replace(/\D/g, '');
+          if (phone.includes(digits)) return true;
+        }
+        return Boolean(normalizedPhone && bundle.customer?.normalizedPhone === normalizedPhone);
       });
     }
     if (query.productName) {

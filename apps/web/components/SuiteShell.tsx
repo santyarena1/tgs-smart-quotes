@@ -224,9 +224,9 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       ) : null}
-      <button type="button" className="side-lite-switch" role="switch" aria-checked="false" title="Interfaz reducida: solo crear presupuestos y ver colecciones" onClick={() => { saveUiMode("lite"); router.push("/lite"); }}>
+      <button type="button" className="side-lite-switch" role="switch" aria-checked="false" title="Cambiar a la versión LITE" aria-label="Cambiar a la versión LITE" onClick={() => { saveUiMode("lite"); router.push("/lite"); }}>
         <span className="side-lite-track"><span className="side-lite-knob" /></span>
-        <span className="side-lite-copy"><strong>Versión LITE</strong><small>Solo presupuestos y colecciones</small></span>
+        <span className="side-lite-label">LITE</span>
       </button>
       {/* El CRM no entra en la nav personalizable: es otra aplicación, con su propio
           shell sin sidebar, así que se accede desde un botón aparte y destacado. */}
