@@ -205,7 +205,6 @@ export function LiteQuoteCreator() {
     setLines((current) => [...current, lineFromProduct(p, target)]);
     setQuery("");
     setSearchOpen(false);
-    searchRef.current?.focus();
   }
 
   function startCreate(name: string, lineId = "") {
@@ -297,8 +296,7 @@ export function LiteQuoteCreator() {
         setNotice(`${created.visibleNumber} creado, pero el PDF falló: ${errorMessage(err)}`);
       }
       void loadRecent();
-      searchRef.current?.focus();
-    } catch (err) {
+      } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(null);
