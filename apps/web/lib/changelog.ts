@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.0",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 7: temperatura de la venta, embudo guiado y reportes",
+    items: [
+      "Cada chat tiene temperatura (🔥 caliente, 🌡 tibio, ❄ frío, de 0 a 100) e intención del cliente (precio, armar PC, formas de pago, listo para comprar, reclamo…), que el bot actualiza en cada mensaje",
+      "Nueva vista 🔥 Calientes en la bandeja: los que están por comprar, para atenderlos primero. La temperatura también se ve en la lista, en el encabezado del chat y en las tarjetas del embudo",
+      "El bot sigue un guion de venta según la etapa (nuevo → calificando → presupuesto → negociación) y propone el próximo paso, que aparece en la ficha del cliente. Avanza la etapa solo hacia adelante y nunca marca ganado ni perdido por su cuenta",
+      "Pantalla Reportes: quién espera respuesta ahora, tiempo de primera respuesta del bot y de las personas, embudo con conversión entre etapas, qué piden los clientes, por qué se pierden ventas, rendimiento por vendedor, por anuncio y del bot",
+      "El simulador muestra la temperatura, la intención y el próximo paso que detectaría",
+    ],
+  },
+  {
     version: "0.14.0",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 6: seguimientos automáticos",

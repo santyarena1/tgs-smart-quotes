@@ -63,6 +63,32 @@ export async function mergeProfile(chatKey: string, update: LeadProfile | null |
   if (next.usage && next.budgetCents) await advanceStage(chatKey, 'QUALIFYING', ['NEW']);
 }
 
+export type SalesSignals = {temperature: number; intent: string; stageHint: string | null; nextStep: string};
+
+const ORDER: Stage[] = ['NEW', 'QUALIFYING', 'QUOTE_SENT', 'NEGOTIATION', 'DEPOSIT'];
+
+/**
+ * Guarda temperatura, intención y próximo paso. La etapa sugerida por la IA solo
+ * avanza, y como mucho hasta Negociación: la seña, ganado y perdido los marca una persona.
+ */
+export async function applySignals(chatKey: string, signals: SalesSignals | null | undefined): Promise<void> {
+  if (!signals) return;
+  const row = await db.chatbotConversation.findUnique({where: {chatKey}, select: {stage: true}});
+  if (!row) return;
+  const current = ORDER.indexOf(row.stage as Stage);
+  const hinted = signals.stageHint ? ORDER.indexOf(signals.stageHint as Stage) : -1;
+  const advance = current >= 0 && hinted > current && hinted <= ORDER.indexOf('NEGOTIATION');
+  await db.chatbotConversation.update({
+    where: {chatKey},
+    data: {
+      temperature: Math.max(0, Math.min(100, Math.round(signals.temperature))),
+      lastIntent: signals.intent,
+      nextStep: signals.nextStep.slice(0, 300) || null,
+      ...(advance ? {stage: ORDER[hinted], stageChangedAt: new Date()} : {}),
+    },
+  });
+}
+
 // ------------------------------------------------------------------ tareas vencidas
 
 let reminderTimer: NodeJS.Timeout | null = null;

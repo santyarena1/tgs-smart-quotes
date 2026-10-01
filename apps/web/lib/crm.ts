@@ -4,6 +4,7 @@ import type { WhatsappConversation } from "./api";
 /** Vistas de la bandeja. El orden es el de la barra lateral. */
 export const CRM_VIEWS = [
   { id: "ALL", label: "Todas", hint: "Todo lo abierto" },
+  { id: "HOT", label: "🔥 Calientes", hint: "Están por comprar: atendelos primero" },
   { id: "MINE", label: "Mías", hint: "Asignadas a vos" },
   { id: "UNASSIGNED", label: "Sin asignar", hint: "Necesitan un vendedor y nadie las tomó" },
   { id: "NEEDS_HUMAN", label: "Derivadas", hint: "El bot las pasó a una persona" },
@@ -173,4 +174,30 @@ export function formatCents(cents: string | number | null | undefined): string {
   if (cents === null || cents === undefined || cents === "") return "—";
   const pesos = Number(BigInt(String(cents)) / 100n);
   return `$ ${pesos.toLocaleString("es-AR")}`;
+}
+
+// ---------------------------------------------------------------- señales de venta
+
+export const INTENT_LABEL: Record<string, string> = {
+  GREETING: "Saludo",
+  INFO: "Consulta general",
+  PRICE: "Pregunta precio",
+  PRODUCT: "Producto puntual",
+  BUILD_PC: "Quiere armar una PC",
+  COMPARE: "Compara opciones",
+  PAYMENT: "Formas de pago",
+  SHIPPING: "Envío / retiro",
+  PURCHASE_READY: "Listo para comprar",
+  TRADE_IN: "Parte de pago",
+  SUPPORT: "Servicio técnico",
+  COMPLAINT: "Reclamo",
+  OTHER: "Otro",
+};
+
+/** Temperatura de la venta como etiqueta visible. */
+export function temperatureBadge(value: number | null | undefined): { icon: string; label: string; tone: "hot" | "warm" | "cold" } | null {
+  if (value === null || value === undefined) return null;
+  if (value >= 66) return { icon: "🔥", label: `Caliente (${value})`, tone: "hot" };
+  if (value >= 31) return { icon: "🌡", label: `Tibio (${value})`, tone: "warm" };
+  return { icon: "❄", label: `Frío (${value})`, tone: "cold" };
 }

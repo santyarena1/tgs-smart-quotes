@@ -89,6 +89,9 @@ export function LeadPanel({ conversation, onChanged }: { conversation: WhatsappC
         </div>
       </div>
       {stage === "LOST" && conversation.lostReason ? <p className="cx-hint">Perdido: {conversation.lostReason}</p> : null}
+      {conversation.nextStep && !["WON", "LOST"].includes(stage) ? (
+        <p className="cx-nextstep" title="Lo sugiere el bot con lo que sabe de la charla">➜ <strong>Próximo paso:</strong> {conversation.nextStep}</p>
+      ) : null}
       {lostOpen ? (
         <div className="cx-lost">
           <p className="cx-hint">¿Por qué no compró?</p>

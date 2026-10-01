@@ -211,6 +211,8 @@ export const chatbotResponseInputSchema = z.object({
     guidance: z.array(z.string()).default([]),
     /** Datos reales consultados en el sistema para este mensaje (catálogo, presupuestos). */
     systemData: z.string().optional(),
+    /** Etapa de la venta en la que está el cliente (para guiarlo al próximo paso). */
+    salesStage: z.string().optional(),
     responseStyle: z.record(z.string(), z.unknown()),
     multiMessage: z.object({
       maxBubbles: z.number().int().min(1).max(5),
@@ -231,9 +233,21 @@ export const chatbotLeadProfileSchema = z.object({
 }).strict();
 export type ChatbotLeadProfile = z.infer<typeof chatbotLeadProfileSchema>;
 
+export const CHATBOT_INTENTS = ["GREETING", "INFO", "PRICE", "PRODUCT", "BUILD_PC", "COMPARE", "PAYMENT", "SHIPPING", "PURCHASE_READY", "TRADE_IN", "SUPPORT", "COMPLAINT", "OTHER"] as const;
+
+/** Señales de la venta: qué tan caliente está, qué quiere ahora y cuál es el próximo paso. */
+export const chatbotSalesSignalsSchema = z.object({
+  temperature: z.number().int().min(0).max(100),
+  intent: z.enum(CHATBOT_INTENTS),
+  stageHint: z.enum(["NEW", "QUALIFYING", "QUOTE_SENT", "NEGOTIATION", "DEPOSIT"]).nullable(),
+  nextStep: z.string(),
+}).strict();
+export type ChatbotSalesSignals = z.infer<typeof chatbotSalesSignalsSchema>;
+
 export const chatbotResponseOutputSchema = z.object({
   reply: z.string(),
   profile: chatbotLeadProfileSchema,
+  signals: chatbotSalesSignalsSchema,
   messages: z.array(z.string()).default([]),
   shouldEscalate: z.boolean(),
   escalationReason: z.string().nullable(),

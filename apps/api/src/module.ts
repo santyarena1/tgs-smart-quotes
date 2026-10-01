@@ -21,6 +21,7 @@ import {CrmController} from './crm.js';
 import {BotTrainingController} from './bot-training.js';
 import {CrmPipelineController} from './crm-pipeline.js';
 import {CrmFollowupsController} from './crm-followups.js';
+import {CrmReportsController} from './crm-reports.js';
 import {ThumbnailAiController} from './thumbnail-ai.js';
 import {BranchesController, UsersController} from './users.js';
 import {ExternalModuleController} from './external-module.js';
@@ -71,6 +72,7 @@ class HealthController {
     BotTrainingController,
     CrmPipelineController,
     CrmFollowupsController,
+    CrmReportsController,
     ThumbnailAiController,
     UsersController,
     BranchesController,

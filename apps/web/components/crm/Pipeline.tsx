@@ -5,6 +5,7 @@ import type { WhatsappConversation } from "../../lib/api";
 import {
   formatCents,
   getPipeline,
+  temperatureBadge,
   listTasks,
   LOST_REASONS,
   STAGES,
@@ -177,11 +178,13 @@ function LeadCard({ item, onDragStart, onDragEnd }: { item: WhatsappConversation
         <strong>{conversationTitle(item)}</strong>
         {item.leadValueCents ? <span className="cx-lead-value">{formatCents(item.leadValueCents)}</span> : null}
       </div>
+      {item.nextStep ? <p className="cx-lead-line next">➜ {item.nextStep}</p> : null}
       {profile.usage || profile.games?.length ? (
         <p className="cx-lead-line">{[profile.usage, profile.games?.slice(0, 3).join(", ")].filter(Boolean).join(" · ")}</p>
       ) : null}
       <p className="cx-lead-line muted">{item.lastSpeaker === "US" ? "Vos: " : ""}{(item.lastSpeaker === "US" ? item.lastOutboundText : item.lastInboundText) ?? ""}</p>
       <div className="cx-row-meta">
+        {temperatureBadge(item.temperature) ? <span className={`cx-pill temp ${temperatureBadge(item.temperature)!.tone}`}>{temperatureBadge(item.temperature)!.icon} {item.temperature}</span> : null}
         {item.origin ? <span className="cx-pill human" title={item.origin.headline ?? undefined}>📣 Anuncio</span> : null}
         {item.assignedUser ? <span className="cx-pill">👤 {item.assignedUser.displayName || item.assignedUser.username}</span> : null}
         {item.stage === "LOST" && item.lostReason ? <span className="cx-pill muted">{item.lostReason}</span> : null}

@@ -23,7 +23,7 @@ import {conversationInclude, conversationView, pauserNames, trainerKeys} from '.
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 import {downloadMedia, loadCredentials} from './whatsapp-client.js';
 
-export const CRM_VIEWS = ['ALL', 'MINE', 'UNASSIGNED', 'NEEDS_HUMAN', 'BOT', 'UNREAD', 'WAITING', 'SNOOZED', 'RESOLVED'] as const;
+export const CRM_VIEWS = ['ALL', 'HOT', 'MINE', 'UNASSIGNED', 'NEEDS_HUMAN', 'BOT', 'UNREAD', 'WAITING', 'SNOOZED', 'RESOLVED'] as const;
 type CrmView = typeof CRM_VIEWS[number];
 
 const inboxQuerySchema = z.object({
@@ -57,6 +57,8 @@ function viewWhere(view: CrmView, userId: string, now: Date): Prisma.ChatbotConv
   const needsPerson: Prisma.ChatbotConversationWhereInput = {OR: [{escalatedAt: {not: null}}, {botPausedAt: {not: null}}]};
   switch (view) {
     case 'MINE': return {AND: [active, {assignedUserId: userId}]};
+    // A punto de comprar: temperatura alta y la venta todavía abierta.
+    case 'HOT': return {AND: [active, {temperature: {gte: 66}}, {stage: {notIn: ['WON', 'LOST']}}]};
     case 'UNASSIGNED': return {AND: [active, needsPerson, {assignedUserId: null}]};
     case 'NEEDS_HUMAN': return {AND: [active, {escalatedAt: {not: null}}]};
     case 'BOT': return {AND: [active, {escalatedAt: null, botPausedAt: null}]};

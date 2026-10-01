@@ -1193,6 +1193,12 @@ model ChatbotConversation {
   origin                 Json?
   /// Ficha que arma la IA con la charla: uso, juegos, presupuesto, ciudad, pago, envío/retiro.
   profile                Json?
+  /// Temperatura de la venta (0 frío … 100 listo para comprar), según la IA en cada respuesta.
+  temperature            Int?
+  /// Intención del último mensaje del cliente (PRICE, BUILD_PC, PAYMENT, PURCHASE_READY…).
+  lastIntent             String?
+  /// Próximo paso sugerido para avanzar la venta.
+  nextStep               String?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   messages               ChatbotMessageLog[]
@@ -1204,6 +1210,7 @@ model ChatbotConversation {
   @@index([resolvedAt])
   @@index([snoozedUntil])
   @@index([stage, lastMessageAt])
+  @@index([temperature])
   @@index([escalatedAt])
   @@index([updatedAt])
   @@index([activeRequestId])

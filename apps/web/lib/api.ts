@@ -184,6 +184,9 @@ export type WhatsappConversation = {
   leadValueCents?: string | null;
   lostReason?: string | null;
   origin?: {type: string | null; adId: string | null; headline: string | null; body: string | null; url: string | null; hasClickId: boolean} | null;
+  temperature?: number | null;
+  lastIntent?: string | null;
+  nextStep?: string | null;
   profile?: {usage?: string | null; games?: string[]; budgetCents?: number | null; city?: string | null; payment?: string | null; delivery?: 'ENVIO' | 'RETIRO' | null};
   lastQuoteFamilyId?: string | null;
   displayName: string | null;

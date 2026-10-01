@@ -2,6 +2,7 @@
 
 import {FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useState} from "react";
 import {api} from "../lib/api";
+import { INTENT_LABEL, temperatureBadge } from "../lib/crm";
 import type {ChatbotResponseEntry, ChatbotSettings, Quote} from "../lib/types";
 import {Alert, Checkbox, Field, Loading, Tabs, errorMessage} from "./shared";
 
@@ -254,6 +255,7 @@ type SimulationResult={
   matchedResponseId?:string|null;
   matchedResponseScore?:number|null;
   decisionReason?:string|null;
+  signals?:{temperature:number;intent:string;stageHint:string|null;nextStep:string|null}|null;
 };
 type SimTurn={from:"customer"|"bot"|"system";text:string;detail?:string[]};
 
@@ -300,6 +302,10 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
       }
       if(result.quoteFollowupMessage)detail.push(`Después del PDF: "${result.quoteFollowupMessage}"`);
       if(result.decisionReason)detail.push(`Criterio: ${result.decisionReason}`);
+      if(result.signals){
+        const badge=temperatureBadge(result.signals.temperature);
+        detail.push(`${badge?.icon??""} ${badge?.label??""} · ${INTENT_LABEL[result.signals.intent]??result.signals.intent}${result.signals.nextStep?` · Próximo paso: ${result.signals.nextStep}`:""}`.trim());
+      }
       if(result.wouldEscalate){
         setTurns(current=>[...current,{from:"system",text:`Derivaría a una persona: ${result.wouldEscalate?.reason??"sin motivo"}`,detail}]);
       }else if(SIM_ACTIONS[result.action]){

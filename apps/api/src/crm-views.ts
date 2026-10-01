@@ -88,6 +88,9 @@ export function conversationView(row: any, now: Date, pausers: Map<string, strin
     lostReason: row.lostReason ?? null,
     origin: originSummary(row.origin),
     profile: row.profile ?? {},
+    temperature: typeof row.temperature === 'number' ? row.temperature : null,
+    lastIntent: row.lastIntent ?? null,
+    nextStep: row.nextStep ?? null,
     updatedAt: row.updatedAt,
     window: {
       open: state.open,

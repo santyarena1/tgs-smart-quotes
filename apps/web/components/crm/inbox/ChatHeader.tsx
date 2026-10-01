@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { WhatsappConversation } from "../../../lib/api";
 import { avatarInitials, conversationTitle, phoneLabel, windowCountdown } from "../format";
 import type { CrmViewer } from "../useCrmLive";
-import { StatusPill } from "./ChatList";
+import { StatusPill, TemperaturePill } from "./ChatList";
+import { INTENT_LABEL } from "../../../lib/crm";
 
 /** Opciones rápidas para posponer, como en Front/Intercom. */
 function snoozeOptions(): Array<{ label: string; at: Date }> {
@@ -111,6 +112,8 @@ export function ChatHeader({
             {phoneLabel(conversation.chatKey)}
           </button>
           <StatusPill item={conversation} />
+          <TemperaturePill value={conversation.temperature} />
+          {conversation.lastIntent ? <span className="cx-pill" title="Qué quiere con su último mensaje">🎯 {INTENT_LABEL[conversation.lastIntent] ?? conversation.lastIntent}</span> : null}
           <span className={conversation.window.open ? "cx-pill ok" : "cx-pill muted"} title={conversation.window.description}>
             ⏱ {conversation.window.open ? countdown : "Ventana cerrada"}
           </span>

@@ -21,7 +21,7 @@ import {db, Prisma} from '@tgs/database';
 import {jsonSafe} from './infrastructure.js';
 import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 import {recordUnansweredQuestion} from './bot-training.js';
-import {mergeProfile, type LeadProfile} from './crm-pipeline.js';
+import {applySignals, mergeProfile, type LeadProfile, type SalesSignals} from './crm-pipeline.js';
 import {buildSystemData} from './bot-knowledge.js';
 import {
   createEscalationNotification,
@@ -241,6 +241,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
               : 'Dentro del horario de atención.',
             responseStyle: settings.responseStyle,
             systemData: systemData || undefined,
+            salesStage: conversation.stage,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
               .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
               .map((item) => String(item.text)),
@@ -434,6 +435,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     if (!body.simulation && (result.result as {profile?: LeadProfile}).profile) {
       void mergeProfile(body.chatKey, (result.result as {profile?: LeadProfile}).profile).catch(() => undefined);
     }
+    // Temperatura, intención y próximo paso de la venta.
+    const signals = (result.result as {signals?: SalesSignals}).signals;
+    if (!body.simulation && signals) void applySignals(body.chatKey, signals).catch(() => undefined);
 
     // El modelo derivó porque no sabía: queda como pregunta para enseñarle (y se le
     // consulta al entrenador). Las derivaciones por palabra clave o audio no cuentan.
@@ -471,6 +475,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       matchedResponseId: responseMatch?.response.id??null,
       matchedResponseScore: responseMatch?.score??null,
       decisionReason: result.result.decisionReason??null,
+      signals: (result.result as {signals?: SalesSignals}).signals ?? null,
       reused: reusable ?? undefined,
       attachments: resolvedAttachments,
       multiMessage:{

@@ -20,8 +20,20 @@ function fallback(input: ChatbotResponseInput): ChatbotResponseOutput {
     shouldCreateRequest: false,
     requestDraft: null,
     profile: {usage: null, games: [], budgetCents: null, city: null, payment: null, delivery: null},
+    signals: {temperature: 50, intent: "OTHER", stageHint: null, nextStep: "Revisar la conversación."},
   };
 }
+
+/** Qué hace un buen vendedor en cada etapa: el bot sabe en cuál está y lleva al cliente a la siguiente. */
+const PLAYBOOK: Record<string, string> = {
+  NEW: "Recién escribe. Saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.",
+  QUALIFYING: "Ya sabés algo de lo que quiere. Completá lo que falta (juegos o programas, presupuesto) y, si hay PCs en DATOS DEL SISTEMA que encajen, ofrecé una o dos opciones con precio y link. Si no, que un vendedor arme opciones.",
+  QUOTE_SENT: "Ya tiene un presupuesto. Preguntá qué le pareció, resolvé dudas u objeciones (precio, rendimiento, componentes) y ofrecé ajustarlo o una alternativa.",
+  NEGOTIATION: "Está decidiendo. Aclará medios de pago y cuotas, plazos de armado y entrega, y proponé avanzar con la seña del 20% para congelar el precio.",
+  DEPOSIT: "Ya señó o está por pagar. Coordiná pago, retiro o envío y transmití confianza. Lo que sea cobrar o confirmar stock lo hace una persona.",
+  WON: "Ya compró. Atendé con buena onda, ofrecé ayuda y, si viene al caso, periféricos o upgrades.",
+  LOST: "No compró. Si vuelve a escribir, retomá con interés genuino y ofrecé una opción que se ajuste mejor.",
+};
 
 function normalizedMatchText(value: string): string {
   return value
@@ -89,6 +101,7 @@ REGLAS INNEGOCIABLES
 - Evitá repetir literalmente la última respuesta del negocio.
 - escalationReason debe ser null cuando shouldEscalate=false.
 - profile resume lo que el cliente dijo de sí mismo en TODA la conversación (no solo el último mensaje): usage (para qué quiere la PC: juegos, diseño, trabajo, estudio…), games (juegos o programas que nombró), budgetCents (presupuesto que mencionó, en centavos: ARS 800.000 = 80000000), city (ciudad o provincia), payment (cómo quiere pagar) y delivery (ENVIO o RETIRO). Lo que no dijo va en null o lista vacía; nunca lo supongas.
+- signals mide la venta después de este mensaje: temperature 0-100 (0-30 frío: solo curiosea o no responde a lo que se le pregunta; 31-65 tibio: interesado, comparando; 66-100 caliente: pregunta cómo pagar, cuándo retira, quiere reservar o señar). intent = qué quiere con su último mensaje (GREETING, INFO, PRICE, PRODUCT, BUILD_PC, COMPARE, PAYMENT, SHIPPING, PURCHASE_READY, TRADE_IN, SUPPORT, COMPLAINT, OTHER). stageHint = la etapa en la que debería estar ahora (NEW, QUALIFYING, QUOTE_SENT, NEGOTIATION o DEPOSIT) o null si no cambia. nextStep = el próximo paso concreto para avanzar la venta, en una frase corta para el vendedor (ej.: "Mandarle 2 opciones de ~$800.000 para Fortnite").
 - updatedSummary debe ser una memoria compacta factual: intención, datos confirmados, pendientes y compromisos. No incluyas razonamiento oculto. Si no hay información suficiente para actualizarla, devolvé null.
 - matchedKnowledgeIds contiene los IDs de la RESPUESTA ACTIVADA y de los ítems de la BASE DE CONOCIMIENTO que efectivamente usaste; si no usaste ninguno, devolvé una lista vacía.
 - shouldCreateRequest=true únicamente cuando el cliente manifiesta intención concreta de comprar, cotizar o pedir presupuesto. Una consulta informativa genérica no alcanza.
@@ -133,6 +146,9 @@ ${JSON.stringify(input.config.closingMessages)}
 CRITERIO DE ESCALACIÓN
 Habilitado por modelo: ${input.config.modelCanEscalate ? "sí" : "no"}
 ${input.config.escalationInstructions}
+
+ETAPA DE LA VENTA Y PRÓXIMO PASO (guiá al cliente hacia la compra sin presionar; cerrá casi siempre con una pregunta que avance)
+Etapa actual: ${input.config.salesStage ?? "NEW"}. ${PLAYBOOK[input.config.salesStage ?? "NEW"] ?? PLAYBOOK.NEW}
 
 CONTEXTO DE DISPONIBILIDAD
 ${input.config.businessContext ?? "Atención normal."}

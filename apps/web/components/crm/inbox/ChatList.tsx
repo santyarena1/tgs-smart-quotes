@@ -2,12 +2,12 @@
 
 import { memo } from "react";
 import type { WhatsappConversation } from "../../../lib/api";
-import { CRM_VIEWS, type CrmViewId } from "../../../lib/crm";
+import { CRM_VIEWS, temperatureBadge, type CrmViewId } from "../../../lib/crm";
 import { avatarInitials, conversationTitle, relativeTime } from "../format";
 import type { CrmViewer } from "../useCrmLive";
 
 /** Vistas que se muestran siempre; el resto se despliega en "Más". */
-const PRIMARY: CrmViewId[] = ["ALL", "MINE", "UNASSIGNED", "BOT", "UNREAD"];
+const PRIMARY: CrmViewId[] = ["ALL", "HOT", "MINE", "UNASSIGNED", "UNREAD"];
 
 export function ChatList({
   items,
@@ -156,6 +156,7 @@ const ChatRow = memo(function ChatRow({
         </span>
         <span className="cx-row-meta">
           {item.isTrainer ? <span className="cx-pill human">🎓 Entrenador</span> : <StatusPill item={item} />}
+          <TemperaturePill value={item.temperature} />
           {item.assignedUser ? <span className="cx-pill">👤 {item.assignedUser.displayName || item.assignedUser.username}</span> : null}
           {!item.window.open && item.lastInboundAt ? <span className="cx-pill muted" title="Pasaron más de 24 h: solo plantillas">⏱ cerrada</span> : null}
           {(item.tags ?? []).slice(0, 2).map((tag) => <span key={tag} className="cx-pill tag">#{tag}</span>)}
@@ -166,6 +167,12 @@ const ChatRow = memo(function ChatRow({
     </button>
   );
 });
+
+export function TemperaturePill({ value }: { value: number | null | undefined }) {
+  const badge = temperatureBadge(value);
+  if (!badge) return null;
+  return <span className={`cx-pill temp ${badge.tone}`} title={`Temperatura de la venta: ${badge.label}`}>{badge.icon} {value}</span>;
+}
 
 export function StatusPill({ item }: { item: WhatsappConversation }) {
   switch (item.status) {
