@@ -8,6 +8,7 @@ import {
   productCreateSchema,
   productImportSchema,
   quoteCreateSchema,
+  quoteSearchSchema,
   quoteRetargetSchema,
   quoteStateSchema,
   requestCreateSchema,
@@ -150,5 +151,14 @@ describe("contratos del dominio", () => {
     ).toMatchObject({ amountCents: "35000000", paid: true, period: "202610" });
     expect(() => expenseCreateSchema.parse({ name: "Alquiler", paid: true })).toThrow();
     expect(expensePaymentSchema.parse({ amountCents: "100", paid: true }).paid).toBe(true);
+  });
+
+  it("en la búsqueda isBuiltPc=false queda en falso", () => {
+    expect(quoteSearchSchema.parse({ isBuiltPc: "false" }).isBuiltPc).toBe(false);
+    expect(quoteSearchSchema.parse({ isBuiltPc: "0" }).isBuiltPc).toBe(false);
+    expect(quoteSearchSchema.parse({ isBuiltPc: "true" }).isBuiltPc).toBe(true);
+    expect(quoteSearchSchema.parse({ isBuiltPc: "1" }).isBuiltPc).toBe(true);
+    expect(quoteSearchSchema.parse({ isBuiltPc: false }).isBuiltPc).toBe(false);
+    expect(quoteSearchSchema.parse({}).isBuiltPc).toBeUndefined();
   });
 });

@@ -21,9 +21,9 @@ const SORTS: Array<[string, string]> = [
 
 type Page = { items: Quote[]; total?: number };
 
-/** Buscador de todos los presupuestos (de todos los locales) con filtros. */
+/** Buscador de presupuestos. El vendedor queda en su local; el admin puede ver todos. */
 export function LiteSearch() {
-  const { branches } = useLite();
+  const { branches, branchId: homeBranchId, locked } = useLite();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [q, setQ] = useState("");
   const [state, setState] = useState("");
@@ -51,10 +51,16 @@ export function LiteSearch() {
     setLoading(true);
     setError(null);
     try {
+      if (locked && !homeBranchId) {
+        setRows([]);
+        setTotal(0);
+        return;
+      }
       const query: Record<string, string | number | boolean> = { page, pageSize: PAGE_SIZE, sort, order };
       if (q.trim()) query.q = q.trim();
       if (state) query.state = state;
-      if (branchId) query.branchId = branchId;
+      const scopedBranch = locked ? homeBranchId : branchId;
+      if (scopedBranch) query.branchId = scopedBranch;
       if (collectionId) query.collectionId = collectionId;
       if (builtPc) query.isBuiltPc = builtPc === "1";
       if (from) query.from = from;
@@ -67,7 +73,7 @@ export function LiteSearch() {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [q, state, branchId, collectionId, builtPc, from, to, sort, order, page]);
+  }, [q, state, branchId, collectionId, builtPc, from, to, sort, order, page, locked, homeBranchId]);
 
   // Debounce del texto; los demás filtros disparan igual (misma dependencia).
   useEffect(() => {
@@ -79,9 +85,9 @@ export function LiteSearch() {
     return (v: T) => { set(v); setPage(1); };
   }
 
-  const active = [q, state, branchId, collectionId, builtPc, from, to].some(Boolean);
+  const active = [q, state, collectionId, builtPc, from, to].some(Boolean) || (!locked && Boolean(branchId));
   function clear() {
-    setQ(""); setState(""); setBranchId(""); setCollectionId(""); setBuiltPc(""); setFrom(""); setTo(""); setPage(1);
+    setQ(""); setState(""); if (!locked) setBranchId(""); setCollectionId(""); setBuiltPc(""); setFrom(""); setTo(""); setPage(1);
   }
 
   async function pdf(quote: Quote, kind: PdfKind) {
@@ -103,7 +109,7 @@ export function LiteSearch() {
     <div className="lt-col">
       <div className="lt-head">
         <h1>Buscar presupuestos</h1>
-        <p>Todos los presupuestos, de todos los locales. Buscá por número, nombre, cliente, teléfono o producto.</p>
+        <p>{locked ? "Presupuestos de tu local." : "Todos los presupuestos, de todos los locales."} Buscá por número, nombre, cliente, teléfono o producto.</p>
       </div>
       {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
 
@@ -114,9 +120,9 @@ export function LiteSearch() {
             <option value="">Todos los estados</option>
             {STATES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
-          <select className="lt-input" value={branchId} onChange={(e) => filter(setBranchId)(e.target.value)} aria-label="Local">
-            <option value="">Todos los locales</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          <select className="lt-input" value={locked ? (homeBranchId ?? "") : branchId} disabled={locked} onChange={(e) => filter(setBranchId)(e.target.value)} aria-label="Local">
+            {locked ? null : <option value="">Todos los locales</option>}
+            {(locked ? branches.filter((b) => b.id === homeBranchId) : branches).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           <select className="lt-input" value={collectionId} onChange={(e) => filter(setCollectionId)(e.target.value)} aria-label="Colección">
             <option value="">Todas las colecciones</option>

@@ -1055,6 +1055,15 @@ export const quoteReplyCreateSchema = z
   })
   .strict();
 
+/** "false" y "0" en la query son falso. z.coerce.boolean() los lee como true. */
+const queryFlagSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const flag = value.trim().toLowerCase();
+  if (flag === 'true' || flag === '1') return true;
+  if (flag === 'false' || flag === '0') return false;
+  return value;
+}, z.boolean());
+
 export const quoteSearchSchema = z
   .object({
     q: z.string().trim().max(300).optional(),
@@ -1065,7 +1074,7 @@ export const quoteSearchSchema = z
     phone: z.string().trim().max(100).optional(),
     productName: z.string().trim().max(300).optional(),
     visibleNumber: z.string().trim().max(100).optional(),
-    isBuiltPc: z.coerce.boolean().optional(),
+    isBuiltPc: queryFlagSchema.optional(),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     sort: z
