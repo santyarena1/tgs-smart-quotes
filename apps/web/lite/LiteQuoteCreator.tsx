@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { bpsToPct, centsToInput, formatArs, lineTotalCents, parseArsToCents, roundCentsToPesosStep } from "../lib/money";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
-import { getActiveVersion, type Collection, type Customer, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
+import { getActiveVersion, getQuoteItems, type Collection, type Customer, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 import { useLite } from "./LiteContext";
 import { LiteNewProduct } from "./LiteNewProduct";
+import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 
 type Line = {
@@ -26,10 +27,6 @@ type Line = {
 const DEFAULT_MARKUP = "30";
 const MARKUP_PRESETS = ["10", "15", "20", "25", "30", "35", "40", "50"];
 const ROUND_STEPS = ["100", "500", "1000", "5000"];
-const STATE_LABEL: Record<QuoteState, string> = {
-  BORRADOR: "Borrador", ENVIADO: "Enviado", ACEPTADO: "Aceptado",
-  RECHAZADO: "Rechazado", REEMPLAZADO: "Reemplazado", NO_CONCRETADO: "No concretado",
-};
 
 const norm = (value: string) => value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -123,10 +120,11 @@ function SlotPicker({ products, preferLineId, onPick, onCreate }: {
 }
 
 export function LiteQuoteCreator() {
-  const { branchId, writesElsewhere } = useLite();
+  const { writesElsewhere } = useLite();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [recent, setRecent] = useState<Quote[]>([]);
+  const [editing, setEditing] = useState<{ id: string; visibleNumber: string; observation: string | null } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [pcLines, setPcLines] = useState<PcLine[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -158,19 +156,6 @@ export function LiteQuoteCreator() {
       setCollections(cols.filter((c) => !c.archived));
     });
   }, []);
-
-  const loadRecent = useCallback(async () => {
-    if (!branchId) return;
-    try {
-      const res = await api<{ items: Quote[] } | Quote[]>("/quotes/search", {
-        query: { branchId, page: 1, pageSize: 8, sort: "lastActivityAt", order: "desc" },
-      });
-      setRecent(Array.isArray(res) ? res : res.items);
-    } catch {
-      setRecent([]);
-    }
-  }, [branchId]);
-  useEffect(() => { void loadRecent(); }, [loadRecent]);
 
   const results = useMemo(() => {
     const tokens = norm(query).split(/\s+/).filter(Boolean);
@@ -260,15 +245,15 @@ export function LiteQuoteCreator() {
       const ordered = isBuiltPc
         ? [...lines].sort((a, b) => (lineOrder.get(a.lineId) ?? 999) - (lineOrder.get(b.lineId) ?? 999))
         : lines;
-      const created = await api<Quote>("/quotes", {
-        method: "POST",
+      const created = await api<Quote>(editing ? `/quotes/${editing.id}` : "/quotes", {
+        method: editing ? "PUT" : "POST",
         body: {
           internalName,
           customerId: customerId || null,
           requestId: null,
           isBuiltPc,
-          kind: "PC",
-          publicObservation: null,
+          ...(editing ? { reason: null } : { kind: "PC" }),
+          publicObservation: editing?.observation ?? null,
           collectionIds,
           items: ordered.map((l, position) => ({
             productId: l.productId || null,
@@ -282,20 +267,14 @@ export function LiteQuoteCreator() {
           })),
         },
       });
-      setLines([]);
-      setName("");
-      setCustomerId("");
-      setBulkMarkup("");
-      setCollectionIds([]);
-      setIsBuiltPc(false);
-      setRoundStep("");
+      resetForm();
       try {
         await downloadQuotePdf(created.id, created.visibleNumber, kind);
-        setNotice(`${created.visibleNumber} creado · PDF ${kind === "SIMPLE" ? "simple" : "detallado"} descargado.`);
+        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"} · PDF ${kind === "SIMPLE" ? "simple" : "detallado"} descargado.`);
       } catch (err) {
-        setNotice(`${created.visibleNumber} creado, pero el PDF falló: ${errorMessage(err)}`);
+        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"}, pero el PDF falló: ${errorMessage(err)}`);
       }
-      void loadRecent();
+      setRefreshKey((k) => k + 1);
       } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -322,15 +301,44 @@ export function LiteQuoteCreator() {
     }
   }
 
-  async function rowPdf(q: Quote, kind: PdfKind) {
-    setBusy("row");
+  function resetForm() {
+    setLines([]);
+    setName("");
+    setCustomerId("");
+    setBulkMarkup("");
+    setCollectionIds([]);
+    setIsBuiltPc(false);
+    setRoundStep("");
+    setEditing(null);
+  }
+
+  /** Carga un presupuesto existente en el formulario para modificarlo (guardar crea una versión nueva). */
+  async function startEdit(summary: Quote) {
+    if (busy) return;
     setError(null);
+    setNotice(null);
     try {
-      await downloadQuotePdf(q.id, q.visibleNumber, kind);
+      const quote = await api<Quote>(`/quotes/${summary.id}`);
+      setName(quote.internalName);
+      setCustomerId(quote.customerId ?? "");
+      setIsBuiltPc(quote.isBuiltPc);
+      setCollectionIds((quote.collections ?? []).map((row) => row.collectionId ?? row.collection?.id ?? "").filter(Boolean));
+      setLines(getQuoteItems(quote).map((item) => ({
+        key: crypto.randomUUID(),
+        productId: item.productId ?? "",
+        lineId: item.lineId ?? "",
+        name: item.name,
+        quantity: String(item.quantity),
+        costArs: centsToInput(item.costCents),
+        markupPct: bpsToPct(item.markupBps),
+        saleArs: centsToInput(item.salePriceCents ?? "0"),
+        // El precio guardado manda: no recalcular la venta desde un % redondeado.
+        priceMode: "sale" as const,
+      })));
+      setEditing({ id: quote.id, visibleNumber: quote.visibleNumber, observation: getActiveVersion(quote)?.publicObservation ?? null });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(errorMessage(err));
-    } finally {
-      setBusy(null);
     }
   }
 
@@ -363,10 +371,16 @@ export function LiteQuoteCreator() {
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
       <section className="lt-col">
         <div className="lt-head">
-          <h1>Nuevo presupuesto</h1>
+          <h1>{editing ? `Editando ${editing.visibleNumber}` : "Nuevo presupuesto"}</h1>
           <p>Buscá un producto y Enter. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> crea y descarga el PDF.</p>
         </div>
 
+        {editing ? (
+          <div className="lt-note lt-editing">
+            <span>Modificás {editing.visibleNumber}: al guardar se registra como versión nueva (si ya fue enviado, el original queda intacto).</span>
+            <button type="button" className="lt-btn ghost sm" onClick={resetForm}>Cancelar edición</button>
+          </div>
+        ) : null}
         {writesElsewhere ? <div className="lt-note">Estás viendo otro local: los presupuestos nuevos se guardan en el tuyo.</div> : null}
         {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
         {notice ? <div className="lt-alert ok" role="status">{notice}</div> : null}
@@ -494,38 +508,17 @@ export function LiteQuoteCreator() {
             {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
           </button>
           <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
-            {busy === "SIMPLE" ? "Generando…" : "Crear y descargar PDF"}
+            {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
           </button>
         </div>
       </section>
 
-      <aside className="lt-side">
-        <h2>Últimos del local</h2>
-        {recent.length === 0 ? <p className="lt-muted">Sin presupuestos todavía.</p> : (
-          <ul className="lt-recent">
-            {recent.map((q) => {
-              const v = getActiveVersion(q);
-              return (
-                <li key={q.id}>
-                  <div className="lt-recent-main">
-                    <strong>{q.visibleNumber}</strong>
-                    <span className="lt-recent-name">{q.internalName}</span>
-                    <span className="lt-muted">{q.customer?.name ?? "Sin cliente"}</span>
-                  </div>
-                  <div className="lt-recent-side">
-                    <strong>{formatArs(v?.totalSaleCents)}</strong>
-                    {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
-                    <span className="lt-recent-actions">
-                      <button type="button" disabled={busy !== null} onClick={() => void rowPdf(q, "SIMPLE")}>PDF</button>
-                      <button type="button" disabled={busy !== null} onClick={() => void rowPdf(q, "DETALLADO")}>Detallado</button>
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </aside>
+      <LiteQuoteList
+        refreshKey={refreshKey}
+        editingId={editing?.id ?? null}
+        onEdit={(q) => void startEdit(q)}
+        onDeleted={(q) => { if (editing?.id === q.id) resetForm(); setNotice(`${q.visibleNumber} eliminado.`); }}
+      />
     </div>
   );
 }

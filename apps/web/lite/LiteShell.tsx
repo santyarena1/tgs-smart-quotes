@@ -31,8 +31,7 @@ function LiteBar() {
   }
 
   const tabs = [
-    { href: "/lite", label: "Nuevo" },
-    { href: "/lite/presupuestos", label: "Presupuestos" },
+    { href: "/lite", label: "Presupuestos" },
     { href: "/lite/colecciones", label: "Colecciones" },
     { href: "/lite/editor-pdf", label: "Editor PDF" },
     { href: "/lite/configuracion", label: "Configuración" },
