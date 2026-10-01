@@ -159,3 +159,11 @@
   .lite .lt-foot { flex-wrap: wrap; }
   .lite .lt-foot .lt-btn { flex: 1 1 140px; }
 }
+
+.lite .lt-check { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.7rem; font-size: 0.86rem; color: var(--ink-2); cursor: pointer; }
+.lite .lt-check small { color: var(--faint); }
+.lite .lt-colls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.6rem; }
+.lite .lt-chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.lite .lt-comp { padding-top: 0.5rem; }
+.lite .lt-comp-name { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); padding: 0 0.5rem 0.2rem; }
+.lite .lt-slot { margin: 0 0 0.3rem; }
