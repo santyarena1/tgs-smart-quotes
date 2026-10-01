@@ -40,8 +40,12 @@ export async function scheduleReply(chatKey: string): Promise<void> {
   await cancelPendingBotReplies(chatKey, 'El cliente escribió de nuevo antes de que saliera la respuesta.');
   // El entrenador se atiende aunque el bot esté apagado para los clientes.
   const trainer = Boolean(settings?.trainerNumbers.includes(chatKey));
-  if (!settings?.enabled && !trainer) return;
+  if (!settings?.enabled && !trainer) {
+    logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: 'DISABLED'}));
+    return;
+  }
   const seconds = trainer ? 4 : Math.max(2, Math.min(60, settings?.replyDebounceSeconds ?? 10));
+  logger.log(JSON.stringify({event: 'whatsapp_reply_scheduled', chatKey, trainer, inSeconds: seconds}));
   await db.chatbotConversation.update({
     where: {chatKey},
     data: {replyDueAt: new Date(Date.now() + seconds * 1000)},
@@ -168,7 +172,10 @@ export async function respondNow(chatKey: string): Promise<void> {
     });
     return;
   }
-  if (!settingsRow?.enabled) return;
+  if (!settingsRow?.enabled) {
+    logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: 'DISABLED'}));
+    return;
+  }
   const settings = settingsDto(settingsRow);
 
   const conversation = await db.chatbotConversation.findUnique({
@@ -177,7 +184,10 @@ export async function respondNow(chatKey: string): Promise<void> {
   });
   if (!conversation) return;
   if (conversation.botPausedAt) {
-    if (!(await shouldAutoResume(chatKey, conversation.botPausedAt, settingsRow.autoResumeHours))) return;
+    if (!(await shouldAutoResume(chatKey, conversation.botPausedAt, settingsRow.autoResumeHours))) {
+      logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: 'PAUSED'}));
+      return;
+    }
     await resumeBot(chatKey);
     logger.log(JSON.stringify({event: 'bot_auto_resumed', chatKey}));
   }
@@ -202,7 +212,10 @@ export async function respondNow(chatKey: string): Promise<void> {
     return !matchesConfiguredAutoMessage(message.text, settings.ignoredAutoMessages);
   });
   const last = usable.at(-1);
-  if (!last) return;
+  if (!last) {
+    logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: 'NOTHING_TO_ANSWER', pending: pending.length}));
+    return;
+  }
 
   const hasAudio = usable.some((message) => ((message.decisionMetadata ?? {}) as Record<string, unknown>).messageType === 'AUDIO');
   const credentials = await loadCredentials().catch(() => null);
@@ -241,7 +254,11 @@ export async function respondNow(chatKey: string): Promise<void> {
     return;
   }
 
-  if (result?.action !== 'AUTO_REPLY' || !result.logId) return;
+  if (result?.action !== 'AUTO_REPLY' || !result.logId) {
+    // Que siempre quede por qué no contestó (derivado, tomado, fuera de horario, sugerencia…).
+    logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: result?.action ?? null, mode: result?.effectiveMode ?? null}));
+    return;
+  }
 
   // Última barrera antes de encolar: si algo cambió mientras la IA redactaba, se descarta.
   const fresh = await db.chatbotConversation.findUnique({

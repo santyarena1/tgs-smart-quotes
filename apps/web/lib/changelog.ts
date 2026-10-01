@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.1",
+    date: "2026-10-01",
+    title: "Registro de por qué el bot no contesta",
+    items: [
+      "Cuando el bot decide no responder (chat derivado a una persona, tomado por un vendedor, fuera de horario, bot apagado o modo sugerencia) queda registrado el motivo, para diagnosticar al instante",
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 7: temperatura de la venta, embudo guiado y reportes",
