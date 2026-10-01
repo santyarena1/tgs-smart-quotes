@@ -42,6 +42,8 @@ function outboundAttachments(message: WhatsappMessage): string[] {
 function authorOf(message: WhatsappMessage): string {
   if (message.direction === "INBOUND") return "";
   if (message.actor === "BOT") return "🤖 Bot";
+  if (message.decisionMetadata?.followupStep) return "⏰ Seguimiento automático";
+  if (message.decisionMetadata?.trainer) return "🎓 Al entrenador";
   if (message.actor === "HUMAN") {
     const metadata = message.decisionMetadata ?? {};
     if (metadata.approvedByUserId) return "🤖 Bot · aprobado";

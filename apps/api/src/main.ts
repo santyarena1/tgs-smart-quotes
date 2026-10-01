@@ -9,6 +9,7 @@ import {AppModule} from './module.js';
 import {startOutboundWorker} from './whatsapp-outbound.js';
 import {startResponder} from './whatsapp-responder.js';
 import {startTaskReminders} from './crm-pipeline.js';
+import {startFollowups} from './crm-followups.js';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({logger: true});
@@ -64,6 +65,8 @@ async function bootstrap() {
   startResponder();
   // Avisa en la campana las tareas del CRM que vencen.
   startTaskReminders();
+  // Seguimiento automático de presupuestos sin respuesta (si está activado).
+  startFollowups();
   Logger.log(
     JSON.stringify({event: 'api_started', port: Number(process.env.PORT ?? 3001)}),
     'Bootstrap',

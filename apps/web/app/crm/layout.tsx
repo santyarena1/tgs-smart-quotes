@@ -13,6 +13,7 @@ const NAV = [
   { href: "/crm", label: "Bandeja", icon: "💬", match: (path: string) => path === "/crm" },
   { href: "/crm/embudo", label: "Embudo", icon: "📊", match: (path: string) => path.startsWith("/crm/embudo") },
   { href: "/crm/entrenamiento", label: "Entrenamiento", icon: "🎓", match: (path: string) => path.startsWith("/crm/entrenamiento") },
+  { href: "/crm/seguimientos", label: "Seguimientos", icon: "⏰", match: (path: string) => path.startsWith("/crm/seguimientos") },
   { href: "/crm/respuestas", label: "Respuestas rápidas", icon: "⚡", match: (path: string) => path.startsWith("/crm/respuestas") },
   { href: "/crm/plantillas", label: "Plantillas", icon: "📄", match: (path: string) => path.startsWith("/crm/plantillas") },
   { href: "/configuracion?tab=chatbot", label: "Bot", icon: "🤖", match: () => false },

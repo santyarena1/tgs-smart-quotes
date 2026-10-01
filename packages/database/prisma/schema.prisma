@@ -1124,6 +1124,9 @@ model ChatbotSettings {
   transcribeAudio           Boolean     @default(true)
   /// Describir las imágenes que mandan los clientes para que el bot las entienda.
   describeImages            Boolean     @default(true)
+  /// Seguimiento automático de presupuestos sin respuesta:
+  /// {enabled, onlyBotChats, steps: [{afterHours, text, templateId, variables}]}.
+  followups                 Json        @default("{\"enabled\":false,\"onlyBotChats\":false,\"steps\":[]}")
   updatedAt                 DateTime    @default(now()) @updatedAt
 }
 

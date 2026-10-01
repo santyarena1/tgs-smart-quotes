@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.0",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 6: seguimientos automáticos",
+    items: [
+      "Pantalla Seguimientos: si se mandó un presupuesto y el cliente no contesta, se le escribe solo a las horas configuradas (de fábrica: 2 h, 23 h y 48 h, con textos editables y {nombre})",
+      "Se corta en cuanto el cliente responde, y el reloj vuelve a cero si un vendedor escribe. Con la ventana de 24 h cerrada solo sale si el paso tiene una plantilla aprobada; si no, se saltea",
+      "Lista de próximos seguimientos para ver qué va a salir antes de activarlo. Arranca apagado",
+      "En el chat, los seguimientos y los mensajes al entrenador se ven marcados como tales",
+    ],
+  },
+  {
     version: "0.13.0",
     date: "2026-10-01",
     title: "El bot responde con datos reales del sistema",
