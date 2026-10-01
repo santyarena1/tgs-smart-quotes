@@ -79,8 +79,8 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
     return () => window.clearTimeout(t);
   }, [run]);
 
-  const moreCount = [state, from, to].filter(Boolean).length;
-  const anyFilter = Boolean(q || branchId || collectionId || month || moreCount);
+  const moreCount = [state, month, from, to].filter(Boolean).length;
+  const anyFilter = Boolean(q || branchId || collectionId || moreCount);
   const reset = (set: (v: string) => void) => (v: string) => { set(v); setPage(1); };
   const lastPage = total === null ? null : Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasNext = lastPage === null ? rows.length === PAGE_SIZE : page < lastPage;
@@ -121,7 +121,6 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
           <option value="">Todos los locales</option>
           {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
-        <input className="lt-input" type="month" value={month} onChange={(e) => reset(setMonth)(e.target.value)} aria-label="Mes" />
         <select className="lt-input" value={collectionId} onChange={(e) => reset(setCollectionId)(e.target.value)} aria-label="Colección">
           <option value="">Todas las colecciones</option>
           {collections.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
@@ -141,11 +140,12 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
             <option value="">Todos los estados</option>
             {STATES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
+          <label className="lt-field">Mes<input className="lt-input" type="month" value={month} onChange={(e) => reset(setMonth)(e.target.value)} /></label>
           <div className="lt-list-dates">
             <label className="lt-field">Desde<input className="lt-input" type="date" value={from} onChange={(e) => reset(setFrom)(e.target.value)} /></label>
             <label className="lt-field">Hasta<input className="lt-input" type="date" value={to} onChange={(e) => reset(setTo)(e.target.value)} /></label>
           </div>
-          <p className="lt-muted lt-hint">Un rango de fechas exacto reemplaza al mes.</p>
+          <p className="lt-muted lt-hint">Un rango exacto (desde/hasta) reemplaza al mes.</p>
         </div>
       ) : null}
 
@@ -163,12 +163,15 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
               <li key={quote.id} className={editingId === quote.id ? "editing" : ""}>
                 <div className="lt-qrow">
                   <strong className="lt-qnum">{quote.visibleNumber}</strong>
-                  {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : <span />}
                   <span className="lt-qname" title={quote.internalName}>{quote.internalName}</span>
                   <span className="lt-qmeta" title={`${quote.customer?.name ?? "Sin cliente"}${quote.branch ? ` · ${quote.branch.name}` : ""}`}>
                     {quote.customer?.name ?? "Sin cliente"}{quote.branch ? ` · ${quote.branch.name}` : ""}
                   </span>
+                </div>
+                <div className="lt-qfoot">
                   <strong className="lt-qprice">{formatArs(v?.totalSaleCents)}</strong>
+                  {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
+                  {v?.createdAt ? <span className="lt-qdate" title="Fecha de la última versión">Últ. {new Date(v.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span> : null}
                 </div>
                 <div className="lt-actions">
                   <button type="button" className="lt-act edit" disabled={busy !== null} onClick={() => onEdit(quote)}>Editar</button>

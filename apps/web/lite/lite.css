@@ -277,3 +277,13 @@
 .lite .lt-qprice { font-variant-numeric: tabular-nums; font-size: 0.92rem; white-space: nowrap; text-align: right; }
 .lite .lt-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .lite .lt-act { white-space: nowrap; }
+
+/* ————— Fila de presupuesto: datos arriba, precio/estado/fecha en su línea ————— */
+.lite .lt-qrow { grid-template-columns: minmax(0, 1fr); }
+.lite .lt-qfoot { display: flex; align-items: center; gap: 0.5rem; padding-top: 0.45rem; border-top: 1px dashed var(--line); }
+.lite .lt-qfoot .lt-qprice { margin-right: auto; font-size: 1rem; text-align: left; }
+.lite .lt-qdate { color: var(--faint); font-size: 0.72rem; white-space: nowrap; }
+.lite .lt-customer { display: flex; gap: 0.4rem; min-width: 0; }
+.lite .lt-customer .lt-input { flex: 1; min-width: 0; }
+.lite .lt-customer .lt-btn { flex: none; height: auto; white-space: nowrap; }
+.lite .lt-modal-grid.two { grid-template-columns: 1fr 1fr; }
