@@ -1,0 +1,366 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api } from "../lib/api";
+import { bpsToPct, centsToInput, formatArs, lineTotalCents, parseArsToCents } from "../lib/money";
+import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
+import { getActiveVersion, type Customer, type Product, type Quote, type QuoteState } from "../lib/types";
+import { errorMessage, MoneyInput } from "../components/shared";
+import { useLite } from "./LiteContext";
+import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
+
+type Line = {
+  key: string;
+  productId: string;
+  name: string;
+  quantity: string;
+  costArs: string;
+  markupPct: string;
+  saleArs: string;
+  priceMode: "markup" | "sale";
+};
+
+const DEFAULT_MARKUP = "30";
+const STATE_LABEL: Record<QuoteState, string> = {
+  BORRADOR: "Borrador", ENVIADO: "Enviado", ACEPTADO: "Aceptado",
+  RECHAZADO: "Rechazado", REEMPLAZADO: "Reemplazado", NO_CONCRETADO: "No concretado",
+};
+
+const norm = (value: string) => value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+function lineFromProduct(p: Product): Line {
+  return {
+    key: crypto.randomUUID(),
+    productId: p.id,
+    name: p.name,
+    quantity: "1",
+    costArs: centsToInput(p.costCents),
+    markupPct: bpsToPct(p.markupBps),
+    saleArs: centsToInput(p.salePriceCents),
+    priceMode: "markup",
+  };
+}
+
+function freeLine(name: string): Line {
+  return { key: crypto.randomUUID(), productId: "", name, quantity: "1", costArs: "", markupPct: DEFAULT_MARKUP, saleArs: "", priceMode: "markup" };
+}
+
+function validate(lines: Line[]): string | null {
+  if (!lines.length) return "Agregá al menos un producto.";
+  for (const [i, line] of lines.entries()) {
+    if (!line.name.trim()) return `El ítem ${i + 1} necesita un nombre.`;
+    if (!line.costArs.trim()) return `El ítem ${i + 1} necesita un costo.`;
+    if (!Number(line.quantity) || Number(line.quantity) < 1) return `El ítem ${i + 1} necesita una cantidad válida.`;
+    try {
+      parseArsToCents(line.costArs);
+      itemPricePayload(line);
+    } catch {
+      return `Revisá los importes del ítem ${i + 1}.`;
+    }
+  }
+  return null;
+}
+
+export function LiteQuoteCreator() {
+  const { branchId, writesElsewhere } = useLite();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [recent, setRecent] = useState<Quote[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [customerId, setCustomerId] = useState("");
+  const [name, setName] = useState("");
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const [bulkMarkup, setBulkMarkup] = useState("");
+  const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void Promise.all([
+      api<Product[]>("/products").catch(() => [] as Product[]),
+      api<Customer[]>("/customers").catch(() => [] as Customer[]),
+    ]).then(([prods, custs]) => {
+      setProducts(prods.filter((p) => p.active));
+      setCustomers(custs);
+    });
+  }, []);
+
+  const loadRecent = useCallback(async () => {
+    if (!branchId) return;
+    try {
+      const res = await api<{ items: Quote[] } | Quote[]>("/quotes/search", {
+        query: { branchId, page: 1, pageSize: 8, sort: "lastActivityAt", order: "desc" },
+      });
+      setRecent(Array.isArray(res) ? res : res.items);
+    } catch {
+      setRecent([]);
+    }
+  }, [branchId]);
+  useEffect(() => { void loadRecent(); }, [loadRecent]);
+
+  const results = useMemo(() => {
+    const tokens = norm(query).split(/\s+/).filter(Boolean);
+    const pool = tokens.length
+      ? products.filter((p) => { const n = norm(p.name); return tokens.every((t) => n.includes(t)); })
+      : [...products].sort((a, b) => (b.lastUsedAt ?? "").localeCompare(a.lastUsedAt ?? ""));
+    return pool.slice(0, 7);
+  }, [products, query]);
+  useEffect(() => setActive(0), [query]);
+
+  const total = useMemo(
+    () => lines.reduce((sum, l) => sum + BigInt(lineTotalCents(l.saleArs, l.quantity)), 0n),
+    [lines],
+  );
+  const cost = useMemo(() => {
+    let sum = 0n;
+    for (const l of lines) {
+      try {
+        sum += BigInt(parseArsToCents(l.costArs)) * BigInt(Math.max(0, Math.trunc(Number(l.quantity) || 0)));
+      } catch { /* ítem incompleto */ }
+    }
+    return sum;
+  }, [lines]);
+
+  function patch(key: string, fn: (line: Line) => Line) {
+    setLines((current) => current.map((l) => (l.key === key ? fn(l) : l)));
+  }
+
+  function addProduct(p: Product) {
+    setLines((current) => [...current, lineFromProduct(p)]);
+    setQuery("");
+    searchRef.current?.focus();
+  }
+
+  function addFree() {
+    const line = freeLine(query.trim());
+    setFocusKey(line.key);
+    setLines((current) => [...current, line]);
+    setQuery("");
+  }
+
+  async function submit(kind: PdfKind) {
+    if (busy) return;
+    const invalid = validate(lines);
+    if (invalid) { setError(invalid); return; }
+    setBusy(kind);
+    setError(null);
+    setNotice(null);
+    try {
+      const customerName = customers.find((c) => c.id === customerId)?.name;
+      const internalName = name.trim() || customerName || lines[0]!.name;
+      const created = await api<Quote>("/quotes", {
+        method: "POST",
+        body: {
+          internalName,
+          customerId: customerId || null,
+          requestId: null,
+          isBuiltPc: false,
+          kind: "PC",
+          publicObservation: null,
+          collectionIds: [],
+          items: lines.map((l, position) => ({
+            productId: l.productId || null,
+            name: l.name.trim(),
+            lineId: null,
+            quantity: Number(l.quantity),
+            costCents: parseArsToCents(l.costArs),
+            position,
+            observation: null,
+            ...itemPricePayload(l),
+          })),
+        },
+      });
+      setLines([]);
+      setName("");
+      setCustomerId("");
+      setBulkMarkup("");
+      try {
+        await downloadQuotePdf(created.id, created.visibleNumber, kind);
+        setNotice(`${created.visibleNumber} creado · PDF ${kind === "SIMPLE" ? "simple" : "detallado"} descargado.`);
+      } catch (err) {
+        setNotice(`${created.visibleNumber} creado, pero el PDF falló: ${errorMessage(err)}`);
+      }
+      void loadRecent();
+      searchRef.current?.focus();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(i + 1, Math.max(results.length - 1, 0)));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Escape") {
+      setQuery("");
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) { void submit("SIMPLE"); return; }
+      const hit = results[active];
+      if (hit) addProduct(hit);
+      else if (query.trim()) addFree();
+    }
+  }
+
+  async function rowPdf(q: Quote, kind: PdfKind) {
+    setBusy("row");
+    setError(null);
+    try {
+      await downloadQuotePdf(q.id, q.visibleNumber, kind);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const ready = lines.length > 0 && !busy;
+
+  return (
+    <div className="lt-grid">
+      <section className="lt-col">
+        <div className="lt-head">
+          <h1>Nuevo presupuesto</h1>
+          <p>Buscá un producto y Enter. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> crea y descarga el PDF.</p>
+        </div>
+
+        {writesElsewhere ? <div className="lt-note">Estás viendo otro local: los presupuestos nuevos se guardan en el tuyo.</div> : null}
+        {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
+        {notice ? <div className="lt-alert ok" role="status">{notice}</div> : null}
+
+        <div className="lt-card">
+          <div className="lt-meta">
+            <input className="lt-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (opcional: usa el cliente o el primer ítem)" aria-label="Nombre interno" />
+            <select className="lt-input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} aria-label="Cliente">
+              <option value="">Sin cliente</option>
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div className="lt-search">
+            <input
+              ref={searchRef}
+              className="lt-input lt-search-input"
+              value={query}
+              autoFocus
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onSearchKey}
+              placeholder="Buscar producto…  (↑↓ Enter)"
+              aria-label="Buscar producto"
+            />
+            {query.trim() || products.length ? (
+              <ul className="lt-results" role="listbox">
+                {results.map((p, i) => (
+                  <li
+                    key={p.id}
+                    role="option"
+                    aria-selected={i === active}
+                    className={i === active ? "active" : ""}
+                    onMouseEnter={() => setActive(i)}
+                    onMouseDown={(e) => { e.preventDefault(); addProduct(p); }}
+                  >
+                    <span className="lt-res-name">{p.name}</span>
+                    <span className="lt-res-price">{formatArs(p.salePriceCents)}</span>
+                  </li>
+                ))}
+                {query.trim() ? (
+                  <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); addFree(); }}>
+                    <span className="lt-res-name">+ Agregar “{query.trim()}” como ítem libre</span>
+                  </li>
+                ) : null}
+              </ul>
+            ) : null}
+          </div>
+
+          {lines.length === 0 ? (
+            <div className="lt-empty">Todavía no hay ítems. Buscá arriba para empezar.</div>
+          ) : (
+            <div className="lt-lines">
+              <div className="lt-line head">
+                <span>Producto</span><span>Cant.</span><span>Costo</span><span>Margen %</span><span>Venta</span><span className="r">Total</span><span />
+              </div>
+              {lines.map((l) => (
+                <div className="lt-line" key={l.key}>
+                  <input className="lt-cell" value={l.name} onChange={(e) => patch(l.key, (x) => ({ ...x, name: e.target.value }))} aria-label="Nombre" />
+                  <input className="lt-cell num" type="number" min={1} value={l.quantity} onChange={(e) => patch(l.key, (x) => ({ ...x, quantity: e.target.value }))} aria-label="Cantidad" />
+                  <MoneyInput
+                    className="lt-cell num"
+                    value={l.costArs}
+                    autoFocus={focusKey === l.key}
+                    onChange={(v) => patch(l.key, (x) => applyDraftCost(x, v))}
+                    aria-label="Costo"
+                    placeholder="0"
+                  />
+                  <input className="lt-cell num" inputMode="decimal" value={l.markupPct} onChange={(e) => patch(l.key, (x) => applyDraftMarkup(x, e.target.value))} aria-label="Margen" />
+                  <MoneyInput className="lt-cell num" value={l.saleArs} onChange={(v) => patch(l.key, (x) => applyDraftSale(x, v))} aria-label="Venta" placeholder="0" />
+                  <strong className="lt-line-total r">{formatArs(lineTotalCents(l.saleArs, l.quantity))}</strong>
+                  <button type="button" className="lt-x" onClick={() => setLines((c) => c.filter((x) => x.key !== l.key))} aria-label="Quitar ítem">×</button>
+                </div>
+              ))}
+              <div className="lt-bulk">
+                <span>Margen para todos</span>
+                {[20, 30, 40].map((p) => (
+                  <button key={p} type="button" className="lt-chip" onClick={() => setLines((c) => c.map((l) => applyDraftMarkup(l, String(p))))}>{p}%</button>
+                ))}
+                <input className="lt-cell num" inputMode="decimal" value={bulkMarkup} onChange={(e) => setBulkMarkup(e.target.value)} placeholder="otro %" aria-label="Margen general" />
+                <button type="button" className="lt-btn ghost sm" disabled={!bulkMarkup.trim()} onClick={() => setLines((c) => c.map((l) => applyDraftMarkup(l, bulkMarkup.trim())))}>Aplicar</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="lt-foot">
+          <div className="lt-total">
+            <span>Total</span>
+            <strong>{formatArs(total)}</strong>
+            {lines.length ? <small>ganancia {formatArs(total - cost)}</small> : null}
+          </div>
+          <span className="lt-spacer" />
+          <button type="button" className="lt-btn ghost" disabled={!ready} onClick={() => void submit("DETALLADO")}>
+            {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
+          </button>
+          <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
+            {busy === "SIMPLE" ? "Generando…" : "Crear y descargar PDF"}
+          </button>
+        </div>
+      </section>
+
+      <aside className="lt-side">
+        <h2>Últimos del local</h2>
+        {recent.length === 0 ? <p className="lt-muted">Sin presupuestos todavía.</p> : (
+          <ul className="lt-recent">
+            {recent.map((q) => {
+              const v = getActiveVersion(q);
+              return (
+                <li key={q.id}>
+                  <div className="lt-recent-main">
+                    <strong>{q.visibleNumber}</strong>
+                    <span className="lt-recent-name">{q.internalName}</span>
+                    <span className="lt-muted">{q.customer?.name ?? "Sin cliente"}</span>
+                  </div>
+                  <div className="lt-recent-side">
+                    <strong>{formatArs(v?.totalSaleCents)}</strong>
+                    {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
+                    <span className="lt-recent-actions">
+                      <button type="button" disabled={busy !== null} onClick={() => void rowPdf(q, "SIMPLE")}>PDF</button>
+                      <button type="button" disabled={busy !== null} onClick={() => void rowPdf(q, "DETALLADO")}>Detallado</button>
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </aside>
+    </div>
+  );
+}

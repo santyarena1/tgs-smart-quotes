@@ -223,11 +223,28 @@ export const pdfLayoutDocumentSchema = z
     cardBorderColor: color.optional(),
   })
   .strict();
+export const pdfCustomBlockSchema = z
+  .object({
+    id: z.string().regex(/^[a-z0-9-]{1,32}$/),
+    text: z.string().max(2000),
+    /** Posición en px desde la esquina superior izquierda del área imprimible. */
+    x: z.number().min(0).max(800),
+    y: z.number().min(0).max(1200),
+    width: z.number().min(24).max(720),
+    fontSize: z.number().min(6).max(72).optional(),
+    color: color.optional(),
+    fontFamily: pdfLayoutStyleSchema.shape.fontFamily,
+    fontWeight: pdfLayoutStyleSchema.shape.fontWeight,
+    align: z.enum(['left', 'center', 'right']).optional(),
+    hidden: z.boolean().optional(),
+  })
+  .strict();
 export const pdfLayoutConfigSchema = z
   .object({
     version: z.literal(1).default(1),
     blocks: z.record(pdfLayoutBlockKeySchema, pdfLayoutStyleSchema).default({}),
     document: pdfLayoutDocumentSchema.optional(),
+    customBlocks: z.array(pdfCustomBlockSchema).max(30).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -424,6 +441,7 @@ export const collectionInputSchema = z.object({ name: text });
 export type CompanySettingsInput = z.infer<typeof companySettingsInputSchema>;
 export type PdfSettingsInput = z.infer<typeof pdfSettingsInputSchema>;
 export type PdfLayoutBlockKey = z.infer<typeof pdfLayoutBlockKeySchema>;
+export type PdfCustomBlock = z.infer<typeof pdfCustomBlockSchema>;
 export type PdfLayoutStyle = z.infer<typeof pdfLayoutStyleSchema>;
 export type PdfLayoutDocument = z.infer<typeof pdfLayoutDocumentSchema>;
 export type PdfLayoutConfig = z.infer<typeof pdfLayoutConfigSchema>;

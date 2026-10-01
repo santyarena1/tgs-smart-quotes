@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type {
   CompanySettings,
+  PdfCustomBlock,
   PdfLayoutBlockKey,
   PdfLayoutConfig,
   PdfLayoutDocument,
@@ -90,6 +91,7 @@ const PRINT_AREA = {
 };
 const SNAP_THRESHOLD = 5;
 
+type BoxMap = Record<string, Box>;
 type Box = { left: number; top: number; width: number; height: number };
 type AlignmentGuides = { x?: number; y?: number };
 
@@ -101,8 +103,8 @@ export function PdfLayoutEditorView() {
   const [pdf, setPdf] = useState<PdfSettings | null>(null);
   const [savedPdf, setSavedPdf] = useState<PdfSettings | null>(null);
   const [html, setHtml] = useState("");
-  const [selected, setSelected] = useState<PdfLayoutBlockKey>("logo");
-  const [boxes, setBoxes] = useState<Partial<Record<PdfLayoutBlockKey, Box>>>({});
+  const [selected, setSelected] = useState<string>("logo");
+  const [boxes, setBoxes] = useState<BoxMap>({});
   const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuides>({});
   const [logoAspectRatio, setLogoAspectRatio] = useState<number | null>(null);
   const [fitScale, setFitScale] = useState(0.8);
@@ -176,7 +178,24 @@ export function PdfLayoutEditorView() {
       event.preventDefault();
       const step = event.shiftKey ? 10 : 1;
       const current = draftRef.current;
-      const style = current.blocks[selected] ?? {};
+      const custom = current.customBlocks?.find((block) => block.id === selected);
+      if (custom) {
+        const nextX = Math.max(0, Math.min(800, custom.x + direction.x * step));
+        const nextY = Math.max(0, Math.min(1200, custom.y + direction.y * step));
+        const nextDraft = {
+          ...current,
+          customBlocks: current.customBlocks!.map((block) => block.id === selected ? {...block, x: nextX, y: nextY} : block),
+        };
+        draftRef.current = nextDraft;
+        setDraft(nextDraft);
+        setBoxes((currentBoxes) => {
+          const box = currentBoxes[selected];
+          return box ? {...currentBoxes, [selected]: {...box, left: box.left + nextX - custom.x, top: box.top + nextY - custom.y}} : currentBoxes;
+        });
+        setNotice(null);
+        return;
+      }
+      const style = current.blocks[selected as PdfLayoutBlockKey] ?? {};
       const currentX = style.x ?? 0;
       const currentY = style.y ?? 0;
       const nextX = Math.max(-200, Math.min(200, currentX + direction.x * step));
@@ -313,10 +332,11 @@ export function PdfLayoutEditorView() {
   const syncBoxes = useCallback(() => {
     const doc = frameRef.current?.contentDocument;
     if (!doc) return;
-    const next: Partial<Record<PdfLayoutBlockKey, Box>> = {};
-    const hidden = new Set<PdfLayoutBlockKey>();
-    for (const block of BLOCKS) {
-      const element = doc.querySelector<HTMLElement>(`[data-pdf-block="${block.key}"]`);
+    const next: BoxMap = {};
+    const hidden = new Set<string>();
+    const customKeys = (draftRef.current.customBlocks ?? []).map((block) => ({key: block.id}));
+    for (const block of [...BLOCKS, ...customKeys]) {
+      const element = doc.querySelector<HTMLElement>(`[data-pdf-block="${"label" in block ? block.key : "custom:" + block.key}"]`);
       if (!element) continue;
       const rect = element.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
@@ -349,6 +369,7 @@ export function PdfLayoutEditorView() {
     setSelected((current) => {
       const meta = BLOCKS.find((block) => block.key === current);
       if (meta?.column || meta?.fixedContent || hidden.has(current) || next[current]) return current;
+      if (draftRef.current.customBlocks?.some((block) => block.id === current)) return current;
       return BLOCKS.find((block) => next[block.key])?.key ?? current;
     });
   }, []);
@@ -359,8 +380,9 @@ export function PdfLayoutEditorView() {
     window.setTimeout(syncBoxes, 150);
   }, [syncBoxes]);
 
-  const selectedMeta = BLOCKS.find((block) => block.key === selected)!;
-  const style = draft.blocks[selected] ?? {};
+  const selectedCustom = draft.customBlocks?.find((block) => block.id === selected);
+  const selectedMeta = BLOCKS.find((block) => block.key === selected) ?? BLOCKS[0]!;
+  const style = draft.blocks[selected as PdfLayoutBlockKey] ?? {};
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(saved)
       || JSON.stringify(company) !== JSON.stringify(savedCompany)
@@ -373,7 +395,7 @@ export function PdfLayoutEditorView() {
       ...current,
       blocks: {
         ...current.blocks,
-        [selected]: { ...(current.blocks[selected] ?? {}), ...patch },
+        [selected]: { ...(current.blocks[selected as PdfLayoutBlockKey] ?? {}), ...patch },
       },
     }));
     setNotice(null);
@@ -403,6 +425,32 @@ export function PdfLayoutEditorView() {
     setNotice(null);
   }
 
+  function patchCustom(id: string, patch: Partial<PdfCustomBlock>) {
+    setDraft((current) => ({
+      ...current,
+      customBlocks: (current.customBlocks ?? []).map((block) => block.id === id ? {...block, ...patch} : block),
+    }));
+    setNotice(null);
+  }
+
+  function addTextBlock() {
+    const id = `t${Date.now().toString(36)}`;
+    const block: PdfCustomBlock = {id, text: "Nuevo texto", x: 40, y: 40, width: 240, fontSize: 12};
+    setDraft((current) => ({...current, customBlocks: [...(current.customBlocks ?? []), block]}));
+    setSelected(id);
+    setTab("field");
+    setNotice(null);
+  }
+
+  function removeCustom(id: string) {
+    setDraft((current) => {
+      const customBlocks = (current.customBlocks ?? []).filter((block) => block.id !== id);
+      const {customBlocks: _old, ...rest} = current;
+      return customBlocks.length ? {...rest, customBlocks} : rest;
+    });
+    setSelected("logo");
+  }
+
   function patchLogoWidth(width: number | undefined) {
     setDraft((current) => {
       const {height: _height, ...logo} = current.blocks.logo ?? {};
@@ -416,17 +464,45 @@ export function PdfLayoutEditorView() {
 
   function startPointer(
     event: React.PointerEvent,
-    key: PdfLayoutBlockKey,
+    rawKey: string,
     mode: "move" | "resize",
   ) {
     event.preventDefault();
     event.stopPropagation();
-    setSelected(key);
+    setSelected(rawKey);
     const startX = event.clientX;
     const startY = event.clientY;
-    const initial = draft.blocks[key] ?? {};
-    const box = boxes[key];
+    const box = boxes[rawKey];
     if (!box) return;
+    const customStart = draft.customBlocks?.find((block) => block.id === rawKey);
+    if (customStart) {
+      setAlignmentGuides({});
+      const onCustomMove = (move: PointerEvent) => {
+        const dx = (move.clientX - startX) / scale;
+        const dy = (move.clientY - startY) / scale;
+        const nextX = Math.max(0, Math.min(800, Math.round(customStart.x + dx)));
+        const nextY = Math.max(0, Math.min(1200, Math.round(customStart.y + dy)));
+        const nextWidth = Math.max(24, Math.min(720, Math.round(customStart.width + dx)));
+        setBoxes((current) => ({
+          ...current,
+          [rawKey]: mode === "move"
+            ? {...box, left: box.left + nextX - customStart.x, top: box.top + nextY - customStart.y}
+            : {...box, width: box.width + nextWidth - customStart.width},
+        }));
+        patchCustom(rawKey, mode === "move" ? {x: nextX, y: nextY} : {width: nextWidth});
+      };
+      const onCustomUp = () => {
+        window.removeEventListener("pointermove", onCustomMove);
+        window.removeEventListener("pointerup", onCustomUp);
+        window.removeEventListener("pointercancel", onCustomUp);
+      };
+      window.addEventListener("pointermove", onCustomMove);
+      window.addEventListener("pointerup", onCustomUp);
+      window.addEventListener("pointercancel", onCustomUp);
+      return;
+    }
+    const key = rawKey as PdfLayoutBlockKey;
+    const initial = draft.blocks[key] ?? {};
     setAlignmentGuides({});
     const onMove = (move: PointerEvent) => {
       const dx = (move.clientX - startX) / scale;
@@ -585,9 +661,10 @@ export function PdfLayoutEditorView() {
       <PageHeader
         eyebrow="Diseño"
         title="Editor visual del PDF"
-        subtitle="Arrastrá y redimensioná los campos existentes. El mismo diseño se usa en PDF Simple y Detallado."
+        subtitle="Arrastrá y redimensioná los campos y agregá bloques de texto propios. El mismo diseño se usa en PDF Simple y Detallado."
         actions={
           <div className="row-actions">
+            <button className="btn-ghost" type="button" onClick={addTextBlock}>+ Agregar texto</button>
             <button className="btn-ghost" type="button" onClick={reset}>Restablecer valores por defecto</button>
             <button className="btn-primary" type="button" disabled={!dirty || saving} onClick={() => void save()}>
               {saving ? "Guardando…" : "Guardar"}
@@ -657,6 +734,24 @@ export function PdfLayoutEditorView() {
                       {block.resize ? (
                         <i onPointerDown={(event) => startPointer(event, block.key, "resize")} />
                       ) : null}
+                    </button>
+                  );
+                })}
+                {(draft.customBlocks ?? []).map((block) => {
+                  const box = boxes[block.id];
+                  if (!box) return null;
+                  return (
+                    <button
+                      key={block.id}
+                      type="button"
+                      title="Texto"
+                      className={selected === block.id ? "pdf-block-box selected" : "pdf-block-box"}
+                      style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
+                      onPointerDown={(event) => startPointer(event, block.id, "move")}
+                      onClick={() => setSelected(block.id)}
+                    >
+                      <span>Texto</span>
+                      <i onPointerDown={(event) => startPointer(event, block.id, "resize")} />
                     </button>
                   );
                 })}
@@ -741,6 +836,18 @@ export function PdfLayoutEditorView() {
             <>
           <h2>Todos los campos</h2>
           <div className="pdf-field-list">
+          {(draft.customBlocks ?? []).map((block, index) => (
+            <button
+              key={block.id}
+              type="button"
+              className={selected === block.id ? "pdf-field-link active" : "pdf-field-link"}
+              onClick={() => { setSelected(block.id); setTab("field"); }}
+              style={block.hidden ? {opacity: 0.55} : undefined}
+            >
+              {`Texto ${index + 1}: ${block.text.slice(0, 18) || "vacío"}`}
+              <span>{block.hidden ? "Oculto" : "Texto propio"}</span>
+            </button>
+          ))}
           {BLOCKS.map((block) => {
             const isHidden = draft.blocks[block.key]?.hidden === true;
             return (
@@ -770,6 +877,47 @@ export function PdfLayoutEditorView() {
           </div>
             </>
           ) : (<>
+          {selectedCustom ? (
+            <div className="pdf-custom-editor">
+              <h2>Bloque de texto</h2>
+              <label>Contenido
+                <textarea rows={5} value={selectedCustom.text} onChange={(e) => patchCustom(selectedCustom.id, { text: e.target.value })} />
+              </label>
+              <div className="pdf-property-pair">
+                <label>Posición X <input type="number" min={0} max={800} value={selectedCustom.x} onChange={(e) => patchCustom(selectedCustom.id, { x: Math.max(0, Math.min(800, Number(e.target.value) || 0)) })} /></label>
+                <label>Posición Y <input type="number" min={0} max={1200} value={selectedCustom.y} onChange={(e) => patchCustom(selectedCustom.id, { y: Math.max(0, Math.min(1200, Number(e.target.value) || 0)) })} /></label>
+              </div>
+              <div className="pdf-property-pair">
+                <label>Ancho <input type="number" min={24} max={720} value={selectedCustom.width} onChange={(e) => patchCustom(selectedCustom.id, { width: Math.max(24, Math.min(720, Number(e.target.value) || 24)) })} /></label>
+                <label>Tamaño de letra <input type="number" min={6} max={72} value={selectedCustom.fontSize ?? 12} onChange={(e) => patchCustom(selectedCustom.id, { fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 12)) })} /></label>
+              </div>
+              <label>Color <input type="color" value={selectedCustom.color ?? "#111111"} onChange={(e) => patchCustom(selectedCustom.id, { color: e.target.value })} /></label>
+              <label>Tipografía
+                <select value={selectedCustom.fontFamily ?? ""} onChange={(e) => patchCustom(selectedCustom.id, { fontFamily: e.target.value || undefined })}>
+                  <option value="">Original</option>
+                  {FONTS.map((font) => <option key={font}>{font}</option>)}
+                </select>
+              </label>
+              <div className="pdf-property-pair">
+                <label>Peso
+                  <select value={selectedCustom.fontWeight ?? ""} onChange={(e) => patchCustom(selectedCustom.id, { fontWeight: e.target.value ? Number(e.target.value) : undefined })}>
+                    <option value="">Normal</option>
+                    <option value="600">Seminegrita</option><option value="700">Negrita</option><option value="800">Extra negrita</option>
+                  </select>
+                </label>
+                <label>Alineación
+                  <select value={selectedCustom.align ?? "left"} onChange={(e) => patchCustom(selectedCustom.id, { align: e.target.value as "left" | "center" | "right" })}>
+                    <option value="left">Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option>
+                  </select>
+                </label>
+              </div>
+              <button type="button" className="btn-ghost" onClick={() => patchCustom(selectedCustom.id, { hidden: !selectedCustom.hidden })}>
+                {selectedCustom.hidden ? "Mostrar bloque" : "Ocultar bloque"}
+              </button>
+              <button type="button" className="btn-danger" onClick={() => removeCustom(selectedCustom.id)}>Eliminar bloque</button>
+            </div>
+          ) : (
+          <>
           <h2>{selectedMeta.label}</h2>
           {selectedMeta.fixedContent ? (
             <div className="pdf-fixed-content-editor">
@@ -913,7 +1061,7 @@ export function PdfLayoutEditorView() {
           <button type="button" className="btn-ghost" onClick={() => {
             setDraft((current) => {
               const blocks = { ...current.blocks };
-              delete blocks[selected];
+              delete blocks[selected as PdfLayoutBlockKey];
               return { ...current, blocks };
             });
           }}>Restaurar este campo</button>
@@ -924,6 +1072,8 @@ export function PdfLayoutEditorView() {
           >
             {style.hidden ? "Mostrar campo" : "Ocultar campo"}
           </button>
+          </>
+          )}
           <small>El servidor valida que el ancho total quede entre 620 y 720 px.</small>
         </>)}
         </aside>

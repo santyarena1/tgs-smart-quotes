@@ -286,6 +286,12 @@ const STATE_LABEL: Record<QuoteState, string> = {
   NO_CONCRETADO: "No concretado",
 };
 
+/** Tipo de PDF según el botón de submit que disparó el formulario (por defecto, simple). */
+function pdfKindFromSubmit(e: FormEvent): "SIMPLE" | "DETALLADO" {
+  const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+  return submitter?.dataset.pdfKind === "DETALLADO" ? "DETALLADO" : "SIMPLE";
+}
+
 function filledItems(items: ItemDraft[]): ItemDraft[] {
   return items.filter((item) => !isSlotEmpty(item));
 }
@@ -1578,6 +1584,7 @@ export function QuotesView({
 
   async function createQuote(e: FormEvent) {
     e.preventDefault();
+    const pdfKind = pdfKindFromSubmit(e);
     const invalid = validateItems(items);
     if (invalid) {
       setError(invalid);
@@ -1616,10 +1623,10 @@ export function QuotesView({
         setSelectedId(created.id);
         await api(`/quotes/${created.id}/pdf`, {
           method: "POST",
-          body: { kind: "SIMPLE" },
+          body: { kind: pdfKind },
         });
-        if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/SIMPLE`;
-        else window.open(`/api/quotes/${created.id}/pdf/SIMPLE`, "_blank", "noopener");
+        if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
+        else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
         await reloadDetail(created.id);
       }
     } catch (err) {
@@ -1632,6 +1639,7 @@ export function QuotesView({
 
   async function saveDraft(e: FormEvent) {
     e.preventDefault();
+    const pdfKind = pdfKindFromSubmit(e);
     if (!selectedId) return;
     const invalid = validateItems(items);
     if (invalid) {
@@ -1668,10 +1676,10 @@ export function QuotesView({
       await loadList();
       // Al guardar, generar y abrir el PDF directamente para descargarlo.
       try {
-        await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind: "SIMPLE", force: true } });
+        await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind: pdfKind, force: true } });
         await downloadAuthenticated(
-          `/quotes/${selectedId}/pdf/SIMPLE`,
-          `${detail?.visibleNumber ?? "presupuesto"}-SIMPLE.pdf`,
+          `/quotes/${selectedId}/pdf/${pdfKind}`,
+          `${detail?.visibleNumber ?? "presupuesto"}-${pdfKind}.pdf`,
         );
         setNotice("Cambios guardados. Descargando PDF…");
       } catch {
@@ -2167,14 +2175,24 @@ export function QuotesView({
         footer={
           <>
             {!detail ? (
-              <button type="submit" form="quote-form" disabled={busy}>
-                {busy ? "Creando…" : "Crear presupuesto"}
-              </button>
+              <>
+                <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
+                  {busy ? "Creando…" : "Crear presupuesto"}
+                </button>
+                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-ghost quote-foot-secondary" disabled={busy}>
+                  Generar presupuesto detallado
+                </button>
+              </>
             ) : null}
             {detail && isDraft ? (
-              <button type="submit" form="quote-form" disabled={busy}>
-                {busy ? "Guardando…" : "Guardar y descargar PDF"}
-              </button>
+              <>
+                <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
+                  {busy ? "Guardando…" : "Guardar y descargar PDF"}
+                </button>
+                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-ghost quote-foot-secondary" disabled={busy}>
+                  Generar presupuesto detallado
+                </button>
+              </>
             ) : null}
             <span className="quote-foot-total">
               <span className="quote-foot-total-label">Total del presupuesto</span>
@@ -2207,13 +2225,15 @@ export function QuotesView({
           onSubmit={detail ? saveDraft : createQuote}
         >
           <h3 className="panel-title">Datos generales</h3>
-          <div className="grid-2">
+          <div className="quote-general-row">
             <Field label="Nombre interno" hint="Solo para vos: es como aparece el presupuesto en la lista. No sale en el PDF ni lo ve el cliente." htmlFor="q-name">
               <input
                 id="q-name"
                 value={internalName}
                 onChange={(e) => setInternalName(e.target.value)}
                 required
+                autoFocus={!detail}
+                placeholder="Ej: PC gamer Ryzen 5 — Juan"
                 disabled={Boolean(detail) && !isDraft}
               />
             </Field>
@@ -2232,6 +2252,21 @@ export function QuotesView({
               </select>
             </Field>
           </div>
+          <div className="quote-general-flags">
+            <Checkbox
+              label="Es PC armada"
+              checked={isBuiltPc}
+              onChange={(v) => void toggleBuiltPc(v)}
+              disabled={(Boolean(detail) && !isDraft) || busy}
+            />
+            <span className="section-note">
+              {isBuiltPc
+                ? "Las líneas se listan en el presupuesto; sin producto asignado no aparecen en el PDF."
+                : "Simple: solo totales. Detallado: cantidad, unitario y subtotal."}
+            </span>
+          </div>
+          <details className="quote-more" open={Boolean(requestId || observation || isCombo || collectionIds.length)}>
+            <summary>Más opciones <span className="section-note">solicitud, combo, observación y colecciones</span></summary>
           <div className="grid-2">
             <Field label="Solicitud vinculada">
               <select
@@ -2248,17 +2283,6 @@ export function QuotesView({
               </select>
             </Field>
             <div>
-              <Checkbox
-                label="Es PC armada"
-                checked={isBuiltPc}
-                onChange={(v) => void toggleBuiltPc(v)}
-                disabled={(Boolean(detail) && !isDraft) || busy}
-              />
-              <p className="section-note" style={{ marginTop: "0.35rem" }}>
-                {isBuiltPc
-                  ? "Las líneas se listan en el presupuesto. Si no les asignás producto, no aparecen en el PDF."
-                  : "PDF simple: ítems sin precio unitario (solo totales). PDF detallado: cantidad, unitario y subtotal."}
-              </p>
               <div style={{ marginTop: "0.6rem" }}>
                 <Checkbox
                   label="Es combo para la tienda"
@@ -2322,6 +2346,7 @@ export function QuotesView({
                 : "Al guardar el presupuesto quedará en las colecciones marcadas."}
             </p>
           </div>
+          </details>
         </form>
 
         <div className="card card-pad">
