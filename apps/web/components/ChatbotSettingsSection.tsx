@@ -658,6 +658,12 @@ export function ChatbotSettingsSection() {
         <ActivatorInput values={settings.escalationKeywords} onChange={escalationKeywords=>set({escalationKeywords})}/>
       </Field>
       <Checkbox label="Dejar que la IA derive cuando no puede resolver con seguridad" checked={settings.modelCanEscalate} onChange={modelCanEscalate=>set({modelCanEscalate})}/>
+      <Checkbox label="Transcribir los audios de los clientes y responderlos (si no, los audios derivan a una persona)" checked={settings.transcribeAudio!==false} onChange={transcribeAudio=>set({transcribeAudio})}/>
+      <Checkbox label="Describir las fotos que mandan los clientes para que el bot las entienda" checked={settings.describeImages!==false} onChange={describeImages=>set({describeImages})}/>
+      <div className="grid-2">
+        <Field label="Esperar a que el cliente termine de escribir (s)" hint="El bot junta los mensajes seguidos y responde una sola vez."><input type="number" min={2} max={60} value={settings.replyDebounceSeconds??10} onChange={event=>set({replyDebounceSeconds:Number(event.target.value)})}/></Field>
+        <Field label="Devolver al bot un chat tomado después de (horas sin mensajes del vendedor)" hint="0 = nunca: vuelve solo con el botón Devolver al bot."><input type="number" min={0} max={168} value={settings.autoResumeHours??0} onChange={event=>set({autoResumeHours:Number(event.target.value)})}/></Field>
+      </div>
       <Field label="Cuándo tiene que derivar la IA" hint="Criterios en lenguaje natural. Ej.: reclamos, garantías, pedidos de descuento, dudas técnicas que no estén en 'Qué sabe'.">
         <textarea rows={5} required value={settings.escalationInstructions} onChange={event=>set({escalationInstructions:event.target.value})}/>
       </Field>

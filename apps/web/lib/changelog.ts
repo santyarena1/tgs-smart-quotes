@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.1",
+    date: "2026-10-01",
+    title: "El bot entiende audios y fotos",
+    items: [
+      "Los audios de los clientes se transcriben y el bot los responde como cualquier mensaje (antes todo audio derivaba a una persona). En el chat se ve el audio y su transcripción",
+      "Las fotos que mandan (una PC, una captura con specs o precios, un comprobante) se describen para que el bot y el vendedor sepan de qué habla el cliente",
+      "Configuración → Chatbot → Derivar a una persona: interruptores para transcribir audios y describir fotos, cuántos segundos espera a que el cliente termine de escribir y si un chat tomado vuelve solo al bot después de X horas",
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 5: embudo de ventas y ficha del cliente",

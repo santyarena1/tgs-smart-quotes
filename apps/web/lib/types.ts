@@ -253,6 +253,10 @@ export type ChatbotSettings = {
   maxRecentSnippets: number;
   summaryRefreshEvery: number;
   sendConfirmationTimeoutMs: number;
+  replyDebounceSeconds?: number;
+  autoResumeHours?: number;
+  transcribeAudio?: boolean;
+  describeImages?: boolean;
   updatedAt?: string;
 };
 

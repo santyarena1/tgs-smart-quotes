@@ -107,6 +107,8 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     autoResumeHours: Number.isInteger(row.autoResumeHours) ? row.autoResumeHours : 0,
     trainerNumbers: Array.isArray(row.trainerNumbers) ? row.trainerNumbers : [],
     guidance: Array.isArray(row.guidance) ? row.guidance : [],
+    transcribeAudio: row.transcribeAudio !== false,
+    describeImages: row.describeImages !== false,
   };
 }
 

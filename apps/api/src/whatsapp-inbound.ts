@@ -17,6 +17,7 @@ import {normalizePhone} from '@tgs/validation';
 import {settingsDto} from './chatbot-core.js';
 import {randomDelaySeconds, type EnqueueItem} from './whatsapp-outbound.js';
 import {scheduleReply, typingSeconds} from './whatsapp-responder.js';
+import {enrichInboundMedia} from './whatsapp-media-ai.js';
 import {windowFromInbound} from './whatsapp-window.js';
 
 const logger = new Logger('WhatsappInbound');
@@ -224,8 +225,9 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
     },
   });
 
+  let inboundLogId: string;
   try {
-    await db.chatbotMessageLog.create({data: {
+    ({id: inboundLogId} = await db.chatbotMessageLog.create({data: {
       conversationKey: chatKey,
       direction: 'INBOUND',
       actor: 'CUSTOMER',
@@ -245,13 +247,18 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
         // heurística de "tarjeta de anuncio" que tenía que adivinarlo del DOM.
         ...(message.referral ? {referral: message.referral} : {}),
       } as Prisma.InputJsonValue,
-    }});
+    }, select: {id: true}}));
   } catch (error) {
     // Meta reintenta los webhooks: un duplicado es esperable y no es un error.
     if (typeof error === 'object' && error !== null && 'code' in error && (error as {code?: string}).code === 'P2002') {
       return chatKey;
     }
     throw error;
+  }
+
+  // Audio o imagen: se transcribe o describe antes de responder, así el bot lo entiende.
+  if (content.mediaId && (message.type === 'audio' || message.type === 'image')) {
+    await enrichInboundMedia(inboundLogId);
   }
 
   // No se responde acá: se espera a que el cliente termine de escribir

@@ -729,6 +729,8 @@ export const chatbotSettingsInputSchema = z
       source: z.string(),
       createdAt: z.string(),
     }).strict()).max(200).default([]),
+    transcribeAudio: z.boolean().default(true),
+    describeImages: z.boolean().default(true),
   })
   .strict();
 export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({

@@ -1120,6 +1120,10 @@ model ChatbotSettings {
   trainerNumbers            String[]    @default([])
   /// Indicaciones aprobadas en el entrenamiento: [{id, text, enabled, source, createdAt}].
   guidance                  Json        @default("[]")
+  /// Transcribir los audios de los clientes para que el bot los responda.
+  transcribeAudio           Boolean     @default(true)
+  /// Describir las imágenes que mandan los clientes para que el bot las entienda.
+  describeImages            Boolean     @default(true)
   updatedAt                 DateTime    @default(now()) @updatedAt
 }
 
