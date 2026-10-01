@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.1",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 2: tiempo real",
+    items: [
+      "La bandeja se actualiza al instante (en ~1 segundo) cuando entra un mensaje, se entrega o se lee, el bot responde o se pausa, o alguien asigna un chat. Antes se refrescaba cada 10 segundos",
+      "Si la conexión en vivo se corta, vuelve sola y mientras tanto la bandeja se refresca como antes",
+      "Un mensaje que llega con el chat abierto se marca como leído al momento",
+      "Base de presencia: el servidor ya sabe quién está mirando o escribiendo en cada chat (se muestra en la bandeja nueva)",
+    ],
+  },
+  {
     version: "0.9.0",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 1: el bot no se pisa con los vendedores",

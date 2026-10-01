@@ -1220,6 +1220,7 @@ model ChatbotMessageLog {
   updatedAt          DateTime                @updatedAt
 
   @@unique([conversationKey, inboundFingerprint, direction])
+  @@index([updatedAt])
   @@index([conversationKey, createdAt])
   @@index([status, createdAt])
   @@index([notificationId])

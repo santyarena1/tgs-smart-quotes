@@ -44,6 +44,7 @@ import {
 import { getConversationQuote, getCrmQuote, requestWhatsappSuggestion } from "../../lib/api";
 import type { Quote } from "../../lib/types";
 import { IconChat, IconTrash } from "./icons";
+import { useCrmLive } from "./useCrmLive";
 
 /**
  * Bandeja del CRM.
@@ -146,13 +147,31 @@ export function CrmInbox() {
       .catch(() => undefined);
   }, [selectedKey, loadThread]);
 
+  // Tiempo real: cuando cambia un chat se recarga la lista y, si es el abierto, su hilo.
+  const listReloadTimer = useRef<number | null>(null);
+  const { connected } = useCrmLive({
+    chatKey: selectedKey,
+    typing: draft.trim().length > 0,
+    onChats: (chatKeys) => {
+      if (listReloadTimer.current) window.clearTimeout(listReloadTimer.current);
+      listReloadTimer.current = window.setTimeout(() => void loadConversations(true), 250);
+      const open = selectedKeyRef.current;
+      if (open && chatKeys.includes(open)) {
+        void loadThread(open, true);
+        // Lo que llega con el chat abierto ya lo estás viendo: no queda como no leído.
+        void markWhatsappRead(open).catch(() => undefined);
+      }
+    },
+  });
+
+  // Respaldo: si el canal en vivo está caído, recarga periódica como antes.
   useEffect(() => {
     const timer = window.setInterval(() => {
       void loadConversations(true);
       if (selectedKeyRef.current) void loadThread(selectedKeyRef.current, true);
-    }, REFRESH_MS);
+    }, connected ? 60_000 : REFRESH_MS);
     return () => window.clearInterval(timer);
-  }, [loadConversations, loadThread]);
+  }, [loadConversations, loadThread, connected]);
 
   const totalUnread = useMemo(
     () => conversations.reduce((sum, item) => sum + item.unreadCount, 0),
