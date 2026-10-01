@@ -296,7 +296,7 @@ export function LiteQuoteCreator() {
         setNotice(`${created.visibleNumber} creado, pero el PDF falló: ${errorMessage(err)}`);
       }
       void loadRecent();
-      } catch (err) {
+    } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(null);
