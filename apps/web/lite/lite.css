@@ -250,3 +250,30 @@
 .lite .lt-pc.on .lt-switch-track { background: var(--red); }
 .lite .lt-comp-name { color: var(--red); }
 .lite .lt-recent li, .lite .lt-quote-list li { border-left: 3px solid color-mix(in srgb, var(--red) 55%, var(--line)); }
+
+/* ————— Barra negra y fondo oscuro neutro ————— */
+.lite .lt-bar { background: #0b0d12; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); border-bottom: 2px solid var(--red); }
+.lite .lt-bar .lt-tab.active { background: var(--red); color: #fff; }
+.lite .lt-bar .lt-logo { background: var(--red); color: #fff; }
+.lite { background: color-mix(in srgb, var(--red) 3%, var(--canvas-2)); }
+:root[data-theme="dark"] .lite { background: #0c0f15; }
+:root[data-theme="dark"] .lite .lt-card, :root[data-theme="dark"] .lite .lt-recent li, :root[data-theme="dark"] .lite .lt-quote-list li { background: #131720; }
+:root[data-theme="dark"] .lite .lt-head h1, :root[data-theme="dark"] .lite .lt-side h2, :root[data-theme="dark"] .lite .lt-coll-head h2 { color: #fff; }
+:root[data-theme="dark"] .lite .lt-coll-list { background: #0c0f15; }
+
+/* ————— Lista de presupuestos: filas alineadas ————— */
+.lite .lt-side { min-width: 0; }
+.lite .lt-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.lite .lt-quick select:last-child { grid-column: 1 / -1; }
+.lite .lt-quick .lt-input, .lite .lt-side > .lt-input { min-width: 0; width: 100%; }
+.lite .lt-more-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.lite .lt-link { background: none; border: 0; padding: 0; color: var(--red); font-size: 0.78rem; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.lite .lt-hint { margin: 0; font-size: 0.72rem; }
+.lite .lt-recent li { min-width: 0; }
+.lite .lt-qrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.6rem; row-gap: 2px; align-items: center; min-width: 0; }
+.lite .lt-qnum { font-size: 0.82rem; }
+.lite .lt-qname { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 550; font-size: 0.88rem; }
+.lite .lt-qmeta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.78rem; }
+.lite .lt-qprice { font-variant-numeric: tabular-nums; font-size: 0.92rem; white-space: nowrap; text-align: right; }
+.lite .lt-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lite .lt-act { white-space: nowrap; }

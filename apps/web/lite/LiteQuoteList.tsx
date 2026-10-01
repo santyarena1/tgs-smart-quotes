@@ -28,6 +28,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   const [state, setState] = useState("");
   const [branchId, setBranchId] = useState("");
   const [collectionId, setCollectionId] = useState("");
+  const [month, setMonth] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -59,8 +60,16 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
       const scopedBranch = locked ? homeBranchId : branchId;
       if (scopedBranch) query.branchId = scopedBranch;
       if (collectionId) query.collectionId = collectionId;
-      if (from) query.from = from;
-      if (to) query.to = `${to}T23:59:59`;
+      // El mes es el atajo; un rango exacto (Más filtros) tiene prioridad.
+      if (from || to) {
+        if (from) query.from = from;
+        if (to) query.to = `${to}T23:59:59`;
+      } else if (month) {
+        const [y, m] = month.split("-").map(Number);
+        const last = new Date(y!, m!, 0).getDate();
+        query.from = `${month}-01`;
+        query.to = `${month}-${String(last).padStart(2, "0")}T23:59:59`;
+      }
       const res = await api<{ items: Quote[]; total?: number } | Quote[]>("/quotes/search", { query });
       if (mine !== seq.current) return;
       setError(null);
@@ -70,14 +79,15 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [q, state, branchId, collectionId, from, to, page, refreshKey, locked, homeBranchId]);
+  }, [q, state, branchId, collectionId, month, from, to, page, refreshKey, locked, homeBranchId]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void run(), 250);
     return () => window.clearTimeout(t);
   }, [run]);
 
-  const filtered = [state, branchId, collectionId, from, to].filter(Boolean).length;
+  const moreCount = [state, from, to].filter(Boolean).length;
+  const anyFilter = Boolean(q || branchId || collectionId || month || moreCount);
   const reset = (set: (v: string) => void) => (v: string) => { set(v); setPage(1); };
   const lastPage = total === null ? null : Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasNext = lastPage === null ? rows.length === PAGE_SIZE : page < lastPage;
@@ -112,11 +122,25 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   return (
     <aside className="lt-side">
       <h2>Presupuestos</h2>
-      <div className="lt-list-search">
-        <input className="lt-input" value={q} onChange={(e) => reset(setQ)(e.target.value)} placeholder="Buscar número, nombre, cliente, teléfono o producto…" aria-label="Buscar presupuestos" />
-        <button type="button" className={`lt-btn ghost sm${filtered ? " on" : ""}`} aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
-          Filtros{filtered ? ` (${filtered})` : ""}
+      <input className="lt-input" value={q} onChange={(e) => reset(setQ)(e.target.value)} placeholder="Buscar número, nombre, cliente, teléfono o producto…" aria-label="Buscar presupuestos" />
+      <div className="lt-quick">
+        <select className="lt-input" value={locked ? (homeBranchId ?? "") : branchId} disabled={locked} onChange={(e) => reset(setBranchId)(e.target.value)} aria-label="Local">
+          {locked ? null : <option value="">Todos los locales</option>}
+          {(locked ? branches.filter((b) => b.id === homeBranchId) : branches).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <input className="lt-input" type="month" value={month} onChange={(e) => reset(setMonth)(e.target.value)} aria-label="Mes" />
+        <select className="lt-input" value={collectionId} onChange={(e) => reset(setCollectionId)(e.target.value)} aria-label="Colección">
+          <option value="">Todas las colecciones</option>
+          {collections.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
+        </select>
+      </div>
+      <div className="lt-more-row">
+        <button type="button" className={`lt-btn ghost sm${moreCount ? " on" : ""}`} aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
+          Más filtros{moreCount ? ` (${moreCount})` : ""} {showFilters ? "▴" : "▾"}
         </button>
+        {anyFilter ? (
+          <button type="button" className="lt-link" onClick={() => { setQ(""); setState(""); setBranchId(""); setCollectionId(""); setMonth(""); setFrom(""); setTo(""); setPage(1); }}>Limpiar todo</button>
+        ) : null}
       </div>
       {showFilters ? (
         <div className="lt-list-filters">
@@ -124,21 +148,11 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
             <option value="">Todos los estados</option>
             {STATES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
-          <select className="lt-input" value={locked ? (homeBranchId ?? "") : branchId} disabled={locked} onChange={(e) => reset(setBranchId)(e.target.value)} aria-label="Local">
-            {locked ? null : <option value="">Todos los locales</option>}
-            {(locked ? branches.filter((b) => b.id === homeBranchId) : branches).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-          <select className="lt-input" value={collectionId} onChange={(e) => reset(setCollectionId)(e.target.value)} aria-label="Colección">
-            <option value="">Todas las colecciones</option>
-            {collections.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
-          </select>
           <div className="lt-list-dates">
             <label className="lt-field">Desde<input className="lt-input" type="date" value={from} onChange={(e) => reset(setFrom)(e.target.value)} /></label>
             <label className="lt-field">Hasta<input className="lt-input" type="date" value={to} onChange={(e) => reset(setTo)(e.target.value)} /></label>
           </div>
-          {filtered ? (
-            <button type="button" className="lt-btn ghost sm" onClick={() => { setState(""); setBranchId(""); setCollectionId(""); setFrom(""); setTo(""); setPage(1); }}>Limpiar filtros</button>
-          ) : null}
+          <p className="lt-muted lt-hint">Un rango de fechas exacto reemplaza al mes.</p>
         </div>
       ) : null}
 
@@ -154,16 +168,14 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
             const b = busy?.startsWith(quote.id);
             return (
               <li key={quote.id} className={editingId === quote.id ? "editing" : ""}>
-                <div className="lt-recent-top">
-                  <div className="lt-recent-main">
-                    <strong>{quote.visibleNumber}</strong>
-                    <span className="lt-recent-name">{quote.internalName}</span>
-                    <span className="lt-muted">{quote.customer?.name ?? "Sin cliente"}{quote.branch ? ` · ${quote.branch.name}` : ""}</span>
-                  </div>
-                  <div className="lt-recent-side">
-                    <strong>{formatArs(v?.totalSaleCents)}</strong>
-                    {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
-                  </div>
+                <div className="lt-qrow">
+                  <strong className="lt-qnum">{quote.visibleNumber}</strong>
+                  {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : <span />}
+                  <span className="lt-qname" title={quote.internalName}>{quote.internalName}</span>
+                  <span className="lt-qmeta" title={`${quote.customer?.name ?? "Sin cliente"}${quote.branch ? ` · ${quote.branch.name}` : ""}`}>
+                    {quote.customer?.name ?? "Sin cliente"}{quote.branch ? ` · ${quote.branch.name}` : ""}
+                  </span>
+                  <strong className="lt-qprice">{formatArs(v?.totalSaleCents)}</strong>
                 </div>
                 <div className="lt-actions">
                   <button type="button" className="lt-act edit" disabled={busy !== null} onClick={() => onEdit(quote)}>Editar</button>
