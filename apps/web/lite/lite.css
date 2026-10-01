@@ -130,7 +130,9 @@
 /* ————— Colecciones ————— */
 .lite .lt-coll { display: grid; gap: 1rem; }
 .lite .lt-coll-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 1.1rem; align-items: start; }
-.lite .lt-coll-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; position: sticky; top: 68px; }
+.lite .lt-coll-grid > * { min-width: 0; }
+.lite .lt-coll-detail { overflow: hidden; }
+.lite .lt-coll-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; position: sticky; top: 68px; max-height: calc(100vh - 90px); overflow-y: auto; align-content: start; background: var(--canvas-2); z-index: 1; }
 .lite .lt-coll-list button { display: flex; align-items: center; gap: 0.55rem; width: 100%; padding: 0.55rem 0.7rem; border-radius: 9px; background: transparent; color: var(--ink-2); text-align: left; font-weight: 550; font-size: 0.88rem; }
 .lite .lt-coll-list button:hover:not(:disabled) { background: var(--canvas); }
 .lite .lt-coll-list button.active { background: var(--paper); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
@@ -143,6 +145,8 @@
 .lite .lt-coll-head p { margin: 0.15rem 0 0; }
 .lite .lt-filter { width: 200px; }
 .lite .lt-quote-list li { background: var(--canvas-2); }
+.lite .lt-quote-list li { flex-wrap: wrap; min-width: 0; }
+.lite .lt-quote-list .lt-recent-main { flex: 1 1 200px; }
 .lite .lt-quote-total { font-variant-numeric: tabular-nums; margin-left: auto; }
 
 /* ————— Responsive ————— */
@@ -167,3 +171,13 @@
 .lite .lt-comp { padding-top: 0.5rem; }
 .lite .lt-comp-name { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); padding: 0 0.5rem 0.2rem; }
 .lite .lt-slot { margin: 0 0 0.3rem; }
+
+/* ————— Buscador, filtros y secciones embebidas ————— */
+.lite .lt-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.5rem; align-items: end; }
+.lite .lt-field { display: grid; gap: 0.2rem; font-size: 0.72rem; color: var(--faint); font-weight: 600; }
+.lite .lt-count-line { font-size: 0.8rem; }
+.lite .lt-pager { display: flex; justify-content: center; align-items: center; gap: 1rem; }
+.lite .lt-coll-branch { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: var(--muted); }
+.lite .lt-coll-branch select { width: auto; min-width: 180px; }
+.lite .lt-embed { min-width: 0; }
+@media (max-width: 960px) { .lite .lt-tabs { overflow-x: auto; max-width: 52vw; } .lite .lt-tab { white-space: nowrap; } }

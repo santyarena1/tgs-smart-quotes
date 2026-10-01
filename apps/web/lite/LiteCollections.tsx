@@ -11,12 +11,12 @@ import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 
-/** Todos los presupuestos del local (paginado de a 100, con tope). */
+/** Todos los presupuestos del local, o de todos si no hay local (paginado de a 100, con tope). */
 async function fetchBranchQuotes(branchId: string): Promise<Quote[]> {
   const all: Quote[] = [];
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const res = await api<{ items: Quote[] } | Quote[]>("/quotes/search", {
-      query: { branchId, page, pageSize: PAGE_SIZE, sort: "lastActivityAt", order: "desc" },
+      query: { ...(branchId ? { branchId } : {}), page, pageSize: PAGE_SIZE, sort: "lastActivityAt", order: "desc" },
     });
     const rows = Array.isArray(res) ? res : res.items;
     all.push(...rows);
@@ -26,7 +26,11 @@ async function fetchBranchQuotes(branchId: string): Promise<Quote[]> {
 }
 
 export function LiteCollections() {
-  const { branchId, branchName } = useLite();
+  const { branches, branchId: homeBranchId, locked } = useLite();
+  // "" = todos los locales; arranca en el local activo y se puede cambiar sin tocar el selector global.
+  const [branchId, setBranchId] = useState<string | null>(null);
+  useEffect(() => { setBranchId((cur) => cur ?? homeBranchId); }, [homeBranchId]);
+  const branchName = branches.find((b) => b.id === branchId)?.name ?? "";
   const [collections, setCollections] = useState<Collection[]>([]);
   const [quotes, setQuotes] = useState<Map<string, Quote>>(new Map());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -36,7 +40,7 @@ export function LiteCollections() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!branchId) return;
+    if (branchId === null) return;
     setLoading(true);
     setError(null);
     try {
@@ -85,11 +89,17 @@ export function LiteCollections() {
     <div className="lt-coll">
       <div className="lt-head">
         <h1>Colecciones</h1>
-        <p>Solo presupuestos de {branchName || "tu local"}.</p>
+        <div className="lt-coll-branch">
+          <span>{branchId === "" ? "Presupuestos de todos los locales." : `Solo presupuestos de ${branchName || "tu local"}.`}</span>
+          <select className="lt-input" value={branchId ?? ""} disabled={locked} onChange={(e) => { setBranchId(e.target.value); setSelectedId(null); }} aria-label="Filtrar por local">
+            {locked ? null : <option value="">Todos los locales</option>}
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
       </div>
       {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
       {loading ? <div className="lt-empty">Cargando…</div> : visible.length === 0 ? (
-        <div className="lt-empty">Este local todavía no tiene presupuestos en colecciones.</div>
+        <div className="lt-empty">No hay presupuestos en colecciones para este filtro.</div>
       ) : (
         <div className="lt-coll-grid">
           <ul className="lt-coll-list">
@@ -125,7 +135,7 @@ export function LiteCollections() {
                       <div className="lt-recent-main">
                         <strong>{q.visibleNumber}</strong>
                         <span className="lt-recent-name">{q.internalName}</span>
-                        <span className="lt-muted">{q.customer?.name ?? "Sin cliente"}</span>
+                        <span className="lt-muted">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
                       </div>
                       <strong className="lt-quote-total">{formatArs(v?.totalSaleCents)}</strong>
                       <span className="lt-recent-actions">
