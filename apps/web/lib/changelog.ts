@@ -8,6 +8,20 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.11.0",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 4: entrenamiento del bot",
+    items: [
+      "Número entrenador (arranca con el 11 4870-4101): cuando le escribe al WhatsApp del bot, no lo atiende como cliente. Se le pueden enseñar datos (\"el envío a CABA sale $15.000\") y reglas (\"si preguntan por notebooks, derivá\"), probarlo como cliente (\"probá: ¿hacen envíos a Córdoba?\") o preguntarle qué sabe",
+      "Todo lo que aprende queda como propuesta: se aplica recién cuando respondés \"Sí\" por WhatsApp o lo aprobás en el CRM. \"No\" lo descarta",
+      "Cuando un cliente pregunta algo que el bot no sabe, lo anota (agrupando las preguntas parecidas) y le consulta al entrenador por WhatsApp, sin insistir más de una vez cada 2 horas",
+      "Si un vendedor corrige mucho una sugerencia del bot antes de mandarla, se propone como algo para aprender",
+      "Pantalla Entrenamiento en el CRM: propuestas para aprobar (editables), preguntas sin responder con su respuesta, indicaciones vigentes, simulador, números entrenadores e historial",
+      "El bot ahora conoce toda la información cargada a la vez (antes solo la respuesta más parecida al mensaje) y sigue las indicaciones aprobadas por encima del resto: si le preguntan dos cosas, responde las dos",
+      "Bandeja: el chat del entrenador se marca como tal; la vista activa se lee bien en modo oscuro",
+    ],
+  },
+  {
     version: "0.10.0",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 3: bandeja y conversación rediseñadas",

@@ -264,7 +264,7 @@ const SIM_ACTIONS:Record<string,string>={
   ESCALATED:"El chat de prueba quedó escalado.",
 };
 
-function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boolean}) {
+export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boolean}) {
   const [turns,setTurns]=useState<SimTurn[]>([]);
   const [draft,setDraft]=useState("");
   const [busy,setBusy]=useState(false);

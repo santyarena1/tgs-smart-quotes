@@ -137,7 +137,7 @@ export class ChatbotController {
       recentMessages,
       config:{
         persona:`${settings.persona}\n\nINSTRUCCIÓN PARA PRESENTAR PRESUPUESTOS\n${settings.quoteSendPrompt}`,
-        openingMessages:[],closingMessages:[],
+        openingMessages:[],closingMessages:[],guidance:[],
         responses:[{id:'quote-send',enabled:true,activators:[],similarityThreshold:0,answer:`Presentá este presupuesto sin alterar ni inventar datos: ${JSON.stringify(quoteContext)}`,context:'El archivo PDF quedará adjunto al mismo envío.',attachments:{imageUrl:null,url:null,quote:null}}],
         escalationInstructions:'Generá un mensaje editable y no escales.',modelCanEscalate:false,
         businessContext:`Mensaje para presentar un PDF de presupuesto. Datos autoritativos: ${JSON.stringify(quoteContext)}`,
@@ -455,6 +455,7 @@ export class ChatbotController {
         persona:`${settings.persona}\n\nINSTRUCCIÓN ESPECÍFICA DE RECONTACTO\n${settings.recontactPrompt||'Retomá la conversación de forma natural, breve y útil, sin inventar información.'}\n${conversation.displayName?`El nombre visible del cliente es ${conversation.displayName}.`:''}`,
         openingMessages:[],
         closingMessages:[],
+        guidance:[],
         responses:[{
           id:'recontact',enabled:true,activators:[],similarityThreshold:0,
           answer:settings.recontactPrompt||'Retomá la conversación de forma natural, breve y útil, sin inventar información.',

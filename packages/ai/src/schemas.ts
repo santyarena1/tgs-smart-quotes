@@ -207,6 +207,10 @@ export const chatbotResponseInputSchema = z.object({
     escalationInstructions: z.string(),
     modelCanEscalate: z.boolean(),
     businessContext: z.string().optional(),
+    /** Indicaciones del dueño aprobadas en el entrenamiento: obligatorias. */
+    guidance: z.array(z.string()).default([]),
+    /** Datos reales consultados en el sistema para este mensaje (catálogo, presupuestos). */
+    systemData: z.string().optional(),
     responseStyle: z.record(z.string(), z.unknown()),
     multiMessage: z.object({
       maxBubbles: z.number().int().min(1).max(5),

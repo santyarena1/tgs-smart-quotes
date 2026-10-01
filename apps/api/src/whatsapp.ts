@@ -55,7 +55,8 @@ import {settingsDto} from './chatbot-core.js';
 import {runChatbotResponse} from './chatbot-engine.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {pauseBot, resumeBot} from './whatsapp-responder.js';
-import {conversationView, pauserNames} from './crm-views.js';
+import {conversationView, pauserNames, trainerKeys} from './crm-views.js';
+import {recordSellerEdit} from './bot-training.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
 
 /** El operador puede editar la sugerencia antes de aprobarla. */
@@ -409,7 +410,7 @@ export class WhatsappController {
       },
     });
     if (!row) throw new NotFoundException('La conversación no existe');
-    return jsonSafe(this.conversationView(row, new Date(), await this.pauserNames([row])));
+    return jsonSafe(conversationView(row, new Date(), await this.pauserNames([row]), await trainerKeys()));
   }
 
   /** "Tomar conversación": el vendedor se la asigna y el bot se calla en ese chat. */
@@ -691,6 +692,10 @@ export class WhatsappController {
       updated.id,
       buildReplyItems(bubbles, metadata.attachments, metadata.quoteFollowupMessage, chatbotSettings),
     );
+    // Si el vendedor la corrigió bastante, puede haber algo para que aprenda el bot.
+    if (text !== log.text) {
+      void recordSellerEdit(log.conversationKey, updated.id, log.text, text).catch(() => undefined);
+    }
     return jsonSafe({logId: updated.id, text});
   }
 

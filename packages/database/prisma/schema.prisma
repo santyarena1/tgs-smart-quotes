@@ -1116,6 +1116,10 @@ model ChatbotSettings {
   replyDebounceSeconds      Int         @default(10)
   /// Horas sin mensajes del vendedor tras las cuales el bot retoma un chat pausado. 0 = nunca.
   autoResumeHours           Int         @default(0)
+  /// chatKeys (`tel:...`) que entrenan al bot: sus mensajes no se atienden como cliente.
+  trainerNumbers            String[]    @default([])
+  /// Indicaciones aprobadas en el entrenamiento: [{id, text, enabled, source, createdAt}].
+  guidance                  Json        @default("[]")
   updatedAt                 DateTime    @default(now()) @updatedAt
 }
 
@@ -1205,6 +1209,32 @@ model CrmNote {
   updatedAt       DateTime            @updatedAt
 
   @@index([conversationKey, createdAt])
+}
+
+/// Algo que el bot propone aprender. Nunca se usa con clientes hasta que alguien lo aprueba.
+model BotLearning {
+  id              String    @id @default(uuid())
+  /// PENDING | APPROVED | REJECTED
+  status          String    @default("PENDING")
+  /// TRAINER (lo enseñó el número entrenador) | SELLER_EDIT (un vendedor corrigió una sugerencia) | UNANSWERED (un cliente preguntó algo que el bot no sabía)
+  source          String
+  /// GUIDANCE (indicación de criterio/tono) | KNOWLEDGE (dato del negocio) | QUESTION (pregunta sin respuesta todavía)
+  kind            String
+  /// Lo que el bot entendió, en una frase, para aprobar de un vistazo.
+  summary         String
+  /// La propuesta concreta: {text} para GUIDANCE; {activators, answer, context} para KNOWLEDGE; {question, examples} para QUESTION.
+  payload         Json
+  conversationKey String?
+  logId           String?
+  occurrences     Int       @default(1)
+  decidedAt       DateTime?
+  decidedById     String?
+  decisionNote    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([source, status])
 }
 
 /// Respuesta rápida del equipo: se inserta en el chat escribiendo "/" + atajo.
