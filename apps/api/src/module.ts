@@ -19,6 +19,7 @@ import {ChatbotController} from './chatbot.js';
 import {CrmRealtimeController} from './crm-realtime.js';
 import {CrmController} from './crm.js';
 import {BotTrainingController} from './bot-training.js';
+import {CrmPipelineController} from './crm-pipeline.js';
 import {ThumbnailAiController} from './thumbnail-ai.js';
 import {BranchesController, UsersController} from './users.js';
 import {ExternalModuleController} from './external-module.js';
@@ -67,6 +68,7 @@ class HealthController {
     CrmRealtimeController,
     CrmController,
     BotTrainingController,
+    CrmPipelineController,
     ThumbnailAiController,
     UsersController,
     BranchesController,

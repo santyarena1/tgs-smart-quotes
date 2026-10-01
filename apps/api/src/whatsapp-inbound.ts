@@ -135,6 +135,18 @@ function extractContent(message: MetaMessage): ExtractedMessage {
   }
 }
 
+/**
+ * Primer precio en pesos que aparezca en un texto ("$650.000", "$ 1.500.000"), en centavos.
+ * Se usa como valor estimado del lead que llega desde un anuncio.
+ */
+export function priceFromText(text: string): bigint | null {
+  const match = text.match(/\$\s?(\d{1,3}(?:\.\d{3})+|\d{4,})(?![\d.])/);
+  if (!match?.[1]) return null;
+  const pesos = Number(match[1].replace(/\./g, ''));
+  if (!Number.isFinite(pesos) || pesos < 10_000 || pesos > 100_000_000) return null;
+  return BigInt(pesos) * 100n;
+}
+
 /** `chatKey` canónico. Con Cloud API siempre hay teléfono: el prefijo `name:` deja de existir. */
 export function chatKeyFromWaId(waId: string | undefined): string | null {
   const normalized = normalizePhone(waId);
@@ -163,8 +175,20 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
 
   const existing = await db.chatbotConversation.findUnique({
     where: {chatKey},
-    select: {displayName: true},
+    select: {displayName: true, origin: true, leadValueCents: true},
   });
+  // El primer mensaje de un anuncio trae de qué anuncio vino: queda como origen del lead,
+  // y si el anuncio o el mensaje dicen un precio ("PC Completa por $650.000"), es su valor.
+  const origin = !existing?.origin && message.referral ? message.referral : null;
+  const valueFromText = !existing?.leadValueCents ? priceFromText([
+    content.text,
+    typeof message.referral?.headline === 'string' ? message.referral.headline : '',
+    typeof message.referral?.body === 'string' ? message.referral.body : '',
+  ].join(' ')) : null;
+  const leadData = {
+    ...(origin ? {origin: origin as Prisma.InputJsonValue} : {}),
+    ...(valueFromText ? {leadValueCents: valueFromText} : {}),
+  };
 
   await db.chatbotConversation.upsert({
     where: {chatKey},
@@ -179,6 +203,8 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
       lastMessageAt: now,
       windowExpiresAt,
       unreadCount: 1,
+      stageChangedAt: now,
+      ...leadData,
     },
     update: {
       lastInboundText: content.text,
@@ -190,6 +216,7 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
       snoozedUntil: null,
       windowExpiresAt,
       unreadCount: {increment: 1},
+      ...leadData,
       waId: message.from ?? undefined,
       ...(profileName ? {waContactName: profileName} : {}),
       // `displayName` lo puede editar el equipo: solo se completa si estaba vacío.

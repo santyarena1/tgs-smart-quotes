@@ -516,6 +516,7 @@ export function Inbox() {
             await loadList(true);
           }}
           onTagFilter={(value) => { setTag(value); setView("ALL"); }}
+          onLeadChanged={refreshOpen}
         />
       ) : null}
 

@@ -129,3 +129,13 @@ describe('firma del webhook', () => {
     expect(verify(raw, createHmac('sha256', 's').update(raw).digest('hex'), 's')).toBe(false);
   });
 });
+
+describe('valor del lead desde el anuncio', () => {
+  it('toma el primer precio en pesos', async () => {
+    const {priceFromText} = await import('./whatsapp-inbound.js');
+    expect(priceFromText('¡Hola! Quiero más información sobre la PC Completa por $650.000')).toBe(65000000n);
+    expect(priceFromText('PC Gamer desde $1.500.000 en 12 cuotas')).toBe(150000000n);
+    expect(priceFromText('Quiero más info sobre la PC')).toBeNull();
+    expect(priceFromText('tengo $500')).toBeNull();
+  });
+});

@@ -57,6 +57,7 @@ import {enqueueOutbound} from './whatsapp-outbound.js';
 import {pauseBot, resumeBot} from './whatsapp-responder.js';
 import {conversationView, pauserNames, trainerKeys} from './crm-views.js';
 import {recordSellerEdit} from './bot-training.js';
+import {advanceStage} from './crm-pipeline.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
 
 /** El operador puede editar la sugerencia antes de aprobarla. */
@@ -845,11 +846,21 @@ export class WhatsappController {
       },
     ]);
 
-    // Queda asociado al chat para que la barra del CRM lo muestre al volver.
+    // Queda asociado al chat para que la barra del CRM lo muestre al volver, y el
+    // lead toma el total del presupuesto como valor.
+    const version = await db.quoteVersion.findFirst({
+      where: {familyId: family.id, version: body.version},
+      select: {totalSaleCents: true},
+    });
     await db.chatbotConversation.update({
       where: {chatKey},
-      data: {lastQuoteFamilyId: family.id, lastQuoteVersion: body.version},
+      data: {
+        lastQuoteFamilyId: family.id,
+        lastQuoteVersion: body.version,
+        ...(version?.totalSaleCents ? {leadValueCents: BigInt(version.totalSaleCents)} : {}),
+      },
     });
+    await advanceStage(chatKey, 'QUOTE_SENT', ['NEW', 'QUALIFYING']);
     return jsonSafe({logId: log.id, visibleNumber: family.visibleNumber});
   }
 

@@ -178,6 +178,13 @@ export type WhatsappConversation = {
   lastSpeaker?: 'CUSTOMER' | 'US' | null;
   /** Es el chat de un número entrenador, no de un cliente. */
   isTrainer?: boolean;
+  /** Embudo de ventas. */
+  stage?: 'NEW' | 'QUALIFYING' | 'QUOTE_SENT' | 'NEGOTIATION' | 'DEPOSIT' | 'WON' | 'LOST';
+  stageChangedAt?: string | null;
+  leadValueCents?: string | null;
+  lostReason?: string | null;
+  origin?: {type: string | null; adId: string | null; headline: string | null; body: string | null; url: string | null; hasClickId: boolean} | null;
+  profile?: {usage?: string | null; games?: string[]; budgetCents?: number | null; city?: string | null; payment?: string | null; delivery?: 'ENVIO' | 'RETIRO' | null};
   lastQuoteFamilyId?: string | null;
   displayName: string | null;
   waContactName: string | null;

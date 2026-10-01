@@ -6,6 +6,7 @@ import type { TeamMember } from "../../../lib/crm";
 import type { QuoteRequest } from "../../../lib/types";
 import { errorMessage } from "../../shared";
 import { conversationTitle, phoneLabel, relativeTime } from "../format";
+import { LeadPanel } from "./LeadPanel";
 
 type BotMode = "OFF" | "SUGGEST" | "AUTO" | null;
 
@@ -19,6 +20,7 @@ export function ChatSide({
   onDelete,
   onTagFilter,
   canDelete,
+  onLeadChanged,
 }: {
   conversation: WhatsappConversation;
   team: TeamMember[];
@@ -29,6 +31,7 @@ export function ChatSide({
   onDelete: () => Promise<void>;
   onTagFilter: (tag: string) => void;
   canDelete: boolean;
+  onLeadChanged: () => Promise<void>;
 }) {
   const [requests, setRequests] = useState<QuoteRequest[]>([]);
   const [tagDraft, setTagDraft] = useState("");
@@ -84,6 +87,16 @@ export function ChatSide({
         ) : null}
         <p className="cx-hint">Último mensaje {relativeTime(conversation.lastMessageAt ?? conversation.lastInboundAt) || "—"}</p>
       </section>
+
+      {conversation.isTrainer ? (
+        <section className="cx-side-block">
+          <h4>Entrenador</h4>
+          <p className="cx-hint">Este número entrena al bot: lo que escribe acá no se atiende como cliente. Lo que enseña queda para aprobar en Entrenamiento.</p>
+          <a className="cx-link" href="/crm/entrenamiento">Ir a Entrenamiento →</a>
+        </section>
+      ) : (
+        <LeadPanel conversation={conversation} onChanged={onLeadChanged} />
+      )}
 
       <section className="cx-side-block">
         <h4>Asignado a</h4>

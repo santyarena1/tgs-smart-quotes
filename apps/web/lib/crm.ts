@@ -108,3 +108,69 @@ export function setCrmTheme(theme: ThemeChoice): Promise<{ theme: ThemeChoice }>
 export function mediaUrl(logId: string): string {
   return `/api/crm/media/${encodeURIComponent(logId)}`;
 }
+
+// ---------------------------------------------------------------- embudo
+
+export const STAGES = [
+  { id: "NEW", label: "Nuevo", hint: "Recién escribió" },
+  { id: "QUALIFYING", label: "Calificando", hint: "Ya sabemos qué quiere y su presupuesto" },
+  { id: "QUOTE_SENT", label: "Presupuesto enviado", hint: "Se le mandó un presupuesto" },
+  { id: "NEGOTIATION", label: "Negociación", hint: "Ajustando opciones, precio o pago" },
+  { id: "DEPOSIT", label: "Seña / Pago", hint: "Señó o está por pagar" },
+  { id: "WON", label: "Ganado", hint: "Compró" },
+  { id: "LOST", label: "Perdido", hint: "No compró (con motivo)" },
+] as const;
+export type StageId = (typeof STAGES)[number]["id"];
+
+export const LOST_REASONS = ["Precio", "Sin stock", "Compró en otro lado", "No respondió", "Solo consultaba", "Otro"] as const;
+
+export type PipelineColumn = { stage: StageId; count: number; totalCents: string; items: WhatsappConversation[] };
+
+export function getPipeline(params: { mine?: boolean; days?: number } = {}): Promise<{ columns: PipelineColumn[] }> {
+  return api("/crm/pipeline", { query: { mine: params.mine ? "1" : "0", days: params.days ?? 60 } });
+}
+
+export type LeadUpdate = {
+  stage?: StageId;
+  valueCents?: number | null;
+  lostReason?: string | null;
+  profile?: WhatsappConversation["profile"];
+};
+
+export function updateLead(chatKey: string, body: LeadUpdate): Promise<WhatsappConversation> {
+  return api(`/crm/conversations/${encodeURIComponent(chatKey)}/lead`, { method: "PUT", body });
+}
+
+export type CrmTask = {
+  id: string;
+  conversationKey: string | null;
+  chatName?: string | null;
+  title: string;
+  dueAt: string | null;
+  assignedToId: string | null;
+  doneAt: string | null;
+  createdAt: string;
+};
+
+export function listTasks(params: { chatKey?: string; mine?: boolean; open?: boolean } = {}): Promise<CrmTask[]> {
+  return api("/crm/tasks", { query: { chatKey: params.chatKey, mine: params.mine ? "1" : undefined, open: params.open ? "1" : undefined } });
+}
+
+export function createTask(body: { conversationKey?: string | null; title: string; dueAt?: string | null; assignedToId?: string | null }): Promise<CrmTask> {
+  return api("/crm/tasks", { method: "POST", body });
+}
+
+export function updateTask(id: string, body: { title?: string; dueAt?: string | null; assignedToId?: string | null; done?: boolean }): Promise<CrmTask> {
+  return api(`/crm/tasks/${encodeURIComponent(id)}`, { method: "PUT", body });
+}
+
+export function deleteTask(id: string): Promise<{ ok: boolean }> {
+  return api(`/crm/tasks/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/** "$ 650.000" a partir de centavos. */
+export function formatCents(cents: string | number | null | undefined): string {
+  if (cents === null || cents === undefined || cents === "") return "—";
+  const pesos = Number(BigInt(String(cents)) / 100n);
+  return `$ ${pesos.toLocaleString("es-AR")}`;
+}

@@ -18,6 +18,19 @@ export async function pauserNames(rows: Array<{botPausedById?: string | null}>):
   return new Map(users.map((user) => [user.id, user.displayName || user.username]));
 }
 
+/** Lo útil del referral de Meta: de qué anuncio vino el cliente. */
+function originSummary(origin: any) {
+  if (!origin || typeof origin !== 'object') return null;
+  return {
+    type: typeof origin.source_type === 'string' ? origin.source_type : null,
+    adId: typeof origin.source_id === 'string' ? origin.source_id : null,
+    headline: typeof origin.headline === 'string' ? origin.headline : null,
+    body: typeof origin.body === 'string' ? origin.body.slice(0, 300) : null,
+    url: typeof origin.source_url === 'string' ? origin.source_url : null,
+    hasClickId: typeof origin.ctwa_clid === 'string',
+  };
+}
+
 /** Números que entrenan al bot: su chat no es de un cliente. */
 export async function trainerKeys(): Promise<Set<string>> {
   const row = await db.chatbotSettings.findUnique({where: {id: 'singleton'}, select: {trainerNumbers: true}});
@@ -69,6 +82,12 @@ export function conversationView(row: any, now: Date, pausers: Map<string, strin
     assignedUser: row.assignedUser ?? null,
     activeRequest: row.activeRequest ?? null,
     lastQuoteFamilyId: row.lastQuoteFamilyId ?? null,
+    stage: row.stage ?? 'NEW',
+    stageChangedAt: row.stageChangedAt ?? null,
+    leadValueCents: row.leadValueCents != null ? String(row.leadValueCents) : null,
+    lostReason: row.lostReason ?? null,
+    origin: originSummary(row.origin),
+    profile: row.profile ?? {},
     updatedAt: row.updatedAt,
     window: {
       open: state.open,

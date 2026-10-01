@@ -220,8 +220,20 @@ export const chatbotResponseInputSchema = z.object({
 }).strict();
 export type ChatbotResponseInput = z.infer<typeof chatbotResponseInputSchema>;
 
+/** Datos del cliente que surgen de la charla: arman su ficha sin cargarla a mano. */
+export const chatbotLeadProfileSchema = z.object({
+  usage: z.string().nullable(),
+  games: z.array(z.string()),
+  budgetCents: z.number().int().nullable(),
+  city: z.string().nullable(),
+  payment: z.string().nullable(),
+  delivery: z.enum(["ENVIO", "RETIRO"]).nullable(),
+}).strict();
+export type ChatbotLeadProfile = z.infer<typeof chatbotLeadProfileSchema>;
+
 export const chatbotResponseOutputSchema = z.object({
   reply: z.string(),
+  profile: chatbotLeadProfileSchema,
   messages: z.array(z.string()).default([]),
   shouldEscalate: z.boolean(),
   escalationReason: z.string().nullable(),

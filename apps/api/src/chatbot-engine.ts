@@ -21,6 +21,7 @@ import {db, Prisma} from '@tgs/database';
 import {jsonSafe} from './infrastructure.js';
 import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 import {recordUnansweredQuestion} from './bot-training.js';
+import {mergeProfile, type LeadProfile} from './crm-pipeline.js';
 import {
   createEscalationNotification,
   ensureChatbotRequest,
@@ -416,6 +417,11 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       }
       return {log, notification: null, action: 'AUTO_REPLY' as const, requestResult};
     });
+
+    // La ficha del cliente se completa sola con lo que surge de la charla.
+    if (!body.simulation && (result.result as {profile?: LeadProfile}).profile) {
+      void mergeProfile(body.chatKey, (result.result as {profile?: LeadProfile}).profile).catch(() => undefined);
+    }
 
     // El modelo derivó porque no sabía: queda como pregunta para enseñarle (y se le
     // consulta al entrenador). Las derivaciones por palabra clave o audio no cuentan.

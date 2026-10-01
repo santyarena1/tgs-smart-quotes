@@ -8,6 +8,7 @@ import multipart from '@fastify/multipart';
 import {AppModule} from './module.js';
 import {startOutboundWorker} from './whatsapp-outbound.js';
 import {startResponder} from './whatsapp-responder.js';
+import {startTaskReminders} from './crm-pipeline.js';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({logger: true});
@@ -61,6 +62,8 @@ async function bootstrap() {
   startOutboundWorker();
   // Responde los chats cuya espera venció (el cliente terminó de escribir).
   startResponder();
+  // Avisa en la campana las tareas del CRM que vencen.
+  startTaskReminders();
   Logger.log(
     JSON.stringify({event: 'api_started', port: Number(process.env.PORT ?? 3001)}),
     'Bootstrap',

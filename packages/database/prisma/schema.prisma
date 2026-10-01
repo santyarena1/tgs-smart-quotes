@@ -1176,6 +1176,16 @@ model ChatbotConversation {
   /// Pospuesto hasta esta fecha; también se reabre si el cliente escribe antes.
   snoozedUntil           DateTime?
   tags                   String[]            @default([])
+  /// Etapa del embudo: NEW | QUALIFYING | QUOTE_SENT | NEGOTIATION | DEPOSIT | WON | LOST.
+  stage                  String              @default("NEW")
+  stageChangedAt         DateTime?
+  /// Valor estimado de la venta, en centavos (del anuncio o del presupuesto).
+  leadValueCents         BigInt?
+  lostReason             String?
+  /// De dónde vino: anuncio de Meta (referral del primer mensaje: ad, título, ctwa_clid).
+  origin                 Json?
+  /// Ficha que arma la IA con la charla: uso, juegos, presupuesto, ciudad, pago, envío/retiro.
+  profile                Json?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   messages               ChatbotMessageLog[]
@@ -1186,6 +1196,7 @@ model ChatbotConversation {
   @@index([lastMessageAt])
   @@index([resolvedAt])
   @@index([snoozedUntil])
+  @@index([stage, lastMessageAt])
   @@index([escalatedAt])
   @@index([updatedAt])
   @@index([activeRequestId])
@@ -1235,6 +1246,25 @@ model BotLearning {
 
   @@index([status, createdAt])
   @@index([source, status])
+}
+
+/// Tarea o recordatorio del equipo, opcionalmente atada a un chat ("llamar el jueves").
+model CrmTask {
+  id              String    @id @default(uuid())
+  conversationKey String?
+  title           String
+  dueAt           DateTime?
+  assignedToId    String?
+  createdById     String?
+  doneAt          DateTime?
+  /// Cuándo se avisó que venció, para no avisar dos veces.
+  notifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([assignedToId, doneAt, dueAt])
+  @@index([conversationKey])
+  @@index([doneAt, dueAt, notifiedAt])
 }
 
 /// Respuesta rápida del equipo: se inserta en el chat escribiendo "/" + atajo.

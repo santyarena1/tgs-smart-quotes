@@ -8,6 +8,19 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.0",
+    date: "2026-10-01",
+    title: "CRM nuevo, etapa 5: embudo de ventas y ficha del cliente",
+    items: [
+      "Cada chat es un lead con etapa: Nuevo, Calificando, Presupuesto enviado, Negociación, Seña/Pago, Ganado o Perdido (con motivo)",
+      "Pantalla Embudo: columnas por etapa con cantidad y monto, tarjetas que se arrastran para cambiar de etapa, filtro \"solo mías\" y tus tareas pendientes",
+      "El lead guarda de qué anuncio vino y toma como valor el precio del anuncio (\"PC Completa por $650.000\") o, si no hay, el presupuesto que mencionó el cliente; al mandar un presupuesto toma su total",
+      "La etapa avanza sola: a \"Calificando\" cuando el bot ya sabe el uso y el presupuesto, y a \"Presupuesto enviado\" cuando sale un presupuesto",
+      "Ficha del cliente que el bot completa sola con la charla: uso, juegos o programas, presupuesto, ciudad, cómo quiere pagar y si es envío o retiro. Se puede corregir a mano",
+      "Tareas por chat con vencimiento (\"avisarle cuando llegue la 5070\"); al vencer avisan en la campana",
+    ],
+  },
+  {
     version: "0.11.0",
     date: "2026-10-01",
     title: "CRM nuevo, etapa 4: entrenamiento del bot",

@@ -19,6 +19,7 @@ function fallback(input: ChatbotResponseInput): ChatbotResponseOutput {
     decisionReason: "Fallback seguro: se deriva a revisión humana sin informar al cliente.",
     shouldCreateRequest: false,
     requestDraft: null,
+    profile: {usage: null, games: [], budgetCents: null, city: null, payment: null, delivery: null},
   };
 }
 
@@ -85,6 +86,7 @@ REGLAS INNEGOCIABLES
 - Una escalación puede llevar reply vacío (silencio) o una frase natural de espera, sin revelar el proceso interno.
 - Evitá repetir literalmente la última respuesta del negocio.
 - escalationReason debe ser null cuando shouldEscalate=false.
+- profile resume lo que el cliente dijo de sí mismo en TODA la conversación (no solo el último mensaje): usage (para qué quiere la PC: juegos, diseño, trabajo, estudio…), games (juegos o programas que nombró), budgetCents (presupuesto que mencionó, en centavos: ARS 800.000 = 80000000), city (ciudad o provincia), payment (cómo quiere pagar) y delivery (ENVIO o RETIRO). Lo que no dijo va en null o lista vacía; nunca lo supongas.
 - updatedSummary debe ser una memoria compacta factual: intención, datos confirmados, pendientes y compromisos. No incluyas razonamiento oculto. Si no hay información suficiente para actualizarla, devolvé null.
 - matchedKnowledgeIds contiene los IDs de la RESPUESTA ACTIVADA y de los ítems de la BASE DE CONOCIMIENTO que efectivamente usaste; si no usaste ninguno, devolvé una lista vacía.
 - shouldCreateRequest=true únicamente cuando el cliente manifiesta intención concreta de comprar, cotizar o pedir presupuesto. Una consulta informativa genérica no alcanza.
