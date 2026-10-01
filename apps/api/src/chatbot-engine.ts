@@ -22,6 +22,7 @@ import {jsonSafe} from './infrastructure.js';
 import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 import {recordUnansweredQuestion} from './bot-training.js';
 import {mergeProfile, type LeadProfile} from './crm-pipeline.js';
+import {buildSystemData} from './bot-knowledge.js';
 import {
   createEscalationNotification,
   ensureChatbotRequest,
@@ -138,7 +139,17 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const localEscalationReason = body.messageType === 'AUDIO'
       ? 'Mensaje de audio recibido, requiere atención humana.'
       : keywordReason;
-    const reusable = localEscalationReason
+    // Datos reales del sistema (catálogo, PCs publicadas, presupuesto del chat).
+    const systemData = localEscalationReason ? '' : await buildSystemData({
+      chatKey: body.chatKey,
+      message: body.message,
+      budgetCents: typeof (conversation.profile as {budgetCents?: unknown} | null)?.budgetCents === 'number'
+        ? (conversation.profile as {budgetCents: number}).budgetCents
+        : null,
+      recentText: (body.recentMessages ?? []).slice(-6).map((item) => item.text).join(' '),
+    }).catch(() => '');
+    // Con precios o stock de por medio no se reutiliza una respuesta vieja: pueden haber cambiado.
+    const reusable = localEscalationReason || systemData
       ? null
       : await findReusableReply(body.message, settings.reuseSimilarityThreshold, inbound.id, settings.updatedAt);
     const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
@@ -229,6 +240,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
               ? `Fuera de horario. Conducta configurada: ${settings.outsideHoursBehavior.mode}. Mensaje permitido: ${settings.outsideHoursBehavior.message}`
               : 'Dentro del horario de atención.',
             responseStyle: settings.responseStyle,
+            systemData: systemData || undefined,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
               .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
               .map((item) => String(item.text)),

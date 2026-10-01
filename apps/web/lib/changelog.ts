@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.0",
+    date: "2026-10-01",
+    title: "El bot responde con datos reales del sistema",
+    items: [
+      "Antes de cada respuesta el bot consulta el catálogo: si preguntan por un producto (\"¿tienen la 4060?\", \"¿cuánto sale el Ryzen 5 5600?\") ve el precio vigente de contado y si figura con stock",
+      "Cuando alguien busca una PC, el bot ve las PCs publicadas en la tienda más cercanas a su presupuesto, con precio, cuotas, juegos que corre y link, y puede recomendar una o dos",
+      "Si el chat ya tiene un presupuesto, el bot sabe qué trae, el total y cuánto queda en cuotas",
+      "El stock exacto para reservar o cobrar lo sigue confirmando una persona",
+    ],
+  },
+  {
     version: "0.12.1",
     date: "2026-10-01",
     title: "El bot entiende audios y fotos",
