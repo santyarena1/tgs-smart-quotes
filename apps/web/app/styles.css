@@ -3693,3 +3693,17 @@ tr.selected { background: var(--canvas-2); }
 .side-lite-track { flex: none; position: relative; width: 30px; height: 17px; border-radius: 999px; background: rgba(255, 255, 255, 0.25); }
 .side-lite-knob { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; }
 .side-lite-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; opacity: 0.8; }
+
+/* Editor PDF: capas */
+.pdf-layer-list { list-style: none; margin: 0 0 0.6rem; padding: 0; display: grid; gap: 3px; }
+.pdf-layer { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font-size: 0.82rem; }
+.pdf-layer.section { background: var(--canvas); color: var(--muted); }
+.pdf-layer.custom { background: var(--paper); border-color: var(--red); }
+.pdf-layer.custom.active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 25%, transparent); }
+.pdf-layer-n { flex: none; width: 1.4rem; height: 1.4rem; display: grid; place-items: center; border-radius: 50%; background: var(--line); font-size: 0.7rem; font-weight: 700; }
+.pdf-layer.custom .pdf-layer-n { background: var(--red); color: #fff; }
+.pdf-layer-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: 0; padding: 0; color: inherit; font: inherit; }
+.pdf-layer small { font-size: 0.68rem; opacity: 0.7; }
+.pdf-layer-move { display: inline-flex; gap: 2px; }
+.pdf-layer-move button { width: 1.6rem; height: 1.6rem; padding: 0; border-radius: 6px; line-height: 1; }
+.pdf-layer-sub { margin: 0.8rem 0 0.3rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }

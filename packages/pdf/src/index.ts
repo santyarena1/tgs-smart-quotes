@@ -129,6 +129,7 @@ export type PdfLayoutDocument = {
   cardBackground?: string;
   cardBorderColor?: string;
 };
+export type PdfFlowSection = 'header' | 'cards' | 'services' | 'items' | 'totals' | 'observation' | 'rma' | 'footer' | 'end';
 /** Bloque de texto libre agregado por el usuario; x/y en px desde el área imprimible. */
 export type PdfCustomBlock = {
   id: string;
@@ -142,6 +143,8 @@ export type PdfCustomBlock = {
   fontWeight?: number;
   align?: 'left' | 'center' | 'right';
   hidden?: boolean;
+  /** Capa en el flujo: se inserta antes de esa sección ('end' = al final). Sin valor: libre en x/y. */
+  before?: PdfFlowSection;
 };
 export type PdfLayoutConfig = {
   version: 1;
@@ -262,8 +265,23 @@ function hasLayoutOverrides(layout?: PdfLayoutConfig): boolean {
 
 /** Capa con los bloques de texto libre. Se ancla al área imprimible (en print, el origen del
  *  contenedor inicial es el content box de @page; el preview del editor lo compensa por CSS). */
+function customBlockFontCss(block: PdfCustomBlock): string[] {
+  return [
+    ...(block.fontSize !== undefined ? [`font-size:${block.fontSize}px`] : []),
+    ...(block.color !== undefined ? [`color:${cssValue(block.color)}`] : []),
+    ...(block.fontFamily !== undefined ? [`font-family:"${cssValue(block.fontFamily)}",sans-serif`] : []),
+    ...(block.fontWeight !== undefined ? [`font-weight:${block.fontWeight}`] : []),
+    ...(block.align ? [`text-align:${block.align}`] : []),
+  ];
+}
+
+const visibleCustomBlocks = (layout?: PdfLayoutConfig) =>
+  (layout?.customBlocks ?? []).filter((block) => !block.hidden && block.text.trim());
+
+/** Capa con los bloques de texto libres (sin `before`). Se ancla al área imprimible (en print, el origen del
+ *  contenedor inicial es el content box de @page; el preview del editor lo compensa por CSS). */
 function renderCustomBlocks(layout?: PdfLayoutConfig): string {
-  const blocks = (layout?.customBlocks ?? []).filter((block) => !block.hidden && block.text.trim());
+  const blocks = visibleCustomBlocks(layout).filter((block) => !block.before);
   if (!blocks.length) return '';
   const items = blocks
     .map((block) => {
@@ -275,11 +293,7 @@ function renderCustomBlocks(layout?: PdfLayoutConfig): string {
         'white-space:pre-wrap',
         'overflow-wrap:anywhere',
         'z-index:3',
-        ...(block.fontSize !== undefined ? [`font-size:${block.fontSize}px`] : []),
-        ...(block.color !== undefined ? [`color:${cssValue(block.color)}`] : []),
-        ...(block.fontFamily !== undefined ? [`font-family:"${cssValue(block.fontFamily)}",sans-serif`] : []),
-        ...(block.fontWeight !== undefined ? [`font-weight:${block.fontWeight}`] : []),
-        ...(block.align ? [`text-align:${block.align}`] : []),
+        ...customBlockFontCss(block),
       ].join(';');
       return `<div data-pdf-block="custom:${escapeHtml(block.id)}" style="${css}">${escapeHtml(block.text)}</div>`;
     })
@@ -287,9 +301,62 @@ function renderCustomBlocks(layout?: PdfLayoutConfig): string {
   return `<div class="pdf-custom-layer" style="position:absolute;left:0;top:0;width:0;height:0">${items}</div>`;
 }
 
+/** Orden del documento y cómo ubicar cada sección en ambas plantillas (la primera coincidencia del HTML). */
+const FLOW_SECTIONS: Array<{ key: PdfFlowSection; pattern: RegExp }> = [
+  { key: 'header', pattern: /<header class="header"/ },
+  { key: 'cards', pattern: /<section class="cards"/ },
+  { key: 'services', pattern: /<(?:section|div)\b[^>]*(?:data-pdf-block="servicesBlock"|class="services")/ },
+  { key: 'items', pattern: /<table\b[^>]*(?:class="items"|data-pdf-block="itemsTable")/ },
+  { key: 'totals', pattern: /<div class="price-block"|<section\b[^>]*(?:class="totals"|data-pdf-block="totalsBlock")/ },
+  { key: 'observation', pattern: /<(?:section|div)\b[^>]*(?:class="obs"|data-pdf-block="observation")/ },
+  { key: 'rma', pattern: /<(?:section|div)\b[^>]*(?:class="rma"|data-pdf-block="rmaBlock")/ },
+  { key: 'footer', pattern: /<footer\b/ },
+];
+
+/** Inserta los bloques con `before` en el flujo, sin tocar posiciones del resto: el contenido se acomoda solo.
+ *  Si la sección no existe (p. ej. sin observación) se usa la siguiente que exista, o el final. */
+function insertFlowBlocks(html: string, layout?: PdfLayoutConfig): string {
+  const blocks = visibleCustomBlocks(layout).filter((block) => block.before);
+  if (!blocks.length) return html;
+  const bodyStart = Math.max(html.indexOf('<body'), 0);
+  const bodyEnd = html.lastIndexOf('</body>');
+  const endIndex = bodyEnd >= 0 ? bodyEnd : html.length;
+  const positions = FLOW_SECTIONS.map(({ pattern }) => {
+    const match = pattern.exec(html.slice(bodyStart));
+    return match ? bodyStart + match.index : -1;
+  });
+  const positionFor = (section: PdfFlowSection): number => {
+    if (section === 'end') return endIndex;
+    for (let i = FLOW_SECTIONS.findIndex((s) => s.key === section); i < FLOW_SECTIONS.length; i += 1) {
+      if (positions[i]! >= 0) return positions[i]!;
+    }
+    return endIndex;
+  };
+  const inserts = new Map<number, string>();
+  for (const block of blocks) {
+    const css = [
+      'display:block',
+      `width:min(${block.width}px,100%)`,
+      'margin:8px 0',
+      'white-space:pre-wrap',
+      'overflow-wrap:anywhere',
+      'break-inside:avoid',
+      ...customBlockFontCss(block),
+    ].join(';');
+    const at = positionFor(block.before!);
+    inserts.set(at, `${inserts.get(at) ?? ''}<div data-pdf-block="custom:${escapeHtml(block.id)}" style="${css}">${escapeHtml(block.text)}</div>`);
+  }
+  let out = html;
+  for (const at of [...inserts.keys()].sort((a, b) => b - a)) {
+    out = `${out.slice(0, at)}${inserts.get(at)}${out.slice(at)}`;
+  }
+  return out;
+}
+
 function withCustomBlocks(html: string, layout?: PdfLayoutConfig): string {
+  const flowed = insertFlowBlocks(html, layout);
   const layer = renderCustomBlocks(layout);
-  return layer ? html.replace('</body>', () => `${layer}</body>`) : html;
+  return layer ? flowed.replace('</body>', () => `${layer}</body>`) : flowed;
 }
 
 function cssValue(value: string): string {

@@ -151,10 +151,13 @@ export type PdfLayoutDocument = {
   tableZebra?: boolean; tableDensity?: "compact" | "normal" | "comfortable";
   cardRadius?: number; cardBackground?: string; cardBorderColor?: string;
 };
+export type PdfFlowSection = "header" | "cards" | "services" | "items" | "totals" | "observation" | "rma" | "footer" | "end";
 export type PdfCustomBlock = {
   id: string; text: string; x: number; y: number; width: number;
   fontSize?: number; color?: string; fontFamily?: string; fontWeight?: number;
   align?: "left" | "center" | "right"; hidden?: boolean;
+  /** Capa en el flujo: antes de esa sección ("end" = al final). Sin valor: libre en x/y. */
+  before?: PdfFlowSection;
 };
 export type PdfLayoutConfig = {
   version: 1;
