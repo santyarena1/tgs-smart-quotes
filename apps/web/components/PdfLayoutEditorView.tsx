@@ -13,6 +13,7 @@ import type {
   PdfSettings,
 } from "../lib/types";
 import { Alert, Loading, PageHeader, errorMessage } from "./shared";
+import { PDF_SECTIONS, buildLayers, moveCustomLayer } from "../lib/pdf-layers";
 import { PDF_PRESETS, matchingPresetId, type PdfPreset } from "../lib/pdf-presets";
 
 const BLOCKS: Array<{
@@ -179,6 +180,7 @@ export function PdfLayoutEditorView() {
       const step = event.shiftKey ? 10 : 1;
       const current = draftRef.current;
       const custom = current.customBlocks?.find((block) => block.id === selected);
+      if (custom?.before) return;
       if (custom) {
         const nextX = Math.max(0, Math.min(800, custom.x + direction.x * step));
         const nextY = Math.max(0, Math.min(1200, custom.y + direction.y * step));
@@ -435,10 +437,16 @@ export function PdfLayoutEditorView() {
 
   function addTextBlock() {
     const id = `t${Date.now().toString(36)}`;
-    const block: PdfCustomBlock = {id, text: "Nuevo texto", x: 40, y: 40, width: 240, fontSize: 12};
+    // Entra al final del documento (última capa); se reubica desde "Campos" sin tocar el resto.
+    const block: PdfCustomBlock = {id, text: "Nuevo texto", x: 0, y: 0, width: 720, fontSize: 12, before: "end"};
     setDraft((current) => ({...current, customBlocks: [...(current.customBlocks ?? []), block]}));
     setSelected(id);
     setTab("field");
+    setNotice(null);
+  }
+
+  function moveLayer(id: string, delta: -1 | 1) {
+    setDraft((current) => ({ ...current, customBlocks: moveCustomLayer(current.customBlocks ?? [], id, delta) }));
     setNotice(null);
   }
 
@@ -475,6 +483,7 @@ export function PdfLayoutEditorView() {
     const box = boxes[rawKey];
     if (!box) return;
     const customStart = draft.customBlocks?.find((block) => block.id === rawKey);
+    if (customStart?.before && mode === "move") return;
     if (customStart) {
       setAlignmentGuides({});
       const onCustomMove = (move: PointerEvent) => {
@@ -834,9 +843,35 @@ export function PdfLayoutEditorView() {
             </>
           ) : tab === "fields" ? (
             <>
-          <h2>Todos los campos</h2>
+          <h2>Capas</h2>
+          <p className="section-note">De arriba hacia abajo. Los campos propios se intercalan entre las secciones fijas: subilos o bajalos y el resto se acomoda solo.</p>
+          <ol className="pdf-layer-list">
+            {(() => {
+              const layers = buildLayers(draft.customBlocks);
+              return layers.map((layer, index) => layer.kind === "section" ? (
+                <li key={layer.key} className="pdf-layer section">
+                  <span className="pdf-layer-n">{index + 1}</span>
+                  <span className="pdf-layer-name">{layer.label}</span>
+                  <small>Sección fija</small>
+                </li>
+              ) : (
+                <li key={layer.block.id} className={`pdf-layer custom${selected === layer.block.id ? " active" : ""}`} style={layer.block.hidden ? { opacity: 0.55 } : undefined}>
+                  <span className="pdf-layer-n">{index + 1}</span>
+                  <button type="button" className="pdf-layer-name" onClick={() => { setSelected(layer.block.id); setTab("field"); }}>
+                    {layer.block.text.slice(0, 26) || "Texto vacío"}
+                  </button>
+                  <span className="pdf-layer-move">
+                    <button type="button" aria-label="Subir capa" title="Subir" disabled={index === 0} onClick={() => moveLayer(layer.block.id, -1)}>↑</button>
+                    <button type="button" aria-label="Bajar capa" title="Bajar" disabled={index === layers.length - 1} onClick={() => moveLayer(layer.block.id, 1)}>↓</button>
+                  </span>
+                </li>
+              ));
+            })()}
+          </ol>
+          <button className="btn-ghost" type="button" onClick={addTextBlock}>+ Agregar campo de texto</button>
+          {(draft.customBlocks ?? []).filter((block) => !block.before).length ? <h3 className="pdf-layer-sub">Campos libres (posición X/Y)</h3> : null}
           <div className="pdf-field-list">
-          {(draft.customBlocks ?? []).map((block, index) => (
+          {(draft.customBlocks ?? []).filter((block) => !block.before).map((block, index) => (
             <button
               key={block.id}
               type="button"
@@ -844,10 +879,13 @@ export function PdfLayoutEditorView() {
               onClick={() => { setSelected(block.id); setTab("field"); }}
               style={block.hidden ? {opacity: 0.55} : undefined}
             >
-              {`Texto ${index + 1}: ${block.text.slice(0, 18) || "vacío"}`}
-              <span>{block.hidden ? "Oculto" : "Texto propio"}</span>
+              {`Texto libre ${index + 1}: ${block.text.slice(0, 18) || "vacío"}`}
+              <span>{block.hidden ? "Oculto" : "Posición libre"}</span>
             </button>
           ))}
+          </div>
+          <h3 className="pdf-layer-sub">Campos de la hoja</h3>
+          <div className="pdf-field-list">
           {BLOCKS.map((block) => {
             const isHidden = draft.blocks[block.key]?.hidden === true;
             return (
@@ -883,10 +921,28 @@ export function PdfLayoutEditorView() {
               <label>Contenido
                 <textarea rows={5} value={selectedCustom.text} onChange={(e) => patchCustom(selectedCustom.id, { text: e.target.value })} />
               </label>
+              <label>Ubicación (capa)
+                <select
+                  value={selectedCustom.before ?? "free"}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "free") patchCustom(selectedCustom.id, { before: undefined, width: Math.min(selectedCustom.width, 480), x: selectedCustom.x || 40, y: selectedCustom.y || 40 });
+                    else patchCustom(selectedCustom.id, { before: v as NonNullable<PdfCustomBlock["before"]> });
+                  }}
+                >
+                  {PDF_SECTIONS.map((section) => <option key={section.key} value={section.key}>Antes de: {section.label}</option>)}
+                  <option value="end">Al final del documento</option>
+                  <option value="free">Libre (posición X/Y)</option>
+                </select>
+              </label>
+              {selectedCustom.before ? (
+                <p className="section-note">En el flujo: se ubica por capa y empuja el contenido, sin superponerse. Cambiá el orden desde la pestaña Campos.</p>
+              ) : (
               <div className="pdf-property-pair">
                 <label>Posición X <input type="number" min={0} max={800} value={selectedCustom.x} onChange={(e) => patchCustom(selectedCustom.id, { x: Math.max(0, Math.min(800, Number(e.target.value) || 0)) })} /></label>
                 <label>Posición Y <input type="number" min={0} max={1200} value={selectedCustom.y} onChange={(e) => patchCustom(selectedCustom.id, { y: Math.max(0, Math.min(1200, Number(e.target.value) || 0)) })} /></label>
               </div>
+              )}
               <div className="pdf-property-pair">
                 <label>Ancho <input type="number" min={24} max={720} value={selectedCustom.width} onChange={(e) => patchCustom(selectedCustom.id, { width: Math.max(24, Math.min(720, Number(e.target.value) || 24)) })} /></label>
                 <label>Tamaño de letra <input type="number" min={6} max={72} value={selectedCustom.fontSize ?? 12} onChange={(e) => patchCustom(selectedCustom.id, { fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 12)) })} /></label>

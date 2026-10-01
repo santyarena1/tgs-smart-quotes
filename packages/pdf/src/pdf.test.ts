@@ -204,6 +204,35 @@ describe('@tgs/pdf', () => {
     expect(html).not.toContain('oculto');
   });
 
+  it('inserta bloques por capa en el flujo, antes de la sección elegida y al final', () => {
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const layout = {
+        version: 1 as const,
+        blocks: {},
+        customBlocks: [
+          {id: 'f1', text: 'ANTES-TABLA', x: 0, y: 0, width: 300, before: 'items' as const},
+          {id: 'f2', text: 'AL-FINAL', x: 0, y: 0, width: 300, before: 'end' as const},
+          {id: 'f3', text: 'ARRIBA-DE-TODO', x: 0, y: 0, width: 300, before: 'header' as const},
+        ],
+      };
+      const html = renderQuoteHtml({...sample(), template, layout});
+      const at = (needle: string) => html.indexOf(needle);
+      expect(at('ARRIBA-DE-TODO')).toBeGreaterThan(at('<body'));
+      expect(at('ARRIBA-DE-TODO')).toBeLessThan(at('<header class="header"'));
+      expect(at('ANTES-TABLA')).toBeLessThan(at('<table'));
+      expect(at('ANTES-TABLA')).toBeGreaterThan(at('<section class="cards"'));
+      expect(at('AL-FINAL')).toBeGreaterThan(at('<footer'));
+      expect(html).not.toContain('pdf-custom-layer');
+    }
+  });
+
+  it('una capa apuntando a una sección ausente cae a la siguiente que exista', () => {
+    const layout = {version: 1 as const, blocks: {}, customBlocks: [{id: 'o1', text: 'OBS-AUSENTE', x: 0, y: 0, width: 300, before: 'observation' as const}]};
+    const html = renderQuoteHtml({...sample(), layout});
+    expect(html).toContain('OBS-AUSENTE');
+    expect(html.indexOf('OBS-AUSENTE')).toBeLessThan(html.indexOf('<footer'));
+  });
+
   it('el logo conserva su proporción aun con un layout antiguo deformado', () => {
     const html = renderQuoteHtml({
       ...sample(),

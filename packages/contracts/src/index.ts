@@ -237,6 +237,9 @@ export const pdfCustomBlockSchema = z
     fontWeight: pdfLayoutStyleSchema.shape.fontWeight,
     align: z.enum(['left', 'center', 'right']).optional(),
     hidden: z.boolean().optional(),
+    /** Capa: si existe, el bloque entra en el flujo del documento justo antes de esa sección
+     *  ('end' = al final) y x/y se ignoran. Sin valor, queda libre en x/y (comportamiento previo). */
+    before: z.enum(['header', 'cards', 'services', 'items', 'totals', 'observation', 'rma', 'footer', 'end']).optional(),
   })
   .strict();
 export const pdfLayoutConfigSchema = z
