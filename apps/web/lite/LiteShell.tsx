@@ -30,7 +30,14 @@ function LiteBar() {
     router.push("/dashboard");
   }
 
-  const onCollections = pathname.startsWith("/lite/colecciones");
+  const tabs = [
+    { href: "/lite", label: "Nuevo" },
+    { href: "/lite/presupuestos", label: "Presupuestos" },
+    { href: "/lite/colecciones", label: "Colecciones" },
+    { href: "/lite/editor-pdf", label: "Editor PDF" },
+    { href: "/lite/configuracion", label: "Configuración" },
+  ];
+  const isActive = (href: string) => (href === "/lite" ? pathname === "/lite" : pathname.startsWith(href));
 
   return (
     <header className="lt-bar">
@@ -39,8 +46,7 @@ function LiteBar() {
         <span className="lt-brand-text">Lite</span>
       </Link>
       <nav className="lt-tabs" aria-label="Secciones">
-        <Link href="/lite" className={onCollections ? "lt-tab" : "lt-tab active"}>Presupuestos</Link>
-        <Link href="/lite/colecciones" className={onCollections ? "lt-tab active" : "lt-tab"}>Colecciones</Link>
+        {tabs.map((t) => <Link key={t.href} href={t.href} className={isActive(t.href) ? "lt-tab active" : "lt-tab"}>{t.label}</Link>)}
       </nav>
       <span className="lt-spacer" />
       <label className="lt-branch" title={locked ? "Tu local" : "Cambiar de local"}>
