@@ -7,6 +7,7 @@ import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } fr
 import { getActiveVersion, type Collection, type Customer, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 import { useLite } from "./LiteContext";
+import { LiteNewProduct } from "./LiteNewProduct";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 
 type Line = {
@@ -46,10 +47,6 @@ function lineFromProduct(p: Product, lineId = ""): Line {
   };
 }
 
-function freeLine(name: string, lineId = ""): Line {
-  return { key: crypto.randomUUID(), productId: "", lineId, name, quantity: "1", costArs: "", markupPct: DEFAULT_MARKUP, saleArs: "", priceMode: "markup" };
-}
-
 function validate(lines: Line[]): string | null {
   if (!lines.length) return "Agregá al menos un producto.";
   for (const [i, line] of lines.entries()) {
@@ -66,11 +63,11 @@ function validate(lines: Line[]): string | null {
   return null;
 }
 
-function SlotPicker({ products, preferLineId, onPick, onFree }: {
+function SlotPicker({ products, preferLineId, onPick, onCreate }: {
   products: Product[];
   preferLineId: string;
   onPick: (p: Product) => void;
-  onFree: (name: string) => void;
+  onCreate: (name: string) => void;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -81,6 +78,11 @@ function SlotPicker({ products, preferLineId, onPick, onFree }: {
     if (!tokens.length) return pool.filter((p) => p.defaultLineId === preferLineId).slice(0, 6);
     return pool.sort((a, b) => Number(b.defaultLineId === preferLineId) - Number(a.defaultLineId === preferLineId)).slice(0, 6);
   }, [products, q, preferLineId]);
+  function pick(p: Product) {
+    setOpen(false);
+    setQ("");
+    onPick(p);
+  }
   return (
     <div className="lt-search lt-slot">
       <input
@@ -91,26 +93,27 @@ function SlotPicker({ products, preferLineId, onPick, onFree }: {
         aria-label="Elegir producto para el componente"
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
           if (e.key === "Enter") {
             e.preventDefault();
-            if (hits[0]) onPick(hits[0]);
-            else if (q.trim()) onFree(q.trim());
+            if (hits[0]) pick(hits[0]);
+            else if (q.trim()) { setOpen(false); onCreate(q.trim()); }
           }
         }}
       />
       {open && (hits.length || q.trim()) ? (
         <ul className="lt-results" role="listbox">
           {hits.map((p) => (
-            <li key={p.id} role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); onPick(p); }}>
+            <li key={p.id} role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); pick(p); }}>
               <span className="lt-res-name">{p.name}</span>
               <span className="lt-res-price">{formatArs(p.salePriceCents)}</span>
             </li>
           ))}
           {q.trim() ? (
-            <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); onFree(q.trim()); }}>
-              <span className="lt-res-name">+ Agregar “{q.trim()}” como ítem libre</span>
+            <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); setOpen(false); onCreate(q.trim()); }}>
+              <span className="lt-res-name">+ Crear “{q.trim()}” como producto nuevo</span>
             </li>
           ) : null}
         </ul>
@@ -138,7 +141,8 @@ export function LiteQuoteCreator() {
   const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [newProd, setNewProd] = useState<{ name: string; lineId: string } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -200,14 +204,19 @@ export function LiteQuoteCreator() {
     const target = lineId ?? (isBuiltPc && pcLines.some((l) => l.id === p.defaultLineId) ? p.defaultLineId ?? "" : "");
     setLines((current) => [...current, lineFromProduct(p, target)]);
     setQuery("");
-    searchRef.current?.focus();
+    setSearchOpen(false);
   }
 
-  function addFree(lineId = "", name = query.trim()) {
-    const line = freeLine(name, lineId);
-    setFocusKey(line.key);
-    setLines((current) => [...current, line]);
-    setQuery("");
+  function startCreate(name: string, lineId = "") {
+    setSearchOpen(false);
+    setNewProd({ name, lineId });
+  }
+
+  function onProductCreated(product: Product) {
+    setProducts((current) => [...current, product]);
+    addProduct(product, newProd?.lineId || undefined);
+    setNotice(`Producto “${product.name}” creado y agregado.`);
+    setNewProd(null);
   }
 
   function applyRounding() {
@@ -287,8 +296,7 @@ export function LiteQuoteCreator() {
         setNotice(`${created.visibleNumber} creado, pero el PDF falló: ${errorMessage(err)}`);
       }
       void loadRecent();
-      searchRef.current?.focus();
-    } catch (err) {
+      } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(null);
@@ -304,12 +312,13 @@ export function LiteQuoteCreator() {
       setActive((i) => Math.max(i - 1, 0));
     } else if (e.key === "Escape") {
       setQuery("");
+      setSearchOpen(false);
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) { void submit("SIMPLE"); return; }
       const hit = results[active];
       if (hit) addProduct(hit);
-      else if (query.trim()) addFree();
+      else if (query.trim()) startCreate(query.trim());
     }
   }
 
@@ -333,7 +342,6 @@ export function LiteQuoteCreator() {
         <MoneyInput
           className="lt-cell num"
           value={l.costArs}
-          autoFocus={focusKey === l.key}
           onChange={(v) => patch(l.key, (x) => applyDraftCost(x, v))}
           aria-label="Costo"
           placeholder="0"
@@ -352,6 +360,7 @@ export function LiteQuoteCreator() {
 
   return (
     <div className="lt-grid">
+      {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
       <section className="lt-col">
         <div className="lt-head">
           <h1>Nuevo presupuesto</h1>
@@ -395,12 +404,14 @@ export function LiteQuoteCreator() {
               value={query}
               autoFocus
               autoComplete="off"
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setSearchOpen(false)}
               onKeyDown={onSearchKey}
               placeholder="Buscar producto…  (↑↓ Enter)"
               aria-label="Buscar producto"
             />
-            {query.trim() || products.length ? (
+            {searchOpen && (query.trim() || products.length) ? (
               <ul className="lt-results" role="listbox">
                 {results.map((p, i) => (
                   <li
@@ -416,8 +427,8 @@ export function LiteQuoteCreator() {
                   </li>
                 ))}
                 {query.trim() ? (
-                  <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); addFree(); }}>
-                    <span className="lt-res-name">+ Agregar “{query.trim()}” como ítem libre</span>
+                  <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); startCreate(query.trim()); }}>
+                    <span className="lt-res-name">+ Crear “{query.trim()}” como producto nuevo</span>
                   </li>
                 ) : null}
               </ul>
@@ -444,7 +455,7 @@ export function LiteQuoteCreator() {
                             products={products}
                             preferLineId={pc.id}
                             onPick={(p) => addProduct(p, pc.id)}
-                            onFree={(n) => addFree(pc.id, n)}
+                            onCreate={(n) => startCreate(n, pc.id)}
                           />
                         ) : null}
                       </div>
