@@ -17,6 +17,7 @@ export function ChatSide({
   onAssign,
   onTags,
   onBotMode,
+  onAlwaysOn,
   onDelete,
   onTagFilter,
   canDelete,
@@ -28,6 +29,7 @@ export function ChatSide({
   onAssign: (userId: string | null) => Promise<void>;
   onTags: (tags: string[]) => Promise<void>;
   onBotMode: (mode: BotMode) => Promise<void>;
+  onAlwaysOn: (alwaysOn: boolean) => Promise<void>;
   onDelete: () => Promise<void>;
   onTagFilter: (tag: string) => void;
   canDelete: boolean;
@@ -168,6 +170,15 @@ export function ChatSide({
           <option value="SUGGEST">Solo sugerir</option>
           <option value="OFF">Apagado</option>
         </select>
+        <label className="cx-check" title="El bot contesta aunque el local esté cerrado">
+          <input
+            type="checkbox"
+            checked={Boolean(conversation.alwaysOn)}
+            disabled={busy}
+            onChange={(event) => void run(() => onAlwaysOn(event.target.checked))}
+          />{" "}
+          Responde siempre (ignora el horario)
+        </label>
         {conversation.escalationReason ? <p className="cx-hint">Derivado: {conversation.escalationReason}</p> : null}
         <a className="cx-link" href="/configuracion?tab=chatbot">Configurar el bot →</a>
       </section>

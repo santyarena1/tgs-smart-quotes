@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.2",
+    date: "2026-10-01",
+    title: "Chats que el bot atiende a cualquier hora",
+    items: [
+      "En el panel del chat, en \"Bot en este chat\": casilla \"Responde siempre (ignora el horario)\". Ese chat se atiende aunque el local esté cerrado; el resto sigue la configuración de horario",
+      "Activado para el número de prueba 11 4085-9342",
+    ],
+  },
+  {
     version: "0.15.1",
     date: "2026-10-01",
     title: "Registro de por qué el bot no contesta",

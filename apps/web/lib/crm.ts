@@ -35,6 +35,10 @@ export function reopenConversation(chatKey: string): Promise<WhatsappConversatio
   return api(`/crm/conversations/${encodeURIComponent(chatKey)}/reopen`, { method: "POST" });
 }
 
+export function setConversationAlwaysOn(chatKey: string, alwaysOn: boolean): Promise<WhatsappConversation> {
+  return api(`/crm/conversations/${encodeURIComponent(chatKey)}/always-on`, { method: "PUT", body: { alwaysOn } });
+}
+
 export function snoozeConversation(chatKey: string, until: Date): Promise<WhatsappConversation> {
   return api(`/crm/conversations/${encodeURIComponent(chatKey)}/snooze`, { method: "POST", body: { until: until.toISOString() } });
 }

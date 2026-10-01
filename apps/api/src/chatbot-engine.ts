@@ -130,7 +130,8 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       return {action: 'PAUSED', effectiveMode, autoSend: false, inboundLogId: inbound.id};
     }
 
-    const outsideHours = isOutsideBusinessHours(settings.businessHours);
+    // Un chat marcado "responde siempre" se atiende como si el local estuviera abierto.
+    const outsideHours = !conversation.alwaysOn && isOutsideBusinessHours(settings.businessHours);
     if (outsideHours && settings.outsideHoursBehavior.mode === 'OFF') {
       return {action: 'OUTSIDE_HOURS', effectiveMode, autoSend: false, inboundLogId: inbound.id};
     }

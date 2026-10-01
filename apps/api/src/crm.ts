@@ -34,6 +34,7 @@ const inboxQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 }).strict();
 
+const alwaysOnSchema = z.object({alwaysOn: z.boolean()}).strict();
 const snoozeSchema = z.object({until: z.coerce.date()}).strict();
 const tagsSchema = z.object({tags: z.array(z.string().trim().min(1).max(40)).max(20)}).strict();
 const renameSchema = z.object({displayName: z.string().trim().max(120).nullable()}).strict();
@@ -162,6 +163,14 @@ export class CrmController {
     await requireConversation(chatKey);
     const tags = [...new Set(body.tags.map((tag) => tag.toLocaleLowerCase('es-AR')))];
     await db.chatbotConversation.update({where: {chatKey}, data: {tags}});
+    return viewOf(chatKey);
+  }
+
+  /** El bot atiende este chat a cualquier hora, aunque el local esté cerrado. */
+  @Put('conversations/:chatKey/always-on')
+  async setAlwaysOn(@Param('chatKey') chatKey: string, @Body(new ZodPipe(alwaysOnSchema)) body: {alwaysOn: boolean}) {
+    await requireConversation(chatKey);
+    await db.chatbotConversation.update({where: {chatKey}, data: {alwaysOn: body.alwaysOn}});
     return viewOf(chatKey);
   }
 

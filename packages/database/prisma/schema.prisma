@@ -1195,6 +1195,8 @@ model ChatbotConversation {
   profile                Json?
   /// Temperatura de la venta (0 frío … 100 listo para comprar), según la IA en cada respuesta.
   temperature            Int?
+  /// El bot lo atiende a cualquier hora, aunque el local esté cerrado.
+  alwaysOn               Boolean             @default(false)
   /// Intención del último mensaje del cliente (PRICE, BUILD_PC, PAYMENT, PURCHASE_READY…).
   lastIntent             String?
   /// Próximo paso sugerido para avanzar la venta.

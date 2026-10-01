@@ -38,8 +38,7 @@ import {
   type CrmNote,
   type CrmViewId,
   type QuickReply,
-  type TeamMember,
-} from "../../../lib/crm";
+  type TeamMember, setConversationAlwaysOn } from "../../../lib/crm";
 import type { Quote } from "../../../lib/types";
 import { errorMessage } from "../../shared";
 import { useSession } from "../../SessionProvider";
@@ -509,6 +508,7 @@ export function Inbox() {
             await refreshOpen();
           }}
           onBotMode={async (mode) => { await updateConversationBot(conversation.chatKey, { modeOverride: mode }); await refreshOpen(); }}
+          onAlwaysOn={async (alwaysOn) => { await setConversationAlwaysOn(conversation.chatKey, alwaysOn); await refreshOpen(); }}
           onDelete={async () => {
             await deleteWhatsappConversation(conversation.chatKey);
             setSelectedKey(null);
