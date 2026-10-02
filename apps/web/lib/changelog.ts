@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-02",
+    title: "Al entrar se abre el sistema completo, no LITE",
+    items: [
+      "Entrar a la app abre el dashboard de siempre. LITE queda si lo elegís con el interruptor de la barra; ya no arranca solo porque la última vez lo usaste",
+    ],
+  },
+  {
     version: "0.17.0",
     date: "2026-10-02",
     title: "El bot agarra al cliente en caliente: pide el presupuesto al equipo y lo manda solo",
