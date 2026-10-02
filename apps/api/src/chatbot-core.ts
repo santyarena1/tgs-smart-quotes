@@ -406,8 +406,9 @@ export async function ensureChatbotRequest(
 }
 
 /**
- * Escritura de WhatsApp de una persona real: sin tildes y sin signos de apertura
- * (¿ ¡). La ñ se respeta. Los links no se tocan.
+ * Escritura de WhatsApp de una persona real: sin tildes, sin signos de apertura
+ * (¿ ¡) y sin punto al final del mensaje (los puntos suspensivos y los del medio
+ * quedan). La ñ se respeta. Los links no se tocan.
  */
 export function casualText(text: string): string {
   return text
@@ -417,5 +418,7 @@ export function casualText(text: string): string {
       : part
           .replace(/[¿¡]/g, '')
           .replace(/[áéíóúüÁÉÍÓÚÜ]/g, (char) => char.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))))
-    .join('');
+    .join('')
+    .trim()
+    .replace(/(?<!\.)\.((?:\s*\p{Extended_Pictographic}\uFE0F?)*)$/u, '$1');
 }

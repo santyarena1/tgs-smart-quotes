@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.4",
+    date: "2026-10-01",
+    title: "Sin punto final en los mensajes del bot",
+    items: [
+      "Los mensajes del bot no terminan en punto (\"Dale, te lo armo\"). Los puntos entre oraciones y los puntos suspensivos se mantienen",
+    ],
+  },
+  {
     version: "0.15.3",
     date: "2026-10-01",
     title: "El bot escribe como en el celular",
