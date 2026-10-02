@@ -7,6 +7,7 @@ import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } fr
 import { getActiveVersion, getQuoteItems, type Collection, type Customer, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 import { useLite } from "./LiteContext";
+import { LiteNewCustomer } from "./LiteNewCustomer";
 import { LiteNewProduct } from "./LiteNewProduct";
 import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
@@ -139,6 +140,7 @@ export function LiteQuoteCreator() {
   const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [newProd, setNewProd] = useState<{ name: string; lineId: string } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -368,6 +370,17 @@ export function LiteQuoteCreator() {
 
   return (
     <div className="lt-grid">
+      {newCustomerOpen ? (
+        <LiteNewCustomer
+          onCancel={() => setNewCustomerOpen(false)}
+          onCreated={(customer) => {
+            setCustomers((current) => [...current, customer].sort((x, y) => x.name.localeCompare(y.name)));
+            setCustomerId(customer.id);
+            setNewCustomerOpen(false);
+            setNotice(`Cliente “${customer.name}” creado y seleccionado.`);
+          }}
+        />
+      ) : null}
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
       <section className="lt-col">
         <div className="lt-head">
@@ -388,10 +401,13 @@ export function LiteQuoteCreator() {
         <div className="lt-card">
           <div className="lt-meta">
             <input className="lt-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (opcional: usa el cliente o el primer ítem)" aria-label="Nombre interno" />
-            <select className="lt-input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} aria-label="Cliente">
+            <div className="lt-customer">
+                          <select className="lt-input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} aria-label="Cliente">
               <option value="">Sin cliente</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+              <button type="button" className="lt-btn ghost" onClick={() => setNewCustomerOpen(true)} title="Crear cliente nuevo">+ Cliente</button>
+            </div>
           </div>
 
           <button type="button" className={`lt-pc${isBuiltPc ? " on" : ""}`} role="switch" aria-checked={isBuiltPc} onClick={() => toggleBuiltPc(!isBuiltPc)}>
@@ -416,7 +432,6 @@ export function LiteQuoteCreator() {
               ref={searchRef}
               className="lt-input lt-search-input"
               value={query}
-              autoFocus
               autoComplete="off"
               onChange={(e) => { setQuery(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
