@@ -125,7 +125,7 @@
 .lite .lt-state.enviado { background: var(--info-bg); color: var(--info); }
 .lite .lt-state.aceptado { background: var(--ok-bg); color: var(--ok); }
 .lite .lt-state.rechazado { background: var(--red-soft); color: var(--red-deep); }
-.lite .lt-state.borrador { background: var(--warn-bg); color: var(--warn); }
+.lite .lt-state.borrador { background: color-mix(in srgb, #8b5cf6 16%, var(--paper)); color: #7c3aed; }
 
 /* ————— Colecciones ————— */
 .lite .lt-coll { display: grid; gap: 1rem; }
@@ -220,8 +220,11 @@
 .lite .lt-actions { display: grid; grid-template-columns: repeat(4, auto); gap: 4px; }
 .lite .lt-act { padding: 0.28rem 0.4rem; border-radius: 7px; background: var(--canvas); color: var(--ink-2); border: 1px solid var(--line); font-size: 0.74rem; font-weight: 650; }
 .lite .lt-act:hover:not(:disabled) { background: var(--paper); border-color: var(--line-2); }
-.lite .lt-act.edit { background: color-mix(in srgb, var(--red) 10%, var(--paper)); color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--line)); }
-.lite .lt-act.print { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.lite .lt-act.edit { background: color-mix(in srgb, #2563eb 10%, var(--paper)); color: #2563eb; border-color: color-mix(in srgb, #2563eb 35%, var(--line)); }
+.lite .lt-act.print { background: color-mix(in srgb, #16a34a 78%, #000); color: #fff; border-color: #14532d; }
+.lite .lt-act.print:hover:not(:disabled) { background: #14532d; border-color: #14532d; }
+.lite .lt-act.detail { background: color-mix(in srgb, #eab308 14%, var(--paper)); color: #a16207; border-color: color-mix(in srgb, #eab308 45%, var(--line)); }
+.lite .lt-act.detail:hover:not(:disabled) { background: #eab308; color: #1c1917; border-color: #eab308; }
 .lite .lt-act.del { color: var(--red); border-color: color-mix(in srgb, var(--red) 30%, var(--line)); }
 .lite .lt-act.del:hover:not(:disabled) { background: var(--red); color: #fff; border-color: var(--red); }
 .lite .lt-editing { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }

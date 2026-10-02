@@ -176,9 +176,9 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
                 <div className="lt-actions">
                   <button type="button" className="lt-act edit" disabled={busy !== null} onClick={() => onEdit(quote)}>Editar</button>
                   <button type="button" className="lt-act print" disabled={busy !== null} onClick={() => void print(quote, "SIMPLE")}>
-                    {b && busy === `${quote.id}:SIMPLE` ? "…" : "Imprimir"}
+                    {b && busy === `${quote.id}:SIMPLE` ? "…" : "Ver"}
                   </button>
-                  <button type="button" className="lt-act" disabled={busy !== null} title="Imprimir el PDF detallado" onClick={() => void print(quote, "DETALLADO")}>
+                  <button type="button" className="lt-act detail" disabled={busy !== null} title="Ver el PDF detallado" onClick={() => void print(quote, "DETALLADO")}>
                     {b && busy === `${quote.id}:DETALLADO` ? "…" : "Detallado"}
                   </button>
                   <button type="button" className="lt-act del" disabled={busy !== null} onClick={() => void remove(quote)}>
