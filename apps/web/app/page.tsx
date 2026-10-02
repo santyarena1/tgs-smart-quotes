@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { readUiMode } from "../lite/lite-mode";
+import { saveUiMode } from "../lite/lite-mode";
 
 export default function Page() {
   const router = useRouter();
   useEffect(() => {
-    router.replace(readUiMode() === "lite" ? "/lite" : "/dashboard");
+    saveUiMode("full");
+    router.replace("/dashboard");
   }, [router]);
   return null;
 }

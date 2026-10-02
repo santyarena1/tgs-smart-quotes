@@ -1,4 +1,5 @@
-/** Modo de la interfaz: "lite" (solo presupuestos y colecciones) o "full" (suite completa). */
+/** Modo de la interfaz: "lite" (solo presupuestos y colecciones) o "full" (suite completa).
+ *  El arranque (`/`) siempre abre full; LITE se elige a mano con el interruptor. */
 const KEY = "tgs.mode";
 
 export type UiMode = "lite" | "full";
