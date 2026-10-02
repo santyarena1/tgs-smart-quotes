@@ -460,15 +460,13 @@ export class WhatsappController {
       select: {unreadCount: true},
     });
     if (!before) throw new NotFoundException('La conversación no existe');
+    // Un chat ya leído no se toca: escribirlo igual cambiaba updatedAt, el tiempo real
+    // lo anunciaba como novedad, la pantalla recargaba y lo volvía a marcar (loop).
+    if (before.unreadCount === 0) return jsonSafe({chatKey, unreadCount: 0});
     const conversation = await db.chatbotConversation.update({
       where: {chatKey},
       data: {unreadCount: 0, lastReadAt: new Date()},
     });
-    // Solo se le avisa a Meta si de verdad había algo sin leer: abrir un chat ya
-    // leído no debería gastar una llamada a la API en cada clic.
-    if (before.unreadCount === 0) {
-      return jsonSafe({chatKey: conversation.chatKey, unreadCount: 0});
-    }
     // Además del contador interno, se le avisa a Meta para que el cliente vea el tilde azul.
     const lastInbound = await db.chatbotMessageLog.findFirst({
       where: {conversationKey: chatKey, direction: 'INBOUND', waMessageId: {not: null}},

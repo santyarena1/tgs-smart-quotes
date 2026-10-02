@@ -72,7 +72,10 @@ export function matchesConfiguredAutoMessage(text: string, patterns: string[]): 
   return patterns.some((pattern) => {
     const candidate = normalizeAutoMessage(pattern);
     if (candidate.length < 4) return false;
-    if (normalized.startsWith(candidate) || candidate.startsWith(normalized)) return true;
+    if (normalized.startsWith(candidate)) return true;
+    // Una vista previa recortada del automático cuenta, pero un "Hola" del cliente no:
+    // tiene que cubrir casi todo el texto configurado.
+    if (candidate.startsWith(normalized) && normalized.length >= candidate.length * 0.8) return true;
     const words = candidate.split(' ').filter(Boolean);
     if (words.length < 3) return false;
     return words.filter((word) => normalized.includes(word)).length / words.length >= 0.85;

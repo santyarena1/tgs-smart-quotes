@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.1",
+    date: "2026-10-02",
+    title: "Arreglos: \"Demasiadas solicitudes\" y el bot que no contestaba un \"Hola\"",
+    items: [
+      "Con un chat abierto el CRM se recargaba solo unas 40 veces por minuto (marcar como leído contaba como novedad y volvía a recargar): ya no",
+      "El límite de pedidos ahora es por usuario y no compartido por toda la empresa, así que nadie se queda sin servicio por lo que hace otro",
+      "Un \"Hola\" del cliente se confundía con el mensaje automático de bienvenida de WhatsApp y el bot no lo contestaba",
+    ],
+  },
+  {
     version: "0.16.0",
     date: "2026-10-02",
     title: "Todas las reglas del bot se pueden editar",

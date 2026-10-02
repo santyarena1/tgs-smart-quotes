@@ -66,6 +66,11 @@ describe('filtro de mensajes automáticos', () => {
     expect(matchesConfiguredAutoMessage('Hola, quería consultar por una placa de video', patterns)).toBe(false);
   });
 
+  it('un "Hola" del cliente no es el automático aunque el automático empiece igual', () => {
+    expect(matchesConfiguredAutoMessage('Hola', patterns)).toBe(false);
+    expect(matchesConfiguredAutoMessage('hola como', patterns)).toBe(false);
+  });
+
   it('ignora patrones demasiado cortos para ser confiables', () => {
     expect(matchesConfiguredAutoMessage('hola', ['ho'])).toBe(false);
   });
