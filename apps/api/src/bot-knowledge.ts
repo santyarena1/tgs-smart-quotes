@@ -142,5 +142,26 @@ export async function buildSystemData(input: {chatKey: string; message: string; 
   if (pcs.length) {
     sections.push(`PCs ARMADAS PUBLICADAS EN LA TIENDA (precio vigente${input.budgetCents ? `, las más cercanas a su presupuesto de ${money(BigInt(input.budgetCents))}` : ''}). Podés recomendar 1 o 2 que encajen con lo que quiere y preguntarle cuál le gusta.\n${pcs.join('\n')}`);
   }
-  return sections.join('\n\n');
+  sections.push(await requestQueue(input.chatKey).catch(() => ''));
+  return sections.filter(Boolean).join('\n\n');
+}
+
+const REQUEST_STATE: Record<string, string> = {
+  PENDIENTE: 'pendiente (todavía no la empezaron)',
+  EN_PREPARACION: 'en preparación (la están armando)',
+  LISTA: 'lista (el presupuesto ya está hecho)',
+  ENVIADA: 'enviada',
+};
+
+/** Cola del equipo y solicitud en curso de este cliente: para prometer plazos sin mentir. */
+async function requestQueue(chatKey: string): Promise<string> {
+  const [queue, conversation] = await Promise.all([
+    db.quoteRequest.count({where: {state: {in: ['PENDIENTE', 'EN_PREPARACION']}}}),
+    db.chatbotConversation.findUnique({where: {chatKey}, select: {activeRequest: {select: {state: true, title: true}}}}),
+  ]);
+  const active = conversation?.activeRequest && conversation.activeRequest.state !== 'CERRADA' ? conversation.activeRequest : null;
+  return [
+    `COLA DE PRESUPUESTOS DEL EQUIPO: ${queue} ${queue === 1 ? 'solicitud' : 'solicitudes'} por armar.`,
+    active ? `Este cliente ya tiene una solicitud ${REQUEST_STATE[active.state] ?? active.state}: "${active.title}".` : 'Este cliente no tiene una solicitud en curso.',
+  ].join('\n');
 }

@@ -524,6 +524,8 @@ model QuoteRequest {
   assignee             User?                 @relation("RequestAssignee", fields: [assigneeId], references: [id])
   state                RequestState          @default(PENDIENTE)
   readyAt              DateTime?
+  /// Cuándo el bot tomó la solicitud LISTA para mandarle el presupuesto al cliente (una sola vez).
+  botDeliveredAt       DateTime?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   families             QuoteFamily[]
@@ -1118,6 +1120,8 @@ model ChatbotSettings {
   salesRules                Json?
   stagePlaybook             Json?
   writingFilters            Json?
+  /// Avisos al equipo por solicitudes del bot y envío automático del presupuesto listo.
+  teamAlerts                Json?
   /// Horas sin mensajes del vendedor tras las cuales el bot retoma un chat pausado. 0 = nunca.
   autoResumeHours           Int         @default(0)
   /// chatKeys (`tel:...`) que entrenan al bot: sus mensajes no se atienden como cliente.

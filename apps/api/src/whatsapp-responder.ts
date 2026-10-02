@@ -11,6 +11,7 @@
  *  - El bot vuelve a un chat pausado solo de forma explícita, o por la regla de
  *    reanudación automática si está configurada.
  */
+import {isTeamNumber} from './crm-team-alerts.js';
 import {Logger} from '@nestjs/common';
 import {db, Prisma} from '@tgs/database';
 import {runChatbotResponse} from './chatbot-engine.js';
@@ -40,6 +41,11 @@ export async function scheduleReply(chatKey: string): Promise<void> {
   await cancelPendingBotReplies(chatKey, 'El cliente escribió de nuevo antes de que saliera la respuesta.');
   // El entrenador se atiende aunque el bot esté apagado para los clientes.
   const trainer = Boolean(settings?.trainerNumbers.includes(chatKey));
+  // Los vendedores que reciben avisos le escriben al número del bot: no son clientes.
+  if (!trainer && await isTeamNumber(chatKey)) {
+    logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: 'TEAM_MEMBER'}));
+    return;
+  }
   if (!settings?.enabled && !trainer) {
     logger.log(JSON.stringify({event: 'whatsapp_reply_skipped', chatKey, action: 'DISABLED'}));
     return;

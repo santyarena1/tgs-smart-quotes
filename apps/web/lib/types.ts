@@ -263,6 +263,7 @@ export type ChatbotSettings = {
   salesRules: string[];
   stagePlaybook: Record<string, string>;
   writingFilters: { noAccents: boolean; noOpeningMarks: boolean; noFinalPeriod: boolean; noFormatting: boolean };
+  teamAlerts: { enabled: boolean; numbers: string[]; templateId: string | null; autoSendQuote: boolean };
   updatedAt?: string;
 };
 

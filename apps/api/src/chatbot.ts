@@ -84,6 +84,11 @@ export class ChatbotController {
       const old = await tx.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
       // `responses` no es columna (se mapea a knowledgeEntries); nunca debe entrar al spread de Prisma.
       const {responses: _responses, ...columns} = body;
+      // Los números del equipo se guardan como chatKey, igual que los chats, para reconocerlos.
+      columns.teamAlerts = {
+        ...body.teamAlerts,
+        numbers: [...new Set(body.teamAlerts.numbers.map((number) => normalizePhone(number)).filter((value): value is string => Boolean(value)).map((value) => `tel:${value}`))],
+      };
       const next = await tx.chatbotSettings.update({
         where: {id: 'singleton'},
         data: {

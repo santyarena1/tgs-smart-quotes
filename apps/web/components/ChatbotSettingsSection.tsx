@@ -1,7 +1,7 @@
 "use client";
 
 import {FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useState} from "react";
-import {api} from "../lib/api";
+import {api, listWhatsappTemplates, type WhatsappTemplate} from "../lib/api";
 import { INTENT_LABEL, temperatureBadge } from "../lib/crm";
 import type {ChatbotResponseEntry, ChatbotSettings, Quote} from "../lib/types";
 import {Alert, Checkbox, Field, Loading, Tabs, errorMessage} from "./shared";
@@ -10,7 +10,7 @@ const uid=()=>globalThis.crypto?.randomUUID?.()??`respuesta-${Date.now()}-${Math
 const splitLines=(value:string)=>value.split("\n").map(item=>item.trim()).filter(Boolean);
 const emptyAttachments=()=>({imageUrl:null,url:null,quote:null});
 type AiModelOption={id:string;created:number;ownedBy:string};
-type TabId="try"|"voice"|"rules"|"bubbles"|"knowledge"|"hours"|"handoff"|"advanced";
+type TabId="try"|"voice"|"rules"|"requests"|"bubbles"|"knowledge"|"hours"|"handoff"|"advanced";
 type Mode=ChatbotSettings["defaultMode"];
 type DayKey=keyof ChatbotSettings["businessHours"]["schedule"];
 const modelEfficiencyHint=(id:string)=>/(nano|mini|small|flash)/i.test(id)?"económico/eficiente":null;
@@ -496,6 +496,35 @@ function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Part
   </>;
 }
 
+/** Cuando el bot no tiene qué ofrecer, pide el presupuesto al equipo; cuando está listo, lo manda solo. */
+function RequestsTab({settings,set}:{settings:ChatbotSettings;set:(values:Partial<ChatbotSettings>)=>void}) {
+  const [templates,setTemplates]=useState<WhatsappTemplate[]>([]);
+  useEffect(()=>{listWhatsappTemplates().then(list=>setTemplates(list.filter(item=>item.status==="APPROVED"))).catch(()=>undefined)},[]);
+  const alerts=settings.teamAlerts;
+  const patch=(values:Partial<ChatbotSettings["teamAlerts"]>)=>set({teamAlerts:{...alerts,...values}});
+  return <>
+    <Section title="Presupuestos que pide el bot" note="Si el cliente busca algo que no está en el catálogo ni en las PCs publicadas, el bot no sigue preguntando: con el uso y el presupuesto le promete opciones a medida y crea una solicitud en Solicitudes. El plazo que promete depende de cuántas haya en cola (0-1: 'ya te lo mando', 2-4: 'ahora te lo armo', 5 o más: 'en un ratito'); eso se edita en Reglas de venta.">
+      <label className="bot-filter">
+        <input type="checkbox" checked={alerts.autoSendQuote} onChange={event=>patch({autoSendQuote:event.target.checked})}/>
+        <span><strong>Mandar el presupuesto solo apenas está listo</strong><small>Cuando el vendedor guarda el presupuesto de la solicitud, el bot se lo manda al cliente con el PDF y un mensaje cálido. Si el chat lo tomó un vendedor, está en sugerencias o pasaron 24 h, avisa en la campana para mandarlo a mano.</small></span>
+      </label>
+    </Section>
+    <Section title="Aviso al equipo" note="Cada solicitud nueva aparece en la campana del CRM. Además, el número del bot le escribe por WhatsApp a estos números con el cliente, qué busca, el presupuesto y los links.">
+      <label className="bot-filter">
+        <input type="checkbox" checked={alerts.enabled} onChange={event=>patch({enabled:event.target.checked})}/>
+        <span><strong>Avisar por WhatsApp</strong><small>El bot no les responde como si fueran clientes.</small></span>
+      </label>
+      <ListEditor label="Números que reciben el aviso" values={alerts.numbers.map(number=>`+${number.replace(/^tel:/,"")}`)} onChange={numbers=>patch({numbers})} placeholder={"11 2345-6789\n11 9876-5432"} hint="Uno por línea, como lo escribas. Se guardan normalizados."/>
+      <Field label="Plantilla para avisar fuera de las 24 h" hint="WhatsApp solo deja escribirle a un número que le habló al bot en las últimas 24 h. Para el resto hace falta una plantilla aprobada (variables en orden: cliente, qué busca, link). Si el vendedor le escribe algo al bot cada día, no hace falta.">
+        <select value={alerts.templateId??""} onChange={event=>patch({templateId:event.target.value||null})}>
+          <option value="">Sin plantilla: solo a quien le escribió al bot en las últimas 24 h</option>
+          {templates.map(template=><option key={template.id} value={template.id}>{template.name}</option>)}
+        </select>
+      </Field>
+    </Section>
+  </>;
+}
+
 export function ChatbotSettingsSection() {
   const [settings,setSettings]=useState<ChatbotSettings|null>(null);
   const [saved,setSaved]=useState<string>("");
@@ -565,6 +594,7 @@ export function ChatbotSettingsSection() {
     {id:"try",label:"Probar"},
     {id:"voice",label:"Cómo habla"},
     {id:"rules",label:"Reglas de venta"},
+    {id:"requests",label:"Presupuestos y avisos"},
     {id:"bubbles",label:"Mensajes y burbujas"},
     {id:"knowledge",label:`Qué sabe (${activeRules})`},
     {id:"hours",label:"Horario"},
@@ -609,6 +639,7 @@ export function ChatbotSettingsSection() {
     {activeTab==="try"?<Simulator settings={settings} dirty={dirty}/>:null}
 
     {activeTab==="rules"?<SalesRulesTab settings={settings} set={set}/>:null}
+    {activeTab==="requests"?<RequestsTab settings={settings} set={set}/>:null}
 
     {activeTab==="voice"?<>
       <Section title="Personalidad" note="Quién es el bot y cómo trata a los clientes. Es la instrucción más importante: cuanto más concreta, mejor.">

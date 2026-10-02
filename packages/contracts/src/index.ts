@@ -667,12 +667,14 @@ export const DEFAULT_SALES_RULES: string[] = [
   'Los DATOS DEL SISTEMA son consultas en vivo al catálogo y a la tienda: sus precios son reales y vigentes, y podés informarlos y recomendar esas PCs. Lo que NO podés es confirmar stock para reservar o cobrar: eso lo confirma una persona (decí que lo verificás y derivá cuando quiera avanzar con la compra).',
   'Cuando recomiendes una PC publicada, como mucho dos opciones, con su precio y su link tal cual figuran, y cerrá preguntando cuál le gusta o si la quiere ajustar.',
   'Evitá repetir literalmente la última respuesta del negocio.',
+  'Agarrá al cliente en caliente: si en DATOS DEL SISTEMA no hay un producto o una PC publicada que encaje con lo que pide, no hagas más de una o dos preguntas (para qué la usa y cuánto quiere gastar). Con eso alcanza: decile que le armás opciones a medida y pedí el presupuesto al equipo (shouldCreateRequest=true). No lo derives a una persona por esto, no lo dejes sin respuesta y no sigas preguntando en loop.',
+  'Cuando le prometas un presupuesto a medida, el plazo depende de la COLA del equipo que figura en DATOS DEL SISTEMA: con 0 o 1 pendientes, \"ya te lo mando\"; con 2 a 4, \"ahora te lo armo y te lo paso\"; con 5 o más, \"en un ratito te lo paso\". Nunca des minutos ni horas exactas. Si ya tiene una solicitud en curso, no le pidas los datos de nuevo: decile que ya lo están armando.',
 ];
 
 /** Qué hace un buen vendedor en cada etapa: el bot sabe en cuál está y lleva al cliente a la siguiente. */
 export const DEFAULT_STAGE_PLAYBOOK: Record<string, string> = {
   NEW: 'Recién escribe. Saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.',
-  QUALIFYING: 'Ya sabés algo de lo que quiere. Completá lo que falta (juegos o programas, presupuesto) y, si hay PCs en DATOS DEL SISTEMA que encajen, ofrecé una o dos opciones con precio y link. Si no, que un vendedor arme opciones.',
+  QUALIFYING: 'Ya sabés algo de lo que quiere. Si hay PCs o productos en DATOS DEL SISTEMA que encajen, ofrecé una o dos opciones con precio y link. Si no, con uso y presupuesto alcanza: prometé un presupuesto a medida y pedíselo al equipo (shouldCreateRequest=true).',
   QUOTE_SENT: 'Ya tiene un presupuesto. Preguntá qué le pareció, resolvé dudas u objeciones (precio, rendimiento, componentes) y ofrecé ajustarlo o una alternativa.',
   NEGOTIATION: 'Está decidiendo. Aclará medios de pago y cuotas, plazos de armado y entrega, y proponé avanzar con la seña del 20% para congelar el precio.',
   DEPOSIT: 'Ya señó o está por pagar. Coordiná pago, retiro o envío y transmití confianza. Lo que sea cobrar o confirmar stock lo hace una persona.',
@@ -694,6 +696,15 @@ export const writingFiltersSchema = z.object({
   noFormatting: z.boolean(),
 }).strict();
 export type WritingFilters = z.infer<typeof writingFiltersSchema>;
+
+/** Avisos al equipo cuando el bot pide un presupuesto, y envío automático cuando está listo. */
+export const teamAlertsSchema = z.object({
+  enabled: z.boolean(),
+  numbers: z.array(z.string().trim().min(1).max(40)).max(20),
+  templateId: z.string().nullable(),
+  autoSendQuote: z.boolean(),
+}).strict();
+export type TeamAlertsInput = z.infer<typeof teamAlertsSchema>;
 
 export const chatbotSettingsInputSchema = z
   .object({
@@ -783,6 +794,7 @@ export const chatbotSettingsInputSchema = z
     /** Guion por etapa de la venta (editable). */
     stagePlaybook: z.record(z.string(), z.string().trim().max(2000)).default(DEFAULT_STAGE_PLAYBOOK),
     writingFilters: writingFiltersSchema.default(DEFAULT_WRITING_FILTERS),
+    teamAlerts: teamAlertsSchema.default({enabled: true, numbers: [], templateId: null, autoSendQuote: true}),
   })
   .strict();
 export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({

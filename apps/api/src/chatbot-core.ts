@@ -16,6 +16,7 @@ import {
   type WritingFilters,
 } from '@tgs/contracts';
 import {db} from '@tgs/database';
+import {parseTeamAlerts} from './crm-team-alerts.js';
 import {normalizePhone, normalizeText, productSimilarity} from '@tgs/validation';
 
 export const CHAT_KEY_MAX = 200;
@@ -117,6 +118,7 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     stagePlaybook: row.stagePlaybook && typeof row.stagePlaybook === 'object' && !Array.isArray(row.stagePlaybook)
       ? {...DEFAULT_STAGE_PLAYBOOK, ...(row.stagePlaybook as Record<string, string>)}
       : DEFAULT_STAGE_PLAYBOOK,
+    teamAlerts: parseTeamAlerts(row.teamAlerts),
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
       : DEFAULT_WRITING_FILTERS,

@@ -417,12 +417,18 @@ async function finishLogIfComplete(logId: string | null, waMessageId: string) {
     where: {id: logId},
     data: {status: 'SENT', sentAt: new Date(), waMessageId},
   }).catch(() => undefined);
-  const log = await db.chatbotMessageLog.findUnique({where: {id: logId}, select: {conversationKey: true, text: true}});
+  const log = await db.chatbotMessageLog.findUnique({where: {id: logId}, select: {conversationKey: true, text: true, createdAt: true}});
   if (log) {
     const now = new Date();
     await db.chatbotConversation.update({
       where: {chatKey: log.conversationKey},
       data: {lastOutboundText: log.text, lastOutboundAt: now, lastMessageAt: now},
+    }).catch(() => undefined);
+    // Ya le contestamos (el bot o un vendedor): el chat deja de figurar como no leído,
+    // salvo que el cliente haya escrito algo nuevo después de que se armó esta respuesta.
+    await db.chatbotConversation.updateMany({
+      where: {chatKey: log.conversationKey, unreadCount: {gt: 0}, OR: [{lastInboundAt: null}, {lastInboundAt: {lte: log.createdAt}}]},
+      data: {unreadCount: 0},
     }).catch(() => undefined);
   }
 }

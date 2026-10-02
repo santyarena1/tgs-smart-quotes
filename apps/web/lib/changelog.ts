@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.0",
+    date: "2026-10-02",
+    title: "El bot agarra al cliente en caliente: pide el presupuesto al equipo y lo manda solo",
+    items: [
+      "Si lo que busca el cliente no está en el catálogo ni en las PCs publicadas, el bot no sigue preguntando: con el uso y el presupuesto le promete opciones a medida y crea la solicitud en Solicitudes",
+      "Promete según la cola del equipo: con 0 o 1 pendientes \"ya te lo mando\", con 2 a 4 \"ahora te lo armo\", con 5 o más \"en un ratito\". Si ya tiene una solicitud en curso, no le vuelve a pedir los datos",
+      "Aviso al equipo en la campana del CRM y por WhatsApp desde el número del bot a los vendedores que configures (Configuración → Chatbot → Presupuestos y avisos)",
+      "Apenas el vendedor guarda el presupuesto de la solicitud, el bot se lo manda al cliente con el PDF y un mensaje cálido. Si el chat lo tomó un vendedor o pasaron 24 h, avisa para mandarlo a mano",
+      "Un chat cuyo último mensaje fue nuestro (del bot o de un vendedor) ya no figura como no leído",
+    ],
+  },
+  {
     version: "0.16.1",
     date: "2026-10-02",
     title: "Arreglos: \"Demasiadas solicitudes\" y el bot que no contestaba un \"Hola\"",

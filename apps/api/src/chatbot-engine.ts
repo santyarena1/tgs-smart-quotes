@@ -8,6 +8,7 @@
  * Las tres barreras del kill-switch, la escalación, la reutilización determinística
  * de respuestas y la creación automática de solicitudes se conservan tal cual.
  */
+import {alertTeamNewRequest} from './crm-requests.js';
 import {
   BadRequestException,
   BadGatewayException,
@@ -435,6 +436,11 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       }
       return {log, notification: null, action: 'AUTO_REPLY' as const, requestResult};
     });
+
+    // El bot pidió un presupuesto al equipo: aviso en la campana y por WhatsApp a los vendedores.
+    if (output.requestResult?.created) {
+      void alertTeamNewRequest(output.requestResult.request.id, body.chatKey).catch(() => undefined);
+    }
 
     // La ficha del cliente se completa sola con lo que surge de la charla.
     if (!body.simulation && (result.result as {profile?: LeadProfile}).profile) {
