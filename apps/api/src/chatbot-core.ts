@@ -406,12 +406,19 @@ export async function ensureChatbotRequest(
 }
 
 /**
- * Escritura de WhatsApp de una persona real: sin tildes, sin signos de apertura
- * (¿ ¡) y sin punto al final del mensaje (los puntos suspensivos y los del medio
- * quedan). La ñ se respeta. Los links no se tocan.
+ * Escritura de WhatsApp de una persona real: sin formato de documento (negritas,
+ * títulos, links con corchetes, guiones largos), sin tildes, sin signos de apertura
+ * (¿ ¡) y sin punto al final del mensaje (los suspensivos y los del medio quedan).
+ * La ñ se respeta. Los links no se tocan.
  */
 export function casualText(text: string): string {
-  return text
+  const plain = text
+    .replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '$2')
+    .replace(/\*\*|__/g, '')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/\s+—\s+/g, ', ')
+    .replace(/—/g, '-');
+  return plain
     .split(/(\bhttps?:\/\/\S+)/)
     .map((part, index) => (index % 2
       ? part

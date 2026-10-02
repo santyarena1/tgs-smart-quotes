@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.5",
+    date: "2026-10-01",
+    title: "El bot ofrece PCs con más calidez",
+    items: [
+      "Cuando recomienda PCs, primero muestra que entendió lo que busca, después cuenta cada opción como un vendedor (\"una con Ryzen 5 5500 y una 1660 Super, sale...\") y cierra con una pregunta para ayudarlo a elegir",
+      "Nunca más negritas, títulos en mayúsculas de la tienda, listas tipo documento ni links con corchetes: el link va pegado solo, en su propia burbuja",
+    ],
+  },
+  {
     version: "0.15.4",
     date: "2026-10-01",
     title: "Sin punto final en los mensajes del bot",

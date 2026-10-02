@@ -140,7 +140,7 @@ export async function buildSystemData(input: {chatKey: string; message: string; 
     sections.push(`PRODUCTOS DEL CATÁLOGO QUE COINCIDEN (precio vigente; el stock lo confirma una persona antes de reservar)\n${products.join('\n')}`);
   }
   if (pcs.length) {
-    sections.push(`PCs ARMADAS PUBLICADAS EN LA TIENDA (precio vigente${input.budgetCents ? `, las más cercanas a su presupuesto de ${money(BigInt(input.budgetCents))}` : ''}). Podés recomendar 1 o 2 que encajen con lo que quiere, con precio y link, y preguntarle cuál le gusta.\n${pcs.join('\n')}`);
+    sections.push(`PCs ARMADAS PUBLICADAS EN LA TIENDA (precio vigente${input.budgetCents ? `, las más cercanas a su presupuesto de ${money(BigInt(input.budgetCents))}` : ''}). Podés recomendar 1 o 2 que encajen con lo que quiere y preguntarle cuál le gusta. NO copies el título de la tienda: contala como un vendedor ("una con Ryzen 5 5500, 16 de RAM y una 1660 Super, te queda en $1.056.900"), una PC por burbuja, y el link solo en su propia burbuja.\n${pcs.join('\n')}`);
   }
   return sections.join('\n\n');
 }
