@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.0",
+    date: "2026-10-02",
+    title: "Todas las reglas del bot se pueden editar",
+    items: [
+      "Configuración → Chatbot → Reglas de venta: las reglas de estilo y de venta que el bot cumple en cada respuesta, una por una, para editar, reordenar, quitar o agregar. Botón para volver a las de fábrica",
+      "Guion por etapa de la venta (nuevo, calificando, presupuesto, negociación, seña, ganado, perdido), también editable",
+      "Interruptores de cómo escribe: sin tildes, sin ¿ ¡, sin punto final y sin formato de documento. Se aplican también al mensaje del PDF del presupuesto y al de recontacto",
+      "Las pantallas del CRM y la configuración del bot usan todo el ancho de la ventana (antes se cortaban antes del borde)",
+    ],
+  },
+  {
     version: "0.15.5",
     date: "2026-10-01",
     title: "El bot ofrece PCs con más calidez",

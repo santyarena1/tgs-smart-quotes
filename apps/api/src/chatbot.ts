@@ -36,6 +36,9 @@ import {
   type ChatbotRecontactInput,
   type ChatbotRespondInput,
   type ChatbotSettingsInput,
+  DEFAULT_SALES_RULES,
+  DEFAULT_STAGE_PLAYBOOK,
+  DEFAULT_WRITING_FILTERS,
 } from '@tgs/contracts';
 import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
@@ -64,6 +67,12 @@ export class ChatbotController {
   @Get('settings')
   async settings() {
     return jsonSafe(settingsDto(await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}})));
+  }
+
+  /** Reglas de fábrica, para el botón "Restaurar" de Configuración → Reglas de venta. */
+  @Get('settings/rule-defaults')
+  ruleDefaults() {
+    return {salesRules: DEFAULT_SALES_RULES, stagePlaybook: DEFAULT_STAGE_PLAYBOOK, writingFilters: DEFAULT_WRITING_FILTERS};
   }
 
   @Put('settings')
@@ -138,6 +147,7 @@ export class ChatbotController {
       config:{
         persona:`${settings.persona}\n\nINSTRUCCIÓN PARA PRESENTAR PRESUPUESTOS\n${settings.quoteSendPrompt}`,
         openingMessages:[],closingMessages:[],guidance:[],
+        salesRules:settings.salesRules,writingFilters:settings.writingFilters,
         responses:[{id:'quote-send',enabled:true,activators:[],similarityThreshold:0,answer:`Presentá este presupuesto sin alterar ni inventar datos: ${JSON.stringify(quoteContext)}`,context:'El archivo PDF quedará adjunto al mismo envío.',attachments:{imageUrl:null,url:null,quote:null}}],
         escalationInstructions:'Generá un mensaje editable y no escales.',modelCanEscalate:false,
         businessContext:`Mensaje para presentar un PDF de presupuesto. Datos autoritativos: ${JSON.stringify(quoteContext)}`,
@@ -456,6 +466,8 @@ export class ChatbotController {
         openingMessages:[],
         closingMessages:[],
         guidance:[],
+        salesRules:settings.salesRules,
+        writingFilters:settings.writingFilters,
         responses:[{
           id:'recontact',enabled:true,activators:[],similarityThreshold:0,
           answer:settings.recontactPrompt||'Retomá la conversación de forma natural, breve y útil, sin inventar información.',

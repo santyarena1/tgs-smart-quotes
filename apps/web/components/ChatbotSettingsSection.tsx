@@ -10,7 +10,7 @@ const uid=()=>globalThis.crypto?.randomUUID?.()??`respuesta-${Date.now()}-${Math
 const splitLines=(value:string)=>value.split("\n").map(item=>item.trim()).filter(Boolean);
 const emptyAttachments=()=>({imageUrl:null,url:null,quote:null});
 type AiModelOption={id:string;created:number;ownedBy:string};
-type TabId="try"|"voice"|"bubbles"|"knowledge"|"hours"|"handoff"|"advanced";
+type TabId="try"|"voice"|"rules"|"bubbles"|"knowledge"|"hours"|"handoff"|"advanced";
 type Mode=ChatbotSettings["defaultMode"];
 type DayKey=keyof ChatbotSettings["businessHours"]["schedule"];
 const modelEfficiencyHint=(id:string)=>/(nano|mini|small|flash)/i.test(id)?"económico/eficiente":null;
@@ -419,6 +419,83 @@ function summarizeHours(settings:ChatbotSettings):string {
 
 // --------------------------------------------------------------------- módulo
 
+const STAGE_LABELS:Array<[string,string]>=[
+  ["NEW","Nuevo: recién escribe"],
+  ["QUALIFYING","Calificando: ya sabemos algo de lo que quiere"],
+  ["QUOTE_SENT","Presupuesto enviado"],
+  ["NEGOTIATION","Negociación: está decidiendo"],
+  ["DEPOSIT","Seña / pago"],
+  ["WON","Ganado: ya compró"],
+  ["LOST","Perdido: no compró"],
+];
+
+const WRITING_FILTERS:Array<[keyof ChatbotSettings["writingFilters"],string,string]>=[
+  ["noAccents","Sin tildes","\"Que juegos usas\" en vez de \"Qué juegos usás\". La ñ se respeta."],
+  ["noOpeningMarks","Sin signos de apertura","Saca ¿ y ¡: \"Buenisimo!\""],
+  ["noFinalPeriod","Sin punto final","\"Dale, te lo armo\". Los puntos del medio y los suspensivos quedan."],
+  ["noFormatting","Sin formato de documento","Sin negritas, títulos, guiones largos ni links con corchetes."],
+];
+
+type RuleDefaults=Pick<ChatbotSettings,"salesRules"|"stagePlaybook"|"writingFilters">;
+
+/** Reglas de estilo y de venta, guion por etapa y filtros de escritura: todo lo que antes estaba fijo en el código. */
+function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Partial<ChatbotSettings>)=>void}) {
+  const [defaults,setDefaults]=useState<RuleDefaults|null>(null);
+  const [fresh,setFresh]=useState("");
+  useEffect(()=>{api<RuleDefaults>("/chatbot/settings/rule-defaults").then(setDefaults).catch(()=>undefined)},[]);
+  const rules=settings.salesRules;
+  const setRule=(index:number,text:string)=>set({salesRules:rules.map((rule,position)=>position===index?text:rule)});
+  const move=(index:number,delta:number)=>{
+    const next=[...rules];const target=index+delta;
+    if(target<0||target>=next.length)return;
+    [next[index],next[target]]=[next[target]!,next[index]!];
+    set({salesRules:next});
+  };
+  return <>
+    <Section title="Cómo escribe" note="Se aplica en código a cada mensaje del bot antes de salir, así que siempre se cumple. Los mensajes de los vendedores no se tocan.">
+      <div className="grid-2">
+        {WRITING_FILTERS.map(([key,label,hint])=><label key={key} className="bot-filter">
+          <input type="checkbox" checked={settings.writingFilters[key]} onChange={event=>set({writingFilters:{...settings.writingFilters,[key]:event.target.checked}})}/>
+          <span><strong>{label}</strong><small>{hint}</small></span>
+        </label>)}
+      </div>
+    </Section>
+
+    <Section
+      title={`Reglas de estilo y de venta (${rules.length})`}
+      note="Lo que el bot cumple en cada respuesta. Escribilas como se las dirías a un vendedor nuevo. Las indicaciones que aprobás en Entrenamiento se suman a estas y tienen prioridad."
+      aside={defaults?<button type="button" className="ghost" onClick={()=>set({salesRules:defaults.salesRules})}>Restaurar las de fábrica</button>:null}
+    >
+      <ol className="bot-rules">
+        {rules.map((rule,index)=><li key={index}>
+          <textarea rows={Math.min(6,Math.max(2,Math.ceil(rule.length/110)))} value={rule} aria-label={`Regla ${index+1}`} onChange={event=>setRule(index,event.target.value)}/>
+          <div className="bot-rule-actions">
+            <button type="button" className="ghost" disabled={index===0} onClick={()=>move(index,-1)} aria-label="Subir">↑</button>
+            <button type="button" className="ghost" disabled={index===rules.length-1} onClick={()=>move(index,1)} aria-label="Bajar">↓</button>
+            <button type="button" className="ghost danger" onClick={()=>set({salesRules:rules.filter((_,position)=>position!==index)})}>Quitar</button>
+          </div>
+        </li>)}
+      </ol>
+      <Field label="Nueva regla" hint="Ej.: Si preguntan por notebooks, aclará que no trabajamos notebooks y ofrecé una PC de escritorio.">
+        <textarea rows={2} value={fresh} onChange={event=>setFresh(event.target.value)}/>
+      </Field>
+      <div><button type="button" disabled={!fresh.trim()} onClick={()=>{set({salesRules:[...rules,fresh.trim()]});setFresh("")}}>+ Agregar regla</button></div>
+    </Section>
+
+    <Section
+      title="Guion por etapa de la venta"
+      note="Qué hace el bot según en qué parte de la venta está el cliente (la etapa se ve en el Embudo del CRM). Siempre intenta llevarlo a la etapa siguiente."
+      aside={defaults?<button type="button" className="ghost" onClick={()=>set({stagePlaybook:defaults.stagePlaybook})}>Restaurar el de fábrica</button>:null}
+    >
+      {STAGE_LABELS.map(([stage,label])=><Field key={stage} label={label}>
+        <textarea rows={2} value={settings.stagePlaybook[stage]??""} onChange={event=>set({stagePlaybook:{...settings.stagePlaybook,[stage]:event.target.value}})}/>
+      </Field>)}
+    </Section>
+
+    <p className="section-note">Quedan fijas en el sistema solo las reglas técnicas (el formato en que la IA devuelve los datos, la ficha del cliente y la temperatura), porque si se cambian el bot deja de funcionar. Los cambios se aplican al guardar.</p>
+  </>;
+}
+
 export function ChatbotSettingsSection() {
   const [settings,setSettings]=useState<ChatbotSettings|null>(null);
   const [saved,setSaved]=useState<string>("");
@@ -487,6 +564,7 @@ export function ChatbotSettingsSection() {
   const tabs:Array<{id:TabId;label:string}>=[
     {id:"try",label:"Probar"},
     {id:"voice",label:"Cómo habla"},
+    {id:"rules",label:"Reglas de venta"},
     {id:"bubbles",label:"Mensajes y burbujas"},
     {id:"knowledge",label:`Qué sabe (${activeRules})`},
     {id:"hours",label:"Horario"},
@@ -500,7 +578,7 @@ export function ChatbotSettingsSection() {
       return !q||[response.answer,response.context,...response.activators].some(value=>value.toLowerCase().includes(q));
     });
 
-  return <form className="form-grid bot-settings" onSubmit={save} style={{maxWidth:1080}}>
+  return <form className="form-grid bot-settings" onSubmit={save}>
     {error?<Alert>{error}</Alert>:null}
     {notice&&!dirty?<Alert tone="ok">{notice}</Alert>:null}
 
@@ -529,6 +607,8 @@ export function ChatbotSettingsSection() {
     <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab}/>
 
     {activeTab==="try"?<Simulator settings={settings} dirty={dirty}/>:null}
+
+    {activeTab==="rules"?<SalesRulesTab settings={settings} set={set}/>:null}
 
     {activeTab==="voice"?<>
       <Section title="Personalidad" note="Quién es el bot y cómo trata a los clientes. Es la instrucción más importante: cuanto más concreta, mejor.">

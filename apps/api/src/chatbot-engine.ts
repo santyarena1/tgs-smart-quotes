@@ -244,6 +244,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             responseStyle: settings.responseStyle,
             systemData: systemData || undefined,
             salesStage: conversation.stage,
+            salesRules: settings.salesRules,
+            stagePlaybook: settings.stagePlaybook,
+            writingFilters: settings.writingFilters,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
               .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
               .map((item) => String(item.text)),
@@ -304,12 +307,12 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
       messages=[...messages,...urls];
     }
-    messages=shouldEscalate?[]:messages.map(casualText).filter(Boolean);
+    messages=shouldEscalate?[]:messages.map((text)=>casualText(text,settings.writingFilters)).filter(Boolean);
     const reply=messages.join('\n');
     const quoteFollowupMessage=!shouldEscalate
       &&settings.multiMessage.quoteFollowup.enabled
       &&resolvedAttachments.some(attachment=>attachment.quote)
-      ?casualText(settings.multiMessage.quoteFollowup.message.trim())||null
+      ?casualText(settings.multiMessage.quoteFollowup.message.trim(),settings.writingFilters)||null
       :null;
     if (!shouldEscalate && !reply) throw new BadRequestException('La IA no generó una respuesta utilizable');
     if (!shouldEscalate && settings.responseStyle.avoidRepetition && reply === conversation.lastOutboundText?.trim()) {

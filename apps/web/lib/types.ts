@@ -260,6 +260,9 @@ export type ChatbotSettings = {
   autoResumeHours?: number;
   transcribeAudio?: boolean;
   describeImages?: boolean;
+  salesRules: string[];
+  stagePlaybook: Record<string, string>;
+  writingFilters: { noAccents: boolean; noOpeningMarks: boolean; noFinalPeriod: boolean; noFormatting: boolean };
   updatedAt?: string;
 };
 

@@ -8,8 +8,12 @@
  */
 import {createQuoteRequest} from './quotes.js';
 import {
+  DEFAULT_SALES_RULES,
+  DEFAULT_STAGE_PLAYBOOK,
+  DEFAULT_WRITING_FILTERS,
   type ChatbotSettingsInput,
   type RequestCreateInput,
+  type WritingFilters,
 } from '@tgs/contracts';
 import {db} from '@tgs/database';
 import {normalizePhone, normalizeText, productSimilarity} from '@tgs/validation';
@@ -109,6 +113,13 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     guidance: Array.isArray(row.guidance) ? row.guidance : [],
     transcribeAudio: row.transcribeAudio !== false,
     describeImages: row.describeImages !== false,
+    salesRules: Array.isArray(row.salesRules) ? (row.salesRules as string[]) : DEFAULT_SALES_RULES,
+    stagePlaybook: row.stagePlaybook && typeof row.stagePlaybook === 'object' && !Array.isArray(row.stagePlaybook)
+      ? {...DEFAULT_STAGE_PLAYBOOK, ...(row.stagePlaybook as Record<string, string>)}
+      : DEFAULT_STAGE_PLAYBOOK,
+    writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
+      ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
+      : DEFAULT_WRITING_FILTERS,
   };
 }
 
@@ -406,26 +417,31 @@ export async function ensureChatbotRequest(
 }
 
 /**
- * Escritura de WhatsApp de una persona real: sin formato de documento (negritas,
- * títulos, links con corchetes, guiones largos), sin tildes, sin signos de apertura
- * (¿ ¡) y sin punto al final del mensaje (los suspensivos y los del medio quedan).
- * La ñ se respeta. Los links no se tocan.
+ * Escritura de WhatsApp de una persona real, según los filtros de Configuración:
+ * sin formato de documento (negritas, títulos, links con corchetes, guiones largos),
+ * sin tildes, sin signos de apertura (¿ ¡) y sin punto al final del mensaje (los
+ * suspensivos y los del medio quedan). La ñ se respeta. Los links no se tocan.
  */
-export function casualText(text: string): string {
-  const plain = text
-    .replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '$2')
-    .replace(/\*\*|__/g, '')
-    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-    .replace(/\s+—\s+/g, ', ')
-    .replace(/—/g, '-');
-  return plain
+export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITING_FILTERS): string {
+  let plain = text;
+  if (filters.noFormatting) {
+    plain = plain
+      .replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '$2')
+      .replace(/\*\*|__/g, '')
+      .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+      .replace(/\s+—\s+/g, ', ')
+      .replace(/—/g, '-');
+  }
+  plain = plain
     .split(/(\bhttps?:\/\/\S+)/)
-    .map((part, index) => (index % 2
-      ? part
-      : part
-          .replace(/[¿¡]/g, '')
-          .replace(/[áéíóúüÁÉÍÓÚÜ]/g, (char) => char.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))))
+    .map((part, index) => {
+      if (index % 2) return part;
+      let out = part;
+      if (filters.noOpeningMarks) out = out.replace(/[¿¡]/g, '');
+      if (filters.noAccents) out = out.replace(/[áéíóúüÁÉÍÓÚÜ]/g, (char) => char.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+      return out;
+    })
     .join('')
-    .trim()
-    .replace(/(?<!\.)\.((?:\s*\p{Extended_Pictographic}\uFE0F?)*)$/u, '$1');
+    .trim();
+  return filters.noFinalPeriod ? plain.replace(/(?<!\.)\.((?:\s*\p{Extended_Pictographic}\uFE0F?)*)$/u, '$1') : plain;
 }

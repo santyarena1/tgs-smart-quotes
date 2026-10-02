@@ -1114,6 +1114,10 @@ model ChatbotSettings {
   sendConfirmationTimeoutMs Int         @default(15000)
   /// Segundos que el bot espera a que el cliente termine de escribir antes de responder.
   replyDebounceSeconds      Int         @default(10)
+  /// Reglas de estilo y venta, guion por etapa y filtros de escritura. null = los de fábrica.
+  salesRules                Json?
+  stagePlaybook             Json?
+  writingFilters            Json?
   /// Horas sin mensajes del vendedor tras las cuales el bot retoma un chat pausado. 0 = nunca.
   autoResumeHours           Int         @default(0)
   /// chatKeys (`tel:...`) que entrenan al bot: sus mensajes no se atienden como cliente.

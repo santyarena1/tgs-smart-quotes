@@ -3707,3 +3707,15 @@ tr.selected { background: var(--canvas-2); }
 .pdf-layer-move { display: inline-flex; gap: 2px; }
 .pdf-layer-move button { width: 1.6rem; height: 1.6rem; padding: 0; border-radius: 6px; line-height: 1; }
 .pdf-layer-sub { margin: 0.8rem 0 0.3rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+
+/* Configuración del bot → Reglas de venta */
+.bot-filter { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); cursor: pointer; }
+.bot-filter input { margin-top: 0.2rem; }
+.bot-filter span { display: grid; gap: 0.15rem; }
+.bot-filter small { color: var(--muted); }
+.bot-rules { margin: 0; padding-left: 1.4rem; display: grid; gap: 0.6rem; }
+.bot-rules li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; align-items: start; }
+.bot-rules textarea { width: 100%; }
+.bot-rule-actions { display: flex; gap: 0.25rem; }
+.bot-rule-actions .danger { color: var(--red); }
+@media (max-width: 720px) { .bot-rules li { grid-template-columns: 1fr; } }

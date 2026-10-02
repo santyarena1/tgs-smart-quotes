@@ -217,7 +217,7 @@
 .cx-offline { position: fixed; left: 50%; top: 0.6rem; transform: translateX(-50%); z-index: 70; padding: 0.2rem 0.7rem; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-size: 0.78rem; box-shadow: var(--sh-1); }
 
 /* Páginas simples del CRM (respuestas rápidas) */
-.cx-page { overflow-y: auto; height: 100%; padding: 1.5rem clamp(1rem, 3vw, 2.5rem); display: grid; gap: 1rem; align-content: start; max-width: 960px; }
+.cx-page { overflow-y: auto; height: 100%; padding: 1.5rem clamp(1rem, 3vw, 2.5rem); display: grid; gap: 1rem; align-content: start; width: 100%; }
 .cx-page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .cx-page-head h1 { margin: 0 0 0.25rem; font-family: var(--brand); font-size: 1.5rem; }
 .cx-card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1rem; box-shadow: var(--sh-1); }
@@ -253,7 +253,7 @@
 }
 
 /* Entrenamiento */
-.cx-page.wide { max-width: 1100px; }
+.cx-page.wide { width: 100%; }
 .cx-tabs { display: flex; flex-wrap: wrap; gap: 0.3rem; border-bottom: 1px solid var(--line); padding-bottom: 0.5rem; }
 .cx-tabs button { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem; border-radius: 8px; background: transparent; color: var(--muted); font-family: var(--font); font-weight: 600; font-size: 0.86rem; }
 .cx-tabs button:hover:not(:disabled) { background: var(--canvas-2); color: var(--ink); }
@@ -321,7 +321,7 @@
 .cx-lead-line.next { color: var(--ok); font-weight: 600; white-space: normal; }
 
 /* ---------------------------------------------------------------- reportes */
-.cx-reports { max-width: 1180px; }
+.cx-reports { width: 100%; }
 .cx-reports .cx-page-head { display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
 .cx-segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--paper); }
 .cx-segmented button { border: 0; background: transparent; color: var(--muted); padding: 0.3rem 0.8rem; border-radius: 999px; font: inherit; font-size: 0.85rem; cursor: pointer; }

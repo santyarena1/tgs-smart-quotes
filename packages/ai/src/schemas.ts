@@ -213,6 +213,17 @@ export const chatbotResponseInputSchema = z.object({
     systemData: z.string().optional(),
     /** Etapa de la venta en la que está el cliente (para guiarlo al próximo paso). */
     salesStage: z.string().optional(),
+    /** Reglas de estilo y de venta editables en Configuración. */
+    salesRules: z.array(z.string()).optional(),
+    /** Guion por etapa de la venta, editable en Configuración. */
+    stagePlaybook: z.record(z.string(), z.string()).optional(),
+    /** Filtros de escritura (también se aplican en código a la salida). */
+    writingFilters: z.object({
+      noAccents: z.boolean(),
+      noOpeningMarks: z.boolean(),
+      noFinalPeriod: z.boolean(),
+      noFormatting: z.boolean(),
+    }).optional(),
     responseStyle: z.record(z.string(), z.unknown()),
     multiMessage: z.object({
       maxBubbles: z.number().int().min(1).max(5),
