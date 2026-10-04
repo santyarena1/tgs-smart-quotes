@@ -12,6 +12,7 @@ import {
   quoteRetargetSchema,
   quoteStateSchema,
   requestCreateSchema,
+  chatbotSettingsInputSchema,
   calculatorConfigInputSchema,
   navItemIdSchema,
   expenseCreateSchema,
@@ -160,5 +161,14 @@ describe("contratos del dominio", () => {
     expect(quoteSearchSchema.parse({ isBuiltPc: "1" }).isBuiltPc).toBe(true);
     expect(quoteSearchSchema.parse({ isBuiltPc: false }).isBuiltPc).toBe(false);
     expect(quoteSearchSchema.parse({}).isBuiltPc).toBeUndefined();
+  });
+
+  it("guardar el chatbot con followups de más no tira Unrecognized key", () => {
+    const result = chatbotSettingsInputSchema.safeParse({followups: {enabled: true, steps: []}});
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const text = result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(' | ');
+    expect(text).not.toMatch(/Unrecognized key/i);
+    expect(text).not.toMatch(/followups/i);
   });
 });

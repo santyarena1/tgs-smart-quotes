@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.5",
+    date: "2026-10-04",
+    title: "Se puede volver a cambiar el horario del bot",
+    items: [
+      "Al guardar Configuración → Chatbot (horario u otra cosa) salía \"Unrecognized key(s) in object: 'followups'\": el seguimiento de presupuestos se había colado en ese formulario. Ya se guarda el horario; los seguimientos siguen en el CRM",
+    ],
+  },
+  {
     version: "0.17.4",
     date: "2026-10-04",
     title: "La API vuelve a arrancar",

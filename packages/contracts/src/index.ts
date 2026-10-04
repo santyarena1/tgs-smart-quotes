@@ -706,7 +706,7 @@ export const teamAlertsSchema = z.object({
 }).strict();
 export type TeamAlertsInput = z.infer<typeof teamAlertsSchema>;
 
-export const chatbotSettingsInputSchema = z
+const chatbotSettingsObjectSchema = z
   .object({
     enabled: z.boolean(),
     defaultMode: chatbotModeSchema,
@@ -797,7 +797,16 @@ export const chatbotSettingsInputSchema = z
     teamAlerts: teamAlertsSchema.default({enabled: true, numbers: [], templateId: null, autoSendQuote: true}),
   })
   .strict();
-export const chatbotSettingsSchema = chatbotSettingsInputSchema.extend({
+
+const stripFollowups = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const {followups: _followups, ...rest} = value as Record<string, unknown>;
+  return rest;
+};
+
+/** followups vive en CRM → Seguimientos; si el GET lo mandó de más, el PUT no debe fallar. */
+export const chatbotSettingsInputSchema = z.preprocess(stripFollowups, chatbotSettingsObjectSchema);
+export const chatbotSettingsSchema = chatbotSettingsObjectSchema.extend({
   id: z.literal('singleton'),
   updatedAt: z.coerce.date(),
 });
