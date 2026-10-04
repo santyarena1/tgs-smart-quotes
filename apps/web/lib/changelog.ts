@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.7",
+    date: "2026-10-04",
+    title: "La API vuelve a compilar",
+    items: [
+      "El deploy de Probar el bot no armaba la imagen: el tipo de la respuesta pedía un campo que WhatsApp no manda. Ya compila",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-10-04",
     title: "Probar el bot es una charla de cliente, y se puede editar cómo presenta productos y presupuestos",

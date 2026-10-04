@@ -184,5 +184,11 @@ describe("contratos del dominio", () => {
     expect(parsed.simulation).toBe(true);
     expect(parsed.previewReply).toBe(true);
     expect(parsed.chatKey.startsWith("sim:")).toBe(true);
+    const whatsapp = chatbotRespondSchema.parse({
+      chatKey: "5491100000000",
+      message: "hola",
+      messageFingerprint: "wa:inbound:1",
+    });
+    expect(whatsapp.previewReply).toBeUndefined();
   });
 });
