@@ -193,6 +193,7 @@ export type AiSettings = {
 };
 
 export type ChatbotMode = "OFF" | "SUGGEST" | "AUTO";
+export type ChatbotQuoteRef = {familyId: string; version: number | null; useLatest: boolean};
 export type ChatbotResponseEntry = {
   id: string;
   enabled: boolean;
@@ -203,8 +204,20 @@ export type ChatbotResponseEntry = {
   attachments: {
     imageUrl: string | null;
     url: string | null;
-    quote: {familyId: string; version: number | null; useLatest: boolean} | null;
+    quote: ChatbotQuoteRef | null;
   };
+};
+export type ChatbotAdCampaign = {
+  id: string;
+  enabled: boolean;
+  adId: string;
+  name: string;
+  headline: string;
+  context: string;
+  openingMessage: string;
+  advertisedPriceCents: string | null;
+  quote: ChatbotQuoteRef | null;
+  seen?: boolean;
 };
 export type ChatbotSettings = {
   id: "singleton";
@@ -266,6 +279,7 @@ export type ChatbotSettings = {
   stagePlaybook: Record<string, string>;
   writingFilters: { noAccents: boolean; noOpeningMarks: boolean; noFinalPeriod: boolean; noFormatting: boolean };
   teamAlerts: { enabled: boolean; numbers: string[]; templateId: string | null; autoSendQuote: boolean };
+  ads: ChatbotAdCampaign[];
   updatedAt?: string;
 };
 

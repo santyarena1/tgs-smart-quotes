@@ -3,14 +3,22 @@
 import {FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useState} from "react";
 import {api, listWhatsappTemplates, type WhatsappTemplate} from "../lib/api";
 import { INTENT_LABEL, temperatureBadge } from "../lib/crm";
-import type {ChatbotResponseEntry, ChatbotSettings, Quote} from "../lib/types";
-import {Alert, Checkbox, Field, Loading, Tabs, errorMessage} from "./shared";
+import type {ChatbotAdCampaign, ChatbotResponseEntry, ChatbotSettings, Quote} from "../lib/types";
+import {parseArsToCents} from "../lib/money";
+import {Alert, Checkbox, Field, Loading, MoneyInput, Tabs, errorMessage} from "./shared";
 
 const uid=()=>globalThis.crypto?.randomUUID?.()??`respuesta-${Date.now()}-${Math.random()}`;
 const splitLines=(value:string)=>value.split("\n").map(item=>item.trim()).filter(Boolean);
 const emptyAttachments=()=>({imageUrl:null,url:null,quote:null});
+const emptyAd=():ChatbotAdCampaign=>({
+  id:uid(),enabled:true,adId:"",name:"",headline:"",context:"",openingMessage:"",advertisedPriceCents:null,quote:null,
+});
+const pesosFromCents=(cents:string|null)=>{
+  if(!cents||!/^\d+$/.test(cents))return "";
+  return (BigInt(cents)/100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,".");
+};
 type AiModelOption={id:string;created:number;ownedBy:string};
-type TabId="try"|"voice"|"rules"|"requests"|"bubbles"|"knowledge"|"hours"|"handoff"|"advanced";
+type TabId="try"|"voice"|"rules"|"ads"|"requests"|"bubbles"|"knowledge"|"hours"|"handoff"|"advanced";
 type Mode=ChatbotSettings["defaultMode"];
 type DayKey=keyof ChatbotSettings["businessHours"]["schedule"];
 const modelEfficiencyHint=(id:string)=>/(nano|mini|small|flash)/i.test(id)?"económico/eficiente":null;
@@ -257,6 +265,7 @@ type SimulationResult={
   reused?:unknown;
   matchedResponseId?:string|null;
   matchedResponseScore?:number|null;
+  matchedAdId?:string|null;
   decisionReason?:string|null;
   signals?:{temperature:number;intent:string;stageHint:string|null;nextStep:string|null}|null;
 };
@@ -276,6 +285,8 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
   const [error,setError]=useState<string|null>(null);
   const [session,setSession]=useState(()=>`sim:config:${Date.now()}`);
   const [previewReply,setPreviewReply]=useState(false);
+  const [adCampaignId,setAdCampaignId]=useState("");
+  const ads=settings.ads??[];
 
   async function send(){
     const message=draft.trim();
@@ -294,12 +305,15 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
         messageFingerprint:`${session}:${Date.now()}`,
         simulation:true,
         previewReply,
+        ...(adCampaignId?{adCampaignId}:{}),
         recentMessages:history,
       }});
       const detail:string[]=[];
       const rule=result.matchedResponseId?settings.responses.findIndex(item=>item.id===result.matchedResponseId):-1;
       const matched=rule>=0?settings.responses[rule]:undefined;
       if(matched)detail.push(`Usó la respuesta #${rule+1} (${matched.activators.slice(0,3).join(", ")||"sin activadores"}) · ${Math.round(result.matchedResponseScore??0)} % de similitud`);
+      const usedAd=ads.find(item=>item.id===result.matchedAdId);
+      if(usedAd)detail.push(`Usó el anuncio "${usedAd.name}"`);
       if(result.reused)detail.push("Reutilizó una respuesta anterior equivalente (no gastó IA)");
       for(const attachment of result.attachments??[]){
         if(attachment.image?.url)detail.push(`Adjuntaría la imagen ${attachment.image.filename??""}`.trim());
@@ -335,6 +349,12 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
   >
     {dirty?<Alert tone="info">Tenés cambios sin guardar: la prueba usa lo último que guardaste.</Alert>:null}
     <Checkbox label="Ver la respuesta igual si el bot está apagado o el local está cerrado" checked={previewReply} onChange={setPreviewReply}/>
+    {ads.length?<Field label="Vino de un anuncio" hint="Simula un cliente que tocó ese aviso. El bot usa la ficha (precio, info y presupuesto) de Anuncios.">
+      <select value={adCampaignId} onChange={event=>{setAdCampaignId(event.target.value);setTurns([]);setSession(`sim:config:${Date.now()}`)}}>
+        <option value="">Ninguno: charla normal</option>
+        {ads.map(ad=><option key={ad.id} value={ad.id}>{ad.name||ad.headline||ad.adId||"Anuncio"}{ad.enabled?"":" (apagado)"}</option>)}
+      </select>
+    </Field>:null}
     {error?<Alert>{error}</Alert>:null}
     <div className="bot-phone wide">
       <div className="bot-phone-body tall">
@@ -538,6 +558,123 @@ function RequestsTab({settings,set}:{settings:ChatbotSettings;set:(values:Partia
   </>;
 }
 
+function AdQuoteField({
+  quote,
+  onChange,
+  onError,
+}:{
+  quote:ChatbotAdCampaign["quote"];
+  onChange:(quote:ChatbotAdCampaign["quote"])=>void;
+  onError:(message:string)=>void;
+}) {
+  const [query,setQuery]=useState("");
+  const [quotes,setQuotes]=useState<Quote[]>([]);
+  const [busy,setBusy]=useState(false);
+  const selected=quotes.find(item=>item.id===quote?.familyId);
+  const versions=selected?.versions??[];
+
+  useEffect(()=>{
+    const familyId=quote?.familyId;
+    if(!familyId||quotes.some(item=>item.id===familyId))return;
+    void api<Quote>(`/quotes/${familyId}`)
+      .then(item=>setQuotes(current=>current.some(value=>value.id===item.id)?current:[item,...current]))
+      .catch(()=>undefined);
+  },[quote?.familyId,quotes]);
+
+  async function search(){
+    if(!query.trim())return;
+    setBusy(true);
+    try{
+      const result=await api<{items:Quote[]}>("/quotes/search",{query:{q:query.trim(),page:1,pageSize:10}});
+      setQuotes(result.items);
+    }catch(error){onError(errorMessage(error))}
+    finally{setBusy(false)}
+  }
+
+  return <div className="form-grid">
+    <Field label="Presupuesto que manda este anuncio" hint="El PDF sale después del texto, como cuando un vendedor lo adjunta. Buscá por número o nombre.">
+      <div className="toolbar">
+        <input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ej.: 34" onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();void search()}}}/>
+        <button type="button" className="btn-ghost" disabled={busy||!query.trim()} onClick={()=>void search()}>Buscar</button>
+      </div>
+    </Field>
+    {quotes.length?<Field label="Resultado">
+      <select value={quote?.familyId??""} onChange={event=>{
+        const family=quotes.find(item=>item.id===event.target.value);
+        onChange(family?{familyId:family.id,version:family.activeVersion,useLatest:true}:null);
+      }}>
+        <option value="">Sin presupuesto</option>
+        {quotes.map(item=><option key={item.id} value={item.id}>{item.visibleNumber} · {item.internalName}</option>)}
+      </select>
+    </Field>:null}
+    {quote?<div className="grid-2">
+      <Checkbox label="Usar siempre la última versión" checked={quote.useLatest} onChange={useLatest=>onChange({...quote,useLatest,version:useLatest?null:(quote.version??selected?.activeVersion??1)})}/>
+      {!quote.useLatest?<Field label="Versión fijada">
+        <select value={quote.version??selected?.activeVersion??1} onChange={event=>onChange({...quote,version:Number(event.target.value)})}>
+          {(versions.length?versions.map(item=>item.version):[quote.version??1]).map(version=><option key={version} value={version}>V{version}</option>)}
+        </select>
+      </Field>:<p className="section-note">La versión activa se resuelve justo antes de responder.</p>}
+      <button type="button" className="btn-ghost btn-sm" onClick={()=>onChange(null)}>Quitar presupuesto</button>
+    </div>:null}
+  </div>;
+}
+
+function AdsTab({settings,set,onError}:{settings:ChatbotSettings;set:(values:Partial<ChatbotSettings>)=>void;onError:(message:string)=>void}) {
+  const ads=settings.ads??[];
+  const patch=(id:string,values:Partial<ChatbotAdCampaign>)=>set({ads:ads.map(ad=>ad.id===id?{...ad,...values}:ad)});
+  const seen=ads.filter(ad=>ad.seen&&!ad.context&&!ad.quote).length;
+  return <Section
+    title="Anuncios de Facebook e Instagram"
+    note="Cada cliente que toca un anuncio llega con el aviso de origen. Acá le das al bot el precio, la info y el presupuesto de ese aviso. Si todavía no configuraste uno, aparece apagado cuando llega el primer chat."
+    aside={<button type="button" onClick={()=>set({ads:[...ads,emptyAd()]})}>+ Agregar anuncio</button>}
+  >
+    {seen?<Alert tone="info">{seen===1?"Hay un anuncio nuevo que llegó por WhatsApp y todavía no tiene ficha.":`Hay ${seen} anuncios nuevos que llegaron por WhatsApp y todavía no tienen ficha.`}</Alert>:null}
+    {ads.length===0?<Alert tone="info">Todavía no hay anuncios. Cuando alguien escriba desde un aviso de Meta aparece acá, o agregalo a mano con el ID o el título.</Alert>:null}
+    <div className="form-grid">
+      {ads.map((ad,index)=><article key={ad.id} className={`bot-rule${ad.enabled?"":" off"}`}>
+        <header className="bot-rule-head">
+          <span className="bot-rule-index">#{index+1}</span>
+          <span className="bot-rule-title">{ad.name||ad.headline||ad.adId||"Anuncio sin nombre"}{ad.seen?" · lo vimos en un chat":""}</span>
+          <label className="bot-switch" title={ad.enabled?"Activo":"Pausado"}>
+            <input type="checkbox" checked={ad.enabled} onChange={event=>patch(ad.id,{enabled:event.target.checked})}/>
+            <span>{ad.enabled?"Activo":"Pausado"}</span>
+          </label>
+        </header>
+        <div className="form-grid bot-rule-body">
+          <div className="grid-2">
+            <Field label="Nombre interno" hint="Solo para ustedes. Ej.: PC Gamer 650.">
+              <input required value={ad.name} onChange={event=>patch(ad.id,{name:event.target.value})} placeholder="PC Gamer 650"/>
+            </Field>
+            <Field label="ID del anuncio en Meta" hint="Lo manda WhatsApp en el primer mensaje (source_id). Si está, el match es exacto.">
+              <input value={ad.adId} onChange={event=>patch(ad.id,{adId:event.target.value})} placeholder="1202…"/>
+            </Field>
+          </div>
+          <Field label="Título del anuncio" hint="El texto que vio el cliente. Si no hay ID, el bot lo usa para reconocer el aviso.">
+            <input value={ad.headline} onChange={event=>patch(ad.id,{headline:event.target.value})} placeholder="PC Completa por $650.000"/>
+          </Field>
+          <Field label="Precio publicado" hint="Pesos enteros, como en el aviso. El bot no inventa otro.">
+            <MoneyInput value={pesosFromCents(ad.advertisedPriceCents)} placeholder="650.000" onChange={value=>{
+              if(!value.trim()){patch(ad.id,{advertisedPriceCents:null});return;}
+              try{patch(ad.id,{advertisedPriceCents:parseArsToCents(value)})}
+              catch{/* el input ya deja solo dígitos */}
+            }}/>
+          </Field>
+          <Field label="Información de este anuncio" hint="Qué PC es, qué incluye, qué no, cómo presentarla. El bot no la copia textual: la usa como contexto.">
+            <textarea rows={4} value={ad.context} placeholder={"Ryzen 5 5500, 16 GB, 1660 Super, 512 GB SSD.\nVale para Fortnite y Warzone en medio.\nSi pregunta por más potencia, ofrecé subir la placa."} onChange={event=>patch(ad.id,{context:event.target.value})}/>
+          </Field>
+          <Field label="Primera burbuja de este anuncio (opcional)" hint="Sale solo en la primera respuesta de ese chat, en vez de la apertura general.">
+            <textarea rows={2} value={ad.openingMessage} placeholder="Hola! Vi que te interesó la PC gamer del anuncio" onChange={event=>patch(ad.id,{openingMessage:event.target.value})}/>
+          </Field>
+          <AdQuoteField quote={ad.quote} onError={onError} onChange={quote=>patch(ad.id,{quote})}/>
+          <div className="form-actions">
+            <button type="button" className="btn-danger btn-sm" onClick={()=>set({ads:ads.filter(item=>item.id!==ad.id)})}>Eliminar</button>
+          </div>
+        </div>
+      </article>)}
+    </div>
+  </Section>;
+}
+
 export function ChatbotSettingsSection() {
   const [settings,setSettings]=useState<ChatbotSettings|null>(null);
   const [saved,setSaved]=useState<string>("");
@@ -552,7 +689,7 @@ export function ChatbotSettingsSection() {
 
   useEffect(()=>{
     api<ChatbotSettings>("/chatbot/settings")
-      .then(next=>{setSettings(next);setSaved(JSON.stringify(next))})
+      .then(next=>{const ready={...next,ads:next.ads??[]};setSettings(ready);setSaved(JSON.stringify(ready))})
       .catch(reason=>setError(errorMessage(reason)))
       .finally(()=>setLoading(false));
   },[]);
@@ -600,13 +737,15 @@ export function ChatbotSettingsSection() {
     :settings.defaultMode==="AUTO"
       ?{tone:"auto",text:"Responde solo en los chats que no tengan otro modo elegido."}
       :settings.defaultMode==="SUGGEST"
-        ?{tone:"suggest",text:"Redacta sugerencias que una persona aprueba desde la bandeja."}
+        ?{tone:"suggest",text:"Escribe la respuesta en la bandeja. El cliente no la recibe hasta que alguien la apruebe."}
         :{tone:"off",text:"Encendido, pero el modo general está en Apagado."};
+  const adsCount=(settings.ads??[]).filter(ad=>ad.enabled).length;
 
   const tabs:Array<{id:TabId;label:string}>=[
     {id:"try",label:"Probar"},
     {id:"voice",label:"Cómo habla"},
     {id:"rules",label:"Reglas de venta"},
+    {id:"ads",label:`Anuncios${adsCount?` (${adsCount})`:""}`},
     {id:"requests",label:"Presupuestos y avisos"},
     {id:"bubbles",label:"Mensajes y burbujas"},
     {id:"knowledge",label:`Qué sabe (${activeRules})`},
@@ -638,10 +777,13 @@ export function ChatbotSettingsSection() {
         </label>
       </div>
       <ChoiceCards label="Modo general" value={settings.defaultMode} options={MODES} onChange={defaultMode=>set({defaultMode})}/>
+      {settings.enabled&&settings.defaultMode==="SUGGEST"?<Alert>En Solo sugerir el cliente ve que el bot escribe y no le llega el mensaje. Para que WhatsApp reciba las respuestas, elegí Automático.</Alert>:null}
+      {settings.enabled&&settings.defaultMode==="AUTO"?<p className="section-note">Automático manda el texto solo, con demora humana. Si un chat está en Solo sugerir desde la bandeja, ese chat no sale solo.</p>:null}
       <div className="bot-summary">
         <button type="button" onClick={()=>setActiveTab("hours")}>🕘 {summarizeHours(settings)}{settings.businessHours.enabled?` · fuera de horario: ${settings.outsideHoursBehavior.mode==="OFF"?"no responde":settings.outsideHoursBehavior.mode==="STALL"?"avisa y espera":"responde igual"}`:""}</button>
         <button type="button" onClick={()=>setActiveTab("bubbles")}>💬 {settings.multiMessage.enabled?`Hasta ${settings.multiMessage.maxBubbles} burbujas`:"Un solo mensaje"}</button>
         <button type="button" onClick={()=>setActiveTab("knowledge")}>📚 {activeRules} respuesta{activeRules===1?"":"s"} configurada{activeRules===1?"":"s"}</button>
+        <button type="button" onClick={()=>setActiveTab("ads")}>📣 {adsCount} anuncio{adsCount===1?"":"s"} con ficha</button>
         <button type="button" onClick={()=>setActiveTab("handoff")}>🙋 {settings.escalationKeywords.length} palabra{settings.escalationKeywords.length===1?"":"s"} que derivan{settings.modelCanEscalate?" · la IA también puede derivar":""}</button>
       </div>
       <p className="section-note">Cada chat puede tener su propio modo desde la bandeja (panel derecho → Bot).</p>
@@ -652,6 +794,7 @@ export function ChatbotSettingsSection() {
     {activeTab==="try"?<Simulator settings={settings} dirty={dirty}/>:null}
 
     {activeTab==="rules"?<SalesRulesTab settings={settings} set={set}/>:null}
+    {activeTab==="ads"?<AdsTab settings={settings} set={set} onError={setError}/>:null}
     {activeTab==="requests"?<RequestsTab settings={settings} set={set}/>:null}
 
     {activeTab==="voice"?<>

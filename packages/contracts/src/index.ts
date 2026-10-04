@@ -643,6 +643,26 @@ export const chatbotResponseEntrySchema = z.object({
     }).strict().nullable(),
   }).strict().default({imageUrl: null, url: null, quote: null}),
 }).strict();
+/** Ficha de un anuncio de Meta: el bot la usa cuando el chat nació de ese aviso. */
+export const chatbotAdCampaignSchema = z.object({
+  id: z.string().trim().min(1).max(100),
+  enabled: z.boolean(),
+  /** `source_id` del referral de Meta. Vacío = se matchea por el título. */
+  adId: z.string().trim().max(200).default(''),
+  name: z.string().trim().min(1).max(200),
+  headline: z.string().trim().max(500).default(''),
+  context: z.string().trim().max(10000).default(''),
+  openingMessage: z.string().trim().max(2000).default(''),
+  /** Precio publicado, en centavos enteros. null = sin precio fijo. */
+  advertisedPriceCents: z.string().regex(/^\d+$/).nullable().default(null),
+  quote: z.object({
+    familyId: z.string().trim().min(1).max(100),
+    version: z.number().int().min(1).nullable(),
+    useLatest: z.boolean(),
+  }).strict().nullable().default(null),
+  seen: z.boolean().optional(),
+}).strict();
+export type ChatbotAdCampaign = z.infer<typeof chatbotAdCampaignSchema>;
 const chatbotScheduleDaySchema = z
   .array(
     z.object({
@@ -669,11 +689,12 @@ export const DEFAULT_SALES_RULES: string[] = [
   'Evitá repetir literalmente la última respuesta del negocio.',
   'Agarrá al cliente en caliente: si en DATOS DEL SISTEMA no hay un producto o una PC publicada que encaje con lo que pide, no hagas más de una o dos preguntas (para qué la usa y cuánto quiere gastar). Con eso alcanza: decile que le armás opciones a medida y pedí el presupuesto al equipo (shouldCreateRequest=true). No lo derives a una persona por esto, no lo dejes sin respuesta y no sigas preguntando en loop.',
   'Cuando le prometas un presupuesto a medida, el plazo depende de la COLA del equipo que figura en DATOS DEL SISTEMA: con 0 o 1 pendientes, \"ya te lo mando\"; con 2 a 4, \"ahora te lo armo y te lo paso\"; con 5 o más, \"en un ratito te lo paso\". Nunca des minutos ni horas exactas. Si ya tiene una solicitud en curso, no le pidas los datos de nuevo: decile que ya lo están armando.',
+  'Si el cliente vino de un anuncio y hay un ANUNCIO configurado, usá solo esa ficha: el precio publicado, la información específica y el presupuesto de ese aviso. Presentalo en las primeras respuestas. No ofrezcas otra PC ni pidas un presupuesto nuevo al equipo salvo que pida algo distinto a lo del anuncio.',
 ];
 
 /** Qué hace un buen vendedor en cada etapa: el bot sabe en cuál está y lleva al cliente a la siguiente. */
 export const DEFAULT_STAGE_PLAYBOOK: Record<string, string> = {
-  NEW: 'Recién escribe. Saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.',
+  NEW: 'Recién escribe. Si vino de un anuncio con ficha, presentá esa PC o ese presupuesto; si no, saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.',
   QUALIFYING: 'Ya sabés algo de lo que quiere. Si hay PCs o productos en DATOS DEL SISTEMA que encajen, ofrecé una o dos opciones con precio y link. Si no, con uso y presupuesto alcanza: prometé un presupuesto a medida y pedíselo al equipo (shouldCreateRequest=true).',
   QUOTE_SENT: 'Ya tiene un presupuesto. Preguntá qué le pareció, resolvé dudas u objeciones (precio, rendimiento, componentes) y ofrecé ajustarlo o una alternativa.',
   NEGOTIATION: 'Está decidiendo. Aclará medios de pago y cuotas, plazos de armado y entrega, y proponé avanzar con la seña del 20% para congelar el precio.',
@@ -795,6 +816,8 @@ const chatbotSettingsObjectSchema = z
     stagePlaybook: z.record(z.string(), z.string().trim().max(2000)).default(DEFAULT_STAGE_PLAYBOOK),
     writingFilters: writingFiltersSchema.default(DEFAULT_WRITING_FILTERS),
     teamAlerts: teamAlertsSchema.default({enabled: true, numbers: [], templateId: null, autoSendQuote: true}),
+    /** Fichas por anuncio de Facebook/Instagram: presupuesto e info de ese aviso. */
+    ads: z.array(chatbotAdCampaignSchema).max(200).optional(),
   })
   .strict();
 
@@ -896,6 +919,8 @@ export const chatbotRespondSchema = z
     simulation: z.boolean().optional().default(false),
     /** En Probar: igual redactar la respuesta si el bot está apagado o el local cerrado. */
     previewReply: z.boolean().optional(),
+    /** En Probar: simular que el cliente vino de esta ficha de anuncio. */
+    adCampaignId: z.string().trim().min(1).max(100).optional(),
     recentMessages: z.array(z.object({
       direction: z.enum(['INBOUND', 'OUTBOUND']),
       text: z.string().trim().min(1).max(10000),

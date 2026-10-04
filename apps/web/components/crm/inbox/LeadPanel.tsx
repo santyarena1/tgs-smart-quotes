@@ -111,6 +111,7 @@ export function LeadPanel({ conversation, onChanged }: { conversation: WhatsappC
           <span>📣 Vino de un anuncio</span>
           {conversation.origin.headline ? <strong>{conversation.origin.headline}</strong> : null}
           {conversation.origin.url ? <a className="cx-link" href={conversation.origin.url} target="_blank" rel="noreferrer">Ver anuncio →</a> : null}
+          <span className="cx-hint">El bot usa la ficha de ese aviso (precio, info y presupuesto) si está en Configuración → Chatbot → Anuncios.</span>
         </div>
       ) : null}
 

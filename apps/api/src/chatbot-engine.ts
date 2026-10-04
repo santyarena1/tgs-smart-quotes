@@ -31,10 +31,12 @@ import {
   findReusableReply,
   isOutsideBusinessHours,
   matchedResponse,
+  resolveAdAttachments,
   resolveRuleAttachments,
   settingsDto,
   casualText,
 } from './chatbot-core.js';
+import {formatAdContext, matchAdCampaign} from './chatbot-ads.js';
 
 /** Mismo texto ignorando mayúsculas, tildes, signos y espacios: "¡Hola!" = "Hola". */
 function sameText(left: string, right: string): boolean {
@@ -57,12 +59,32 @@ function sameText(left: string, right: string): boolean {
  */
 export async function runChatbotResponse(body: ChatbotRespondInput, actorId: string, existingInboundId?: string) {
     const settings = settingsDto(await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}}));
+    const ads = settings.ads ?? [];
+    const selectedAd = body.adCampaignId
+      ? ads.find((ad) => ad.id === body.adCampaignId) ?? null
+      : null;
+    const simulatedOrigin = selectedAd
+      ? {
+          source_id: selectedAd.adId || selectedAd.id,
+          source_type: 'ad',
+          headline: selectedAd.headline || selectedAd.name,
+          body: selectedAd.context,
+        }
+      : undefined;
     const conversation = await db.chatbotConversation.upsert({
       where: {chatKey: body.chatKey},
-      create: {chatKey: body.chatKey, displayName: body.displayName},
-      update: body.displayName ? {displayName: body.displayName} : {},
+      create: {
+        chatKey: body.chatKey,
+        displayName: body.displayName,
+        ...(simulatedOrigin ? {origin: simulatedOrigin as Prisma.InputJsonValue} : {}),
+      },
+      update: {
+        ...(body.displayName ? {displayName: body.displayName} : {}),
+        ...(simulatedOrigin ? {origin: simulatedOrigin as Prisma.InputJsonValue} : {}),
+      },
       include: {activeRequest: true},
     });
+    const campaign = selectedAd ?? matchAdCampaign(ads, conversation.origin);
     const liveMode = conversation.modeOverride ?? settings.defaultMode;
     const previewReply = Boolean(body.simulation && body.previewReply);
     // Probar redacta como Automático para ver el texto, salvo que el bot esté
@@ -150,16 +172,20 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       ? 'Mensaje de audio recibido, requiere atención humana.'
       : keywordReason;
     // Datos reales del sistema (catálogo, PCs publicadas, presupuesto del chat).
-    const systemData = localEscalationReason ? '' : await buildSystemData({
+    const catalogData = localEscalationReason ? '' : await buildSystemData({
       chatKey: body.chatKey,
       message: body.message,
       budgetCents: typeof (conversation.profile as {budgetCents?: unknown} | null)?.budgetCents === 'number'
         ? (conversation.profile as {budgetCents: number}).budgetCents
-        : null,
+        : campaign?.advertisedPriceCents && /^\d+$/.test(campaign.advertisedPriceCents)
+          ? Number(campaign.advertisedPriceCents)
+          : null,
       recentText: (body.recentMessages ?? []).slice(-6).map((item) => item.text).join(' '),
     }).catch(() => '');
-    // Con precios o stock de por medio no se reutiliza una respuesta vieja: pueden haber cambiado.
-    const reusable = localEscalationReason || systemData
+    const adContext = campaign ? formatAdContext(campaign, conversation.origin) : '';
+    const systemData = [adContext, catalogData].filter(Boolean).join('\n\n');
+    // Con precios, stock o un anuncio no se reutiliza una respuesta vieja: cada aviso es otro producto.
+    const reusable = localEscalationReason || systemData || campaign
       ? null
       : await findReusableReply(body.message, settings.reuseSimilarityThreshold, inbound.id, settings.updatedAt);
     const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
@@ -252,7 +278,12 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             responseStyle: settings.responseStyle,
             systemData: systemData || undefined,
             salesStage: conversation.stage,
-            salesRules: settings.salesRules,
+            salesRules: campaign
+              ? [
+                  'Este cliente escribió desde un anuncio. Usá el bloque ANUNCIO DEL CLIENTE: precio, info y presupuesto de ese aviso. No ofrezcas otra PC ni pidas un presupuesto nuevo salvo que pida algo distinto.',
+                  ...settings.salesRules,
+                ]
+              : settings.salesRules,
             stagePlaybook: settings.stagePlaybook,
             writingFilters: settings.writingFilters,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
@@ -283,7 +314,12 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const legacyReply=[baseReply,...configuredUrls.filter(url=>!baseReply.includes(url))]
       .filter(Boolean)
       .join('\n\n');
-    const resolvedAttachments=await resolveRuleAttachments(settings.responses,body.message);
+    const ruleAttachments=await resolveRuleAttachments(settings.responses,body.message);
+    const adAttachments=campaign?await resolveAdAttachments(campaign.quote,campaign.id):[];
+    const resolvedAttachments=[
+      ...adAttachments,
+      ...ruleAttachments.filter((item)=>!adAttachments.length||!(item as {quote?:unknown}).quote),
+    ];
     const aiMessages=settings.multiMessage.splitMode==='FIXED_ONLY'
       ?[baseReply]
       :settings.multiMessage.enabled
@@ -291,7 +327,8 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
         :(result.result.messages.length?result.result.messages:[baseReply]).slice(0,settings.multiMessage.maxBubbles);
     // La IA a veces repite la apertura o el cierre fijos que ya agrega el sistema:
     // se quitan de sus burbujas (enteras o como comienzo del mensaje).
-    const fixedOpening=settings.multiMessage.openingMessage.trim();
+    const adOpening=campaign?.openingMessage.trim()??'';
+    const fixedOpening=adOpening||settings.multiMessage.openingMessage.trim();
     const fixedClosing=settings.multiMessage.closingMessage.trim();
     const withoutFixed=(message:string)=>{
       let text=message.trim();
@@ -304,7 +341,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     let messages=settings.multiMessage.enabled
       ?[
           // Solo en la primera respuesta del chat. El historial cubre el simulador, que
-          // no registra salientes en la conversación.
+          // no registra salientes en la conversación. Si vino de un anuncio, manda esa apertura.
           ...(!conversation.lastOutboundText&&!(body.recentMessages??[]).some(item=>item.direction==='OUTBOUND')&&fixedOpening?[fixedOpening]:[]),
           ...aiMessages.map(withoutFixed).filter(Boolean),
           ...(fixedClosing?[fixedClosing]:[]),
@@ -383,6 +420,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           matchedKnowledgeIds: result.result.matchedKnowledgeIds,
           matchedResponseId: responseMatch?.response.id??null,
           matchedResponseScore: responseMatch?.score??null,
+          matchedAdId: campaign?.id??null,
           decisionReason: result.result.decisionReason,
           // Lo que se aprueba desde el CRM: burbujas separadas y adjuntos, igual que en AUTO.
           bubbles: messages,
@@ -511,6 +549,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       // Para el simulador de Configuración: qué regla se activó y por qué decidió así.
       matchedResponseId: responseMatch?.response.id??null,
       matchedResponseScore: responseMatch?.score??null,
+      matchedAdId: campaign?.id??null,
       decisionReason: result.result.decisionReason??null,
       signals: (result.result as {signals?: SalesSignals}).signals ?? null,
       reused: reusable ?? undefined,

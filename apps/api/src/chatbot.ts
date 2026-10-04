@@ -53,6 +53,7 @@ import {
   settingsDto,
 } from './chatbot-core.js';
 import {runChatbotResponse} from './chatbot-engine.js';
+import {mergeSeenAds} from './chatbot-ads.js';
 
 @Controller('chatbot')
 export class ChatbotController {
@@ -66,7 +67,14 @@ export class ChatbotController {
 
   @Get('settings')
   async settings() {
-    return jsonSafe(settingsDto(await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}})));
+    const [row, seen] = await Promise.all([
+      db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}}),
+      db.$queryRaw<Array<{origin: unknown}>>`
+        SELECT origin FROM "ChatbotConversation" WHERE origin IS NOT NULL LIMIT 800
+      `,
+    ]);
+    const dto = settingsDto(row);
+    return jsonSafe({...dto, ads: mergeSeenAds(dto.ads, seen.map((item) => item.origin))});
   }
 
   /** Reglas de fábrica, para el botón "Restaurar" de Configuración → Reglas de venta. */
@@ -83,7 +91,7 @@ export class ChatbotController {
     return db.$transaction(async (tx) => {
       const old = await tx.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
       // `responses` no es columna (se mapea a knowledgeEntries); nunca debe entrar al spread de Prisma.
-      const {responses: _responses, ...columns} = body;
+      const {responses: _responses, ads, ...columns} = body;
       // Los números del equipo se guardan como chatKey, igual que los chats, para reconocerlos.
       columns.teamAlerts = {
         ...body.teamAlerts,
@@ -93,6 +101,7 @@ export class ChatbotController {
         where: {id: 'singleton'},
         data: {
           ...columns,
+          ...(ads !== undefined ? {ads} : {}),
           openingMessages: body.openingMessages,
           closingMessages: body.closingMessages,
           knowledgeEntries: body.responses,

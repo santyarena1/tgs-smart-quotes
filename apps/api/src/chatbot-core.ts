@@ -11,12 +11,14 @@ import {
   DEFAULT_SALES_RULES,
   DEFAULT_STAGE_PLAYBOOK,
   DEFAULT_WRITING_FILTERS,
+  type ChatbotAdCampaign,
   type ChatbotSettingsInput,
   type RequestCreateInput,
   type WritingFilters,
 } from '@tgs/contracts';
 import {db} from '@tgs/database';
 import {parseTeamAlerts} from './crm-team-alerts.js';
+import {parseAds} from './chatbot-ads.js';
 import {normalizePhone, normalizeText, productSimilarity} from '@tgs/validation';
 
 export const CHAT_KEY_MAX = 200;
@@ -125,6 +127,7 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
       : DEFAULT_WRITING_FILTERS,
+    ads: parseAds(row.ads),
   };
 }
 
@@ -267,6 +270,27 @@ export async function resolveRuleAttachments(responses:ChatbotSettingsInput['res
     if(attachment.image||attachment.quote)resolved.push(attachment);
   }
   return resolved;
+}
+
+/** PDF del anuncio que originó el chat. Si no hay presupuesto cargado, no adjunta nada. */
+export async function resolveAdAttachments(quote: ChatbotAdCampaign['quote'], adId: string) {
+  if (!quote) return [];
+  const family = await db.quoteFamily.findUnique({
+    where: {id: quote.familyId},
+    select: {id: true, visibleNumber: true, activeVersion: true, versions: {select: {version: true}}},
+  });
+  if (!family) return [];
+  const version = quote.useLatest ? family.activeVersion : quote.version;
+  if (!version || !family.versions.some((item) => item.version === version)) return [];
+  return [{
+    ruleId: `anuncio-${adId}`,
+    quote: {
+      familyId: family.id,
+      version,
+      visibleNumber: family.visibleNumber,
+      filename: `${family.visibleNumber}-V${version}-SIMPLE.pdf`,
+    },
+  }];
 }
 
 export function isOutsideBusinessHours(config: ChatbotSettingsInput['businessHours']): boolean {

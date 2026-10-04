@@ -1135,6 +1135,8 @@ model ChatbotSettings {
   /// Seguimiento automático de presupuestos sin respuesta:
   /// {enabled, onlyBotChats, steps: [{afterHours, text, templateId, variables}]}.
   followups                 Json        @default("{\"enabled\":false,\"onlyBotChats\":false,\"steps\":[]}")
+  /// Fichas por anuncio de Meta: [{id, enabled, adId, name, headline, context, openingMessage, advertisedPriceCents, quote}].
+  ads                       Json        @default("[]")
   updatedAt                 DateTime    @default(now()) @updatedAt
 }
 

@@ -15,10 +15,11 @@ import {isTeamNumber} from './crm-team-alerts.js';
 import {Logger} from '@nestjs/common';
 import {db, Prisma} from '@tgs/database';
 import {runChatbotResponse} from './chatbot-engine.js';
-import {settingsDto} from './chatbot-core.js';
+import {isOutsideBusinessHours, settingsDto} from './chatbot-core.js';
 import {buildReplyItems, loadRecentMessages, matchesConfiguredAutoMessage} from './whatsapp-inbound.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {loadCredentials, showTyping} from './whatsapp-client.js';
+import {willAutoSend} from './chatbot-ads.js';
 import {handleTrainerTurn} from './bot-training.js';
 
 const logger = new Logger('WhatsappResponder');
@@ -186,7 +187,7 @@ export async function respondNow(chatKey: string): Promise<void> {
 
   const conversation = await db.chatbotConversation.findUnique({
     where: {chatKey},
-    select: {botPausedAt: true, escalatedAt: true},
+    select: {botPausedAt: true, escalatedAt: true, modeOverride: true, alwaysOn: true},
   });
   if (!conversation) return;
   if (conversation.botPausedAt) {
@@ -224,8 +225,11 @@ export async function respondNow(chatKey: string): Promise<void> {
   }
 
   const hasAudio = usable.some((message) => ((message.decisionMetadata ?? {}) as Record<string, unknown>).messageType === 'AUDIO');
+  const liveMode = conversation.modeOverride ?? settings.defaultMode;
+  const outsideHours = !conversation.alwaysOn && isOutsideBusinessHours(settings.businessHours);
   const credentials = await loadCredentials().catch(() => null);
-  if (credentials && last.waMessageId) {
+  // El cliente ve "escribiendo…" en WhatsApp: solo si esa respuesta va a salir sola.
+  if (willAutoSend(settings.enabled, liveMode) && !(outsideHours && settings.outsideHoursBehavior.mode === 'OFF') && credentials && last.waMessageId) {
     await showTyping(credentials, last.waMessageId).catch((error: unknown) => {
       logger.warn(JSON.stringify({event: 'whatsapp_typing_failed', chatKey, error: error instanceof Error ? error.message : String(error)}));
     });
