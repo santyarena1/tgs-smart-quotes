@@ -1137,6 +1137,8 @@ model ChatbotSettings {
   followups                 Json        @default("{\"enabled\":false,\"onlyBotChats\":false,\"steps\":[]}")
   /// Fichas por anuncio de Meta: [{id, enabled, adId, name, headline, context, openingMessage, advertisedPriceCents, quote}].
   ads                       Json        @default("[]")
+  /// Frases con las que el cliente pide el presupuesto: el bot crea la solicitud en ese turno.
+  requestKeywords           Json        @default("[\"mandame el presupuesto\",\"pasame el presupuesto\",\"armame el presupuesto\",\"mandame la cotizacion\",\"quiero el presupuesto\",\"sumalo al presupuesto\",\"sumamelo al presupuesto\",\"presupuesto completo\",\"mandame el pdf\",\"pasame el pdf\",\"cotizame\"]")
   updatedAt                 DateTime    @default(now()) @updatedAt
 }
 

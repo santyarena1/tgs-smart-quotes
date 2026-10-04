@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {explicitEscalation, settingsDto} from './chatbot-core.js';
+import {draftFromLead, explicitEscalation, explicitPhrase, settingsDto} from './chatbot-core.js';
 
 describe('explicitEscalation', () => {
   it('matchea palabras completas, no pedazos de otras', () => {
@@ -12,6 +12,27 @@ describe('explicitEscalation', () => {
     expect(explicitEscalation('Quiero una DEVOLUCIÓN ya', ['devolucion'])).toContain('devolucion');
     expect(explicitEscalation('la pc no prende más', ['no prende'])).toContain('no prende');
     expect(explicitEscalation('no se prende la luz', ['no prende'])).toBeNull();
+  });
+});
+
+describe('explicitPhrase y draftFromLead', () => {
+  it('reconoce "mandame el presupuesto" aunque agreguen palabras', () => {
+    expect(explicitPhrase('si mandame el presupuesto completo', ['mandame el presupuesto', 'cotizame'])).toBe('mandame el presupuesto');
+    expect(explicitPhrase('ok sumamelo al presupuesto uno que recomiendes', ['sumamelo al presupuesto'])).toBe('sumamelo al presupuesto');
+    expect(explicitPhrase('hola quiero info', ['mandame el presupuesto'])).toBeNull();
+  });
+
+  it('arma la solicitud con lo que ya sabemos del cliente', () => {
+    const draft = draftFromLead('si mandame el presupuesto completo', 'Quiere PC gamer', {
+      usage: 'juegos',
+      games: ['Fortnite'],
+      budgetCents: 150000000,
+    });
+    expect(draft.title).toBe('PC juegos');
+    expect(draft.expectedUse).toBe('juegos');
+    expect(draft.requiredComponents).toEqual(['Fortnite']);
+    expect(draft.maximumBudgetCents).toBe(150000000);
+    expect(draft.summary).toContain('mandame el presupuesto');
   });
 });
 

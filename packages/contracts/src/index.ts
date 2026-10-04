@@ -679,6 +679,9 @@ export const DEFAULT_SALES_RULES: string[] = [
   'Antes de redactar, leé en orden TODO el historial reciente; no reacciones al último mensaje de forma aislada.',
   'Planificá una sola respuesta coherente que tenga en cuenta preguntas anteriores sin responder, compromisos del negocio, productos o presupuestos ya mencionados y la continuidad del tono.',
   'No vuelvas a preguntar datos que el cliente ya dio ni contradigas información confirmada antes.',
+  'No des vueltas: cada respuesta avanza. Si el cliente ya dijo que sí, que se lo sumes o que le mandes el presupuesto, no vuelvas a preguntar lo mismo. Una sola pregunta solo si falta un dato imprescindible (uso o presupuesto) y todavía no lo dijo.',
+  'Si el cliente pide el presupuesto, que se lo mandes o que le sumes algo, en ESE turno pedí el presupuesto al equipo (shouldCreateRequest=true) y confirmá en una frase qué va a incluir. No digas "te lo armo" ni "en un ratito" sin pedirlo. El plazo, si hace falta, sale de la COLA del equipo en DATOS DEL SISTEMA (0-1: "ya te lo mando"; 2-4: "ahora te lo armo"; 5 o más: "en un ratito"), sin minutos ni horas. Si ya hay una solicitud en curso, no pidas otra: decile que ya lo están armando.',
+  'No inventes PCs, monitores, marcas, modelos ni precios que no estén en DATOS DEL SISTEMA, en un anuncio configurado o en una respuesta de Qué sabe. Si no hay un producto que encaje, pedí el presupuesto a medida (shouldCreateRequest=true) en vez de recomendar de memoria.',
   'Contestá el último mensaje del cliente y, cuando corresponda, resolvé también pendientes que sigan abiertos.',
   'Si el cliente pregunta varias cosas, respondé todas las que estén en la información provista, no solo una.',
   'Nunca digas ni sugieras que sos un bot, una IA o un sistema automático.',
@@ -688,20 +691,86 @@ export const DEFAULT_SALES_RULES: string[] = [
   'Cuando recomiendes una PC publicada, como mucho dos opciones, con su precio y su link tal cual figuran, y cerrá preguntando cuál le gusta o si la quiere ajustar.',
   'Evitá repetir literalmente la última respuesta del negocio.',
   'Agarrá al cliente en caliente: si en DATOS DEL SISTEMA no hay un producto o una PC publicada que encaje con lo que pide, no hagas más de una o dos preguntas (para qué la usa y cuánto quiere gastar). Con eso alcanza: decile que le armás opciones a medida y pedí el presupuesto al equipo (shouldCreateRequest=true). No lo derives a una persona por esto, no lo dejes sin respuesta y no sigas preguntando en loop.',
-  'Cuando le prometas un presupuesto a medida, el plazo depende de la COLA del equipo que figura en DATOS DEL SISTEMA: con 0 o 1 pendientes, \"ya te lo mando\"; con 2 a 4, \"ahora te lo armo y te lo paso\"; con 5 o más, \"en un ratito te lo paso\". Nunca des minutos ni horas exactas. Si ya tiene una solicitud en curso, no le pidas los datos de nuevo: decile que ya lo están armando.',
   'Si el cliente vino de un anuncio y hay un ANUNCIO configurado, usá solo esa ficha: el precio publicado, la información específica y el presupuesto de ese aviso. Presentalo en las primeras respuestas. No ofrezcas otra PC ni pidas un presupuesto nuevo al equipo salvo que pida algo distinto a lo del anuncio.',
 ];
 
 /** Qué hace un buen vendedor en cada etapa: el bot sabe en cuál está y lleva al cliente a la siguiente. */
 export const DEFAULT_STAGE_PLAYBOOK: Record<string, string> = {
-  NEW: 'Recién escribe. Si vino de un anuncio con ficha, presentá esa PC o ese presupuesto; si no, saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.',
-  QUALIFYING: 'Ya sabés algo de lo que quiere. Si hay PCs o productos en DATOS DEL SISTEMA que encajen, ofrecé una o dos opciones con precio y link. Si no, con uso y presupuesto alcanza: prometé un presupuesto a medida y pedíselo al equipo (shouldCreateRequest=true).',
-  QUOTE_SENT: 'Ya tiene un presupuesto. Preguntá qué le pareció, resolvé dudas u objeciones (precio, rendimiento, componentes) y ofrecé ajustarlo o una alternativa.',
+  NEW: 'Recién escribe. Si vino de un anuncio con ficha, presentá esa PC o ese presupuesto. Si ya pidió el presupuesto, pedíselo al equipo ahora (shouldCreateRequest=true). Si no, una sola pregunta: para qué la quiere. No saludes de nuevo si ya saludaste.',
+  QUALIFYING: 'Ya sabés algo de lo que quiere. Si pidió el presupuesto o dijo que le sumes algo, pedíselo al equipo ahora (shouldCreateRequest=true) y no preguntes de nuevo. Si hay PCs en DATOS DEL SISTEMA, ofrecé una o dos con precio y link y cortá. Si no, con uso y presupuesto alcanza: pedí el presupuesto a medida. No agregues periféricos ni otras opciones después de que eligió.',
+  QUOTE_SENT: 'Ya tiene un presupuesto. Preguntá qué le pareció. No armes otro ni pidas otra solicitud salvo que pida un cambio concreto.',
   NEGOTIATION: 'Está decidiendo. Aclará medios de pago y cuotas, plazos de armado y entrega, y proponé avanzar con la seña del 20% para congelar el precio.',
   DEPOSIT: 'Ya señó o está por pagar. Coordiná pago, retiro o envío y transmití confianza. Lo que sea cobrar o confirmar stock lo hace una persona.',
   WON: 'Ya compró. Atendé con buena onda, ofrecé ayuda y, si viene al caso, periféricos o upgrades.',
   LOST: 'No compró. Si vuelve a escribir, retomá con interés genuino y ofrecé una opción que se ajuste mejor.',
 };
+
+/** Versiones viejas de fábrica: si el negocio no las editó, se reemplazan por las actuales. */
+const PREVIOUS_SALES_RULES: string[] = [
+  'Cuando le prometas un presupuesto a medida, el plazo depende de la COLA del equipo que figura en DATOS DEL SISTEMA: con 0 o 1 pendientes, "ya te lo mando"; con 2 a 4, "ahora te lo armo y te lo paso"; con 5 o más, "en un ratito te lo paso". Nunca des minutos ni horas exactas. Si ya tiene una solicitud en curso, no le pidas los datos de nuevo: decile que ya lo están armando.',
+];
+const PREVIOUS_STAGE_PLAYBOOK: Record<string, string[]> = {
+  NEW: [
+    'Recién escribe. Saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.',
+    'Recién escribe. Si vino de un anuncio con ficha, presentá esa PC o ese presupuesto; si no, saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.',
+  ],
+  QUALIFYING: [
+    'Ya sabés algo de lo que quiere. Si hay PCs o productos en DATOS DEL SISTEMA que encajen, ofrecé una o dos opciones con precio y link. Si no, con uso y presupuesto alcanza: prometé un presupuesto a medida y pedíselo al equipo (shouldCreateRequest=true).',
+  ],
+  QUOTE_SENT: [
+    'Ya tiene un presupuesto. Preguntá qué le pareció, resolvé dudas u objeciones (precio, rendimiento, componentes) y ofrecé ajustarlo o una alternativa.',
+  ],
+};
+
+function sameRule(left: string, right: string): boolean {
+  return left.trim() === right.trim();
+}
+
+/** Reglas nuevas o reemplazos: se suman si no están, sin reponer las de fábrica que hayan borrado. */
+const FACTORY_SALES_RULE_ADDITIONS: string[] = [
+  'No des vueltas: cada respuesta avanza. Si el cliente ya dijo que sí, que se lo sumes o que le mandes el presupuesto, no vuelvas a preguntar lo mismo. Una sola pregunta solo si falta un dato imprescindible (uso o presupuesto) y todavía no lo dijo.',
+  'Si el cliente pide el presupuesto, que se lo mandes o que le sumes algo, en ESE turno pedí el presupuesto al equipo (shouldCreateRequest=true) y confirmá en una frase qué va a incluir. No digas "te lo armo" ni "en un ratito" sin pedirlo. El plazo, si hace falta, sale de la COLA del equipo en DATOS DEL SISTEMA (0-1: "ya te lo mando"; 2-4: "ahora te lo armo"; 5 o más: "en un ratito"), sin minutos ni horas. Si ya hay una solicitud en curso, no pidas otra: decile que ya lo están armando.',
+  'No inventes PCs, monitores, marcas, modelos ni precios que no estén en DATOS DEL SISTEMA, en un anuncio configurado o en una respuesta de Qué sabe. Si no hay un producto que encaje, pedí el presupuesto a medida (shouldCreateRequest=true) en vez de recomendar de memoria.',
+  'Si el cliente vino de un anuncio y hay un ANUNCIO configurado, usá solo esa ficha: el precio publicado, la información específica y el presupuesto de ese aviso. Presentalo en las primeras respuestas. No ofrezcas otra PC ni pidas un presupuesto nuevo al equipo salvo que pida algo distinto a lo del anuncio.',
+];
+
+/** Deja las reglas que editaron, saca las de fábrica viejas y suma las nuevas si faltan. */
+export function applyFactorySalesRules(stored: string[] | null | undefined): string[] {
+  if (!Array.isArray(stored) || !stored.length) return [...DEFAULT_SALES_RULES];
+  const next = stored.filter((rule) => !PREVIOUS_SALES_RULES.some((old) => sameRule(rule, old)));
+  for (const fresh of FACTORY_SALES_RULE_ADDITIONS) {
+    if (!next.some((rule) => sameRule(rule, fresh))) next.push(fresh);
+  }
+  return next;
+}
+
+/** Actualiza el guion de fábrica si sigue en una versión vieja; no pisa un texto editado. */
+export function applyFactoryStagePlaybook(stored: Record<string, string> | null | undefined): Record<string, string> {
+  const base = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  const next: Record<string, string> = {...DEFAULT_STAGE_PLAYBOOK, ...base};
+  for (const [stage, factory] of Object.entries(DEFAULT_STAGE_PLAYBOOK)) {
+    const current = base[stage];
+    if (!current || PREVIOUS_STAGE_PLAYBOOK[stage]?.some((old) => sameRule(old, current))) {
+      next[stage] = factory;
+    }
+  }
+  return next;
+}
+
+/** Frases que, si el cliente las dice, el bot pide el presupuesto al equipo en ese turno. Se editan en Presupuestos y avisos. */
+export const DEFAULT_REQUEST_KEYWORDS: string[] = [
+  'mandame el presupuesto',
+  'pasame el presupuesto',
+  'armame el presupuesto',
+  'mandame la cotizacion',
+  'quiero el presupuesto',
+  'sumalo al presupuesto',
+  'sumamelo al presupuesto',
+  'presupuesto completo',
+  'mandame el pdf',
+  'pasame el pdf',
+  'cotizame',
+];
 
 /** Cómo escribe el bot en el celular. Se aplica en código a cada mensaje antes de salir. */
 export const DEFAULT_WRITING_FILTERS = {
@@ -818,6 +887,8 @@ const chatbotSettingsObjectSchema = z
     teamAlerts: teamAlertsSchema.default({enabled: true, numbers: [], templateId: null, autoSendQuote: true}),
     /** Fichas por anuncio de Facebook/Instagram: presupuesto e info de ese aviso. */
     ads: z.array(chatbotAdCampaignSchema).max(200).optional(),
+    /** Frases con las que el cliente pide el presupuesto: se crea la solicitud en ese turno. */
+    requestKeywords: z.array(z.string().trim().min(1).max(200)).max(80).optional(),
   })
   .strict();
 

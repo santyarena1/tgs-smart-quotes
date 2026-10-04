@@ -14,6 +14,9 @@ import {
   requestCreateSchema,
   chatbotSettingsInputSchema,
   chatbotRespondSchema,
+  applyFactorySalesRules,
+  applyFactoryStagePlaybook,
+  DEFAULT_SALES_RULES,
   calculatorConfigInputSchema,
   navItemIdSchema,
   expenseCreateSchema,
@@ -199,5 +202,26 @@ describe("contratos del dominio", () => {
       adCampaignId: "pc-gamer",
     });
     expect(withAd.adCampaignId).toBe("pc-gamer");
+  });
+
+  it("actualiza las reglas de fábrica viejas y suma las nuevas sin borrar las editadas", () => {
+    const oldPlazo = 'Cuando le prometas un presupuesto a medida, el plazo depende de la COLA del equipo que figura en DATOS DEL SISTEMA: con 0 o 1 pendientes, "ya te lo mando"; con 2 a 4, "ahora te lo armo y te lo paso"; con 5 o más, "en un ratito te lo paso". Nunca des minutos ni horas exactas. Si ya tiene una solicitud en curso, no le pidas los datos de nuevo: decile que ya lo están armando.';
+    const custom = "Si preguntan por notebooks, decí que no trabajamos notebooks.";
+    const next = applyFactorySalesRules([oldPlazo, custom]);
+    expect(next).not.toContain(oldPlazo);
+    expect(next).toContain(custom);
+    expect(next.some((rule) => rule.includes("No des vueltas"))).toBe(true);
+    expect(next.some((rule) => rule.includes("en ESE turno"))).toBe(true);
+    expect(applyFactorySalesRules(null)).toEqual(DEFAULT_SALES_RULES);
+  });
+
+  it("actualiza el guion de fábrica viejo y no pisa uno editado", () => {
+    const playbook = applyFactoryStagePlaybook({
+      NEW: "Recién escribe. Saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.",
+      QUALIFYING: "Nuestro criterio de calificación",
+    });
+    expect(playbook.NEW).toContain("Si ya pidió el presupuesto");
+    expect(playbook.QUALIFYING).toBe("Nuestro criterio de calificación");
+    expect(playbook.QUOTE_SENT).toContain("No armes otro");
   });
 });

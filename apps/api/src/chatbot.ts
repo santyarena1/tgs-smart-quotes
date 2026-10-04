@@ -36,6 +36,7 @@ import {
   type ChatbotRecontactInput,
   type ChatbotRespondInput,
   type ChatbotSettingsInput,
+  DEFAULT_REQUEST_KEYWORDS,
   DEFAULT_SALES_RULES,
   DEFAULT_STAGE_PLAYBOOK,
   DEFAULT_WRITING_FILTERS,
@@ -80,7 +81,12 @@ export class ChatbotController {
   /** Reglas de fábrica, para el botón "Restaurar" de Configuración → Reglas de venta. */
   @Get('settings/rule-defaults')
   ruleDefaults() {
-    return {salesRules: DEFAULT_SALES_RULES, stagePlaybook: DEFAULT_STAGE_PLAYBOOK, writingFilters: DEFAULT_WRITING_FILTERS};
+    return {
+      salesRules: DEFAULT_SALES_RULES,
+      stagePlaybook: DEFAULT_STAGE_PLAYBOOK,
+      writingFilters: DEFAULT_WRITING_FILTERS,
+      requestKeywords: DEFAULT_REQUEST_KEYWORDS,
+    };
   }
 
   @Put('settings')
@@ -91,7 +97,7 @@ export class ChatbotController {
     return db.$transaction(async (tx) => {
       const old = await tx.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
       // `responses` no es columna (se mapea a knowledgeEntries); nunca debe entrar al spread de Prisma.
-      const {responses: _responses, ads, ...columns} = body;
+      const {responses: _responses, ads, requestKeywords, ...columns} = body;
       // Los números del equipo se guardan como chatKey, igual que los chats, para reconocerlos.
       columns.teamAlerts = {
         ...body.teamAlerts,
@@ -102,6 +108,7 @@ export class ChatbotController {
         data: {
           ...columns,
           ...(ads !== undefined ? {ads} : {}),
+          ...(requestKeywords !== undefined ? {requestKeywords} : {}),
           openingMessages: body.openingMessages,
           closingMessages: body.closingMessages,
           knowledgeEntries: body.responses,

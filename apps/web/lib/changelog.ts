@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.9",
+    date: "2026-10-04",
+    title: "El bot no da vueltas: si piden el presupuesto, lo pide al equipo",
+    items: [
+      "Si el cliente dice que se lo manden o que le sumen algo, se crea la solicitud en ese turno. Las frases se editan en Presupuestos y avisos; no volver a preguntar lo mismo está en Reglas de venta y el guion por etapa",
+      "Ya no recomienda de memoria un monitor o una PC que no esté en el catálogo, un anuncio o Qué sabe. Las reglas de anuncio dejaron de estar fijas en el código: se ven y se editan en el mismo lugar",
+    ],
+  },
+  {
     version: "0.17.8",
     date: "2026-10-04",
     title: "El bot manda los mensajes y cada anuncio tiene su ficha",

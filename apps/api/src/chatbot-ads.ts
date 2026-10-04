@@ -87,17 +87,14 @@ export function formatAdContext(ad: ChatbotAdCampaign, origin: unknown): string 
   const seenHeadline = originHeadline(origin);
   const seenBody = originBody(origin);
   const lines = [
-    'ANUNCIO DEL CLIENTE (información autoritativa de ese aviso; no la contradigas)',
+    'ANUNCIO DEL CLIENTE',
     `Nombre interno: ${ad.name}`,
     ad.adId ? `ID de Meta: ${ad.adId}` : null,
     ad.headline || seenHeadline ? `Título que vio: ${ad.headline || seenHeadline}` : null,
     seenBody ? `Texto del anuncio: ${seenBody}` : null,
-    price ? `Precio publicado: $${price}. Usá este precio. No inventes otro.` : null,
+    price ? `Precio publicado: $${price}` : null,
     ad.context.trim() ? `Información específica de este anuncio:\n${ad.context.trim()}` : null,
-    ad.quote
-      ? 'Hay un presupuesto PDF configurado para este anuncio: presentalo. shouldCreateRequest=false salvo que pida algo distinto a lo del aviso.'
-      : 'Este anuncio no tiene presupuesto cargado. Si pregunta por esta PC, pedí el presupuesto al equipo (shouldCreateRequest=true) y no inventes el armado.',
-    'Si el cliente pide otra cosa que no es este anuncio, atendé eso con el resto de la información.',
+    ad.quote ? 'Presupuesto PDF de este anuncio: sí' : 'Presupuesto PDF de este anuncio: no',
   ];
   return lines.filter((line): line is string => Boolean(line)).join('\n');
 }

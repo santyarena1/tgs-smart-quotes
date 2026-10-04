@@ -26,8 +26,10 @@ import {applySignals, mergeProfile, type LeadProfile, type SalesSignals} from '.
 import {buildSystemData} from './bot-knowledge.js';
 import {
   createEscalationNotification,
+  draftFromLead,
   ensureChatbotRequest,
   explicitEscalation,
+  explicitPhrase,
   findReusableReply,
   isOutsideBusinessHours,
   matchedResponse,
@@ -278,12 +280,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             responseStyle: settings.responseStyle,
             systemData: systemData || undefined,
             salesStage: conversation.stage,
-            salesRules: campaign
-              ? [
-                  'Este cliente escribió desde un anuncio. Usá el bloque ANUNCIO DEL CLIENTE: precio, info y presupuesto de ese aviso. No ofrezcas otra PC ni pidas un presupuesto nuevo salvo que pida algo distinto.',
-                  ...settings.salesRules,
-                ]
-              : settings.salesRules,
+            salesRules: settings.salesRules,
             stagePlaybook: settings.stagePlaybook,
             writingFilters: settings.writingFilters,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
@@ -306,6 +303,18 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
 
     const shouldEscalate = Boolean(result.result.shouldEscalate);
     const reason = result.result.escalationReason ?? (shouldEscalate ? 'El modelo indicó que no puede resolver con seguridad.' : null);
+    const askedForQuote = Boolean(explicitPhrase(body.message, settings.requestKeywords ?? []));
+    const hasActiveRequest = Boolean(conversation.activeRequest && conversation.activeRequest.state !== 'CERRADA');
+    // Si el cliente pidió el presupuesto con una frase configurada, se crea en este turno.
+    // Si el anuncio ya tiene PDF, ese PDF se adjunta: no hace falta otra solicitud.
+    if (!shouldEscalate && askedForQuote && !hasActiveRequest && !campaign?.quote) {
+      result.result.shouldCreateRequest = true;
+      result.result.requestDraft = result.result.requestDraft ?? draftFromLead(
+        body.message,
+        conversation.summary,
+        conversation.profile as {usage?: string | null; games?: string[]; budgetCents?: number | null} | null,
+      );
+    }
     const responseMatch=matchedResponse(settings.responses,body.message);
     const configuredUrls=responseMatch?.response.attachments.url
       ?[responseMatch.response.attachments.url]
