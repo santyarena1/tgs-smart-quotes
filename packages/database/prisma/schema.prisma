@@ -1738,7 +1738,7 @@ model Movement {
 
   @@index([employeeId, status])
   @@index([employeeId, occurredAt])
-  // Un SALARY_ACCRUAL no cancelado por empleado por mes AR (YYYYMM):
+  // Un SALARY_ACCRUAL no cancelado por empleado por mes AR (YYYYMM, UTC-3):
   // índice único en 20261004120000_unique_salary_accrual_month.
 }
 
