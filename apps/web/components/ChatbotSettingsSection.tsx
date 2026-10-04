@@ -466,7 +466,7 @@ const WRITING_FILTERS:Array<[keyof ChatbotSettings["writingFilters"],string,stri
   ["noFormatting","Sin formato de documento","Sin negritas, títulos, guiones largos ni links con corchetes."],
 ];
 
-type RuleDefaults=Pick<ChatbotSettings,"salesRules"|"stagePlaybook"|"writingFilters">;
+type RuleDefaults=Pick<ChatbotSettings,"salesRules"|"stagePlaybook"|"writingFilters"|"requestKeywords">;
 
 /** Reglas de estilo y de venta, guion por etapa y filtros de escritura: todo lo que antes estaba fijo en el código. */
 function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Partial<ChatbotSettings>)=>void}) {
@@ -493,7 +493,7 @@ function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Part
 
     <Section
       title={`Reglas de estilo y de venta (${rules.length})`}
-      note="Lo que el bot cumple en cada respuesta. Escribilas como se las dirías a un vendedor nuevo. Las indicaciones que aprobás en Entrenamiento se suman a estas y tienen prioridad."
+      note="Lo que el bot cumple en cada respuesta, incluido no dar vueltas y pedir el presupuesto cuando el cliente lo pide. Escribilas como se las dirías a un vendedor nuevo. Las indicaciones de Entrenamiento se suman y tienen prioridad."
       aside={defaults?<button type="button" className="ghost" onClick={()=>set({salesRules:defaults.salesRules})}>Restaurar las de fábrica</button>:null}
     >
       <ol className="bot-rules">
@@ -529,11 +529,15 @@ function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Part
 /** Cuando el bot no tiene qué ofrecer, pide el presupuesto al equipo; cuando está listo, lo manda solo. */
 function RequestsTab({settings,set}:{settings:ChatbotSettings;set:(values:Partial<ChatbotSettings>)=>void}) {
   const [templates,setTemplates]=useState<WhatsappTemplate[]>([]);
-  useEffect(()=>{listWhatsappTemplates().then(list=>setTemplates(list.filter(item=>item.status==="APPROVED"))).catch(()=>undefined)},[]);
+  const [defaults,setDefaults]=useState<RuleDefaults|null>(null);
+  useEffect(()=>{
+    listWhatsappTemplates().then(list=>setTemplates(list.filter(item=>item.status==="APPROVED"))).catch(()=>undefined);
+    api<RuleDefaults>("/chatbot/settings/rule-defaults").then(setDefaults).catch(()=>undefined);
+  },[]);
   const alerts=settings.teamAlerts;
   const patch=(values:Partial<ChatbotSettings["teamAlerts"]>)=>set({teamAlerts:{...alerts,...values}});
   return <>
-    <Section title="Presupuestos que pide el bot" note="Si el cliente busca algo que no está en el catálogo ni en las PCs publicadas, el bot no sigue preguntando: con el uso y el presupuesto le promete opciones a medida y crea una solicitud en Solicitudes. El plazo que promete depende de cuántas haya en cola (0-1: 'ya te lo mando', 2-4: 'ahora te lo armo', 5 o más: 'en un ratito'); eso se edita en Reglas de venta.">
+    <Section title="Presupuestos que pide el bot" note="Si el cliente busca algo que no está en el catálogo ni en las PCs publicadas, el bot no sigue preguntando: con el uso y el presupuesto le promete opciones a medida y crea una solicitud en Solicitudes. El plazo que promete se edita en Reglas de venta.">
       <label className="bot-filter">
         <input type="checkbox" checked={alerts.autoSendQuote} onChange={event=>patch({autoSendQuote:event.target.checked})}/>
         <span><strong>Mandar el presupuesto solo apenas está listo</strong><small>Cuando el vendedor guarda el presupuesto de la solicitud, el bot se lo manda al cliente con el PDF y un mensaje cálido. Si el chat lo tomó un vendedor, está en sugerencias o pasaron 24 h, avisa en la campana para mandarlo a mano.</small></span>
@@ -541,6 +545,14 @@ function RequestsTab({settings,set}:{settings:ChatbotSettings;set:(values:Partia
       <Field label="Cómo presentar el presupuesto" hint="Instrucción para el mensaje que acompaña el PDF. No se copia textual.">
         <textarea rows={4} maxLength={5000} value={settings.quoteSendPrompt} onChange={event=>set({quoteSendPrompt:event.target.value})}/>
       </Field>
+      <ListEditor
+        label="Frases con las que pide el presupuesto"
+        values={settings.requestKeywords??[]}
+        onChange={requestKeywords=>set({requestKeywords})}
+        hint="Si el mensaje las incluye, en ese turno se crea la solicitud. No espera a que la IA decida. Una por línea."
+        placeholder={"mandame el presupuesto\nsumamelo al presupuesto\npresupuesto completo"}
+      />
+      {defaults?.requestKeywords?.length?<button type="button" className="ghost" onClick={()=>set({requestKeywords:defaults.requestKeywords})}>Restaurar las frases de fábrica</button>:null}
     </Section>
     <Section title="Aviso al equipo" note="Cada solicitud nueva aparece en la campana del CRM. Además, el número del bot le escribe por WhatsApp a estos números con el cliente, qué busca, el presupuesto y los links.">
       <label className="bot-filter">
@@ -689,7 +701,7 @@ export function ChatbotSettingsSection() {
 
   useEffect(()=>{
     api<ChatbotSettings>("/chatbot/settings")
-      .then(next=>{const ready={...next,ads:next.ads??[]};setSettings(ready);setSaved(JSON.stringify(ready))})
+      .then(next=>{const ready={...next,ads:next.ads??[],requestKeywords:next.requestKeywords??[]};setSettings(ready);setSaved(JSON.stringify(ready))})
       .catch(reason=>setError(errorMessage(reason)))
       .finally(()=>setLoading(false));
   },[]);

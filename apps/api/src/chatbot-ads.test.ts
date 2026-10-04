@@ -99,8 +99,8 @@ describe('formatAdContext', () => {
     }), {headline: 'PC Completa'});
     expect(text).toContain('$650.000');
     expect(text).toContain('Tiene RGB');
-    expect(text).toContain('presupuesto PDF');
-    expect(text).toContain('shouldCreateRequest=false');
+    expect(text).toContain('Presupuesto PDF de este anuncio: sí');
+    expect(text).not.toContain('shouldCreateRequest');
   });
 });
 

@@ -8,8 +8,9 @@
  */
 import {createQuoteRequest} from './quotes.js';
 import {
-  DEFAULT_SALES_RULES,
-  DEFAULT_STAGE_PLAYBOOK,
+  applyFactorySalesRules,
+  applyFactoryStagePlaybook,
+  DEFAULT_REQUEST_KEYWORDS,
   DEFAULT_WRITING_FILTERS,
   type ChatbotAdCampaign,
   type ChatbotSettingsInput,
@@ -119,10 +120,15 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
     guidance: Array.isArray(row.guidance) ? row.guidance : [],
     transcribeAudio: row.transcribeAudio !== false,
     describeImages: row.describeImages !== false,
-    salesRules: Array.isArray(row.salesRules) ? (row.salesRules as string[]) : DEFAULT_SALES_RULES,
-    stagePlaybook: row.stagePlaybook && typeof row.stagePlaybook === 'object' && !Array.isArray(row.stagePlaybook)
-      ? {...DEFAULT_STAGE_PLAYBOOK, ...(row.stagePlaybook as Record<string, string>)}
-      : DEFAULT_STAGE_PLAYBOOK,
+    salesRules: applyFactorySalesRules(Array.isArray(row.salesRules) ? (row.salesRules as string[]) : null),
+    stagePlaybook: applyFactoryStagePlaybook(
+      row.stagePlaybook && typeof row.stagePlaybook === 'object' && !Array.isArray(row.stagePlaybook)
+        ? (row.stagePlaybook as Record<string, string>)
+        : null,
+    ),
+    requestKeywords: Array.isArray(row.requestKeywords) && row.requestKeywords.length
+      ? (row.requestKeywords as string[]).filter((item) => typeof item === 'string' && item.trim())
+      : DEFAULT_REQUEST_KEYWORDS,
     teamAlerts: parseTeamAlerts(row.teamAlerts),
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
@@ -330,13 +336,39 @@ function wordsOf(value: string): string {
  * Palabras completas, no subcadenas: "rma" no debe activarse con "información" ni
  * "formas". Tampoco importan las tildes: "devolucion" matchea "devolución".
  */
-export function explicitEscalation(message: string, keywords: string[]): string | null {
+export function explicitPhrase(message: string, keywords: string[]): string | null {
   const normalized = ` ${wordsOf(message)} `;
   const match = keywords.find((keyword) => {
     const words = wordsOf(keyword);
     return words.length > 0 && normalized.includes(` ${words} `);
   });
+  return match ?? null;
+}
+
+export function explicitEscalation(message: string, keywords: string[]): string | null {
+  const match = explicitPhrase(message, keywords);
   return match ? `Regla explícita por palabra o frase: "${match}"` : null;
+}
+
+export function draftFromLead(
+  message: string,
+  summary: string | null | undefined,
+  profile: {usage?: string | null; games?: string[]; budgetCents?: number | null} | null | undefined,
+): ChatbotRequestDraft {
+  const usage = typeof profile?.usage === 'string' && profile.usage.trim() ? profile.usage.trim() : null;
+  const games = Array.isArray(profile?.games)
+    ? profile.games.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+  const budget = typeof profile?.budgetCents === 'number' && Number.isInteger(profile.budgetCents) && profile.budgetCents > 0
+    ? profile.budgetCents
+    : null;
+  return {
+    title: usage ? `PC ${usage}` : 'Presupuesto por WhatsApp',
+    summary: [summary?.trim(), message.trim()].filter(Boolean).join('\n').slice(0, 10000) || message.trim(),
+    expectedUse: usage,
+    requiredComponents: games.slice(0, 100),
+    maximumBudgetCents: budget,
+  };
 }
 
 export async function createEscalationNotification(tx: any, chatKey: string, reason: string, logId: string) {
