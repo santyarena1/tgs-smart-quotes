@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    date: "2026-10-04",
+    title: "Empleados: el sueldo de este mes ya no se duplica",
+    items: [
+      "Al abrir Empleados el listado y el resumen pedían el sueldo del mes al mismo tiempo y se cargaba dos veces: el neto a pagar salía al doble en todos. Queda un solo sueldo por empleado por mes; los duplicados de este mes se cancelan",
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-10-02",
     title: "Al entrar se abre el sistema completo, no LITE",

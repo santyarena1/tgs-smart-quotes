@@ -333,7 +333,29 @@ export async function applyDueSalaryAccruals(tx:any,opts:{userId:string;employee
   return created;
 }
 
+/** Serializa applyDue: listado y resumen pegan en paralelo y, sin lock, cada uno
+ *  veía "no hay sueldo de este mes" y creaba otro SALARY_ACCRUAL (neto ×2). */
+const APPLY_DUE_LOCK=87453017;
+const APPLY_DUE_TX_MS=30_000;
+
+function canStartApplyDueTransaction(client:any) {
+  return typeof client?.$transaction==='function' && typeof client?.$connect==='function';
+}
+
+async function lockApplyDue(tx:any) {
+  if(typeof tx.$executeRaw!=='function')return;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${APPLY_DUE_LOCK})`;
+}
+
 export async function applyDueEmployeeCharges(tx:any,opts:{userId:string;employeeId?:string;now?:Date;ipcForSalaryPeriod?:IpcLookup}) {
+  if(canStartApplyDueTransaction(tx)){
+    return tx.$transaction(async(inner:any)=>{
+      await lockApplyDue(inner);
+      await applyDueInstallments(inner,opts);
+      await applyDueSalaryAccruals(inner,opts);
+    },{timeout:APPLY_DUE_TX_MS,maxWait:15_000});
+  }
+  await lockApplyDue(tx);
   await applyDueInstallments(tx,opts);
   await applyDueSalaryAccruals(tx,opts);
 }

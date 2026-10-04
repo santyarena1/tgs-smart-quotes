@@ -2,7 +2,7 @@ import {beforeEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('@tgs/database',()=>({db:{}}));
 
-import {applyDueInstallments,applyDueSalaryAccruals,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,changeBpsBetween,currentPeriod,flattenListedMovement,ipcPeriodFor,movementKindForObligation,periodsUntil,pickIpcForPeriod,salaryWithIpc,splitInstallments,suggestedSalaryCents,upsertMonthlySalary} from './employees-service.js';
+import {applyDueEmployeeCharges,applyDueInstallments,applyDueSalaryAccruals,balanceBreakdown,balanceFrom,cancelEmployeeMovement,cancelEmployeeObligation,changeBpsBetween,currentPeriod,flattenListedMovement,ipcPeriodFor,movementKindForObligation,periodsUntil,pickIpcForPeriod,salaryWithIpc,splitInstallments,suggestedSalaryCents,upsertMonthlySalary} from './employees-service.js';
 
 describe('cuenta corriente de empleados',()=>{
   it('mapea obligación de la empresa a un movimiento a favor del empleado',()=>{
@@ -338,6 +338,33 @@ describe('sueldo mensual con IPC',()=>{
     const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
     expect(created).toHaveLength(0);
     expect(tx.movement.create).not.toHaveBeenCalled();
+  });
+
+  it('si otro request ya creó el sueldo del mes (P2002), no falla ni duplica',async()=>{
+    const tx=salaryTx({employees:[{
+      id:'emp-1',
+      salaryRecords:[{id:'sr-july',amountCents:10000000n,effectiveFrom:new Date('2026-07-01T12:00:00-03:00')}],
+    }]});
+    tx.movement.create=vi.fn(async()=>{throw Object.assign(new Error('Unique constraint'),{code:'P2002'});});
+    const created=await applyDueSalaryAccruals(tx,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(created).toHaveLength(0);
+  });
+
+  it('al abrir empleados serializa applyDue con transacción y lock',async()=>{
+    const inner=salaryTx({employees:[{
+      id:'emp-1',
+      salaryRecords:[{id:'sr-july',amountCents:10000000n,effectiveFrom:new Date('2026-07-01T12:00:00-03:00')}],
+    }]});
+    inner.$executeRaw=vi.fn(async()=>1);
+    inner.obligation={findMany:vi.fn(async()=>[])};
+    const client={
+      $connect:vi.fn(),
+      $transaction:vi.fn(async(fn:(tx:unknown)=>Promise<unknown>)=>fn(inner)),
+    };
+    await applyDueEmployeeCharges(client,{userId:'u1',now:august,ipcForSalaryPeriod});
+    expect(client.$transaction).toHaveBeenCalledOnce();
+    expect(inner.$executeRaw).toHaveBeenCalled();
+    expect(inner.movement.create).toHaveBeenCalledOnce();
   });
 
   it('al actualizar el sueldo del mes cambia el devengo, no crea otro',async()=>{
