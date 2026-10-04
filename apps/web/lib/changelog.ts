@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.8",
+    date: "2026-10-04",
+    title: "El bot manda los mensajes y cada anuncio tiene su ficha",
+    items: [
+      "En Solo sugerir el cliente ya no ve que el bot escribe: esa respuesta no sale hasta que la aprueben. Para que WhatsApp reciba los mensajes, el modo tiene que ser Automático",
+      "En Configuración → Chatbot → Anuncios se carga el precio, la información y el presupuesto de cada aviso. El bot lo usa cuando el chat viene de ese anuncio, y en Probar se puede simular",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-04",
     title: "La API vuelve a compilar",

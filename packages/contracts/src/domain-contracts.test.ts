@@ -190,5 +190,14 @@ describe("contratos del dominio", () => {
       messageFingerprint: "wa:inbound:1",
     });
     expect(whatsapp.previewReply).toBeUndefined();
+    expect(whatsapp.adCampaignId).toBeUndefined();
+    const withAd = chatbotRespondSchema.parse({
+      chatKey: "sim:config:1",
+      message: "hola, vengo del anuncio",
+      messageFingerprint: "sim:config:1:ad",
+      simulation: true,
+      adCampaignId: "pc-gamer",
+    });
+    expect(withAd.adCampaignId).toBe("pc-gamer");
   });
 });

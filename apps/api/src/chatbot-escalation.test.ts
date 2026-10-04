@@ -40,5 +40,31 @@ describe('settingsDto', () => {
       escalationKeywords: [],
     });
     expect(dto).not.toHaveProperty('followups');
+    expect(dto.ads).toEqual([]);
+  });
+
+  it('lee las fichas de anuncios', () => {
+    const dto = settingsDto({
+      id: 'singleton',
+      knowledgeEntries: [],
+      customRules: [],
+      openingMessages: [],
+      closingMessages: [],
+      escalationKeywords: [],
+      ads: [{
+        id: 'pc-gamer',
+        enabled: true,
+        adId: '1202',
+        name: 'PC Gamer',
+        headline: 'PC Completa',
+        context: 'Ryzen 5',
+        openingMessage: '',
+        advertisedPriceCents: '65000000',
+        quote: null,
+      }],
+    });
+    expect(dto.ads).toHaveLength(1);
+    expect(dto.ads[0]?.name).toBe('PC Gamer');
+    expect(dto.ads[0]?.advertisedPriceCents).toBe('65000000');
   });
 });
