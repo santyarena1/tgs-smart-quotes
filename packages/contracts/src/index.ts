@@ -894,6 +894,8 @@ export const chatbotRespondSchema = z
     messageFingerprint: z.string().trim().min(8).max(200),
     manualSuggestion: z.boolean().optional().default(false),
     simulation: z.boolean().optional().default(false),
+    /** En Probar: igual redactar la respuesta si el bot está apagado o el local cerrado. */
+    previewReply: z.boolean().optional().default(false),
     recentMessages: z.array(z.object({
       direction: z.enum(['INBOUND', 'OUTBOUND']),
       text: z.string().trim().min(1).max(10000),

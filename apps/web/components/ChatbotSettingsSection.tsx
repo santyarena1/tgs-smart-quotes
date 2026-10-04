@@ -246,10 +246,13 @@ function BubblePreview({settings}:{settings:ChatbotSettings}) {
 
 type SimulationResult={
   action:string;
+  liveMode?:string;
   messages?:string[];
   reply?:string;
   quoteFollowupMessage?:string|null;
   wouldEscalate?:{reason:string|null};
+  wouldCreateRequest?:boolean;
+  previewedDespite?:string;
   attachments?:Array<{image?:{url?:string;filename?:string}|null;quote?:{visibleNumber?:string;version?:number}|null}>;
   reused?:unknown;
   matchedResponseId?:string|null;
@@ -263,7 +266,7 @@ const SIM_ACTIONS:Record<string,string>={
   OFF:"El modo general está en Apagado: no respondería.",
   DISABLED:"El bot está apagado: no respondería.",
   OUTSIDE_HOURS:"Fuera del horario comercial, con \"No responder\": no respondería.",
-  ESCALATED:"El chat de prueba quedó escalado.",
+  ESCALATED:"Este chat ya quedó derivado: un cliente real no recibiría otra respuesta del bot. Empezar de nuevo abre otro cliente.",
 };
 
 export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boolean}) {
@@ -272,6 +275,7 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const [session,setSession]=useState(()=>`sim:config:${Date.now()}`);
+  const [previewReply,setPreviewReply]=useState(false);
 
   async function send(){
     const message=draft.trim();
@@ -289,6 +293,7 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
         message,
         messageFingerprint:`${session}:${Date.now()}`,
         simulation:true,
+        previewReply,
         recentMessages:history,
       }});
       const detail:string[]=[];
@@ -306,8 +311,12 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
         const badge=temperatureBadge(result.signals.temperature);
         detail.push(`${badge?.icon??""} ${badge?.label??""} · ${INTENT_LABEL[result.signals.intent]??result.signals.intent}${result.signals.nextStep?` · Próximo paso: ${result.signals.nextStep}`:""}`.trim());
       }
+      if(result.previewedDespite==="DISABLED"||result.previewedDespite==="OFF")detail.unshift("Un cliente ahora no recibiría esto: el bot está apagado.");
+      if(result.previewedDespite==="OUTSIDE_HOURS")detail.unshift("Un cliente ahora no recibiría esto: el local está cerrado y fuera de horario está en No responde.");
+      if(result.liveMode==="SUGGEST"&&!result.previewedDespite)detail.unshift("Un cliente no lo recibe solo: queda como sugerencia para aprobar en la bandeja.");
+      if(result.wouldCreateRequest)detail.push("Crearía una solicitud de presupuesto para el equipo (en la prueba no se crea).");
       if(result.wouldEscalate){
-        setTurns(current=>[...current,{from:"system",text:`Derivaría a una persona: ${result.wouldEscalate?.reason??"sin motivo"}`,detail}]);
+        setTurns(current=>[...current,{from:"system",text:`Derivaría a una persona y dejaría de contestar en este chat: ${result.wouldEscalate?.reason??"sin motivo"}`,detail}]);
       }else if(SIM_ACTIONS[result.action]){
         const text=SIM_ACTIONS[result.action]??result.action;
         setTurns(current=>[...current,{from:"system",text}]);
@@ -321,10 +330,11 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
 
   return <Section
     title="Probar el bot"
-    note="Escribí como si fueras un cliente y mirá qué contestaría. No se manda nada por WhatsApp ni aparece en la bandeja. Usa la configuración guardada y el modo Automático."
+    note="Escribí como un cliente. La charla guarda memoria y etapa, respeta horario, reglas y derivación, y no manda nada por WhatsApp ni entra a la bandeja."
     aside={turns.length?<button type="button" className="btn-ghost btn-sm" onClick={()=>{setTurns([]);setSession(`sim:config:${Date.now()}`)}}>Empezar de nuevo</button>:null}
   >
     {dirty?<Alert tone="info">Tenés cambios sin guardar: la prueba usa lo último que guardaste.</Alert>:null}
+    <Checkbox label="Ver la respuesta igual si el bot está apagado o el local está cerrado" checked={previewReply} onChange={setPreviewReply}/>
     {error?<Alert>{error}</Alert>:null}
     <div className="bot-phone wide">
       <div className="bot-phone-body tall">
@@ -508,6 +518,9 @@ function RequestsTab({settings,set}:{settings:ChatbotSettings;set:(values:Partia
         <input type="checkbox" checked={alerts.autoSendQuote} onChange={event=>patch({autoSendQuote:event.target.checked})}/>
         <span><strong>Mandar el presupuesto solo apenas está listo</strong><small>Cuando el vendedor guarda el presupuesto de la solicitud, el bot se lo manda al cliente con el PDF y un mensaje cálido. Si el chat lo tomó un vendedor, está en sugerencias o pasaron 24 h, avisa en la campana para mandarlo a mano.</small></span>
       </label>
+      <Field label="Cómo presentar el presupuesto" hint="Instrucción para el mensaje que acompaña el PDF. No se copia textual.">
+        <textarea rows={4} maxLength={5000} value={settings.quoteSendPrompt} onChange={event=>set({quoteSendPrompt:event.target.value})}/>
+      </Field>
     </Section>
     <Section title="Aviso al equipo" note="Cada solicitud nueva aparece en la campana del CRM. Además, el número del bot le escribe por WhatsApp a estos números con el cliente, qué busca, el presupuesto y los links.">
       <label className="bot-filter">
@@ -704,6 +717,9 @@ export function ChatbotSettingsSection() {
           <hr/>
           <Checkbox label="Mandar un mensaje después del PDF de un presupuesto" checked={settings.multiMessage.quoteFollowup.enabled} onChange={enabled=>multi({quoteFollowup:{...settings.multiMessage.quoteFollowup,enabled}})}/>
           {settings.multiMessage.quoteFollowup.enabled?<Field label="Mensaje después del presupuesto"><textarea rows={2} maxLength={1000} value={settings.multiMessage.quoteFollowup.message} placeholder="¿Querés que te lo reserve o ajustamos algo?" onChange={event=>multi({quoteFollowup:{...settings.multiMessage.quoteFollowup,message:event.target.value}})}/></Field>:null}
+          <Field label="Texto al mandar la foto de un producto" hint="Sale como mensaje aparte después de la foto.">
+            <input maxLength={500} value={settings.productMessageIntro} placeholder="Este sería el producto 👇" onChange={event=>set({productMessageIntro:event.target.value})}/>
+          </Field>
         </div>
         <BubblePreview settings={settings}/>
       </div>
@@ -711,7 +727,7 @@ export function ChatbotSettingsSection() {
 
     {activeTab==="knowledge"?<Section
       title="Qué sabe el bot"
-      note="Información autorizada del negocio: formas de pago, envíos, garantía, horarios del local… Cuando el cliente pregunta algo parecido a los activadores, el bot responde con esto."
+      note="Información autorizada del negocio. Cada respuesta tiene su propia exigencia: 90 % o más es estricto (casi la misma frase); más abajo reconoce formas parecidas. El estilo y el criterio de venta se editan en Reglas de venta: no hay otro juego de reglas oculto."
       aside={<button type="button" onClick={()=>{setRuleFilter("");set({responses:[...settings.responses,{
         id:uid(),enabled:true,activators:[],similarityThreshold:85,answer:"",context:"",attachments:emptyAttachments(),
       }]})}}>+ Agregar respuesta</button>}
