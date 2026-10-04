@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {explicitEscalation} from './chatbot-core.js';
+import {explicitEscalation, settingsDto} from './chatbot-core.js';
 
 describe('explicitEscalation', () => {
   it('matchea palabras completas, no pedazos de otras', () => {
@@ -25,5 +25,20 @@ describe('matchedResponse', () => {
     expect(matchedResponse([rule(['seña'])] as any, 'Quiero diseñar mi pc')).toBeNull();
     expect(matchedResponse([rule(['seña'])] as any, 'puedo dejar una seña?')?.response.id).toBe('r1');
     expect(matchedResponse([rule(['envios'])] as any, 'hacen envíos a Rosario?')?.response.id).toBe('r1');
+  });
+});
+
+describe('settingsDto', () => {
+  it('no manda followups: se editan en el CRM, no en Configuración → Chatbot', () => {
+    const dto = settingsDto({
+      id: 'singleton',
+      knowledgeEntries: [],
+      customRules: [],
+      followups: {enabled: true, onlyBotChats: false, steps: [{afterHours: 2, text: 'hola'}]},
+      openingMessages: [],
+      closingMessages: [],
+      escalationKeywords: [],
+    });
+    expect(dto).not.toHaveProperty('followups');
   });
 });

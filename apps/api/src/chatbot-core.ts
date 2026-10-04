@@ -82,7 +82,10 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
       };
     }),
   ];
-  const {knowledgeEntries:_legacyKnowledge,customRules:_legacyRules,...base}=row;
+  // followups se edita en CRM → Seguimientos, no en Configuración → Chatbot.
+  // Si viaja en el GET, el PUT .strict() tira "Unrecognized key(s): followups"
+  // y no se puede guardar el horario.
+  const {knowledgeEntries:_legacyKnowledge,customRules:_legacyRules,followups:_followups,...base}=row;
   return {
     ...base,
     openingMessages: row.openingMessages,

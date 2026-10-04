@@ -573,7 +573,7 @@ export function ChatbotSettingsSection() {
     if(!settings)return;
     setSaving(true);setError(null);setNotice(null);
     try{
-      const {id:_id,updatedAt:_updatedAt,...body}=settings;
+      const {id:_id,updatedAt:_updatedAt,followups:_followups,...body}=settings as ChatbotSettings & {followups?:unknown};
       const next=await api<ChatbotSettings>("/chatbot/settings",{method:"PUT",body});
       setSettings(next);setSaved(JSON.stringify(next));
       setNotice("Configuración guardada. Se aplica al próximo mensaje que llegue.");
