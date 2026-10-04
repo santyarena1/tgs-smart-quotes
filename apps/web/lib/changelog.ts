@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.3",
+    date: "2026-10-04",
+    title: "La API vuelve a arrancar",
+    items: [
+      "El arreglo del sueldo duplicado dejó una migración que Postgres rechazaba (un índice con zona horaria) y la API no levantaba. Ya arranca; el neto de este mes sigue sin duplicarse",
+    ],
+  },
+  {
     version: "0.17.2",
     date: "2026-10-04",
     title: "Empleados: el sueldo de este mes ya no se duplica",
