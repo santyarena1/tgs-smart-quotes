@@ -63,8 +63,15 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       update: body.displayName ? {displayName: body.displayName} : {},
       include: {activeRequest: true},
     });
-    const configuredMode = conversation.modeOverride ?? settings.defaultMode;
-    const effectiveMode = body.simulation ? 'AUTO' : body.manualSuggestion ? 'SUGGEST' : configuredMode;
+    const liveMode = conversation.modeOverride ?? settings.defaultMode;
+    const previewReply = Boolean(body.simulation && body.previewReply);
+    // Probar redacta como Automático para ver el texto, salvo que el bot esté
+    // apagado: ahí un cliente real no recibe nada, a menos que pidan la vista previa.
+    const effectiveMode = body.manualSuggestion && !body.simulation
+      ? 'SUGGEST'
+      : body.simulation
+        ? (previewReply || (settings.enabled && liveMode !== 'OFF') ? 'AUTO' : 'OFF')
+        : liveMode;
 
     let inbound: any;
     if (existingInboundId) {
@@ -120,8 +127,8 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     }
 
     // Segunda barrera del kill-switch: se evalúa en cada request y antes de invocar IA.
-    if (!settings.enabled || effectiveMode === 'OFF') {
-      return {action: settings.enabled ? 'OFF' : 'DISABLED', effectiveMode, autoSend: false, inboundLogId: inbound.id};
+    if ((!settings.enabled || effectiveMode === 'OFF') && !previewReply) {
+      return {action: settings.enabled ? 'OFF' : 'DISABLED', effectiveMode, liveMode, autoSend: false, inboundLogId: inbound.id};
     }
     if (conversation.escalatedAt) {
       return {action: 'ESCALATED', effectiveMode, autoSend: false, inboundLogId: inbound.id};
@@ -134,8 +141,8 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
 
     // Un chat marcado "responde siempre" se atiende como si el local estuviera abierto.
     const outsideHours = !conversation.alwaysOn && isOutsideBusinessHours(settings.businessHours);
-    if (outsideHours && settings.outsideHoursBehavior.mode === 'OFF') {
-      return {action: 'OUTSIDE_HOURS', effectiveMode, autoSend: false, inboundLogId: inbound.id};
+    if (outsideHours && settings.outsideHoursBehavior.mode === 'OFF' && !previewReply) {
+      return {action: 'OUTSIDE_HOURS', effectiveMode, liveMode, autoSend: false, inboundLogId: inbound.id};
     }
 
     const keywordReason = explicitEscalation(body.message, settings.escalationKeywords);
@@ -239,7 +246,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             responses: settings.responses,
             escalationInstructions: settings.escalationInstructions,
             modelCanEscalate: settings.modelCanEscalate,
-            businessContext: outsideHours
+            businessContext: outsideHours && !previewReply
               ? `Fuera de horario. Conducta configurada: ${settings.outsideHoursBehavior.mode}. Mensaje permitido: ${settings.outsideHoursBehavior.message}`
               : 'Dentro del horario de atención.',
             responseStyle: settings.responseStyle,
@@ -325,7 +332,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       where: {id: 'singleton'},
       select: {enabled: true},
     });
-    if (!stillEnabled.enabled) {
+    if (!stillEnabled.enabled && !previewReply) {
       const blocked = await db.chatbotMessageLog.create({data: {
         conversationKey: body.chatKey,
         direction: 'OUTBOUND',
@@ -422,6 +429,17 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
         },
       });
       if(body.simulation){
+        // La charla de prueba es un cliente: guarda memoria, etapa y derivación
+        // en el chat sim:, sin crear solicitudes ni avisos.
+        await tx.chatbotConversation.update({
+          where: {chatKey: body.chatKey},
+          data: {
+            ...(result.result.updatedSummary !== null ? {summary: result.result.updatedSummary} : {}),
+            summaryMessageCount: {increment: 1},
+            ...(!shouldEscalate && reply ? {lastOutboundText: reply, lastOutboundAt: new Date()} : {}),
+            ...(shouldEscalate ? {escalatedAt: new Date(), escalationReason: reason} : {}),
+          },
+        });
         return {log,notification:null,action:'SIMULATED' as const,requestResult};
       }
       if (shouldEscalate) {
@@ -443,12 +461,15 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     }
 
     // La ficha del cliente se completa sola con lo que surge de la charla.
-    if (!body.simulation && (result.result as {profile?: LeadProfile}).profile) {
-      void mergeProfile(body.chatKey, (result.result as {profile?: LeadProfile}).profile).catch(() => undefined);
+    const profile = (result.result as {profile?: LeadProfile}).profile;
+    if (profile && (!body.simulation || body.chatKey.startsWith('sim:'))) {
+      void mergeProfile(body.chatKey, profile).catch(() => undefined);
     }
-    // Temperatura, intención y próximo paso de la venta.
+    // Temperatura, intención y próximo paso. En la prueba solo si el chat es sim:.
     const signals = (result.result as {signals?: SalesSignals}).signals;
-    if (!body.simulation && signals) void applySignals(body.chatKey, signals).catch(() => undefined);
+    if (signals && (!body.simulation || body.chatKey.startsWith('sim:'))) {
+      void applySignals(body.chatKey, signals).catch(() => undefined);
+    }
 
     // El modelo derivó porque no sabía: queda como pregunta para enseñarle (y se le
     // consulta al entrenador). Las derivaciones por palabra clave o audio no cuentan.
@@ -481,6 +502,11 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
         ? settings.autoDelayMaxSeconds
         : 0,
       simulation: body.simulation,
+      liveMode: body.simulation ? liveMode : undefined,
+      wouldCreateRequest: body.simulation ? Boolean(result.result.shouldCreateRequest) : undefined,
+      previewedDespite: body.simulation && previewReply && (!settings.enabled || liveMode === 'OFF' || (outsideHours && settings.outsideHoursBehavior.mode === 'OFF'))
+        ? (!settings.enabled ? 'DISABLED' : liveMode === 'OFF' ? 'OFF' : 'OUTSIDE_HOURS')
+        : undefined,
       wouldEscalate: body.simulation&&shouldEscalate?{reason}:undefined,
       // Para el simulador de Configuración: qué regla se activó y por qué decidió así.
       matchedResponseId: responseMatch?.response.id??null,

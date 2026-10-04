@@ -13,6 +13,7 @@ import {
   quoteStateSchema,
   requestCreateSchema,
   chatbotSettingsInputSchema,
+  chatbotRespondSchema,
   calculatorConfigInputSchema,
   navItemIdSchema,
   expenseCreateSchema,
@@ -170,5 +171,18 @@ describe("contratos del dominio", () => {
     const text = result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(' | ');
     expect(text).not.toMatch(/Unrecognized key/i);
     expect(text).not.toMatch(/followups/i);
+  });
+
+  it("probar el bot acepta la vista previa y sigue siendo un cliente simulado", () => {
+    const parsed = chatbotRespondSchema.parse({
+      chatKey: "sim:config:1",
+      message: "hola, quiero una pc para jugar",
+      messageFingerprint: "sim:config:1:1",
+      simulation: true,
+      previewReply: true,
+    });
+    expect(parsed.simulation).toBe(true);
+    expect(parsed.previewReply).toBe(true);
+    expect(parsed.chatKey.startsWith("sim:")).toBe(true);
   });
 });

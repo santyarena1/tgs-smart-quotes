@@ -234,6 +234,8 @@ export type ChatbotSettings = {
     paragraphs: "COMPACT" | "SHORT" | "FREE";
     avoidRepetition: boolean;
   };
+  productMessageIntro: string;
+  quoteSendPrompt: string;
   multiMessage: {
     enabled: boolean;
     splitMode: "AI_NATURAL" | "AI_PLUS_FIXED" | "FIXED_ONLY";

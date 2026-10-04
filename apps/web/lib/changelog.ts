@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-10-04",
+    title: "Probar el bot es una charla de cliente, y se puede editar cómo presenta productos y presupuestos",
+    items: [
+      "Probar guarda la memoria y la etapa de esa charla, respeta horario y derivación, y no manda nada por WhatsApp. Si el bot está apagado o el local cerrado, se puede pedir ver la respuesta igual",
+      "El texto de la foto de un producto y la instrucción del PDF del presupuesto se editan en Configuración → Chatbot. Las reglas de venta ya eran editables; lo estricto de cada respuesta de Qué sabe es el porcentaje de coincidencia",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-10-04",
     title: "Se puede volver a cambiar el horario del bot",
