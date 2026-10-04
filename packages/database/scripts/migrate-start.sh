@@ -17,7 +17,7 @@ resolve_failed() {
 
 # Unique de cuotas: el SQL original chocaba con duplicados.
 resolve_failed "20260827020000_unique_movement_installment"
-# Unique de sueldo/mes: AT TIME ZONE no es IMMUTABLE (índice rechazado).
+# Sueldo/mes: el CREATE INDEX (to_char / AT TIME ZONE) no es IMMUTABLE (42P17).
 resolve_failed "20261004120000_unique_salary_accrual_month"
 
 echo "[migrate] prisma migrate deploy..."
