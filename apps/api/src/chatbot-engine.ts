@@ -38,6 +38,7 @@ import {
   settingsDto,
   casualText,
   pesosToCents,
+  respondWithReview,
 } from './chatbot-core.js';
 import {formatAdContext, matchAdCampaign} from './chatbot-ads.js';
 
@@ -175,14 +176,16 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       ? 'Mensaje de audio recibido, requiere atención humana.'
       : keywordReason;
     // Datos reales del sistema (catálogo, PCs publicadas, presupuesto del chat).
+    // Presupuesto del cliente: el que dijo, o el precio del anuncio por el que escribió.
+    const budgetCents = typeof (conversation.profile as {budgetCents?: unknown} | null)?.budgetCents === 'number'
+      ? (conversation.profile as {budgetCents: number}).budgetCents
+      : campaign?.advertisedPriceCents && /^\d+$/.test(campaign.advertisedPriceCents)
+        ? Number(campaign.advertisedPriceCents)
+        : null;
     const catalogData = localEscalationReason ? '' : await buildSystemData({
       chatKey: body.chatKey,
       message: body.message,
-      budgetCents: typeof (conversation.profile as {budgetCents?: unknown} | null)?.budgetCents === 'number'
-        ? (conversation.profile as {budgetCents: number}).budgetCents
-        : campaign?.advertisedPriceCents && /^\d+$/.test(campaign.advertisedPriceCents)
-          ? Number(campaign.advertisedPriceCents)
-          : null,
+      budgetCents,
       recentText: (body.recentMessages ?? []).slice(-6).map((item) => item.text).join(' '),
     }).catch(() => '');
     const adContext = campaign ? formatAdContext(campaign, conversation.origin) : '';
@@ -254,7 +257,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             usage: undefined, error: undefined,
           },
         }
-      : await service.respond({
+      : await respondWithReview((revisionNote) => service.respond({
           chatKey: body.chatKey,
           latestMessage: body.message,
           conversationSummary: conversation.summary ?? undefined,
@@ -286,6 +289,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             writingFilters: settings.writingFilters,
             bannedWords: settings.bannedWords,
             styleExamples: settings.styleExamples,
+            revisionNote,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
               .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
               .map((item) => String(item.text)),
@@ -294,7 +298,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
               splitMode:settings.multiMessage.splitMode,
             },
           },
-        });
+        }), {bannedWords: settings.bannedWords, budgetCents, customerMessage: body.message, chatKey: body.chatKey});
 
     if(!localEscalationReason&&!reusable&&(!result.metadata.usedAi||!result.metadata.success)){
       throw new BadGatewayException(

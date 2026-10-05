@@ -221,6 +221,8 @@ export const chatbotResponseInputSchema = z.object({
     bannedWords: z.array(z.string()).optional(),
     /** Ejemplos de cómo habla (cliente → respuesta). */
     styleExamples: z.array(z.string()).optional(),
+    /** Corrección pedida por la revisión en código de un borrador anterior. */
+    revisionNote: z.string().optional(),
     /** Filtros de escritura (también se aplican en código a la salida). */
     writingFilters: z.object({
       noAccents: z.boolean(),

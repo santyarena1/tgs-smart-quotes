@@ -147,7 +147,7 @@ ${input.config.businessContext ?? "Atención normal."}
 ESTILO DE RESPUESTA
 ${JSON.stringify(input.config.responseStyle)}
 
-Devolvé exclusivamente el objeto estructurado solicitado. decisionReason debe ser breve y apto para auditoría operativa.`;
+${input.config.revisionNote ? `CORRECCIÓN OBLIGATORIA\n${input.config.revisionNote}\n\n` : ""}Devolvé exclusivamente el objeto estructurado solicitado. decisionReason debe ser breve y apto para auditoría operativa.`;
 }
 
 export class ChatbotResponseService {

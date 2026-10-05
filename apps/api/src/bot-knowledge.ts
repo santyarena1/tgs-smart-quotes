@@ -85,6 +85,8 @@ async function publishedPcs(budgetCents: number | null, fin: Awaited<ReturnType<
   });
   const scored = rows
     .filter((row) => row.quoteVersion.totalSaleCents > 0n)
+    // Con presupuesto conocido, nunca se le muestran PCs que no le entran (10% de margen).
+    .filter((row) => !budgetCents || Number(row.quoteVersion.totalSaleCents) <= budgetCents * 1.1)
     .map((row) => ({row, total: row.quoteVersion.totalSaleCents}))
     .sort((a, b) => budgetCents
       ? Math.abs(Number(a.total) - budgetCents) - Math.abs(Number(b.total) - budgetCents)
@@ -138,6 +140,9 @@ export async function buildSystemData(input: {chatKey: string; message: string; 
   if (quote.length) sections.push(`PRESUPUESTO DE ESTE CLIENTE\n${quote.join('\n')}`);
   if (products.length) {
     sections.push(`PRODUCTOS DEL CATÁLOGO QUE COINCIDEN (precio vigente; el stock lo confirma una persona antes de reservar)\n${products.join('\n')}`);
+  }
+  if (!pcs.length && wantsPc && input.budgetCents) {
+    sections.push(`PCs ARMADAS PUBLICADAS: ninguna entra en el presupuesto del cliente (${money(BigInt(input.budgetCents))}). No le ofrezcas PCs más caras: pedí el presupuesto a medida al equipo (shouldCreateRequest=true) o preguntale si puede estirarse.`);
   }
   if (pcs.length) {
     sections.push(`PCs ARMADAS PUBLICADAS EN LA TIENDA (precio vigente${input.budgetCents ? `, las más cercanas a su presupuesto de ${money(BigInt(input.budgetCents))}` : ''}). Podés recomendar 1 o 2 que encajen con lo que quiere y preguntarle cuál le gusta.\n${pcs.join('\n')}`);

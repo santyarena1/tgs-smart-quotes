@@ -6,6 +6,7 @@
  * llamaba la extensión. Ahora el webhook de WhatsApp Cloud API también necesita
  * invocarlos desde código, así que se extrajeron acá sin cambiar una sola regla.
  */
+import {Logger} from '@nestjs/common';
 import {createQuoteRequest} from './quotes.js';
 import {
   applyFactorySalesRules,
@@ -539,4 +540,55 @@ export function removeBannedVocatives(text: string, banned: string[]): string {
     );
   }
   return out.replace(/ {2,}/g, ' ').trim();
+}
+
+const reviewLogger = new Logger('ChatbotReview');
+
+const plainText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-AR');
+
+/** Pide algo distinto a lo que tenía pensado: ahí sí se puede ofrecer algo más caro. */
+const ASKS_FOR_MORE = /\b(mas potente|mejor|mas cara|otra opcion|algo mas|estirar|subir el presupuesto|lo maximo|tope de gama)\b/;
+
+/**
+ * Lo que el bot nunca puede mandar aunque la IA lo escriba: frases prohibidas y precios
+ * por encima del presupuesto del cliente (salvo que él haya pedido algo mejor).
+ */
+export function replyViolations(
+  bubbles: string[],
+  context: {bannedWords: string[]; budgetCents: number | null; customerMessage: string},
+): string[] {
+  const text = plainText(bubbles.join('\n'));
+  const problems: string[] = [];
+  for (const word of context.bannedWords) {
+    const phrase = plainText(word.trim());
+    if (phrase && new RegExp(`(^|[^\\p{L}])${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'u').test(text)) {
+      problems.push(`usaste "${word}", que está prohibido: decilo como lo diría un vendedor por WhatsApp`);
+    }
+  }
+  if (context.budgetCents && !ASKS_FOR_MORE.test(plainText(context.customerMessage))) {
+    const limit = context.budgetCents * 1.15;
+    for (const match of bubbles.join('\n').matchAll(/\$\s?(\d{1,3}(?:\.\d{3})+|\d{5,})/g)) {
+      const cents = Number(match[1]!.replace(/\./g, '')) * 100;
+      if (cents > limit) {
+        problems.push(`ofreciste algo de ${match[0]} y el presupuesto del cliente es $${Math.round(context.budgetCents / 100).toLocaleString('es-AR')}: no ofrezcas nada por encima de su presupuesto; si no hay opciones que entren, pedí el presupuesto a medida al equipo (shouldCreateRequest=true) o preguntale si puede estirarse`);
+        break;
+      }
+    }
+  }
+  return problems;
+}
+
+/** Redacta, revisa en código y, si algo no se puede mandar, pide una corrección (una sola vez). */
+export async function respondWithReview<T extends {result: {messages?: string[]; reply: string; shouldEscalate?: boolean}; metadata: {success: boolean}}>(
+  ask: (revisionNote?: string) => Promise<T>,
+  context: {bannedWords: string[]; budgetCents: number | null; customerMessage: string; chatKey: string},
+): Promise<T> {
+  const first = await ask();
+  if (!first.metadata.success || first.result.shouldEscalate) return first;
+  const bubbles = first.result.messages?.length ? first.result.messages : [first.result.reply];
+  const problems = replyViolations(bubbles, context);
+  if (!problems.length) return first;
+  reviewLogger.log(JSON.stringify({event: 'chatbot_reply_revised', chatKey: context.chatKey, problems}));
+  const second = await ask(`Tu borrador anterior fue: ${JSON.stringify(bubbles)}. No se puede mandar porque ${problems.join('; ')}. Reescribí la respuesta corrigiendo eso y manteniendo el tono de los ejemplos.`);
+  return second.metadata.success ? second : first;
 }
