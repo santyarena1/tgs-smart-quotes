@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.3",
+    date: "2026-10-05",
+    title: "Los avisos de presupuestos llegan a los números entrenadores",
+    items: [
+      "Cada solicitud nueva que pide el bot avisa por WhatsApp a los mismos números que entrenan al bot. Se cambia en Configuración → Chatbot → Presupuestos y avisos",
+    ],
+  },
+  {
     version: "0.18.2",
     date: "2026-10-05",
     title: "El bot ahora es Fede: reglas nuevas armadas con las charlas reales",
