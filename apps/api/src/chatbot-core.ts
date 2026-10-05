@@ -11,6 +11,7 @@ import {
   applyFactorySalesRules,
   applyFactoryStagePlaybook,
   DEFAULT_BANNED_WORDS,
+  DEFAULT_STYLE_EXAMPLES,
   DEFAULT_REQUEST_KEYWORDS,
   DEFAULT_WRITING_FILTERS,
   type ChatbotAdCampaign,
@@ -131,6 +132,7 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
       ? (row.requestKeywords as string[]).filter((item) => typeof item === 'string' && item.trim())
       : DEFAULT_REQUEST_KEYWORDS,
     teamAlerts: parseTeamAlerts(row.teamAlerts),
+    styleExamples: Array.isArray(row.styleExamples) ? (row.styleExamples as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_STYLE_EXAMPLES,
     bannedWords: Array.isArray(row.bannedWords) ? (row.bannedWords as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_BANNED_WORDS,
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}

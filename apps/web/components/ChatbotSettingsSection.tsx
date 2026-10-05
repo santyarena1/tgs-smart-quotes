@@ -491,6 +491,10 @@ function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Part
       </div>
     </Section>
 
+    <Section title="Ejemplos de cómo habla" note="Es lo que más pesa en el tono: el bot imita estos ejemplos. Uno por línea: Cliente: &quot;...&quot; → Fede: &quot;burbuja&quot; | &quot;otra burbuja&quot;.">
+      <ListEditor label="Ejemplos" values={settings.styleExamples??[]} onChange={styleExamples=>set({styleExamples})}/>
+    </Section>
+
     <Section title="Palabras prohibidas" note="El bot nunca las usa. Si se le escapa una como apodo ('Dale querido!'), se saca sola antes de enviar.">
       <ListEditor label="Una por línea" values={settings.bannedWords??[]} onChange={bannedWords=>set({bannedWords})} placeholder={["querido","papa","posta"].join("\n")}/>
     </Section>

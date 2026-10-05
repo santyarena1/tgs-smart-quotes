@@ -285,6 +285,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             stagePlaybook: settings.stagePlaybook,
             writingFilters: settings.writingFilters,
             bannedWords: settings.bannedWords,
+            styleExamples: settings.styleExamples,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
               .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
               .map((item) => String(item.text)),

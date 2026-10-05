@@ -1124,6 +1124,8 @@ model ChatbotSettings {
   writingFilters            Json?
   /// Palabras que el bot nunca usa. null = las de fábrica.
   bannedWords               Json?
+  /// Ejemplos de cómo habla el bot. null = los de fábrica.
+  styleExamples             Json?
   /// Avisos al equipo por solicitudes del bot y envío automático del presupuesto listo.
   teamAlerts                Json?
   /// Horas sin mensajes del vendedor tras las cuales el bot retoma un chat pausado. 0 = nunca.

@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.4",
+    date: "2026-10-05",
+    title: "Fede habla menos formal",
+    items: [
+      "El bot imita ejemplos reales de cómo hablamos (\"Jaja ojala pudiera! Pero te armo algo que te quede comodo de precio\"). Se editan en Configuración → Chatbot → Reglas de venta → Ejemplos de cómo habla",
+      "Muletillas formales prohibidas: entiendo que, sin embargo, te gustaria que, puedo ayudarte a, no dudes en, con gusto, por supuesto",
+      "Las respuestas del chat se redactan con más naturalidad (antes la IA tenía el mismo ajuste rígido que usa para extraer datos)",
+    ],
+  },
+  {
     version: "0.18.3",
     date: "2026-10-05",
     title: "Los avisos de presupuestos llegan a los números entrenadores",

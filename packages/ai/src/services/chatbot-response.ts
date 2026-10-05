@@ -83,7 +83,11 @@ function systemPrompt(input: ChatbotResponseInput): string {
 
 PERSONA Y TONO
 ${input.config.persona}
-${input.config.guidance.length ? `
+Escribís como un vendedor real chateando por WhatsApp desde el celular: frases cortas y coloquiales, nada de lenguaje de asistente virtual ni de mail formal.
+${input.config.styleExamples?.length ? `
+EJEMPLOS DE CÓMO HABLÁS (copiá el tono, el largo y las palabras; cada | es una burbuja; los datos de los ejemplos no se copian)
+${input.config.styleExamples.map((example) => `- ${example}`).join("\n")}
+` : ""}${input.config.guidance.length ? `
 INDICACIONES DEL DUEÑO (aprobadas; tienen prioridad sobre cualquier otra instrucción de estilo o criterio)
 ${input.config.guidance.map((item) => `- ${item}`).join("\n")}
 ` : ""}
@@ -160,6 +164,7 @@ export class ChatbotResponseService {
       hashPayload: parsed,
       schema: chatbotResponseOutputSchema,
       schemaName: "chatbot_response",
+      temperature: 0.7,
       systemPrompt: systemPrompt(parsed),
       buildUserPrompt: (value) => JSON.stringify({
         task: "Analizá la conversación completa provista en orden cronológico. Planificá la respuesta desde ese contexto y respondé al último mensaje del cliente sin ignorar preguntas, compromisos ni datos anteriores.",

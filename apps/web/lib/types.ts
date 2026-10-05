@@ -285,6 +285,7 @@ export type ChatbotSettings = {
   stagePlaybook: Record<string, string>;
   writingFilters: { noAccents: boolean; noOpeningMarks: boolean; noFinalPeriod: boolean; noFormatting: boolean };
   bannedWords: string[];
+  styleExamples: string[];
   teamAlerts: { enabled: boolean; numbers: string[]; templateId: string | null; autoSendQuote: boolean };
   ads: ChatbotAdCampaign[];
   requestKeywords: string[];

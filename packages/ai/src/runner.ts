@@ -14,6 +14,8 @@ import type {
 } from "./types.js";
 
 type RunAiTaskParams<TInput, TOutput> = {
+  /** Conversación: más natural. Extracción de datos: baja (0.2 por defecto). */
+  temperature?: number;
   task: AiTask;
   input: TInput;
   hashPayload: unknown;
@@ -107,7 +109,7 @@ export async function runAiTask<TInput, TOutput>(
   try {
     const completion = await openai.chat.completions.parse({
       model,
-      temperature: 0.2,
+      temperature: params.temperature ?? 0.2,
       messages: [
         { role: "system", content: params.systemPrompt },
         { role: "user", content: params.buildUserPrompt(params.input) },

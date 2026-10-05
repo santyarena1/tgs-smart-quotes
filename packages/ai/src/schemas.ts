@@ -219,6 +219,8 @@ export const chatbotResponseInputSchema = z.object({
     stagePlaybook: z.record(z.string(), z.string()).optional(),
     /** Palabras y frases que nunca se usan. */
     bannedWords: z.array(z.string()).optional(),
+    /** Ejemplos de cómo habla (cliente → respuesta). */
+    styleExamples: z.array(z.string()).optional(),
     /** Filtros de escritura (también se aplican en código a la salida). */
     writingFilters: z.object({
       noAccents: z.boolean(),
