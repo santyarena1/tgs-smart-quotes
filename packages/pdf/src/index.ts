@@ -116,7 +116,17 @@ export type PdfLayoutStyle = {
   padding?: number;
 };
 /** Estilo global del documento (ambas plantillas). Todo opcional: vacío conserva el diseño original. */
+export type PdfTradeIns = {
+  showValues: boolean;
+  items: Array<{ name: string; valueCents: bigint }>;
+};
+export type PdfLabelKey =
+  | 'quoteTitle' | 'quoteDataTitle' | 'fiscalDataTitle'
+  | 'colCode' | 'colName' | 'colQty' | 'colAmount'
+  | 'listPriceLabel' | 'cashPriceLabel' | 'observationLabel';
 export type PdfLayoutDocument = {
+  /** Rótulos de plantilla reescritos desde el editor. Vacío conserva el texto original. */
+  labels?: Partial<Record<PdfLabelKey, string>>;
   accentColor?: string;
   textColor?: string;
   fontFamily?: string;
@@ -161,6 +171,8 @@ export type PdfRenderInput = {
   date: Date;
   isBuiltPc: boolean;
   observation?: string | null;
+  /** Productos que entrega el cliente. `showValues` = mostrar a cuánto se toman. */
+  tradeIns?: PdfTradeIns | null;
   listTotalCents: bigint;
   cashTotalCents: bigint;
   company: PdfCompany;
@@ -223,6 +235,9 @@ export function pdfInputHash(input: PdfRenderInput): string {
       subtotalCents: i.subtotalCents.toString(),
     })),
     financing: input.financing,
+    ...(input.tradeIns?.items.length
+      ? { tradeIns: { showValues: input.tradeIns.showValues, items: input.tradeIns.items.map((i) => ({ name: i.name, valueCents: i.valueCents.toString() })) } }
+      : {}),
     ...(hasLayoutOverrides(input.layout) ? { layout: input.layout } : {}),
   };
   return sha256Hex(JSON.stringify(canonical));
@@ -482,6 +497,27 @@ function layoutBlocksCss(layout: PdfLayoutConfig): string {
   return `${documentCss(layout.document)}${styles}${columnCss}`;
 }
 
+/** Reescribe los rótulos de plantilla elegidos en el editor. Toca solo el texto entre etiquetas ya marcadas. */
+function applyLabelOverrides(html: string, labels: NonNullable<PdfLayoutConfig['document']>['labels']): string {
+  if (!labels) return html;
+  const swap = (source: string, pattern: RegExp, label: string | undefined) =>
+    label ? source.replace(pattern, (_m, open: string, close: string) => `${open}${escapeHtml(label)}${close}`) : source;
+  let next = html;
+  next = swap(next, /(<h1 data-pdf-block="quoteTitle">)[^<]*(<\/h1>)/, labels.quoteTitle);
+  next = swap(next, /(data-pdf-block="quoteData"[^>]*>\s*<h2>)[^<]*(<\/h2>)/, labels.quoteDataTitle);
+  next = swap(next, /(data-pdf-block="companyFiscalData"[^>]*>\s*<h2>)[^<]*(<\/h2>)/, labels.fiscalDataTitle);
+  const columns: Array<[string, string | undefined]> = [
+    ['colCode', labels.colCode], ['colName', labels.colName], ['colQty', labels.colQty], ['colAmount', labels.colAmount],
+  ];
+  for (const [key, label] of columns) {
+    next = swap(next, new RegExp(`(<th[^>]*data-pdf-block="itemsTable\\.${key}"[^>]*>)[^<]*(</th>)`), label);
+  }
+  next = swap(next, /(<span[^>]*>)Precio de lista(?: \(1 pago tarjeta\))?(<\/span>)/, labels.listPriceLabel);
+  next = swap(next, /(<span[^>]*>)Efectivo \/ Transferencia(<\/span>)/, labels.cashPriceLabel);
+  next = swap(next, /(<(?:strong|b)>)Observación:(<\/(?:strong|b)>)/, labels.observationLabel ? `${labels.observationLabel}:` : undefined);
+  return next;
+}
+
 function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
   let next = html.replace('</style>', `${layoutBlocksCss(layout)}</style>`);
   const replacements: Array<[string, string]> = [
@@ -505,6 +541,7 @@ function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
     ['<footer class="footer">', '<footer data-pdf-block="footerText" class="footer">'],
   ];
   for (const [from, to] of replacements) next = next.replaceAll(from, to);
+  next = applyLabelOverrides(next, layout.document?.labels);
   if (next.includes('<table class="fin">') || next.includes('<p class="note">')) {
     const financingStart = next.indexOf('<p class="note">') >= 0
       ? next.indexOf('<p class="note">')
@@ -563,6 +600,28 @@ function buildItemsRows(input: PdfRenderInput): string {
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name">${name}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
     .join('');
+}
+
+/** Entrega del cliente dentro de los totales, justo debajo de Efectivo / Transferencia:
+ *  una línea compacta con lo que entregó y el precio final. Vacío si no entregó nada. */
+function buildTradeInsTotals(input: PdfRenderInput, variant: 'classic' | 'modern'): string {
+  const trade = input.tradeIns;
+  if (!trade || trade.items.length === 0) return '';
+  const names = trade.items
+    .map((item) => escapeHtml(item.name) + (trade.showValues ? ` (${formatArsFromCents(item.valueCents)})` : ''))
+    .join(' · ');
+  const discount = trade.items.reduce((sum, item) => sum + item.valueCents, 0n);
+  const toPay = input.cashTotalCents > discount ? input.cashTotalCents - discount : 0n;
+  const label = 'Precio final con entrega de productos del cliente';
+  const list = variant === 'modern'
+    ? `<div class="row trade-list"><span class="lbl"><b>Productos entregados por el cliente:</b> ${names}</span></div>`
+    : `<div class="row trade-list"><span><b>Productos entregados por el cliente:</b> ${names}</span></div>`;
+  const final = !input.config.showCashTransfer
+    ? ''
+    : variant === 'modern'
+      ? `<div class="row final"><span class="lbl">${label}</span><span class="val">${formatArsFromCents(toPay)}</span></div>`
+      : `<div class="row final"><span>${label}</span><span>${formatArsFromCents(toPay)}</span></div>`;
+  return list + final;
 }
 
 function buildFinancing(input: PdfRenderInput): string {
@@ -704,6 +763,9 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     border: 0;
     margin-top: 4px;
   }
+  .totals .trade-list { display: block; padding: 5px 10px; font-size: 10px; line-height: 1.35; color: #444; }
+  .totals .final { padding: 6px 10px; font-size: 12.5px; font-weight: 400; color: #800020; border-bottom: 2px solid #800020; }
+  .totals .final span:last-child { font-weight: 800; }
   table.fin { width: 100%; border-collapse: collapse; margin-top: 8px; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eee; }
   table.fin .amt { text-align: right; white-space: nowrap; }
@@ -794,6 +856,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
         ? `<div class="row cash"><span>Efectivo / Transferencia</span><span>${formatArsFromCents(input.cashTotalCents)}</span></div>`
         : ''
     }
+    ${buildTradeInsTotals(input, 'classic')}
   </section>
 
   ${buildFinancing(input)}
@@ -978,6 +1041,11 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .totals .cash { border-bottom: none; padding-top: 8px; }
   .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 11.3px; }
   .totals .cash .val { color: ${green}; font-weight: 900; font-size: 17px; }
+  .totals .trade-list { display: block; padding: 4px 2px; border-bottom: none; }
+  .totals .trade-list .lbl { font-size: 9.6px; color: #555; line-height: 1.35; }
+  .totals .final { border-bottom: none; border-top: 1px solid #ddd; padding-top: 6px; }
+  .totals .final .lbl { color: #800020; font-weight: 400; font-size: 11px; }
+  .totals .final .val { color: #800020; font-weight: 800; font-size: 14.5px; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
   table.fin tr:last-child td { border-bottom: none; }
@@ -1047,6 +1115,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     <section class="totals" data-pdf-block="totalsBlock">
       ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
       ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
+      ${buildTradeInsTotals(input, 'modern')}
     </section>
     ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
   </div>
@@ -1064,7 +1133,10 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
 </html>`;
   return withCustomBlocks(
     hasLayoutOverrides(input.layout)
-      ? html.replace('</style>', `${layoutBlocksCss(input.layout!)}</style>`)
+      ? applyLabelOverrides(
+          html.replace('</style>', `${layoutBlocksCss(input.layout!)}</style>`),
+          input.layout!.document?.labels,
+        )
       : html,
     input.layout,
   );
@@ -1118,18 +1190,38 @@ export async function closePdfBrowser(): Promise<void> {
   }
 }
 
+/** Cantidad de páginas de un PDF generado por Chromium (cada página es un objeto `/Type /Page`). */
+export function countPdfPages(buffer: Buffer): number {
+  return (buffer.toString('latin1').match(/\/Type\s*\/Page(?![\w])/g) ?? []).length;
+}
+
+/** Escalas que se prueban cuando el presupuesto se pasa a una segunda hoja por poco. */
+const FIT_ONE_PAGE_SCALES = [0.93, 0.87, 0.82, 0.78];
+
 export async function renderPdfBuffer(input: PdfRenderInput): Promise<Buffer> {
   const html = renderQuoteHtml(input);
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     await page.setContent(html, { waitUntil: 'networkidle' });
-    const buffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
-    return Buffer.from(buffer);
+    const print = async (scale?: number) =>
+      Buffer.from(
+        await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '0', right: '0', bottom: '0', left: '0' },
+          ...(scale ? { scale } : {}),
+        }),
+      );
+    const buffer = await print();
+    // Un presupuesto que solo se desborda a una 2ª hoja se achica lo justo para que entre en una.
+    // Los que ya entran no se tocan, y los realmente largos (3+ hojas) conservan su tamaño.
+    if (countPdfPages(buffer) !== 2) return buffer;
+    for (const scale of FIT_ONE_PAGE_SCALES) {
+      const fitted = await print(scale);
+      if (countPdfPages(fitted) === 1) return fitted;
+    }
+    return buffer;
   } finally {
     await page.close();
   }

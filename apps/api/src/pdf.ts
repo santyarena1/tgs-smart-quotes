@@ -157,6 +157,11 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
   const listTotalCents =
     (cashTotalCents * BigInt(10000 + company.listInterestBps) + 5000n) / 10000n;
 
+  const rawTradeIns = version.tradeIns as { showValues?: boolean; items?: Array<{ name: string; valueCents: string }> } | null;
+  const tradeIns = rawTradeIns?.items?.length
+    ? { showValues: Boolean(rawTradeIns.showValues), items: rawTradeIns.items.map((i) => ({ name: i.name, valueCents: BigInt(i.valueCents) })) }
+    : null;
+
   return {
     kind,
     number: family.visibleNumber,
@@ -168,6 +173,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     financingBbvaNote: pdfSettings.financingBbvaNote ?? null,
     isBuiltPc: family.isBuiltPc,
     observation: version.publicObservation,
+    ...(tradeIns ? { tradeIns } : {}),
     listTotalCents,
     cashTotalCents,
     company: {

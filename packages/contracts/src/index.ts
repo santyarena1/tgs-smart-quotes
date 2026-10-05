@@ -206,8 +206,22 @@ export const pdfLayoutStyleSchema = z
   })
   .strict();
 /** Estilo global del documento: se aplica a ambas plantillas (CLASICO y MODERNO). */
+/** Rótulos de plantilla que se pueden reescribir (el resto del texto sale de datos o de Configuración). */
+export const pdfLabelKeySchema = z.enum([
+  'quoteTitle',
+  'quoteDataTitle',
+  'fiscalDataTitle',
+  'colCode',
+  'colName',
+  'colQty',
+  'colAmount',
+  'listPriceLabel',
+  'cashPriceLabel',
+  'observationLabel',
+]);
 export const pdfLayoutDocumentSchema = z
   .object({
+    labels: z.record(pdfLabelKeySchema, z.string().trim().min(1).max(80)).optional(),
     accentColor: color.optional(),
     textColor: color.optional(),
     fontFamily: z
@@ -1050,6 +1064,17 @@ export const quoteItemCreateSchema = z
   })
   .strict();
 
+/** Productos que entrega el cliente como parte de pago. `showValues` decide si el PDF muestra a cuánto se toman. */
+export const quoteTradeInsSchema = z
+  .object({
+    showValues: z.boolean(),
+    items: z
+      .array(z.object({ name: z.string().trim().min(1).max(200), valueCents: moneyCentsSchema }).strict())
+      .min(1)
+      .max(20),
+  })
+  .strict();
+
 const quoteBaseShape = {
   internalName: text,
   requestId: nullableIdSchema,
@@ -1059,6 +1084,7 @@ const quoteBaseShape = {
   kind: z.enum(['PC', 'COMBO']).optional(),
   publicObservation: z.string().trim().max(4000).nullable().optional(),
   pdfOverrides: z.record(fieldOverrideSchema).optional(),
+  tradeIns: quoteTradeInsSchema.nullable().optional(),
   resolvedPdfConfig: z.record(z.unknown()).optional().default({}),
   financingSnapshot: z.record(z.unknown()).nullable().optional(),
   collectionIds: z.array(idSchema).optional().default([]),
@@ -1075,6 +1101,7 @@ export const quoteUpdateSchema = z
     kind: z.enum(['PC', 'COMBO']).optional(),
     publicObservation: z.string().trim().max(4000).nullable().optional(),
     pdfOverrides: z.record(fieldOverrideSchema).optional(),
+    tradeIns: quoteTradeInsSchema.nullable().optional(),
     resolvedPdfConfig: z.record(z.unknown()).optional(),
     financingSnapshot: z.record(z.unknown()).nullable().optional(),
     collectionIds: z.array(idSchema).optional(),
@@ -1094,6 +1121,7 @@ export const quoteVersionCreateSchema = z
     sourceVersion: z.number().int().positive().optional(),
     publicObservation: z.string().trim().max(4000).nullable().optional(),
     pdfOverrides: z.record(fieldOverrideSchema).optional(),
+    tradeIns: quoteTradeInsSchema.nullable().optional(),
     resolvedPdfConfig: z.record(z.unknown()).optional(),
     financingSnapshot: z.record(z.unknown()).nullable().optional(),
     items: z.array(quoteItemCreateSchema).min(1).optional(),
@@ -1105,6 +1133,7 @@ export const quoteVersionCreateSchema = z
       (v.items === undefined &&
         v.publicObservation === undefined &&
         v.pdfOverrides === undefined &&
+        v.tradeIns === undefined &&
         v.resolvedPdfConfig === undefined &&
         v.financingSnapshot === undefined),
     'Al restaurar una versión no se pueden mezclar cambios de contenido',
@@ -1356,6 +1385,7 @@ export type CustomerQuickCreateInput = z.infer<typeof customerQuickCreateSchema>
 export type CustomerUpdateInput = z.infer<typeof customerUpdateSchema>;
 export type PcLineCreateInput = z.infer<typeof pcLineCreateSchema>;
 export type PcLineUpdateInput = z.infer<typeof pcLineUpdateSchema>;
+export type QuoteTradeIns = z.infer<typeof quoteTradeInsSchema>;
 export type QuoteItemCreateInput = z.infer<typeof quoteItemCreateSchema>;
 export type QuoteCreateInput = z.infer<typeof quoteCreateSchema>;
 export type QuoteUpdateInput = z.infer<typeof quoteUpdateSchema>;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  countPdfPages,
   formatArsFromCents,
   formatDateAr,
   pdfFileName,
@@ -153,6 +154,53 @@ describe('@tgs/pdf', () => {
       expect(html).toContain('nth-child(even)');
       expect(html).toContain('border-radius:12px!important');
       expect(pdfInputHash(styled)).not.toBe(pdfInputHash(plain));
+    }
+  });
+
+  it('muestra la entrega del cliente bajo Efectivo / Transferencia con el precio final', () => {
+    const items = [{name: 'Placa de video vieja <GTX>', valueCents: 5_000_000n}, {name: 'Fuente 500W', valueCents: 1_500_000n}];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const base = {...sample(), template};
+      const finalPrice = formatArsFromCents(base.cashTotalCents - 6_500_000n);
+      const withValues = renderQuoteHtml({...base, tradeIns: {showValues: true, items}});
+      expect(withValues).toContain('Productos entregados por el cliente:');
+      expect(withValues).toContain('Placa de video vieja &lt;GTX&gt; ($ 50.000)');
+      expect(withValues).toContain('Fuente 500W ($ 15.000)');
+      expect(withValues).toContain('Precio final con entrega de productos del cliente');
+      expect(withValues).toContain(finalPrice);
+      // Va después de Efectivo / Transferencia y dentro de los totales.
+      expect(withValues.indexOf('Efectivo / Transferencia')).toBeLessThan(withValues.indexOf('Precio final con entrega'));
+      const namesOnly = renderQuoteHtml({...base, tradeIns: {showValues: false, items}});
+      expect(namesOnly).toContain('Fuente 500W');
+      expect(namesOnly).not.toContain('$ 15.000');
+      expect(namesOnly).toContain('Precio final con entrega de productos del cliente');
+      expect(renderQuoteHtml(base)).not.toContain('Productos entregados por el cliente');
+      expect(pdfInputHash({...base, tradeIns: {showValues: true, items}})).not.toBe(pdfInputHash(base));
+      expect(pdfInputHash({...base, tradeIns: null})).toBe(pdfInputHash(base));
+    }
+  });
+
+  it('cuenta las páginas de un PDF sin confundir /Pages con /Page', () => {
+    const pdf = Buffer.from('<< /Type /Pages /Count 2 >> << /Type /Page >> << /Type/Page /Parent 1 0 R >>');
+    expect(countPdfPages(pdf)).toBe(2);
+  });
+
+  it('reescribe los rótulos de plantilla elegidos, en ambas plantillas y escapando HTML', () => {
+    const labels = {
+      quoteTitle: 'COTIZACIÓN <b>', quoteDataTitle: 'Datos', fiscalDataTitle: 'Fiscal',
+      colName: 'Producto', colQty: 'Unid.', colAmount: 'Precio', listPriceLabel: 'Lista', cashPriceLabel: 'Contado',
+      observationLabel: 'Nota',
+    };
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const input = {...sample(), template, observation: 'Hola', config: {...baseConfig, showExtraObservation: true}};
+      const plain = renderQuoteHtml(input);
+      const html = renderQuoteHtml({...input, layout: {version: 1 as const, blocks: {}, document: {labels}}});
+      expect(html).toContain('COTIZACIÓN &lt;b&gt;');
+      expect(html).not.toContain('COTIZACIÓN <b>');
+      for (const text of ['>Producto</th>', '>Unid.</th>', '>Precio</th>', '>Lista</span>', '>Contado</span>']) expect(html).toContain(text);
+      expect(html).toContain('Nota:');
+      expect(plain).not.toContain('>Producto</th>');
+      expect(pdfInputHash({...input, layout: {version: 1 as const, blocks: {}, document: {labels}}})).not.toBe(pdfInputHash(input));
     }
   });
 

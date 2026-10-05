@@ -7,6 +7,7 @@ import type {
   PdfCustomBlock,
   PdfLayoutBlockKey,
   PdfLayoutConfig,
+  PdfLabelKey,
   PdfLayoutDocument,
   PdfLayoutSettings,
   PdfLayoutStyle,
@@ -39,6 +40,21 @@ const BLOCKS: Array<{
   { key: "rmaBlock", label: "Políticas de RMA", text: true, resize: true, fixedContent: "rma" },
   { key: "footerText", label: "Pie de página", text: true, resize: true, fixedContent: "footer" },
 ];
+/** Rótulos de plantilla editables por elemento (texto original entre paréntesis en el placeholder). */
+const LABEL_FIELDS: Partial<Record<PdfLayoutBlockKey, Array<{ key: PdfLabelKey; label: string; placeholder: string }>>> = {
+  quoteTitle: [{ key: "quoteTitle", label: "Título", placeholder: "PRESUPUESTO" }],
+  quoteData: [{ key: "quoteDataTitle", label: "Título del cuadro", placeholder: "Datos del presupuesto" }],
+  companyFiscalData: [{ key: "fiscalDataTitle", label: "Título del cuadro", placeholder: "Datos fiscales" }],
+  "itemsTable.colCode": [{ key: "colCode", label: "Encabezado", placeholder: "Cód." }],
+  "itemsTable.colName": [{ key: "colName", label: "Encabezado", placeholder: "Artículo" }],
+  "itemsTable.colQty": [{ key: "colQty", label: "Encabezado", placeholder: "Cant." }],
+  "itemsTable.colAmount": [{ key: "colAmount", label: "Encabezado", placeholder: "Importe" }],
+  totalsBlock: [
+    { key: "listPriceLabel", label: "Rótulo precio de lista", placeholder: "Precio de lista" },
+    { key: "cashPriceLabel", label: "Rótulo efectivo", placeholder: "Efectivo / Transferencia" },
+  ],
+  observation: [{ key: "observationLabel", label: "Rótulo", placeholder: "Observación" }],
+};
 const ALIGNS: Array<{ value: NonNullable<PdfLayoutStyle["textAlign"]>; label: string; icon: string }> = [
   { value: "left", label: "Izquierda", icon: "⇤" },
   { value: "center", label: "Centrado", icon: "↔" },
@@ -417,6 +433,12 @@ export function PdfLayoutEditorView() {
       return Object.keys(merged).length ? { ...rest, document: merged } : rest;
     });
     setNotice(null);
+  }
+
+  function patchLabel(key: PdfLabelKey, value: string) {
+    const labels = { ...(doc.labels ?? {}) };
+    if (value.trim()) labels[key] = value; else delete labels[key];
+    patchDocument({ labels: Object.keys(labels).length ? labels : undefined });
   }
 
   function applyPreset(preset: PdfPreset) {
@@ -1034,6 +1056,21 @@ export function PdfLayoutEditorView() {
           ) : (
             <div className="pdf-content-kind variable">Contenido variable o texto de plantilla</div>
           )}
+          {LABEL_FIELDS[selected as PdfLayoutBlockKey] ? (
+            <div className="pdf-label-editor">
+              {LABEL_FIELDS[selected as PdfLayoutBlockKey]!.map((field) => (
+                <label key={field.key}>{field.label}
+                  <input
+                    value={doc.labels?.[field.key] ?? ""}
+                    maxLength={80}
+                    placeholder={field.placeholder}
+                    onChange={(e) => patchLabel(field.key, e.target.value)}
+                  />
+                </label>
+              ))}
+              <small>Vacío = texto original de la plantilla.</small>
+            </div>
+          ) : null}
           <p>Los controles vacíos de diseño conservan el estilo original.</p>
           {!selectedMeta.column ? (
             <div className="pdf-property-pair">

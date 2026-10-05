@@ -627,6 +627,8 @@ model QuoteVersion {
   publicObservation  String?
   /// Overrides triestado (HEREDAR|MOSTRAR|OCULTAR) elegidos por el operador para esta versión.
   pdfOverrides       Json?
+  /// Productos que entrega el cliente como parte de pago: {showValues, items:[{name, valueCents}]}.
+  tradeIns           Json?
   /// Configuración efectiva congelada al generar el PDF: defaults globales + overrides resueltos.
   resolvedPdfConfig  Json
   financingSnapshot  Json?

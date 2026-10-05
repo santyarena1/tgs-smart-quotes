@@ -145,7 +145,13 @@ export type PdfLayoutStyle = {
   background?: string; borderColor?: string; borderWidth?: number;
   borderRadius?: number; padding?: number;
 };
+export type PdfLabelKey =
+  | "quoteTitle" | "quoteDataTitle" | "fiscalDataTitle"
+  | "colCode" | "colName" | "colQty" | "colAmount"
+  | "listPriceLabel" | "cashPriceLabel" | "observationLabel";
 export type PdfLayoutDocument = {
+  /** Rótulos de plantilla reescritos desde el editor. */
+  labels?: Partial<Record<PdfLabelKey, string>>;
   accentColor?: string; textColor?: string; fontFamily?: string;
   tableHeaderBg?: string; tableHeaderColor?: string; tableBorderColor?: string;
   tableZebra?: boolean; tableDensity?: "compact" | "normal" | "comfortable";
@@ -369,6 +375,7 @@ export type QuoteVersion = {
   profitCents: string;
   effectiveMarkupBps: number;
   publicObservation: string | null;
+  tradeIns?: { showValues: boolean; items: Array<{ name: string; valueCents: string }> } | null;
   items: QuoteItem[];
   sentAt?: string | null;
   reason?: string | null;

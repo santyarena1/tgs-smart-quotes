@@ -496,6 +496,7 @@ export class QuotesController{
           effectiveMarkupBps:totalsRow.effectiveMarkupBps,
           publicObservation:body.publicObservation??null,
           pdfOverrides:(body.pdfOverrides??{}) as Prisma.InputJsonValue,
+          tradeIns:body.tradeIns?(body.tradeIns as Prisma.InputJsonValue):Prisma.JsonNull,
           resolvedPdfConfig:(body.resolvedPdfConfig??{}) as Prisma.InputJsonValue,
           financingSnapshot:body.financingSnapshot===undefined
             ?undefined
@@ -565,6 +566,7 @@ export class QuotesController{
           effectiveMarkupBps:totalsRow.effectiveMarkupBps,
           publicObservation:sourceVersion.publicObservation,
           pdfOverrides:sourceVersion.pdfOverrides,
+          tradeIns:sourceVersion.tradeIns,
           resolvedPdfConfig:sourceVersion.resolvedPdfConfig,
           financingSnapshot:sourceVersion.financingSnapshot,
         }});
@@ -622,6 +624,7 @@ export class QuotesController{
         const changesContent=body.items!==undefined||
           body.publicObservation!==undefined||
           body.pdfOverrides!==undefined||
+          body.tradeIns!==undefined||
           body.resolvedPdfConfig!==undefined||
           body.financingSnapshot!==undefined;
         const itemRows=changesContent
@@ -655,6 +658,7 @@ export class QuotesController{
         const actuallyChanged=itemsChanged
           ||(body.publicObservation!==undefined&&(body.publicObservation??null)!==(version.publicObservation??null))
           ||(body.pdfOverrides!==undefined&&!jsonEq(body.pdfOverrides,version.pdfOverrides))
+          ||(body.tradeIns!==undefined&&!jsonEq(body.tradeIns,version.tradeIns))
           ||(body.resolvedPdfConfig!==undefined&&!jsonEq(body.resolvedPdfConfig,version.resolvedPdfConfig))
           ||(body.financingSnapshot!==undefined&&!jsonEq(body.financingSnapshot,version.financingSnapshot));
         // Un BORRADOR se edita EN EL LUGAR: la versión es "lo que se le mandó
@@ -687,6 +691,7 @@ export class QuotesController{
             effectiveMarkupBps:totalsRow.effectiveMarkupBps,
             publicObservation:body.publicObservation===undefined?version.publicObservation:body.publicObservation,
             pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):version.pdfOverrides,
+            tradeIns:body.tradeIns!==undefined?jsonField(body.tradeIns as Record<string,unknown>|null):version.tradeIns,
             resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):version.resolvedPdfConfig,
             financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):version.financingSnapshot,
             lastActivityAt:new Date(),
@@ -707,6 +712,7 @@ export class QuotesController{
             effectiveMarkupBps:totalsRow.effectiveMarkupBps,
             publicObservation:body.publicObservation===undefined?version.publicObservation:body.publicObservation,
             pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):version.pdfOverrides,
+            tradeIns:body.tradeIns!==undefined?jsonField(body.tradeIns as Record<string,unknown>|null):version.tradeIns,
             resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):version.resolvedPdfConfig,
             financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):version.financingSnapshot,
           }});
@@ -819,6 +825,7 @@ export class QuotesController{
           effectiveMarkupBps:totalsRow.effectiveMarkupBps,
           publicObservation:body.publicObservation===undefined?source.publicObservation:body.publicObservation,
           pdfOverrides:body.pdfOverrides!==undefined?jsonField(body.pdfOverrides):source.pdfOverrides,
+          tradeIns:body.tradeIns!==undefined?jsonField(body.tradeIns as Record<string,unknown>|null):source.tradeIns,
           resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):source.resolvedPdfConfig,
           financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):source.financingSnapshot,
         }});

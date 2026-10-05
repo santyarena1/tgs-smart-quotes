@@ -8,6 +8,20 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.0",
+    date: "2026-10-05",
+    title: "LITE: financiación a la vista, productos del cliente y nueva cara",
+    items: [
+      "El creador LITE muestra a la izquierda cómo queda financiado lo que se carga: un bloque por plan con el logo del banco, la cuota, el recargo o «Sin interés» y el total. Se calcula como el PDF (precio de lista + interés del plan). Tiene un campo para probar un monto a mano y un engranaje que lleva a Configuración → Financiación",
+      "Productos entregados por el cliente: se cargan en un modal con su valor y una casilla para mostrar o no a cuánto se toman. Se restan del total y de las cuotas, se guardan en la versión del presupuesto y el PDF los muestra bajo Efectivo / Transferencia junto al «Precio final con entrega de productos del cliente»",
+      "Barra fija del total con costo y ganancia, y un botón para modificar a mano el total de la venta (los precios se ajustan en proporción). Con PC armada el buscador de productos queda deshabilitado",
+      "Más rápido: productos recientes, duplicar y deshacer ítems, borrador que se recupera al recargar, atajos (/ para buscar, Enter vuelve al buscador, Ctrl+Enter crea el PDF) y aviso si se vende por debajo del costo",
+      "Editor de PDF: se pueden reescribir los rótulos de plantilla (título, encabezados de la tabla, rótulos de totales y de observación)",
+      "El PDF se ajusta solo a una hoja cuando se pasa a la segunda por poco",
+      "Rediseño minimalista de LITE (claro y oscuro), logo LITE y etiqueta con el local de la sesión en la barra. Requiere la migración que agrega QuoteVersion.tradeIns",
+    ],
+  },
+  {
     version: "0.17.9",
     date: "2026-10-04",
     title: "El bot no da vueltas: si piden el presupuesto, lo pide al equipo",

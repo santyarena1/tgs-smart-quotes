@@ -78,7 +78,7 @@
 
 /* ————— Ítems ————— */
 .lite .lt-lines { display: grid; gap: 2px; overflow-x: auto; }
-.lite .lt-line { display: grid; grid-template-columns: minmax(180px, 1fr) 64px 110px 78px 110px 110px 28px; gap: 0.35rem; align-items: center; min-width: 720px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.lite .lt-line { display: grid; grid-template-columns: minmax(180px, 1fr) 64px 110px 78px 110px 110px 56px; gap: 0.35rem; align-items: center; min-width: 720px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .lite .lt-line.head { border-bottom: 1px solid var(--line); color: var(--faint); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0 0 0.35rem; }
 .lite .lt-line.head span { padding: 0 0.5rem; }
 .lite .r { text-align: right; }
@@ -296,3 +296,487 @@
 :root[data-theme="dark"] .lite .lt-act.edit { --c: #60a5fa; }
 :root[data-theme="dark"] .lite .lt-act.print { --c: #4ade80; }
 :root[data-theme="dark"] .lite .lt-act.detail { --c: #facc15; }
+
+/* ————— Creador: 3 columnas (financiación · armado · recientes) ————— */
+.lite .lt-main:has(.lt-fin) { max-width: 1840px; }
+.lite .lt-grid:has(.lt-fin) { grid-template-columns: 400px minmax(0, 1fr) 340px; }
+.lite .lt-logo-img { display: block; height: 44px; width: 44px; padding: 2px; border-radius: 10px; background: #fff; object-fit: contain; }
+.lite .lt-bar { height: 58px; }
+.lite .lt-fin, .lite .lt-side { top: 74px; }
+
+.lite .lt-fin { position: sticky; display: grid; gap: 0.45rem; align-content: start; padding: 0.6rem 0.7rem; background: var(--paper); border: 1px solid var(--line); border-radius: var(--lt-r); border-top: 3px solid var(--red); height: calc(100vh - 74px - 0.75rem); overflow-y: auto; }
+.lite .lt-fin-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.lite .lt-fin-head h2 { margin: 0; font: 600 0.72rem var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red-deep); }
+.lite .lt-gear { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: var(--ink-2); border: 1px solid var(--line); background: var(--canvas-2); transition: transform 260ms, background 120ms, color 120ms; }
+.lite .lt-gear:hover { background: var(--red); color: #fff; border-color: var(--red); transform: rotate(60deg); }
+.lite .lt-fin-cash { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 10px; background: var(--ink); color: var(--paper); }
+.lite .lt-fin-cash span { font-size: 0.72rem; opacity: 0.75; }
+.lite .lt-fin-cash strong { font: 650 1.05rem var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.lite .lt-fin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lite .lt-fin-manual { position: relative; }
+.lite .lt-fin-manual .lt-input { height: 32px; font-size: 0.85rem; padding-right: 2rem; }
+.lite .lt-fin-clear { position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; padding: 0; border-radius: 50%; background: transparent; color: var(--faint); font-size: 1.1rem; line-height: 1; }
+.lite .lt-fin-clear:hover { background: var(--red-soft); color: var(--red-deep); }
+.lite .lt-fin-empty { margin: 0; color: var(--faint); font-size: 0.78rem; }
+.lite .lt-fin-empty a { color: var(--red); font-weight: 600; }
+
+/* Bloque por plan: color por grupo (--g) */
+.lite .lt-fin-card { --g: #00897b; --g-ink: #00695f; display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 0.65rem; align-items: center; padding: 0.35rem 0.65rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--g) 28%, var(--line)); border-left: 4px solid var(--g); background: color-mix(in srgb, var(--g) 9%, var(--paper)); transition: transform 120ms, box-shadow 120ms; }
+.lite .lt-fin-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--g) 22%, transparent); }
+.lite .lt-fin-card.dim { opacity: 0.6; }
+.lite .lt-fin-card.k-bbva { --g: #1464a5; --g-ink: #072146; }
+.lite .lt-fin-card.k-single, .lite .lt-fin-card.k-others { --g: #00897b; --g-ink: #00695f; }
+.lite .lt-fin-card.k-mp { --g: #2db7ff; --g-ink: #0a0a85; }
+.lite .lt-fin-card.k-go { --g: #f02d7d; --g-ink: #c01560; }
+.lite .lt-fin-ico { display: block; width: 46px; height: 46px; object-fit: contain; border-radius: 11px; }
+.lite .k-bbva .lt-fin-ico, .lite .k-go .lt-fin-ico { object-fit: cover; border-radius: 15%; }
+.lite .lt-fin-body { display: grid; gap: 1px; min-width: 0; }
+.lite .lt-fin-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.lite .lt-fin-n { font: 700 0.9rem var(--font); color: var(--g-ink); }
+.lite .lt-fin-tag { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 999px; background: #ea580c; color: #fff; white-space: nowrap; }
+.lite .lt-fin-tag.free { background: #16a34a; }
+.lite .lt-fin-amt { font: 750 1.3rem var(--font); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.lite .lt-fin-bot { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.lite .lt-fin-name { font-size: 0.72rem; font-weight: 700; color: var(--g-ink); }
+.lite .lt-fin-total { font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lite .lt-fin-total b { color: var(--ink); font-weight: 650; }
+
+:root[data-theme="dark"] .lite .lt-fin { background: #131720; }
+:root[data-theme="dark"] .lite .lt-fin-head h2 { color: #fff; }
+:root[data-theme="dark"] .lite .lt-fin-cash { background: #1c2230; color: #fff; }
+:root[data-theme="dark"] .lite .lt-fin-card { background: color-mix(in srgb, var(--g) 20%, #0f131b); border-color: color-mix(in srgb, var(--g) 45%, #0f131b); }
+:root[data-theme="dark"] .lite .lt-fin-card.k-bbva { --g: #1a6fc4; --g-ink: #8cc2ff; }
+:root[data-theme="dark"] .lite .lt-fin-card.k-single, :root[data-theme="dark"] .lite .lt-fin-card.k-others { --g: #14b8a6; --g-ink: #5eead4; }
+:root[data-theme="dark"] .lite .lt-fin-card.k-mp { --g: #2db7ff; --g-ink: #9bdcff; }
+:root[data-theme="dark"] .lite .lt-fin-card.k-go { --g: #f5508f; --g-ink: #ff9cc2; }
+:root[data-theme="dark"] .lite .lt-fin-total b { color: #fff; }
+
+/* ————— Barra fija inferior: margen, redondeo y total ————— */
+.lite .lt-foot { flex-direction: column; align-items: stretch; gap: 0.55rem; z-index: 15; }
+.lite .lt-foot-main { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.lite .lt-tools { display: flex; flex-wrap: wrap; gap: 0.35rem 1.4rem; padding-bottom: 0.55rem; border-bottom: 1px dashed var(--line-2); }
+.lite .lt-tool { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+.lite .lt-tool > span { color: var(--muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-right: 0.15rem; }
+.lite .lt-tool .lt-cell { width: 74px; height: 28px; border-color: var(--line); background: var(--canvas-2); }
+.lite .lt-chip { cursor: pointer; transition: background 120ms, border-color 120ms, transform 80ms; }
+.lite .lt-chip:active { transform: scale(0.96); }
+
+/* ————— Pulido de ítems ————— */
+.lite .lt-line { border-radius: 8px; transition: background 100ms; }
+.lite .lt-line:not(.head):hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.lite .lt-cell:focus { background: var(--paper); border-color: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 14%, transparent); }
+.lite .lt-input:focus { border-color: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 14%, transparent); }
+.lite .lt-results li.active { background: color-mix(in srgb, var(--red) 9%, var(--paper)); }
+.lite .lt-lines { padding-bottom: 0.2rem; }
+.lite .lt-total strong { font-size: 1.7rem; }
+
+:root[data-theme="dark"] .lite .lt-fin { background: #131720; }
+:root[data-theme="dark"] .lite .lt-fin-head h2 { color: #fff; }
+
+@media (max-width: 1500px) {
+  .lite .lt-grid:has(.lt-fin) { grid-template-columns: 380px minmax(0, 1fr); }
+  .lite .lt-grid:has(.lt-fin) > .lt-side { grid-column: 1 / -1; position: static; }
+}
+@media (max-width: 960px) {
+  .lite .lt-grid:has(.lt-fin) { grid-template-columns: 1fr; }
+  .lite .lt-fin { position: static; height: auto; }
+  .lite .lt-fin-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+}
+
+/* ————— Creador ágil: acciones por fila, recientes, deshacer ————— */
+.lite .lt-row-actions { display: inline-flex; gap: 2px; justify-content: flex-end; }
+.lite .lt-row-actions .lt-x:first-child { font-size: 0.95rem; }
+.lite .lt-row-actions .lt-x:first-child:hover:not(:disabled) { background: var(--canvas); color: var(--ink); }
+.lite .lt-cell.neg { color: var(--red); font-weight: 700; background: var(--red-soft); border-color: var(--red-line); }
+.lite .lt-recents { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.lite .lt-alert.undo { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: var(--canvas); color: var(--ink-2); border-color: var(--line-2); }
+
+/* ————— Barra del total: siempre abajo, alineada con el final de la columna de financiación ————— */
+.lite .lt-col { display: flex; flex-direction: column; gap: 0.9rem; min-height: calc(100vh - 74px); }
+.lite .lt-col > .lt-foot { margin-top: auto; }
+.lite .lt-total-meta { color: var(--muted); font-weight: 500; }
+.lite .lt-total-meta b { color: var(--ok); font-weight: 650; }
+.lite .lt-total-sub { color: var(--faint); font-size: 0.74rem; }
+
+/* ————— Productos del cliente ————— */
+.lite .lt-trade-rows { display: grid; gap: 0.35rem; }
+.lite .lt-trade-row { display: grid; grid-template-columns: minmax(0, 1fr) 160px 28px; gap: 0.35rem; align-items: center; }
+.lite .lt-trade-row .lt-cell { border-color: var(--line); background: var(--canvas-2); }
+.lite .lt-trade-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding-top: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.lite .lt-trade-foot strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.lite .lt-trade-over strong { color: var(--red); }
+
+/* ————— Costo en azul y mayúsculas ————— */
+.lite .lt-cost { color: #2563eb; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+:root[data-theme="dark"] .lite .lt-cost { color: #60a5fa; }
+
+/* ————— Productos del cliente: botón junto a PC armada y modal ————— */
+.lite .lt-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+.lite .lt-trade-ico { flex: none; display: grid; place-items: center; width: 38px; height: 22px; border-radius: 999px; background: var(--line-2); color: var(--ink-2); font-size: 0.9rem; }
+.lite .lt-pc.on .lt-trade-ico { background: var(--red); color: #fff; }
+.lite .lt-modal-card .lt-trade-rows { display: grid; gap: 0.4rem; }
+.lite .lt-trade-row { grid-template-columns: minmax(0, 1fr) 150px 28px; }
+.lite .lt-modal-card { max-height: calc(100vh - 2rem); overflow-y: auto; }
+@media (max-width: 640px) { .lite .lt-toggles { grid-template-columns: 1fr; } .lite .lt-trade-row { grid-template-columns: minmax(0, 1fr) 110px 28px; } }
+
+/* ————— Costo azul, ganancia verde (ambos en mayúsculas), resta del cliente en violeta ————— */
+.lite .lt-total .lt-cost { color: #2563eb; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.lite .lt-total .lt-gain { color: #16a34a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.lite .lt-total .lt-total-sub { color: #7c3aed; font-weight: 650; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+:root[data-theme="dark"] .lite .lt-total .lt-cost { color: #60a5fa; }
+:root[data-theme="dark"] .lite .lt-total .lt-gain { color: #4ade80; }
+:root[data-theme="dark"] .lite .lt-total .lt-total-sub { color: #a78bfa; }
+.lite .lt-total-edit { width: 28px; height: 28px; padding: 0; border-radius: 8px; background: var(--canvas); color: var(--ink-2); border: 1px solid var(--line-2); font-size: 0.95rem; align-self: center; }
+.lite .lt-total-edit:hover { background: var(--red); color: #fff; border-color: var(--red); }
+.lite .lt-trade-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--ink-2); cursor: pointer; }
+.lite .lt-search-input:disabled { opacity: 0.55; cursor: not-allowed; background: var(--canvas); }
+
+/* ————— Local de la sesión en la barra ————— */
+.lite .lt-store { display: inline-flex; align-items: center; gap: 0.45rem; height: 32px; padding: 0 0.8rem 0 0.65rem; border-radius: 999px; background: var(--red); color: #fff; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.01em; white-space: nowrap; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset; }
+.lite .lt-store svg { flex: none; }
+@media (max-width: 960px) { .lite .lt-store span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; } }
+@media (max-width: 640px) { .lite .lt-store span { display: none; } .lite .lt-store { padding: 0 0.55rem; } }
+
+/* ————— Productos entregados por el cliente: modal minimalista ————— */
+.lite .lt-trade-modal { width: min(540px, 100%); padding: 1.3rem 1.4rem 1.1rem; gap: 0.85rem; border-top: 0; background: var(--paper); max-height: calc(100vh - 2rem); overflow-y: auto; }
+.lite .lt-trade-head h2 { margin: 0; font: 650 1.1rem var(--font); letter-spacing: -0.01em; color: var(--ink); }
+.lite .lt-trade-head p { margin: 0.2rem 0 0; font-size: 0.84rem; color: var(--muted); }
+.lite .lt-trade-modal .lt-trade-rows { display: grid; gap: 0.45rem; }
+.lite .lt-trade-modal .lt-trade-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 28px; gap: 0.45rem; align-items: center; }
+.lite .lt-trade-modal .lt-input { height: 42px; font-size: 0.95rem; background: var(--canvas-2); border-color: var(--line); }
+.lite .lt-trade-modal .lt-input:focus { background: var(--paper); border-color: #f59e0b; box-shadow: 0 0 0 3px color-mix(in srgb, #f59e0b 22%, transparent); }
+.lite .lt-trade-add { justify-self: start; padding: 0.15rem 0; border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.lite .lt-trade-add:hover { color: #b45309; }
+.lite .lt-trade-modal .lt-trade-check { display: flex; align-items: center; gap: 0.5rem; padding: 0; border: 0; background: none; font-size: 0.88rem; color: var(--ink-2); cursor: pointer; }
+.lite .lt-trade-check input { width: 16px; height: 16px; accent-color: #f59e0b; }
+.lite .lt-trade-summary { display: grid; gap: 0.3rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+.lite .lt-trade-summary > div { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.lite .lt-trade-summary span { font-size: 0.85rem; color: var(--muted); }
+.lite .lt-trade-summary strong { font: 650 1rem var(--font); font-variant-numeric: tabular-nums; }
+.lite .lt-trade-summary > div:last-child strong { font-size: 1.25rem; }
+.lite .lt-trade-summary.over > div:last-child span, .lite .lt-trade-summary.over > div:last-child strong { color: var(--red); }
+.lite .lt-trade-modal .lt-modal-foot { align-items: center; justify-content: space-between; padding-top: 0.2rem; }
+.lite .lt-trade-clear { border: 0; background: none; padding: 0; color: var(--faint); font-size: 0.85rem; cursor: pointer; }
+.lite .lt-trade-clear:hover { color: var(--red); text-decoration: underline; }
+.lite .lt-btn.lt-btn-amber { background: #f59e0b; color: #1f1300; font-weight: 750; padding: 0 1.6rem; }
+.lite .lt-btn.lt-btn-amber:hover:not(:disabled) { background: #d97706; }
+.lite .lt-pc.trade.on { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 12%, var(--paper)); }
+.lite .lt-pc.trade.on .lt-trade-ico { background: #f59e0b; color: #1f1300; }
+:root[data-theme="dark"] .lite .lt-trade-modal { background: #131720; }
+:root[data-theme="dark"] .lite .lt-trade-modal .lt-input { background: #0f131b; }
+@media (max-width: 560px) { .lite .lt-trade-modal .lt-trade-row { grid-template-columns: minmax(0, 1fr) 110px 28px; } }
+
+/* ═════════ Lavado de cara minimalista ═════════
+   Base neutra, bordes finos, sin sombras ni bordes de color. El rojo queda para la acción principal
+   y los estados activos; el resto de los colores solo aparece cuando aporta información. */
+.lite { background: var(--canvas-2); }
+:root[data-theme="dark"] .lite { background: #0d1015; }
+
+/* ————— Barra superior ————— */
+.lite .lt-bar { height: 56px; background: color-mix(in srgb, var(--paper) 94%, transparent); color: var(--ink); border-bottom: 1px solid var(--line); box-shadow: none; backdrop-filter: blur(10px); }
+.lite .lt-bar .lt-brand, .lite .lt-bar .lt-brand-text { color: var(--ink); }
+.lite .lt-bar .lt-tab { color: var(--muted); font-weight: 550; }
+.lite .lt-bar .lt-tab:hover { background: var(--canvas); color: var(--ink); }
+.lite .lt-bar .lt-tab.active { background: var(--ink); color: var(--paper); }
+.lite .lt-bar .lt-icon { color: var(--ink-2); }
+.lite .lt-bar .lt-icon:hover:not(:disabled) { background: var(--canvas); }
+.lite .lt-bar .lt-user { background: var(--canvas); color: var(--ink-2); }
+.lite .lt-logo-img { height: 40px; width: 40px; padding: 0; background: transparent; }
+.lite .lt-store { background: transparent; color: var(--ink-2); border: 1px solid var(--line-2); box-shadow: none; font-weight: 600; }
+.lite .lt-store svg { color: var(--red); }
+:root[data-theme="dark"] .lite .lt-bar { background: #0f1218; border-bottom-color: #1d2430; }
+:root[data-theme="dark"] .lite .lt-bar .lt-tab.active { background: #fff; color: #0f1218; }
+:root[data-theme="dark"] .lite .lt-logo-img { background: #fff; padding: 2px; border-radius: 10px; }
+.lite .lt-fin, .lite .lt-side { top: 72px; }
+.lite .lt-fin { height: calc(100vh - 72px - 0.75rem); }
+.lite .lt-col { min-height: calc(100vh - 72px); }
+
+/* ————— Tarjetas y títulos ————— */
+.lite .lt-card, .lite .lt-fin { border: 1px solid var(--line); border-top: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: none; }
+.lite .lt-head h1 { color: var(--ink); font-size: 1.3rem; font-weight: 650; }
+.lite .lt-head p { font-size: 0.78rem; color: var(--faint); }
+.lite .lt-head kbd { font-size: 0.66rem; padding: 0 5px; }
+.lite .lt-side h2, .lite .lt-fin-head h2, .lite .lt-coll-head h2 { color: var(--faint); }
+.lite .lt-comp-name { color: var(--faint); }
+:root[data-theme="dark"] .lite .lt-head h1, :root[data-theme="dark"] .lite .lt-side h2, :root[data-theme="dark"] .lite .lt-fin-head h2 { color: #fff; }
+:root[data-theme="dark"] .lite .lt-side h2, :root[data-theme="dark"] .lite .lt-fin-head h2 { color: var(--faint); }
+:root[data-theme="dark"] .lite .lt-card, :root[data-theme="dark"] .lite .lt-fin { background: #12161d; border-color: #1f2632; }
+
+/* ————— Campos ————— */
+.lite .lt-input, .lite .lt-cell:hover { border-color: var(--line); }
+.lite .lt-input:focus, .lite .lt-cell:focus { border-color: var(--ink-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent); }
+.lite .lt-search-input { height: 44px; background: var(--paper); border-color: var(--line); }
+.lite .lt-results li.active { background: var(--canvas); }
+
+/* ————— Interruptores (PC armada / Productos del cliente) ————— */
+.lite .lt-pc { padding: 0.55rem 0.8rem; background: transparent; border-color: var(--line); }
+.lite .lt-pc:hover { background: var(--canvas-2); }
+.lite .lt-pc-copy small { font-size: 0.74rem; color: var(--faint); }
+.lite .lt-pc.on { border-color: var(--ink-2); background: var(--canvas-2); }
+.lite .lt-pc.on .lt-switch-track { background: var(--ink); }
+.lite .lt-pc.trade.on { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 8%, var(--paper)); }
+.lite .lt-trade-ico { background: var(--canvas); color: var(--ink-2); }
+
+/* ————— Chips ————— */
+.lite .lt-chip { background: transparent; border-color: var(--line); color: var(--ink-2); font-weight: 550; }
+.lite .lt-chip:hover:not(:disabled) { background: var(--canvas); }
+.lite .lt-chip.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+:root[data-theme="dark"] .lite .lt-chip.on { background: #fff; border-color: #fff; color: #0f1218; }
+
+/* ————— Ítems ————— */
+.lite .lt-line.head { color: var(--faint); letter-spacing: 0.05em; font-weight: 600; }
+.lite .lt-line { border-bottom-color: color-mix(in srgb, var(--line) 55%, transparent); }
+.lite .lt-line:not(.head):hover { background: transparent; }
+.lite .lt-cell.neg { background: transparent; border-color: var(--red-line); }
+
+/* ————— Barra fija del total ————— */
+.lite .lt-foot { gap: 0.5rem; padding: 0.7rem 0.9rem; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07); backdrop-filter: none; }
+:root[data-theme="dark"] .lite .lt-foot { background: #12161d; border-color: #1f2632; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4); }
+.lite .lt-tools { gap: 0.3rem 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line); }
+.lite .lt-tool > span { color: var(--faint); font-size: 0.66rem; }
+.lite .lt-tool .lt-chip { border-color: transparent; color: var(--muted); padding: 0.2rem 0.55rem; }
+.lite .lt-tool .lt-chip:hover:not(:disabled) { background: var(--canvas); color: var(--ink); }
+.lite .lt-tool .lt-chip.on { background: var(--ink); color: var(--paper); }
+:root[data-theme="dark"] .lite .lt-tool .lt-chip.on { background: #fff; color: #0f1218; }
+.lite .lt-tool .lt-cell { border-color: var(--line); background: transparent; }
+.lite .lt-foot-main { flex-wrap: nowrap; gap: 0.5rem; }
+.lite .lt-total { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: auto auto auto 1fr; align-items: baseline; column-gap: 0.5rem; row-gap: 0; }
+.lite .lt-total > span:first-child { color: var(--faint); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.lite .lt-total strong { color: var(--ink); font-size: 1.6rem; font-weight: 700; }
+.lite .lt-total-edit { align-self: center; width: 26px; height: 26px; background: transparent; border-color: var(--line); color: var(--faint); }
+.lite .lt-total-edit:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.lite .lt-total .lt-total-sub { font-size: 0.78rem; font-weight: 600; }
+.lite .lt-total .lt-total-meta { grid-column: 1 / -1; font-size: 0.72rem; margin-top: 1px; }
+.lite .lt-total .lt-cost, .lite .lt-total .lt-gain { font-weight: 650; font-size: 0.7rem; letter-spacing: 0.04em; }
+.lite .lt-foot-main .lt-btn { flex: none; height: 40px; }
+.lite .lt-btn.ghost { border-color: var(--line); color: var(--ink-2); }
+
+/* ————— Financiación ————— */
+.lite .lt-fin { padding: 0.75rem; gap: 0.5rem; }
+.lite .lt-fin-cash { background: transparent; color: var(--ink); border-radius: 0; padding: 0.1rem 0.1rem 0.6rem; border-bottom: 1px solid var(--line); }
+.lite .lt-fin-cash span { color: var(--muted); opacity: 1; }
+.lite .lt-fin-cash strong { color: var(--ink); font-size: 1.15rem; }
+:root[data-theme="dark"] .lite .lt-fin-cash { background: transparent; color: #fff; }
+.lite .lt-fin-card { grid-template-columns: 40px minmax(0, 1fr); gap: 0.65rem; padding: 0.45rem 0.6rem; background: transparent; border: 1px solid var(--line); border-left: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
+.lite .lt-fin-card:hover { transform: none; box-shadow: none; border-color: color-mix(in srgb, var(--g) 50%, var(--line)); }
+.lite .lt-fin-ico { width: 40px; height: 40px; border-radius: 10px; }
+.lite .lt-fin-n { color: var(--ink-2); font-size: 0.8rem; font-weight: 600; }
+.lite .lt-fin-amt { color: var(--ink); font-size: 1.15rem; font-weight: 700; }
+.lite .lt-fin-name { color: var(--muted); font-size: 0.7rem; font-weight: 600; }
+.lite .lt-fin-total { font-size: 0.7rem; color: var(--faint); }
+.lite .lt-fin-total b { color: var(--ink-2); font-weight: 600; }
+.lite .lt-fin-tag { background: color-mix(in srgb, #f59e0b 14%, transparent); color: #b45309; font-size: 0.64rem; font-weight: 700; }
+.lite .lt-fin-tag.free { background: var(--ok-bg); color: var(--ok); }
+:root[data-theme="dark"] .lite .lt-fin-card { background: transparent; border-color: #1f2632; }
+:root[data-theme="dark"] .lite .lt-fin-card:hover { border-color: color-mix(in srgb, var(--g) 50%, #1f2632); }
+:root[data-theme="dark"] .lite .lt-fin-n { color: #cbd5e1; }
+:root[data-theme="dark"] .lite .lt-fin-amt, :root[data-theme="dark"] .lite .lt-fin-total b { color: #fff; }
+:root[data-theme="dark"] .lite .lt-fin-tag { color: #fbbf24; }
+:root[data-theme="dark"] .lite .lt-fin-name { color: var(--muted); }
+
+/* ————— Lista de presupuestos (derecha) ————— */
+.lite .lt-recent li, .lite .lt-quote-list li { border: 1px solid var(--line); border-left: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
+:root[data-theme="dark"] .lite .lt-recent li, :root[data-theme="dark"] .lite .lt-quote-list li { background: #12161d; border-color: #1f2632; }
+.lite .lt-recent li.editing { border-color: var(--ink-2); box-shadow: none; }
+.lite .lt-qfoot { border-top-color: var(--line); }
+.lite .lt-state.borrador { background: var(--canvas); color: var(--muted); }
+.lite .lt-actions { gap: 4px; }
+.lite .lt-act, .lite .lt-act.edit, .lite .lt-act.print, .lite .lt-act.detail, .lite .lt-act.del,
+:root[data-theme="dark"] .lite .lt-act, :root[data-theme="dark"] .lite .lt-act.edit, :root[data-theme="dark"] .lite .lt-act.print, :root[data-theme="dark"] .lite .lt-act.detail, :root[data-theme="dark"] .lite .lt-act.del {
+  background: transparent; color: var(--ink-2); border-color: var(--line); font-weight: 600;
+}
+.lite .lt-act:hover:not(:disabled) { background: var(--canvas); }
+.lite .lt-act.edit:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.edit:hover:not(:disabled) { color: #2563eb; border-color: #2563eb; background: transparent; }
+.lite .lt-act.print:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.print:hover:not(:disabled) { color: #16a34a; border-color: #16a34a; background: transparent; }
+.lite .lt-act.detail:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.detail:hover:not(:disabled) { color: #b45309; border-color: #b45309; background: transparent; }
+.lite .lt-act.del:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.del:hover:not(:disabled) { color: var(--red); border-color: var(--red); background: transparent; }
+
+/* ═════════ Acentos de color (líneas y botones) ═════════ */
+/* Línea fina bajo la barra superior */
+.lite .lt-bar { border-bottom: 0; box-shadow: 0 2px 0 0 transparent; position: sticky; }
+.lite .lt-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background: linear-gradient(90deg, var(--red), #f59e0b 45%, #2563eb 75%, #16a34a); opacity: 0.9; }
+
+/* Título con barrita roja */
+.lite .lt-head h1 { position: relative; padding-bottom: 0.45rem; margin-bottom: 0.1rem; }
+.lite .lt-head h1::after { content: ""; position: absolute; left: 0; bottom: 0; width: 34px; height: 3px; border-radius: 3px; background: var(--red); }
+
+/* Líneas superiores por panel */
+.lite .lt-card:not(.lt-modal-card) { border-top: 2px solid var(--red); }
+.lite .lt-fin::before { content: ""; position: absolute; top: 0; left: 14px; right: 14px; height: 2px; border-radius: 0 0 3px 3px; background: linear-gradient(90deg, #1464a5, #00897b, #2db7ff, #f02d7d); }
+.lite .lt-foot { border-top: 2px solid #f59e0b; }
+.lite .lt-line.head { border-bottom: 2px solid color-mix(in srgb, var(--red) 55%, var(--line)); }
+
+/* Bloques de financiación: línea lateral con el color de cada banco */
+.lite .lt-fin-card { border-left: 3px solid var(--g); }
+
+/* Lista de presupuestos: línea lateral según el estado */
+.lite .lt-recent li { border-left: 3px solid var(--line-2); }
+.lite .lt-recent li:has(.lt-state.borrador) { border-left-color: #f59e0b; }
+.lite .lt-recent li:has(.lt-state.enviado) { border-left-color: #2563eb; }
+.lite .lt-recent li:has(.lt-state.aceptado) { border-left-color: #16a34a; }
+.lite .lt-recent li:has(.lt-state.rechazado) { border-left-color: var(--red); }
+.lite .lt-state.borrador { background: color-mix(in srgb, #f59e0b 16%, transparent); color: #b45309; }
+
+/* Botones de la lista: color propio siempre, en versión suave */
+.lite .lt-act.edit, :root[data-theme="dark"] .lite .lt-act.edit { --c: #2563eb; }
+.lite .lt-act.view, .lite .lt-act.print, :root[data-theme="dark"] .lite .lt-act.print { --c: #16a34a; }
+.lite .lt-act.detail, :root[data-theme="dark"] .lite .lt-act.detail { --c: #d97706; }
+.lite .lt-act.del, :root[data-theme="dark"] .lite .lt-act.del { --c: #dc2626; }
+.lite .lt-act.edit, .lite .lt-act.print, .lite .lt-act.detail, .lite .lt-act.del,
+:root[data-theme="dark"] .lite .lt-act.edit, :root[data-theme="dark"] .lite .lt-act.print, :root[data-theme="dark"] .lite .lt-act.detail, :root[data-theme="dark"] .lite .lt-act.del {
+  color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); font-weight: 650;
+}
+.lite .lt-act.edit:hover:not(:disabled), .lite .lt-act.print:hover:not(:disabled), .lite .lt-act.detail:hover:not(:disabled), .lite .lt-act.del:hover:not(:disabled),
+:root[data-theme="dark"] .lite .lt-act.edit:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.print:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.detail:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.del:hover:not(:disabled) {
+  background: var(--c); color: #fff; border-color: var(--c);
+}
+:root[data-theme="dark"] .lite .lt-act.edit { --c: #60a5fa; }
+:root[data-theme="dark"] .lite .lt-act.print { --c: #4ade80; }
+:root[data-theme="dark"] .lite .lt-act.detail { --c: #fbbf24; }
+:root[data-theme="dark"] .lite .lt-act.del { --c: #f87171; }
+:root[data-theme="dark"] .lite .lt-act.edit:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.print:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.detail:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.del:hover:not(:disabled) { color: #0f1218; }
+
+/* Chips de margen / redondeo con su color */
+.lite .lt-tool:first-child .lt-chip:hover:not(:disabled) { color: #2563eb; background: color-mix(in srgb, #2563eb 10%, transparent); }
+.lite .lt-tool + .lt-tool .lt-chip.on { background: #00897b; border-color: #00897b; color: #fff; }
+.lite .lt-colls .lt-chip.on { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* Etiquetas de columna y de componente con un toque de color */
+.lite .lt-comp-name { color: var(--red); opacity: 0.85; }
+.lite .lt-tool > span { color: var(--ink-2); }
+
+/* Acentos en modo oscuro: el borde oscuro de las tarjetas no debe tapar las líneas de color */
+:root[data-theme="dark"] .lite .lt-card:not(.lt-modal-card) { border-top-color: var(--red); }
+:root[data-theme="dark"] .lite .lt-foot { border-top-color: #f59e0b; }
+:root[data-theme="dark"] .lite .lt-state.borrador { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #fbbf24; }
+
+/* ═════════ Líneas rectas y de un solo color ═════════ */
+/* Barra superior: una sola línea roja */
+.lite .lt-bar::after { background: var(--red); opacity: 1; }
+
+/* Financiación: sin degradé arriba; una línea recta debajo de cada bloque con el color de su banco */
+.lite .lt-fin::before { content: none; }
+.lite .lt-fin-card, .lite .lt-fin-card:hover { position: relative; border-left: 1px solid var(--line); }
+:root[data-theme="dark"] .lite .lt-fin-card, :root[data-theme="dark"] .lite .lt-fin-card:hover { border-left-color: #1f2632; }
+.lite .lt-fin-card::after { content: ""; position: absolute; left: 26px; right: 26px; bottom: -1px; height: 2px; background: var(--g); opacity: 0.55; }
+
+/* Presupuestos: una barra roja recta por cada uno (no sigue las esquinas redondeadas) */
+.lite .lt-recent li, .lite .lt-recent li:has(.lt-state.borrador), .lite .lt-recent li:has(.lt-state.enviado), .lite .lt-recent li:has(.lt-state.aceptado), .lite .lt-recent li:has(.lt-state.rechazado) { position: relative; border-left: 1px solid var(--line); }
+:root[data-theme="dark"] .lite .lt-recent li, :root[data-theme="dark"] .lite .lt-recent li:has(.lt-state.borrador), :root[data-theme="dark"] .lite .lt-recent li:has(.lt-state.enviado), :root[data-theme="dark"] .lite .lt-recent li:has(.lt-state.aceptado), :root[data-theme="dark"] .lite .lt-recent li:has(.lt-state.rechazado) { border-left-color: #1f2632; }
+.lite .lt-recent li::before { content: ""; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 3px; background: var(--red); }
+
+/* Barra fija del total: una recta roja encima */
+.lite .lt-foot, :root[data-theme="dark"] .lite .lt-foot { border-top: 1px solid var(--line); }
+:root[data-theme="dark"] .lite .lt-foot { border-top-color: #1f2632; }
+.lite .lt-foot::before { content: ""; position: absolute; left: 18px; right: 18px; top: -1px; height: 2px; background: var(--red); }
+
+/* ═════════ Plano y recto ═════════
+   Todo con esquinas rectas y sin cajas dentro de cajas: los paneles pasan a ser filas planas
+   separadas por líneas finas sobre el fondo de la página. */
+.lite *, .lite *::before, .lite *::after { border-radius: 0 !important; }
+.lite .lt-dot { border-radius: 50% !important; }
+
+/* ————— Paneles planos (sin caja que contenga otras cajas) ————— */
+.lite .lt-card:not(.lt-modal-card), :root[data-theme="dark"] .lite .lt-card:not(.lt-modal-card) { background: transparent; border: 0; padding: 0; box-shadow: none; }
+.lite .lt-fin, :root[data-theme="dark"] .lite .lt-fin { background: transparent; border: 0; padding: 0 0.25rem 0 0; box-shadow: none; }
+.lite .lt-fin-head { padding-bottom: 0.4rem; border-bottom: 1px solid var(--line); }
+.lite .lt-fin-cash, :root[data-theme="dark"] .lite .lt-fin-cash { padding: 0.3rem 0 0.55rem; }
+
+/* Bloques de financiación: filas con línea fina; el color del banco queda en la línea corta de abajo */
+.lite .lt-fin-card, .lite .lt-fin-card:hover, :root[data-theme="dark"] .lite .lt-fin-card, :root[data-theme="dark"] .lite .lt-fin-card:hover {
+  background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 0.55rem 0.1rem 0.65rem; box-shadow: none;
+}
+:root[data-theme="dark"] .lite .lt-fin-card, :root[data-theme="dark"] .lite .lt-fin-card:hover { border-bottom-color: #1f2632; }
+.lite .lt-fin-card::after { left: 0; right: auto; width: 56px; bottom: -1px; }
+.lite .lt-fin-list { gap: 0; }
+.lite .lt-fin-card:hover { background: color-mix(in srgb, var(--g) 5%, transparent); }
+
+/* Lista de presupuestos: filas planas */
+.lite .lt-recent, .lite .lt-quote-list { gap: 0; }
+.lite .lt-recent li, .lite .lt-quote-list li, :root[data-theme="dark"] .lite .lt-recent li, :root[data-theme="dark"] .lite .lt-quote-list li {
+  background: transparent; border: 0; border-bottom: 1px solid var(--line); box-shadow: none; padding: 0.8rem 0.4rem 0.8rem 0.95rem;
+}
+:root[data-theme="dark"] .lite .lt-recent li, :root[data-theme="dark"] .lite .lt-quote-list li { border-bottom-color: #1f2632; }
+.lite .lt-recent li::before { left: 0; top: 0.8rem; bottom: 0.8rem; }
+.lite .lt-recent li.editing, :root[data-theme="dark"] .lite .lt-recent li.editing { background: color-mix(in srgb, var(--ink) 4%, transparent); border-bottom-color: var(--line-2); }
+.lite .lt-list-filters { border: 0; background: transparent; padding: 0; }
+
+/* ————— Campos y botones: rectos, sin relleno ————— */
+.lite .lt-input, .lite .lt-cell, .lite .lt-search-input { background: transparent; border-color: var(--line-2); }
+.lite .lt-input:focus, .lite .lt-cell:focus { background: transparent; }
+.lite .lt-cell { border-color: transparent; }
+.lite .lt-cell:hover { border-color: var(--line); }
+.lite .lt-results { box-shadow: none; border-color: var(--line-2); }
+.lite .lt-pc, .lite .lt-pc.on, .lite .lt-pc.trade.on { background: transparent; }
+.lite .lt-chip { background: transparent; }
+.lite .lt-btn { border-color: transparent; }
+
+/* ————— Barra fija del total: plana, con una recta roja arriba ————— */
+.lite .lt-foot, :root[data-theme="dark"] .lite .lt-foot { background: var(--canvas-2); border: 0; border-top: 1px solid var(--line); box-shadow: none; padding: 0.7rem 0 0.2rem; bottom: 0; }
+:root[data-theme="dark"] .lite .lt-foot { background: #0d1015; border-top-color: #1f2632; }
+.lite .lt-foot::before { left: 0; right: 0; top: -1px; }
+.lite .lt-tools { border-bottom: 1px solid var(--line); }
+
+/* ————— Barra superior y detalles ————— */
+.lite .lt-store, .lite .lt-branch, .lite .lt-switch { background: transparent; }
+.lite .lt-user { border: 1px solid var(--line-2); background: transparent; }
+.lite .lt-trade-modal, :root[data-theme="dark"] .lite .lt-trade-modal { background: var(--paper); }
+:root[data-theme="dark"] .lite .lt-trade-modal { background: #12161d; }
+.lite .lt-trade-summary { border-top-color: var(--line); }
+.lite .lt-tool .lt-cell { width: 104px; }
+
+/* ═════════ Switches redondos con animación ═════════ */
+.lite .lt-switch-track { border-radius: 999px !important; transition: background-color 240ms ease; }
+.lite .lt-switch-knob { border-radius: 50% !important; transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.lite .lt-switch:active .lt-switch-knob, .lite .lt-pc:active .lt-switch-knob { transform-origin: center; }
+.lite .lt-pc .lt-switch-track { transition: background-color 240ms ease; }
+
+/* ═════════ Barra superior: negra en modo claro, negro azulado en modo oscuro ═════════ */
+.lite .lt-bar { background: #0b0d12; color: #fff; border-bottom: 0; backdrop-filter: none; }
+.lite .lt-bar .lt-brand, .lite .lt-bar .lt-brand-text { color: #fff; }
+.lite .lt-bar .lt-tab { color: rgba(255, 255, 255, 0.72); }
+.lite .lt-bar .lt-tab:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.lite .lt-bar .lt-tab.active { background: #fff; color: #0b0d12; }
+.lite .lt-bar .lt-icon { color: #fff; }
+.lite .lt-bar .lt-icon:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.lite .lt-bar .lt-user { background: transparent; border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; }
+.lite .lt-logo-img { background: #fff; padding: 2px; }
+.lite .lt-bar .lt-store, .lite .lt-bar .lt-branch, .lite .lt-bar .lt-switch { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+.lite .lt-bar .lt-branch select { color: #fff; background: transparent; }
+.lite .lt-bar .lt-branch select option { color: #111; background: #fff; }
+.lite .lt-bar .lt-switch-track { background: rgba(255, 255, 255, 0.28); }
+.lite .lt-bar .lt-switch.on .lt-switch-track { background: var(--ok); }
+:root[data-theme="dark"] .lite .lt-bar { background: #0a1122; }
+:root[data-theme="dark"] .lite .lt-bar .lt-tab.active { background: #fff; color: #0a1122; }
+:root[data-theme="dark"] .lite .lt-bar .lt-branch select option { color: #fff; background: #0a1122; }
+.lite .lt-pc.on .lt-switch-track, :root[data-theme="dark"] .lite .lt-pc.on .lt-switch-track { background: #16a34a; }
+
+/* ═════════ Redondeos selectivos ═════════
+   Lo plano y recto se mantiene en paneles y filas; se redondean los controles: botones, campos,
+   buscadores, íconos de financiación y la barra superior. */
+.lite button { border-radius: 10px !important; }
+.lite .lt-act, .lite .lt-btn.sm { border-radius: 8px !important; }
+.lite .lt-chip { border-radius: 999px !important; }
+.lite .lt-tab { border-radius: 10px !important; }
+.lite .lt-icon, .lite .lt-gear, .lite .lt-x, .lite .lt-user { border-radius: 50% !important; }
+.lite .lt-switch, .lite .lt-branch, .lite .lt-store { border-radius: 999px !important; }
+.lite .lt-branch select { border-radius: 999px !important; }
+.lite .lt-input, .lite select, .lite textarea { border-radius: 10px !important; }
+.lite .lt-search-input { border-radius: 12px !important; }
+.lite .lt-results, .lite .lt-modal-card { border-radius: 14px !important; }
+.lite .lt-fin-ico { border-radius: 14px !important; }
+
+/* Probar otro monto: negro con texto blanco (invertido en modo oscuro) */
+.lite .lt-fin-manual .lt-input, .lite .lt-fin-manual .lt-input:focus { background: #0b0d12; color: #fff; border-color: #0b0d12; caret-color: #fff; }
+.lite .lt-fin-manual .lt-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+.lite .lt-fin-manual .lt-fin-clear { color: rgba(255, 255, 255, 0.7); }
+.lite .lt-fin-manual .lt-fin-clear:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+:root[data-theme="dark"] .lite .lt-fin-manual .lt-input, :root[data-theme="dark"] .lite .lt-fin-manual .lt-input:focus { background: #fff; color: #0b0d12; border-color: #fff; caret-color: #0b0d12; }
+:root[data-theme="dark"] .lite .lt-fin-manual .lt-input::placeholder { color: rgba(11, 13, 18, 0.55); }
+:root[data-theme="dark"] .lite .lt-fin-manual .lt-fin-clear { color: rgba(11, 13, 18, 0.6); }
+:root[data-theme="dark"] .lite .lt-fin-manual .lt-fin-clear:hover { background: rgba(11, 13, 18, 0.1); color: #0b0d12; }
+
+/* Barra superior: pestaña activa en rojo y logo sin fondo (contorno blanco para que se lea sobre lo oscuro) */
+.lite .lt-bar .lt-tab.active, :root[data-theme="dark"] .lite .lt-bar .lt-tab.active { background: var(--red); color: #fff; }
+.lite .lt-logo-img, :root[data-theme="dark"] .lite .lt-logo-img { background: transparent; padding: 0; border-radius: 0 !important;
+  filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff); }
