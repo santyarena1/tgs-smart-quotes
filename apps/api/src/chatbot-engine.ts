@@ -37,6 +37,7 @@ import {
   resolveRuleAttachments,
   settingsDto,
   casualText,
+  pesosToCents,
 } from './chatbot-core.js';
 import {formatAdContext, matchAdCampaign} from './chatbot-ads.js';
 
@@ -309,11 +310,14 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     // Si el anuncio ya tiene PDF, ese PDF se adjunta: no hace falta otra solicitud.
     if (!shouldEscalate && askedForQuote && !hasActiveRequest && !campaign?.quote) {
       result.result.shouldCreateRequest = true;
-      result.result.requestDraft = result.result.requestDraft ?? draftFromLead(
-        body.message,
-        conversation.summary,
-        conversation.profile as {usage?: string | null; games?: string[]; budgetCents?: number | null} | null,
-      );
+      if (!result.result.requestDraft) {
+        const {maximumBudgetCents, ...draft} = draftFromLead(
+          body.message,
+          conversation.summary,
+          conversation.profile as {usage?: string | null; games?: string[]; budgetCents?: number | null} | null,
+        );
+        result.result.requestDraft = {...draft, maximumBudgetPesos: maximumBudgetCents ? Math.round(maximumBudgetCents / 100) : null};
+      }
     }
     const responseMatch=matchedResponse(settings.responses,body.message);
     const configuredUrls=responseMatch?.response.attachments.url
@@ -460,7 +464,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           tx,
           body.chatKey,
           phone,
-          result.result.requestDraft,
+          {...result.result.requestDraft, maximumBudgetCents: pesosToCents(result.result.requestDraft.maximumBudgetPesos)},
           actorId,
           log.id,
         );
@@ -508,9 +512,10 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     }
 
     // La ficha del cliente se completa sola con lo que surge de la charla.
-    const profile = (result.result as {profile?: LeadProfile}).profile;
-    if (profile && (!body.simulation || body.chatKey.startsWith('sim:'))) {
-      void mergeProfile(body.chatKey, profile).catch(() => undefined);
+    const aiProfile = (result.result as {profile?: {budgetPesos?: number | null} & Omit<LeadProfile, 'budgetCents'>}).profile;
+    if (aiProfile && (!body.simulation || body.chatKey.startsWith('sim:'))) {
+      const {budgetPesos, ...rest} = aiProfile;
+      void mergeProfile(body.chatKey, {...rest, budgetCents: pesosToCents(budgetPesos)}).catch(() => undefined);
     }
     // Temperatura, intención y próximo paso. En la prueba solo si el chat es sim:.
     const signals = (result.result as {signals?: SalesSignals}).signals;

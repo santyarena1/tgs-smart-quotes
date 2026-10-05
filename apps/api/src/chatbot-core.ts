@@ -506,3 +506,12 @@ export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITI
     .trim();
   return filters.noFinalPeriod ? plain.replace(/(?<!\.)\.((?:\s*\p{Extended_Pictographic}\uFE0F?)*)$/u, '$1') : plain;
 }
+
+/**
+ * La IA informa montos en pesos (como los dice el cliente) y el sistema guarda centavos.
+ * Un presupuesto de menos de $10.000 no es real: se descarta en vez de guardarlo mal.
+ */
+export function pesosToCents(pesos: number | null | undefined): number | null {
+  if (typeof pesos !== 'number' || !Number.isFinite(pesos) || pesos < 10_000) return null;
+  return Math.round(pesos) * 100;
+}

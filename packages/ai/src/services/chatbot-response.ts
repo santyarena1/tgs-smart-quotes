@@ -19,7 +19,7 @@ function fallback(input: ChatbotResponseInput): ChatbotResponseOutput {
     decisionReason: "Fallback seguro: se deriva a revisión humana sin informar al cliente.",
     shouldCreateRequest: false,
     requestDraft: null,
-    profile: {usage: null, games: [], budgetCents: null, city: null, payment: null, delivery: null},
+    profile: {usage: null, games: [], budgetPesos: null, city: null, payment: null, delivery: null},
     signals: {temperature: 50, intent: "OTHER", stageHint: null, nextStep: "Revisar la conversación."},
   };
 }
@@ -92,12 +92,12 @@ FORMATO TÉCNICO DE LA RESPUESTA (obligatorio)
 - Usá únicamente la información provista: la RESPUESTA ACTIVADA, la BASE DE CONOCIMIENTO, las INDICACIONES DEL DUEÑO, los DATOS DEL SISTEMA y la conversación. Si no alcanza para responder, shouldEscalate=true.
 - Una escalación puede llevar reply vacío (silencio) o una frase natural de espera, sin revelar el proceso interno.
 - escalationReason debe ser null cuando shouldEscalate=false.
-- profile resume lo que el cliente dijo de sí mismo en TODA la conversación (no solo el último mensaje): usage (para qué quiere la PC: juegos, diseño, trabajo, estudio…), games (juegos o programas que nombró), budgetCents (presupuesto que mencionó, en centavos: ARS 800.000 = 80000000), city (ciudad o provincia), payment (cómo quiere pagar) y delivery (ENVIO o RETIRO). Lo que no dijo va en null o lista vacía; nunca lo supongas.
+- profile resume lo que el cliente dijo de sí mismo en TODA la conversación (no solo el último mensaje): usage (para qué quiere la PC: juegos, diseño, trabajo, estudio…), games (juegos o programas que nombró), budgetPesos (presupuesto que mencionó, en PESOS enteros, nunca en centavos: "800 mil" = 800000, "1.5M" o "1,5 palos" o "un millon y medio" = 1500000, "2 millones" = 2000000), city (ciudad o provincia), payment (cómo quiere pagar) y delivery (ENVIO o RETIRO). Lo que no dijo va en null o lista vacía; nunca lo supongas.
 - signals mide la venta después de este mensaje: temperature 0-100 (0-30 frío: solo curiosea o no responde a lo que se le pregunta; 31-65 tibio: interesado, comparando; 66-100 caliente: pregunta cómo pagar, cuándo retira, quiere reservar o señar). intent = qué quiere con su último mensaje (GREETING, INFO, PRICE, PRODUCT, BUILD_PC, COMPARE, PAYMENT, SHIPPING, PURCHASE_READY, TRADE_IN, SUPPORT, COMPLAINT, OTHER). stageHint = la etapa en la que debería estar ahora (NEW, QUALIFYING, QUOTE_SENT, NEGOTIATION o DEPOSIT) o null si no cambia. nextStep = el próximo paso concreto para avanzar la venta, en una frase corta para el vendedor (ej.: "Mandarle 2 opciones de ~$800.000 para Fortnite").
 - updatedSummary debe ser una memoria compacta factual: intención, datos confirmados, pendientes y compromisos. No incluyas razonamiento oculto. Si no hay información suficiente para actualizarla, devolvé null.
 - matchedKnowledgeIds contiene los IDs de la RESPUESTA ACTIVADA y de los ítems de la BASE DE CONOCIMIENTO que efectivamente usaste; si no usaste ninguno, devolvé una lista vacía.
 - shouldCreateRequest se decide según las REGLAS DE ESTILO Y DE VENTA. Pedir el presupuesto al equipo NO es derivar: shouldEscalate=false y seguí la charla.
-- Si shouldCreateRequest=true, requestDraft debe resumir el pedido usando la memoria y el mensaje actual: título claro, texto original consolidado en summary, uso esperado, componentes pedidos y presupuesto en centavos si fue expresado. Nunca inventes componentes, uso ni presupuesto: si un dato no fue mencionado, usá null o una lista vacía. maximumBudgetCents representa centavos enteros (por ejemplo ARS 500.000 = 50000000).
+- Si shouldCreateRequest=true, requestDraft debe resumir el pedido usando la memoria y el mensaje actual: título claro, texto original consolidado en summary, uso esperado, componentes pedidos y presupuesto si fue expresado. Nunca inventes componentes, uso ni presupuesto: si un dato no fue mencionado, usá null o una lista vacía. maximumBudgetPesos va en PESOS enteros, nunca en centavos ("500 mil" = 500000, "1.5M" = 1500000).
 - Si shouldCreateRequest=false, requestDraft debe ser null.
 - Si el contexto ya incluye una solicitud activa, no pidas crear otra: shouldCreateRequest=false y continuá la conversación teniendo presente esa solicitud.
 - Si hay una RESPUESTA ACTIVADA, "answer" es información autoritativa que debés transmitir. "context" es apoyo para comprender y redactar natural: no lo repitas textual ni lo conviertas en datos nuevos.

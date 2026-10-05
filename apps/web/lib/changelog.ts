@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.1",
+    date: "2026-10-05",
+    title: "El presupuesto del cliente se guarda bien",
+    items: [
+      "Cuando el cliente decía su presupuesto (\"1.5M\", \"un millon y medio\"), a veces quedaba guardado cien veces más chico ($15.000). Ahora la IA lo informa en pesos y el sistema lo convierte",
+      "Se corrigieron las fichas y solicitudes que ya habían quedado mal",
+    ],
+  },
+  {
     version: "0.18.0",
     date: "2026-10-05",
     title: "LITE: financiación a la vista, productos del cliente y nueva cara",

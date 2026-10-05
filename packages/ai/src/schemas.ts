@@ -237,7 +237,8 @@ export type ChatbotResponseInput = z.infer<typeof chatbotResponseInputSchema>;
 export const chatbotLeadProfileSchema = z.object({
   usage: z.string().nullable(),
   games: z.array(z.string()),
-  budgetCents: z.number().int().nullable(),
+  /** En pesos, como lo dice el cliente ("1.5M" = 1500000). El sistema lo pasa a centavos. */
+  budgetPesos: z.number().int().nullable(),
   city: z.string().nullable(),
   payment: z.string().nullable(),
   delivery: z.enum(["ENVIO", "RETIRO"]).nullable(),
@@ -271,7 +272,8 @@ export const chatbotResponseOutputSchema = z.object({
     summary: z.string().min(1).max(10000),
     expectedUse: z.string().max(1000).nullable(),
     requiredComponents: z.array(z.string().min(1).max(500)).max(100),
-    maximumBudgetCents: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullable(),
+    /** En pesos ("1.5M" = 1500000). El sistema lo pasa a centavos. */
+    maximumBudgetPesos: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullable(),
   }).strict().nullable(),
 }).strict();
 export type ChatbotResponseOutput = z.infer<typeof chatbotResponseOutputSchema>;

@@ -75,7 +75,7 @@ export class ChatbotController {
       `,
     ]);
     const dto = settingsDto(row);
-    return jsonSafe({...dto, ads: mergeSeenAds(dto.ads, seen.map((item) => item.origin))});
+    return jsonSafe({...dto, ads: mergeSeenAds(dto.ads ?? [], seen.map((item) => item.origin))});
   }
 
   /** Reglas de fábrica, para el botón "Restaurar" de Configuración → Reglas de venta. */
