@@ -284,6 +284,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             salesRules: settings.salesRules,
             stagePlaybook: settings.stagePlaybook,
             writingFilters: settings.writingFilters,
+            bannedWords: settings.bannedWords,
             guidance: (settings.guidance as Array<{text?: unknown; enabled?: unknown}>)
               .filter((item) => item && item.enabled !== false && typeof item.text === 'string')
               .map((item) => String(item.text)),
@@ -365,7 +366,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
       messages=[...messages,...urls];
     }
-    messages=shouldEscalate?[]:messages.map((text)=>casualText(text,settings.writingFilters)).filter(Boolean);
+    messages=shouldEscalate?[]:messages.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean);
     const reply=messages.join('\n');
     const quoteFollowupMessage=!shouldEscalate
       &&settings.multiMessage.quoteFollowup.enabled

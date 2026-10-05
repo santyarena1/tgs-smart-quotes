@@ -210,8 +210,8 @@ describe("contratos del dominio", () => {
     const next = applyFactorySalesRules([oldPlazo, custom]);
     expect(next).not.toContain(oldPlazo);
     expect(next).toContain(custom);
-    expect(next.some((rule) => rule.includes("No des vueltas"))).toBe(true);
-    expect(next.some((rule) => rule.includes("en ESE turno"))).toBe(true);
+    // Las reglas de fábrica nuevas vienen completas con la migración; no se suman a reglas editadas.
+    expect(next).toEqual([custom]);
     expect(applyFactorySalesRules(null)).toEqual(DEFAULT_SALES_RULES);
   });
 
@@ -220,7 +220,7 @@ describe("contratos del dominio", () => {
       NEW: "Recién escribe. Saludá y descubrí para qué la quiere (juegos, diseño, trabajo, estudio). Una pregunta por vez.",
       QUALIFYING: "Nuestro criterio de calificación",
     });
-    expect(playbook.NEW).toContain("Si ya pidió el presupuesto");
+    expect(playbook.NEW).toContain("Si pidió el presupuesto");
     expect(playbook.QUALIFYING).toBe("Nuestro criterio de calificación");
     expect(playbook.QUOTE_SENT).toContain("No armes otro");
   });

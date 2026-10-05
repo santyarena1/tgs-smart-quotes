@@ -27,8 +27,10 @@ function fallback(input: ChatbotResponseInput): ChatbotResponseOutput {
 /** Instrucciones de escritura que acompañan a los filtros de Configuración. */
 function writingRules(input: ChatbotResponseInput): string[] {
   const filters = input.config.writingFilters;
-  if (!filters) return [];
   const rules: string[] = [];
+  const banned = input.config.bannedWords ?? [];
+  if (banned.length) rules.push(`Nunca uses estas palabras o frases, ni como apodo ni de ninguna forma: ${banned.map((word) => `"${word}"`).join(', ')}.`);
+  if (!filters) return rules;
   if (filters.noAccents) rules.push('Escribí como alguien que chatea desde el celular: SIN tildes ("tenes", "aca", "que precio buscas"). La ñ sí va.');
   if (filters.noOpeningMarks) rules.push('Sin signos de apertura ¿ ni ¡ ("Que juegos usas?", "Buenisimo!").');
   if (filters.noFinalPeriod) rules.push('No cierres los mensajes con punto final ("Dale, te lo armo" y no "Dale, te lo armo.").');

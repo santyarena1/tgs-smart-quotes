@@ -491,6 +491,10 @@ function SalesRulesTab({settings,set}:{settings:ChatbotSettings;set:(values:Part
       </div>
     </Section>
 
+    <Section title="Palabras prohibidas" note="El bot nunca las usa. Si se le escapa una como apodo ('Dale querido!'), se saca sola antes de enviar.">
+      <ListEditor label="Una por línea" values={settings.bannedWords??[]} onChange={bannedWords=>set({bannedWords})} placeholder={["querido","papa","posta"].join("\n")}/>
+    </Section>
+
     <Section
       title={`Reglas de estilo y de venta (${rules.length})`}
       note="Lo que el bot cumple en cada respuesta, incluido no dar vueltas y pedir el presupuesto cuando el cliente lo pide. Escribilas como se las dirías a un vendedor nuevo. Las indicaciones de Entrenamiento se suman y tienen prioridad."

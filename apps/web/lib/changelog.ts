@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.2",
+    date: "2026-10-05",
+    title: "El bot ahora es Fede: reglas nuevas armadas con las charlas reales",
+    items: [
+      "Personalidad nueva: Fede, del local de Liniers. Amigable, tutea siempre, explica simple y es honesto con lo que conviene",
+      "Reglas de venta nuevas: primero muestra lo del anuncio y después pregunta, una pregunta por mensaje, dos opciones con precio, siempre cierra con una pregunta concreta, periféricos recién después de elegir la PC, responde las objeciones de precio e invita al local",
+      "Lo que sabe, actualizado: local y horario de Liniers, envíos (pide código postal y localidad), seña y plazos, formas de pago y BBVA, garantía, Windows, que no instalamos programas, usados, sponsoreos y cupón de la silla. Las respuestas anteriores quedan apagadas, no borradas",
+      "Palabras prohibidas (querido, papa, posta…), editables en Reglas de venta. Si se le escapa una como apodo, se saca sola antes de enviar",
+      "Pasa a una persona para los datos de pago de la seña, la licencia de Windows, cotizar un envío, usados y reclamos. Ignora las respuestas automáticas de otros negocios",
+    ],
+  },
+  {
     version: "0.18.1",
     date: "2026-10-05",
     title: "El presupuesto del cliente se guarda bien",

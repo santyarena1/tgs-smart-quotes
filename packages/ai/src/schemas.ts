@@ -217,6 +217,8 @@ export const chatbotResponseInputSchema = z.object({
     salesRules: z.array(z.string()).optional(),
     /** Guion por etapa de la venta, editable en Configuración. */
     stagePlaybook: z.record(z.string(), z.string()).optional(),
+    /** Palabras y frases que nunca se usan. */
+    bannedWords: z.array(z.string()).optional(),
     /** Filtros de escritura (también se aplican en código a la salida). */
     writingFilters: z.object({
       noAccents: z.boolean(),

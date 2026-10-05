@@ -10,6 +10,7 @@ import {createQuoteRequest} from './quotes.js';
 import {
   applyFactorySalesRules,
   applyFactoryStagePlaybook,
+  DEFAULT_BANNED_WORDS,
   DEFAULT_REQUEST_KEYWORDS,
   DEFAULT_WRITING_FILTERS,
   type ChatbotAdCampaign,
@@ -130,6 +131,7 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
       ? (row.requestKeywords as string[]).filter((item) => typeof item === 'string' && item.trim())
       : DEFAULT_REQUEST_KEYWORDS,
     teamAlerts: parseTeamAlerts(row.teamAlerts),
+    bannedWords: Array.isArray(row.bannedWords) ? (row.bannedWords as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_BANNED_WORDS,
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
       : DEFAULT_WRITING_FILTERS,
@@ -483,8 +485,8 @@ export async function ensureChatbotRequest(
  * sin tildes, sin signos de apertura (¿ ¡) y sin punto al final del mensaje (los
  * suspensivos y los del medio quedan). La ñ se respeta. Los links no se tocan.
  */
-export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITING_FILTERS): string {
-  let plain = text;
+export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITING_FILTERS, banned: string[] = []): string {
+  let plain = removeBannedVocatives(text, banned);
   if (filters.noFormatting) {
     plain = plain
       .replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '$2')
@@ -514,4 +516,25 @@ export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITI
 export function pesosToCents(pesos: number | null | undefined): number | null {
   if (typeof pesos !== 'number' || !Number.isFinite(pesos) || pesos < 10_000) return null;
   return Math.round(pesos) * 100;
+}
+
+const VOWEL_CLASS: Record<string, string> = {a: '[aá]', e: '[eé]', i: '[ií]', o: '[oó]', u: '[uúü]'};
+const POSSESSIVES = new Set(['mi', 'tu', 'su', 'mis', 'tus', 'sus', 'el', 'al', 'del', 'de', 'para', 'con', 'un', 'una']);
+
+/**
+ * Saca una palabra prohibida cuando se usa como apodo ("Dale querido!", "De nada papa").
+ * "es para tu papa" no se toca (va después de un posesivo o preposición). El resto lo evita el prompt.
+ */
+export function removeBannedVocatives(text: string, banned: string[]): string {
+  let out = text;
+  for (const word of banned) {
+    const plain = word.trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    if (!plain || /\s/.test(plain)) continue;
+    const pattern = [...plain].map((char) => VOWEL_CLASS[char] ?? char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('');
+    out = out.replace(
+      new RegExp(`(\\p{L}*)(,?\\s+)${pattern}(?=\\s*(?:[!?.,)]|$))`, 'giu'),
+      (match, previous: string) => (POSSESSIVES.has(previous.toLowerCase()) ? match : previous),
+    );
+  }
+  return out.replace(/ {2,}/g, ' ').trim();
 }
