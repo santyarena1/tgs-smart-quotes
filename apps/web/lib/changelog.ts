@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.0",
+    date: "2026-10-07",
+    title: "Cada usuario elige sus distribuidores",
+    items: [
+      "Configuración → Distribuidores ahora es personal: cada usuario (no solo los administradores) elige en cuáles busca. Lo que apaga deja de aparecer solo para esa persona",
+    ],
+  },
+  {
     version: "0.18.9",
     date: "2026-10-07",
     title: "Distribuidores: avisos claros cuando algo falla",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { api, ApiError } from "../lib/api";
+import { api } from "../lib/api";
 import { providerColor, type NodoProvider } from "../lib/nodo";
 import { providerLogo } from "../lib/nodo-logos";
 import { timeAgo, timeAgoShort } from "../lib/time-ago";
@@ -24,13 +24,12 @@ function statusLine(r: ProviderRow, now: number): { tone: "ok" | "warn" | "off";
 }
 
 /**
- * Ajustes → Distribuidores: qué distribuidores de NODO aparecen al buscar productos en los presupuestos.
- * Lo que se apaga acá desaparece para todos los usuarios, en LITE y en el sistema completo.
+ * Ajustes → Distribuidores: en qué distribuidores de NODO busca cada usuario al armar presupuestos.
+ * La elección es personal: lo que apagás acá deja de aparecer solo para vos, en LITE y en el sistema completo.
  */
 export function NodoProvidersSettingsSection() {
   const [rows, setRows] = useState<ProviderRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [forbidden, setForbidden] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -47,8 +46,7 @@ export function NodoProvidersSettingsSection() {
       setRows(res.items);
       setError(null);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 403) setForbidden(true);
-      else setError(errorMessage(err));
+      setError(errorMessage(err));
       setRows([]);
     }
   }, []);
@@ -92,14 +90,6 @@ export function NodoProvidersSettingsSection() {
   }, [rows]);
 
   if (rows === null) return <Loading />;
-  if (forbidden) {
-    return (
-      <section className="nodo-admin-note">
-        <h2>Distribuidores</h2>
-        <p className="muted">Solo un usuario administrador puede elegir qué distribuidores aparecen al buscar. Iniciá sesión con una cuenta de administrador para cambiarlo.</p>
-      </section>
-    );
-  }
   const active = rows.filter((r) => r.enabled).length;
 
   return (
@@ -108,7 +98,7 @@ export function NodoProvidersSettingsSection() {
         <div>
           <h2>Distribuidores</h2>
           <p className="muted">
-            Elegí en cuáles se puede buscar al armar un presupuesto. Lo que apagues no aparece para ningún usuario, ni en LITE ni en el sistema completo.
+            Elegí en qué distribuidores querés buscar al armar un presupuesto. Es una elección tuya: lo que apagues deja de aparecer solo para vos, en LITE y en el sistema completo.
           </p>
         </div>
         <div className="nodo-sync-box">
@@ -149,7 +139,7 @@ export function NodoProvidersSettingsSection() {
                   <span className="nodo-dot" aria-hidden="true" /> {st.text}
                 </span>
               </div>
-              <label className="bot-switch big nodo-switch" title={r.enabled ? "Activo: aparece al buscar" : "Apagado: no aparece al buscar"}>
+              <label className="bot-switch big nodo-switch" title={r.enabled ? "Activo: aparece al buscar" : "Apagado: no aparece en tus búsquedas"}>
                 <input type="checkbox" checked={r.enabled} disabled={saving} onChange={(e) => void setEnabled([r.id], e.target.checked)} aria-label={`Usar ${r.name}`} />
               </label>
             </li>

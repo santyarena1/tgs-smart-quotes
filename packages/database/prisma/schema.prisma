@@ -301,6 +301,8 @@ model User {
   navPrefsJson  Json?
   /// Tema elegido en el CRM: light | dark | system. Se guarda por usuario, no por navegador.
   themePreference String?
+  /// Distribuidores de NODO que este usuario apagó para buscar (sin ninguno = todos).
+  nodoOffProviders String[] @default([])
   sessions      Session[]
   products      Product[]
   combos        Combo[]
@@ -1922,11 +1924,4 @@ model RecurringExpensePayment {
 
   @@unique([expenseId, period])
   @@index([period])
-}
-
-/// Distribuidores de NODO que se apagaron en Configuración (sin fila = activo). Cambia qué ven todos en el buscador.
-model NodoProviderSetting {
-  providerId String   @id
-  enabled    Boolean  @default(true)
-  updatedAt  DateTime @updatedAt
 }

@@ -1,7 +1,7 @@
 import { BadGatewayException, Body, Controller, Get, Post, Put, Query, ServiceUnavailableException } from "@nestjs/common";
 import { db } from "@tgs/database";
 import { z } from "zod";
-import { CurrentUser, Roles, ZodPipe, type RequestUser } from "./infrastructure.js";
+import { CurrentUser, ZodPipe, type RequestUser } from "./infrastructure.js";
 import { effectiveProviderIds, mapOffer, resolveNodoCredentials, type NodoOffer, type NodoResult } from "./nodo-mapping.js";
 
 /** Cliente de la API de catálogo de NODO (distribuidores). Las credenciales viven solo en el servidor. */
@@ -67,28 +67,27 @@ const searchSchema = z
   })
   .strict();
 
-/** Ids de distribuidores apagados en Configuración. */
-async function loadDisabled(): Promise<Set<string>> {
-  const rows = await db.nodoProviderSetting.findMany({ where: { enabled: false }, select: { providerId: true } });
-  return new Set(rows.map((r) => r.providerId));
+/** Ids de distribuidores que este usuario apagó en Configuración. */
+async function loadDisabled(userId: string): Promise<Set<string>> {
+  const row = await db.user.findUnique({ where: { id: userId }, select: { nodoOffProviders: true } });
+  return new Set(row?.nodoOffProviders ?? []);
 }
 
 const settingsSchema = z.object({ ids: z.array(z.string().trim().min(1).max(80)).min(1).max(100), enabled: z.boolean() }).strict();
 
 @Controller("nodo")
 export class NodoController {
-  /** Distribuidores disponibles para buscar (sin los que se apagaron en Configuración). */
+  /** Distribuidores disponibles para buscar (sin los que este usuario apagó en Configuración). */
   @Get("providers")
-  async providers() {
-    const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled()]);
+  async providers(@CurrentUser() actor: RequestUser) {
+    const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled(actor.id)]);
     return { items: providers.filter((p) => !disabled.has(p.id)) };
   }
 
-  /** Todos los distribuidores con su estado de activación (pantalla de Configuración). */
-  @Roles("ADMIN")
+  /** Todos los distribuidores con su estado para este usuario (pantalla de Configuración). */
   @Get("settings")
-  async settings() {
-    const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled()]);
+  async settings(@CurrentUser() actor: RequestUser) {
+    const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled(actor.id)]);
     return { items: providers.map((p) => ({ ...p, enabled: !disabled.has(p.id) })) };
   }
 
@@ -96,31 +95,31 @@ export class NodoController {
    * "Sincronizar ahora": NODO ya sincroniza solo y de forma continua (no tiene un disparador manual en su API),
    * así que esto descarta lo guardado en memoria y vuelve a leer al instante el estado de cada distribuidor y la cotización.
    */
-  @Roles("ADMIN")
   @Post("refresh")
-  async refresh() {
+  async refresh(@CurrentUser() actor: RequestUser) {
     providersCache = null;
     fxCache = null;
-    return this.settings();
+    return this.settings(actor);
   }
 
-  /** Activa o desactiva uno o varios distribuidores para todos los usuarios. */
-  @Roles("ADMIN")
+  /** Activa o desactiva uno o varios distribuidores solo para este usuario. */
   @Put("settings")
   async setEnabled(@Body(new ZodPipe(settingsSchema)) body: z.infer<typeof settingsSchema>, @CurrentUser() actor: RequestUser) {
     const known = new Set((await loadProviders()).map((p) => p.id));
     const ids = body.ids.filter((id) => known.has(id));
-    await db.$transaction([
-      ...ids.map((providerId) => db.nodoProviderSetting.upsert({ where: { providerId }, create: { providerId, enabled: body.enabled }, update: { enabled: body.enabled } })),
-      db.auditLog.create({ data: { userId: actor.id, entityType: "NodoProviderSetting", entityId: ids.join(",").slice(0, 200) || "none", action: body.enabled ? "ENABLE" : "DISABLE" } }),
-    ]);
+    const off = await loadDisabled(actor.id);
+    for (const id of ids) {
+      if (body.enabled) off.delete(id);
+      else off.add(id);
+    }
+    await db.user.update({ where: { id: actor.id }, data: { nodoOffProviders: [...off] } });
     return { ok: true, updated: ids.length };
   }
 
   @Get("search")
-  async search(@Query(new ZodPipe(searchSchema)) query: z.infer<typeof searchSchema>) {
+  async search(@Query(new ZodPipe(searchSchema)) query: z.infer<typeof searchSchema>, @CurrentUser() actor: RequestUser) {
     const requested = [...new Set((query.provider ?? "").split(",").map((id) => id.trim()).filter(Boolean))];
-    const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled()]);
+    const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled(actor.id)]);
     const effective = effectiveProviderIds(requested, providers.map((p) => p.id), disabled);
     if (effective && effective.length === 0) return { items: [], fxRate: 0 };
     const ids = effective ?? [];
