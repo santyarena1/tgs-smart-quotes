@@ -194,6 +194,11 @@ export const historicalPdfIsImmutable = true;
 export const pdfFileName = (number: string, version: number, kind: PdfKind) =>
   `${number}-V${version}-${kind}.pdf`;
 
+/** Los productos salen siempre en mayúsculas en el PDF, sin importar cómo se cargaron. */
+export function itemDisplayName(name: string): string {
+  return name.toLocaleUpperCase('es-AR');
+}
+
 export function formatArsFromCents(cents: bigint): string {
   const negative = cents < 0n;
   const abs = negative ? -cents : cents;
@@ -589,7 +594,7 @@ function buildItemsRows(input: PdfRenderInput): string {
   return input.items
     .map((item, index) => {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
-      const name = escapeHtml(item.name);
+      const name = escapeHtml(itemDisplayName(item.name));
       const qty = String(item.quantity);
       const amount = showRowPrice(item)
         ? formatArsFromCents(item.subtotalCents)
@@ -891,7 +896,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
   return input.items
     .map((item, index) => {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
-      const name = escapeHtml(item.name);
+      const name = escapeHtml(itemDisplayName(item.name));
       const qty = String(item.quantity);
       // Solo se muestra importe en las filas que corresponde (línea principal en SIMPLE,
       // todas en DETALLADO). El resto queda vacío (no "$ 0").

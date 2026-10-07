@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   countPdfPages,
+  itemDisplayName,
   formatArsFromCents,
   formatDateAr,
   pdfFileName,
@@ -313,6 +314,17 @@ describe('@tgs/pdf', () => {
     );
   });
 
+  it('los productos salen en mayúsculas en el PDF, en ambas plantillas', () => {
+    const base = sample();
+    const items = [{ name: 'Placa de video Gigabyte RTX 5060 8g ñandú', quantity: 1, unitCents: 100n, subtotalCents: 100n }];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderPdfHtml({ ...base, kind: 'DETALLADO', items, template } as PdfRenderInput);
+      expect(html).toContain('PLACA DE VIDEO GIGABYTE RTX 5060 8G ÑANDÚ');
+      expect(html).not.toContain('Placa de video Gigabyte');
+    }
+    expect(itemDisplayName('Memoria Ram 16gb ddr4')).toBe('MEMORIA RAM 16GB DDR4');
+  });
+
   it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {
     const base = sample();
     const simple = renderQuoteHtml({ ...base, kind: 'SIMPLE' });
@@ -354,8 +366,8 @@ describe('@tgs/pdf', () => {
         },
       ],
     });
-    expect(html).toContain('Memoria RAM 16GB');
+    expect(html).toContain('MEMORIA RAM 16GB');
     expect(html).toContain('—');
-    expect(html).not.toMatch(/Memoria RAM 16GB[\s\S]*\$ 100\.000/);
+    expect(html).not.toMatch(/MEMORIA RAM 16GB[\s\S]*\$ 100\.000/);
   });
 });

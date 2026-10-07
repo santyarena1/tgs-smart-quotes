@@ -15,7 +15,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Al armar un presupuesto (LITE y sistema completo) hay un selector \"Buscar en\" con Mis productos, Productos web (thegamershop.com.ar) y cada distribuidor de NODO. Se prenden y apagan a gusto y se recuerda la elección",
       "Los distribuidores muestran nombre, stock y costo + IVA en pesos (el dólar se convierte con la cotización de la key de NODO). Cada uno tiene su color",
       "Los productos de la web entran con su precio de venta y el costo en cero para completarlo; los de distribuidores entran con el costo + IVA y margen del 30 %",
-      "Todo lo que viene de distribuidores o de la web se agrega al presupuesto en mayúsculas",
+      "Todo lo que viene de distribuidores o de la web se agrega al presupuesto en mayúsculas, y en el PDF todos los productos salen siempre en mayúsculas",
       "Funciona también al elegir el producto de cada componente en PC armada",
       "Configuración → Distribuidores: tarjetas con el logo de cada uno y un switch para elegir cuáles aparecen al buscar. Lo que se apaga desaparece para todos los usuarios, en LITE y en el sistema completo",
       "En esa pantalla hay un botón \"Sincronizar ahora\" y se ve cuándo fue la última sincronización de cada distribuidor",
