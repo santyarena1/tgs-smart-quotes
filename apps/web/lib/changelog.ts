@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.6",
+    date: "2026-10-07",
+    title: "LITE: más acciones en Colecciones y botones de colores",
+    items: [
+      "Colecciones (LITE): botón para descargar toda la colección en un .zip con los PDF",
+      "Cada presupuesto de la colección se puede renombrar en el lugar, editar (se abre en Presupuestos), duplicar, sacar de la colección (sin borrarlo) o eliminar del sistema",
+      "Duplicar crea un presupuesto nuevo fuera de la colección y deja en el nombre \"(copia de colección …)\" para saber de dónde viene",
+      "Todos los botones de Colecciones tienen su color: editar azul, renombrar celeste, PDF verde, detallado ámbar, duplicar violeta, sacar naranja, eliminar rojo, descargar índigo",
+    ],
+  },
+  {
     version: "0.18.5",
     date: "2026-10-05",
     title: "El bot no ofrece cosas fuera del presupuesto y se corrige antes de mandar",

@@ -780,3 +780,27 @@
 .lite .lt-bar .lt-tab.active, :root[data-theme="dark"] .lite .lt-bar .lt-tab.active { background: var(--red); color: #fff; }
 .lite .lt-logo-img, :root[data-theme="dark"] .lite .lt-logo-img { background: transparent; padding: 0; border-radius: 0 !important;
   filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff); }
+
+/* ═════════ Colecciones: acciones por presupuesto y botones de colores ═════════ */
+.lite .lt-act.rename { --c: #0891b2; }
+.lite .lt-act.dup { --c: #7c3aed; }
+.lite .lt-act.unlink { --c: #ea580c; }
+:root[data-theme="dark"] .lite .lt-act.unlink { --c: #fb923c; }
+:root[data-theme="dark"] .lite .lt-act.rename { --c: #22d3ee; }
+:root[data-theme="dark"] .lite .lt-act.dup { --c: #a78bfa; }
+.lite .lt-act.rename, .lite .lt-act.dup, .lite .lt-act.unlink,
+:root[data-theme="dark"] .lite .lt-act.rename, :root[data-theme="dark"] .lite .lt-act.dup, :root[data-theme="dark"] .lite .lt-act.unlink {
+  color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); font-weight: 650;
+}
+.lite .lt-act.rename:hover:not(:disabled), .lite .lt-act.dup:hover:not(:disabled), .lite .lt-act.unlink:hover:not(:disabled) { background: var(--c); color: #fff; border-color: var(--c); }
+:root[data-theme="dark"] .lite .lt-act.rename:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.dup:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.unlink:hover:not(:disabled) { color: #0f1218; }
+.lite .lt-coll-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.lite .lt-coll-tools { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.lite .lt-rename { display: flex; gap: 4px; align-items: center; }
+.lite .lt-rename .lt-input { height: 28px; min-width: 180px; }
+.lite .lt-rename .lt-act { padding: 0.28rem 0.6rem; }
+.lite .lt-btn.tone-green { background: #16a34a; }
+.lite .lt-btn.tone-green:hover:not(:disabled) { background: #15803d; }
+.lite .lt-btn.tone-indigo { background: #4f46e5; }
+.lite .lt-btn.tone-indigo:hover:not(:disabled) { background: #4338ca; }
+.lite .lt-btn:disabled { opacity: 0.55; cursor: not-allowed; }

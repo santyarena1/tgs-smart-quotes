@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "../lib/api";
+import { useRouter } from "next/navigation";
+import { api, downloadAuthenticated } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Collection, type Quote } from "../lib/types";
 import { errorMessage } from "../components/shared";
@@ -43,6 +44,10 @@ export function LiteCollections() {
   const [saving, setSaving] = useState(false);
   /** Las colecciones recién creadas están vacías: se muestran igual para poder elegirlas. */
   const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   const load = useCallback(async () => {
     if (branchId === null) return;
@@ -117,6 +122,90 @@ export function LiteCollections() {
     }
   }
 
+  async function downloadCollection(c: Collection) {
+    setBusyId(`col:${c.id}`);
+    setError(null);
+    setNotice(null);
+    try {
+      await downloadAuthenticated(`/collections/${c.id}/download`, `${c.name}.zip`);
+      setNotice(`Descarga de “${c.name}” lista.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function startRename(q: Quote) {
+    setRenamingId(q.id);
+    setRenameDraft(q.internalName);
+  }
+
+  async function saveRename(q: Quote) {
+    const next = renameDraft.trim();
+    if (!next || next === q.internalName) { setRenamingId(null); return; }
+    setBusyId(`${q.id}:rename`);
+    setError(null);
+    try {
+      await api(`/quotes/${q.id}`, { method: "PUT", body: { internalName: next } });
+      setQuotes((cur) => new Map(cur).set(q.id, { ...q, internalName: next }));
+      setRenamingId(null);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /** Crea un presupuesto nuevo (sin colección) y deja en el nombre de dónde viene. */
+  async function duplicate(q: Quote, collectionName: string) {
+    setBusyId(`${q.id}:dup`);
+    setError(null);
+    setNotice(null);
+    try {
+      const copy = await api<Quote>(`/quotes/${q.id}/duplicate`, { method: "POST" });
+      const name = `${q.internalName} (copia de colección ${collectionName})`;
+      await api(`/quotes/${copy.id}`, { method: "PUT", body: { internalName: name } });
+      setNotice(`Duplicado como ${copy.visibleNumber}: ${name}. Está fuera de la colección; lo encontrás en Presupuestos.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /** Saca el presupuesto de esta colección sin tocarlo ni sacarlo de las otras. */
+  async function unlink(q: Quote, collection: Collection) {
+    if (!window.confirm(`¿Sacar ${q.visibleNumber} de “${collection.name}”? El presupuesto no se borra.`)) return;
+    setBusyId(`${q.id}:unlink`);
+    setError(null);
+    setNotice(null);
+    try {
+      const collectionIds = collections.filter((c) => c.id !== collection.id && (c.familyIds ?? []).includes(q.id)).map((c) => c.id);
+      await api(`/quotes/${q.id}/collections`, { method: "PUT", body: { collectionIds } });
+      setNotice(`${q.visibleNumber} salió de “${collection.name}”. Sigue en Presupuestos.`);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(q: Quote) {
+    if (!window.confirm(`¿Eliminar ${q.visibleNumber} y todas sus versiones? Se borra del sistema (para solo sacarlo de la colección usá “Sacar”). No se puede deshacer.`)) return;
+    setBusyId(`${q.id}:del`);
+    setError(null);
+    try {
+      await api(`/quotes/${q.id}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="lt-coll">
       <div className="lt-head lt-coll-top">
@@ -130,7 +219,7 @@ export function LiteCollections() {
           </select>
         </div>
         </div>
-        <button type="button" className="lt-btn sm" onClick={() => setCreating((v) => !v)}>{creating ? "Cancelar" : "+ Nueva colección"}</button>
+        <button type="button" className={`lt-btn sm ${creating ? "ghost" : "tone-green"}`} onClick={() => setCreating((v) => !v)}>{creating ? "Cancelar" : "+ Nueva colección"}</button>
       </div>
       {creating ? (
         <form className="lt-card lt-coll-new" onSubmit={(e) => void createCollection(e)}>
@@ -141,11 +230,12 @@ export function LiteCollections() {
           <input className="lt-input" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Descripción (opcional)" aria-label="Descripción" />
           <div className="lt-coll-new-foot">
             <span className="lt-muted">Después asignale presupuestos desde “Nuevo” (chips de Colecciones).</span>
-            <button type="submit" className="lt-btn sm" disabled={!draft.name.trim() || saving}>{saving ? "Guardando…" : "Crear colección"}</button>
+            <button type="submit" className="lt-btn sm tone-green" disabled={!draft.name.trim() || saving}>{saving ? "Guardando…" : "Crear colección"}</button>
           </div>
         </form>
       ) : null}
       {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
+      {notice ? <div className="lt-alert ok" role="status">{notice}</div> : null}
       {loading ? <div className="lt-empty">Cargando…</div> : visible.length === 0 ? (
         <div className="lt-empty">No hay presupuestos en colecciones para este filtro.</div>
       ) : (
@@ -173,7 +263,20 @@ export function LiteCollections() {
                 {current?.quotes.length === 0 ? <p className="lt-muted">Vacía: asignale presupuestos al crearlos.</p> : null}
                 {current?.collection.description ? <p className="lt-muted">{current.collection.description}</p> : null}
               </div>
-              <input className="lt-input lt-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrar…" aria-label="Filtrar presupuestos" />
+              <div className="lt-coll-tools">
+                <input className="lt-input lt-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrar…" aria-label="Filtrar presupuestos" />
+                {current ? (
+                  <button
+                    type="button"
+                    className="lt-btn sm tone-indigo"
+                    disabled={busyId !== null || current.quotes.length === 0}
+                    title="Descarga un .zip con los PDF de todos los presupuestos de la colección"
+                    onClick={() => void downloadCollection(current.collection)}
+                  >
+                    {busyId === `col:${current.collection.id}` ? "Descargando…" : "⬇ Descargar colección"}
+                  </button>
+                ) : null}
+              </div>
             </div>
             {rows.length === 0 ? <div className="lt-empty">Sin resultados.</div> : (
               <ul className="lt-quote-list">
@@ -183,16 +286,40 @@ export function LiteCollections() {
                     <li key={q.id}>
                       <div className="lt-recent-main">
                         <strong>{q.visibleNumber}</strong>
-                        <span className="lt-recent-name">{q.internalName}</span>
+                        {renamingId === q.id ? (
+                          <form className="lt-rename" onSubmit={(e) => { e.preventDefault(); void saveRename(q); }}>
+                            <input
+                              className="lt-input"
+                              autoFocus
+                              value={renameDraft}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Escape") setRenamingId(null); }}
+                              aria-label="Nombre del presupuesto"
+                            />
+                            <button type="submit" className="lt-act print" disabled={busyId !== null || !renameDraft.trim()}>{busyId === `${q.id}:rename` ? "…" : "Guardar"}</button>
+                            <button type="button" className="lt-act" onClick={() => setRenamingId(null)}>Cancelar</button>
+                          </form>
+                        ) : <span className="lt-recent-name">{q.internalName}</span>}
                         <span className="lt-muted">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
                       </div>
                       <strong className="lt-quote-total">{formatArs(v?.totalSaleCents)}</strong>
-                      <span className="lt-recent-actions">
-                        <button type="button" disabled={busyId !== null} onClick={() => void pdf(q, "SIMPLE")}>
+                      <span className="lt-coll-actions">
+                        <button type="button" className="lt-act edit" disabled={busyId !== null} title="Abrir en Presupuestos para modificarlo" onClick={() => router.push(`/lite?edit=${q.id}`)}>Editar</button>
+                        <button type="button" className="lt-act rename" disabled={busyId !== null} title="Cambiar el nombre" onClick={() => startRename(q)}>Renombrar</button>
+                        <button type="button" className="lt-act print" disabled={busyId !== null} onClick={() => void pdf(q, "SIMPLE")}>
                           {busyId === `${q.id}:SIMPLE` ? "…" : "PDF"}
                         </button>
-                        <button type="button" disabled={busyId !== null} onClick={() => void pdf(q, "DETALLADO")}>
+                        <button type="button" className="lt-act detail" disabled={busyId !== null} onClick={() => void pdf(q, "DETALLADO")}>
                           {busyId === `${q.id}:DETALLADO` ? "…" : "Detallado"}
+                        </button>
+                        <button type="button" className="lt-act dup" disabled={busyId !== null} title="Crea una copia fuera de la colección" onClick={() => void duplicate(q, current?.collection.name ?? "")}>
+                          {busyId === `${q.id}:dup` ? "…" : "Duplicar"}
+                        </button>
+                        <button type="button" className="lt-act unlink" disabled={busyId !== null} title="Sacarlo de esta colección sin borrarlo" onClick={() => current && void unlink(q, current.collection)}>
+                          {busyId === `${q.id}:unlink` ? "…" : "Sacar"}
+                        </button>
+                        <button type="button" className="lt-act del" disabled={busyId !== null} title="Borrarlo del sistema" onClick={() => void remove(q)}>
+                          {busyId === `${q.id}:del` ? "…" : "Eliminar"}
                         </button>
                       </span>
                     </li>

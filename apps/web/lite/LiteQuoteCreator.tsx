@@ -271,6 +271,16 @@ export function LiteQuoteCreator() {
     searchRef.current?.focus();
   }, []);
 
+  // /lite?edit=<id> (desde Colecciones) abre ese presupuesto para modificarlo.
+  useEffect(() => {
+    if (!draftReady) return;
+    const id = new URLSearchParams(window.location.search).get("edit");
+    if (!id) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    void startEdit({ id } as Quote);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftReady]);
+
   useEffect(() => {
     if (!draftReady || editing) return;
     const timer = window.setTimeout(() => {
