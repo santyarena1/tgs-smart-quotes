@@ -1,4 +1,4 @@
-export { createAiClient, client, DEFAULT_AI_MODEL, describeOpenAiError } from "./client.js";
+export { createAiClient, client, DEFAULT_AI_MODEL, describeOpenAiError, modelLocksTemperature } from "./client.js";
 export { canonicalize, inputHash } from "./hash.js";
 export { runAiTask } from "./runner.js";
 export {

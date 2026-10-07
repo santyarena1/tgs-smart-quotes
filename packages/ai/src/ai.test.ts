@@ -9,7 +9,9 @@ import {
   ChatbotResponseService,
   canonicalize,
   createAiClient,
+  DEFAULT_AI_MODEL,
   describeOpenAiError,
+  modelLocksTemperature,
   fallbackIntentClassification,
   fallbackRequestAnalysis,
   inputHash,
@@ -25,6 +27,46 @@ describe("@tgs/ai hash", () => {
   it("canonicaliza claves y BigInt de forma estable", () => {
     expect(inputHash({ b: 1n, a: 2 })).toBe(inputHash({ a: 2, b: "1" }));
     expect(canonicalize({ z: 1, a: 2n })).toEqual({ a: "2", z: 1 });
+  });
+});
+
+describe("@tgs/ai modelo", () => {
+  it("usa GPT-5.2 y no manda temperature en esa familia", () => {
+    expect(DEFAULT_AI_MODEL).toBe("gpt-5.2");
+    expect(modelLocksTemperature("gpt-5.2")).toBe(true);
+    expect(modelLocksTemperature("GPT-5")).toBe(true);
+    expect(modelLocksTemperature("o3")).toBe(true);
+    expect(modelLocksTemperature("o1-preview")).toBe(true);
+    expect(modelLocksTemperature("gpt-4o")).toBe(false);
+    expect(modelLocksTemperature("gpt-4o-mini")).toBe(false);
+  });
+
+  it("omite temperature al llamar a GPT-5 y la manda en GPT-4o", async () => {
+    const parsed = {
+      usage: "gaming",
+      components: ["gpu"],
+      budgetCents: null,
+      notes: "ok",
+      confidence: 80,
+    };
+    async function runWith(model: string) {
+      const parse = vi.fn().mockResolvedValue({
+        choices: [{ message: { parsed } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      });
+      const service = new RequestAnalysisService({
+        client: { chat: { completions: { parse } } } as never,
+        model,
+      });
+      await service.analyze({ text: "PC gamer RTX" }, { regenerate: true });
+      return parse.mock.calls[0]?.[0] as { model: string; temperature?: number };
+    }
+    const gpt5 = await runWith("gpt-5.2");
+    expect(gpt5.model).toBe("gpt-5.2");
+    expect(gpt5.temperature).toBeUndefined();
+    const gpt4 = await runWith("gpt-4o");
+    expect(gpt4.model).toBe("gpt-4o");
+    expect(gpt4.temperature).toBe(0.2);
   });
 });
 

@@ -977,7 +977,7 @@ model PdfSettings {
 model AiSettings {
   id                         String         @id @default("singleton")
   enabled                    Boolean        @default(false)
-  model                      String         @default("gpt-4o-mini")
+  model                      String         @default("gpt-5.2")
   apiKeyEncrypted            String?
   pcDescriptionPrompt        String?
   productDescriptionPrompt   String?

@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { ZodType, z } from "zod";
-import { DEFAULT_AI_MODEL, describeOpenAiError } from "./client.js";
+import { DEFAULT_AI_MODEL, describeOpenAiError, modelLocksTemperature } from "./client.js";
 import { inputHash } from "./hash.js";
 import type {
   AiEntityRef,
@@ -109,7 +109,7 @@ export async function runAiTask<TInput, TOutput>(
   try {
     const completion = await openai.chat.completions.parse({
       model,
-      temperature: params.temperature ?? 0.2,
+      ...(modelLocksTemperature(model) ? {} : {temperature: params.temperature ?? 0.2}),
       messages: [
         { role: "system", content: params.systemPrompt },
         { role: "user", content: params.buildUserPrompt(params.input) },

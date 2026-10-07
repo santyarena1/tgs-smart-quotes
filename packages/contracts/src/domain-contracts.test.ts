@@ -16,7 +16,9 @@ import {
   chatbotRespondSchema,
   applyFactorySalesRules,
   applyFactoryStagePlaybook,
+  DEFAULT_AI_MODEL,
   DEFAULT_SALES_RULES,
+  RECOMMENDED_AI_MODELS,
   calculatorConfigInputSchema,
   navItemIdSchema,
   expenseCreateSchema,
@@ -24,6 +26,12 @@ import {
 } from "./index.js";
 
 describe("contratos del dominio", () => {
+  it("recomienda GPT-5.2 por defecto para el bot y el CRM", () => {
+    expect(DEFAULT_AI_MODEL).toBe("gpt-5.2");
+    expect(RECOMMENDED_AI_MODELS[0]?.id).toBe(DEFAULT_AI_MODEL);
+    expect(RECOMMENDED_AI_MODELS.map((item) => item.id)).toEqual(["gpt-5.2", "gpt-4o", "gpt-4o-mini"]);
+  });
+
   it("acepta dinero como centavos enteros serializados", () => {
     const product = productCreateSchema.parse({
       name: "RTX 5070",

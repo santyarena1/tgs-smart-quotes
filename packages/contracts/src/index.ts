@@ -327,6 +327,15 @@ export const pdfLayoutPreviewInputSchema = z
   })
   .strict();
 
+/** Modelo de fábrica: el bot y el CRM lo usan si no hay otro elegido. */
+export const DEFAULT_AI_MODEL = "gpt-5.2";
+/** Atajos para elegir modelo en Configuración, con texto para un humano. */
+export const RECOMMENDED_AI_MODELS: ReadonlyArray<{id: string; title: string; text: string}> = [
+  {id: "gpt-5.2", title: "GPT-5.2", text: "Recomendado para el bot y el CRM: entiende la charla y responde con más criterio."},
+  {id: "gpt-4o", title: "GPT-4o", text: "Sólido y rápido. Un poco menos fino para vender."},
+  {id: "gpt-4o-mini", title: "GPT-4o mini", text: "Económico. Era el anterior: se queda corto en un chat de venta."},
+];
+
 export const aiSettingsInputSchema = z
   .object({
     enabled: z.boolean(),
