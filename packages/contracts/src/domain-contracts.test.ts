@@ -219,9 +219,12 @@ describe("contratos del dominio", () => {
     const custom = "Si preguntan por notebooks, decí que no trabajamos notebooks.";
     const next = applyFactorySalesRules([oldPlazo, custom]);
     expect(next).not.toContain(oldPlazo);
-    expect(next).toContain(custom);
-    // La regla del saludo se suma aunque el resto esté editado. El plazo viejo no vuelve.
-    expect(next).toEqual([custom, DEFAULT_SALES_RULES[1]]);
+    expect(next[0]).toBe(custom);
+    expect(next).toContain(DEFAULT_SALES_RULES[1]);
+    expect(next.some((rule) => rule.includes('FORMAS DE PAGO'))).toBe(true);
+    expect(next.some((rule) => rule.includes('No lo llames descuento'))).toBe(true);
+    expect(next.some((rule) => rule.includes('Ya te digo si tengo disponibilidad'))).toBe(true);
+    expect(next.some((rule) => rule.includes('fluides'))).toBe(true);
     expect(applyFactorySalesRules(null)).toEqual(DEFAULT_SALES_RULES);
     const oldGreeting = 'El saludo ("Hola! Soy Fede de The Gamer Shop") va una sola vez, en el primer mensaje del chat. Nunca vuelvas a saludar ni a presentarte en un chat que ya viene hablando.';
     const replaced = applyFactorySalesRules([oldGreeting, custom]);
@@ -246,8 +249,19 @@ describe("contratos del dominio", () => {
     const next = applyFactoryStyleExamples(stored);
     expect(next[0]).toContain('Cliente: "hola"');
     expect(next[1]).toBe(stored[0]);
+    expect(next.some((item) => item.includes('recargo'))).toBe(true);
     expect(applyFactoryStyleExamples([])).toEqual([]);
     const edited = ['Cliente: "hola" → Fede: "Hola!"'];
-    expect(applyFactoryStyleExamples(edited)).toEqual(edited);
+    const withEdited = applyFactoryStyleExamples(edited);
+    expect(withEdited[0]).toBe(edited[0]);
+    expect(withEdited.some((item) => item.includes('Ya te digo si tengo disponibilidad'))).toBe(true);
+  });
+
+  it("reemplaza los ejemplos viejos que cotizan un precio", () => {
+    const old = 'Cliente: "Hola! Quiero mas informacion sobre la PC Completa por $650.000" → Fede: "Hola! Soy Fede de The Gamer Shop" | "La de 650 es ideal para estudio, oficina y juegos livianos como Roblox o Minecraft" | "Para que la usarias mas?"';
+    const next = applyFactoryStyleExamples([old]);
+    expect(next.some((item) => item.includes('$650'))).toBe(false);
+    expect(next[0]).toContain('Cliente: "hola"');
+    expect(next.some((item) => item.includes('recargo'))).toBe(true);
   });
 });

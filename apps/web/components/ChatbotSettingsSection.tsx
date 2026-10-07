@@ -331,7 +331,9 @@ export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boole
       if(result.liveMode==="SUGGEST"&&!result.previewedDespite)detail.unshift("Un cliente no lo recibe solo: queda como sugerencia para aprobar en la bandeja.");
       if(result.wouldCreateRequest)detail.push("Crearía una solicitud de presupuesto para el equipo (en la prueba no se crea).");
       if(result.wouldEscalate){
-        setTurns(current=>[...current,{from:"system",text:`Derivaría a una persona y dejaría de contestar en este chat: ${result.wouldEscalate?.reason??"sin motivo"}`,detail}]);
+        const bubbles=result.messages?.length?result.messages:result.reply?[result.reply]:[];
+        const note:SimTurn={from:"system",text:`Derivaría a una persona y dejaría de contestar en este chat: ${result.wouldEscalate?.reason??"sin motivo"}`,detail};
+        setTurns(current=>[...current,...bubbles.map((text)=>({from:"bot" as const,text})),note]);
       }else if(SIM_ACTIONS[result.action]){
         const text=SIM_ACTIONS[result.action]??result.action;
         setTurns(current=>[...current,{from:"system",text}]);
