@@ -26,8 +26,9 @@ import {
 import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
 import {WhatsappSettingsSection} from "./WhatsappSettingsSection";
 import {ThumbnailAiSettingsSection} from "./ThumbnailAiSettingsSection";
+import {NodoProvidersSettingsSection} from "./NodoProvidersSettingsSection";
 
-type Tab = "empresa" | "pdf" | "ia" | "miniaturas" | "chatbot" | "whatsapp" | "financiacion" | "extension" | "modulo-externo";
+type Tab = "empresa" | "pdf" | "ia" | "miniaturas" | "chatbot" | "whatsapp" | "financiacion" | "distribuidores" | "extension" | "modulo-externo";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
@@ -37,6 +38,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "chatbot", label: "Chatbot" },
   { id: "whatsapp", label: "WhatsApp Cloud" },
   { id: "financiacion", label: "Financiación" },
+  { id: "distribuidores", label: "Distribuidores" },
   { id: "extension", label: "Extensión Chrome" },
   { id: "modulo-externo", label: "MÓDULO EXTERNO" },
 ];
@@ -103,7 +105,7 @@ const emptyFin = (): FinDraft => ({
   sortOrder: "0",
 });
 
-const TAB_IDS: Tab[] = ["empresa", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "extension", "modulo-externo"];
+const TAB_IDS: Tab[] = ["empresa", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "distribuidores", "extension", "modulo-externo"];
 
 /** `?tab=chatbot` abre esa pestaña directo (lo usa el botón "Bot" del CRM). */
 function initialTab(): Tab {
@@ -1053,6 +1055,8 @@ export function SettingsView() {
       {!loading && tab === "whatsapp" ? <WhatsappSettingsSection /> : null}
 
       {!loading && tab === "miniaturas" ? <ThumbnailAiSettingsSection /> : null}
+
+      {!loading && tab === "distribuidores" ? <NodoProvidersSettingsSection /> : null}
 
       {!loading && tab === "extension" ? (
         <div className="form-grid" style={{ maxWidth: 900 }}>

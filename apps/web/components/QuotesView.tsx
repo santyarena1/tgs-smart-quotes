@@ -30,6 +30,10 @@ import type {
   TimelineEvent,
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
+import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
+import { SourceBar } from "./SourceBar";
+import { OriginTag, type ItemSource } from "./OriginTag";
+import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
 import { getActiveVersion, getQuoteItems } from "../lib/types";
 import {
   Alert,
@@ -61,6 +65,8 @@ type ItemDraft = {
   saleArs: string;
   observation: string;
   priceMode: "markup" | "sale";
+  /** De dónde salió (distribuidor o web). Solo se muestra al armar: no se guarda ni va al PDF. */
+  source?: ItemSource;
 };
 
 type CatalogPickerItem = {
@@ -412,6 +418,13 @@ export function QuotesView({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [catalogPickerMatches, setCatalogPickerMatches] = useState<CatalogPickerItem[]>([]);
   const [catalogPickerLoading, setCatalogPickerLoading] = useState(false);
+  /** Fuentes de búsqueda: productos propios (sistema y AcuStock) y los distribuidores de NODO que estén prendidos. */
+  const { providers: nodoProviders } = useNodoProviders();
+  const sel = useSourceSelection(nodoProviders);
+  const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
+  const nodoWanted = sel.activeIds.length > 0 && pickerQuery.trim().length >= 2;
+  const web = useWebSearch(pickerQuery, sel.web);
+  const webWanted = sel.web && pickerQuery.trim().length >= 2;
   /** Línea PC a la que se está agregando/cambiando producto (opcional). */
   const [pickingLineId, setPickingLineId] = useState<string | null>(null);
   /** Si hay key, se reemplaza ese ítem; si no, se agrega uno nuevo en la línea. */
@@ -1124,9 +1137,33 @@ export function QuotesView({
     );
   }
 
-  function addCatalogItem(product: CatalogPickerItem) {
+  /** Producto de un distribuidor: entra como ítem libre con costo + IVA en pesos (margen general del alta manual). */
+  function addNodoItem(r: NodoResult) {
+    addCatalogItem({
+      mpn: r.sku ?? r.offerId,
+      title: r.name.toLocaleUpperCase("es-AR"),
+      priceCents: r.costIvaCents,
+      salePriceCents: null,
+      stockQuantity: r.stock ?? 0,
+      availability: r.inStock ? "in_stock" : "out_of_stock",
+      brand: r.brand,
+      productType: null,
+      imageUrl: null,
+    }, { source: { label: r.providerName, color: providerColor(nodoProviders, r.providerId) } });
+  }
+
+  /** Producto de la tienda web: entra con su precio de venta publicado; el costo queda en 0 para completarlo. */
+  function addWebItem(r: WebResult) {
+    addCatalogItem(
+      { mpn: r.sku ?? String(r.id), title: r.name.toLocaleUpperCase("es-AR"), priceCents: "0", salePriceCents: r.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null },
+      { costArs: "0", markupPct: "0", saleArs: centsToInput(r.priceCents), priceMode: "sale", source: { label: "Web", color: WEB_COLOR } },
+    );
+    setNotice(`“${r.name}” agregado desde la web con su precio de venta. Falta cargar el costo.`);
+  }
+
+  function addCatalogItem(product: CatalogPickerItem, override?: Partial<ItemDraft>) {
     const lineId = pickingLineId ?? "";
-    const drafted = itemFromCatalog(product, lineId);
+    const drafted: ItemDraft = { ...itemFromCatalog(product, lineId), ...override };
     setItems((prev) => {
       if (replaceItemKey) {
         const next = prev.map((item) =>
@@ -1411,6 +1448,7 @@ export function QuotesView({
 
   const pickerOptions = useMemo((): PickerOption[] => {
     const opts: PickerOption[] = [];
+    if (!sel.own) return opts;
     const hasQuery = Boolean(pickerQuery.trim());
     const priceOf = (cents: string | null | undefined) => {
       try {
@@ -1467,6 +1505,7 @@ export function QuotesView({
     opts.push({ kind: "create" }, { kind: "free" });
     return opts;
   }, [
+    sel.own,
     pickingLineId,
     pickerQuery,
     pickerComboMatches,
@@ -2378,6 +2417,7 @@ export function QuotesView({
             </Alert>
           ) : (
             <div className="picker" ref={pickerRef}>
+              <SourceBar providers={nodoProviders} sel={sel} />
               <div className="picker-input">
                 <div className="search">
                   <span className="ico" aria-hidden="true">
@@ -2431,7 +2471,79 @@ export function QuotesView({
                 ) : null}
               </div>
 
-              {pickerOpen && (pickerQuery.trim() || pickingLineId) ? (
+              {pickerOpen && ((sel.own && (pickerQuery.trim() || pickingLineId)) || nodoWanted || webWanted) ? (
+                <div className="picker-stack">
+                  {webWanted ? (
+                    <div className="picker-results nodo-results" role="listbox">
+                      <div className="picker-section">
+                        <p className="picker-section-label">Productos web · precio de venta</p>
+                        {web.loading ? <p className="picker-empty">Buscando en la web…</p> : null}
+                        {web.error ? <p className="picker-empty" role="alert">{web.error}</p> : null}
+                        {!web.loading && !web.error && web.items.length === 0 ? <p className="picker-empty">Sin resultados en la web.</p> : null}
+                        {web.items.map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            role="option"
+                            aria-selected={false}
+                            className="picker-option nodo"
+                            style={{ "--nc": WEB_COLOR } as React.CSSProperties}
+                            onClick={() => addWebItem(r)}
+                          >
+                            <span className="po-name">
+                              <img className="po-logo" src={WEB_LOGO} alt="" width={22} height={22} />
+                              <span className="po-tag nodo-tag">Web</span>
+                              {r.name}
+                              {r.sku ? <span className="cell-sub">SKU: {r.sku}</span> : null}
+                            </span>
+                            <span className="po-price">{formatArs(r.priceCents)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {nodoWanted ? (
+                <div className="picker-results nodo-results" role="listbox">
+                  <div className="picker-section">
+                    <p className="picker-section-label">
+                      Distribuidores · costo + IVA en pesos
+                    </p>
+                    {nodo.loading ? <p className="picker-empty">Buscando en distribuidores…</p> : null}
+                    {nodo.error ? <p className="picker-empty" role="alert">{nodo.error}</p> : null}
+                    {!nodo.loading && !nodo.error && pickerQuery.trim().length >= 2 && nodo.items.length === 0 ? (
+                      <p className="picker-empty">Sin resultados con stock.</p>
+                    ) : null}
+                    {nodo.items.map((r) => (
+                      <button
+                        key={r.offerId}
+                        type="button"
+                        role="option"
+                        aria-selected={false}
+                        className="picker-option nodo"
+                        style={{ "--nc": providerColor(nodoProviders, r.providerId) } as React.CSSProperties}
+                        onClick={() => { addNodoItem(r); setPickerQuery(""); setPickerOpen(false); }}
+                      >
+                        <span className="po-name">
+                          {providerLogo(r.providerName) ? <img className="po-logo" src={providerLogo(r.providerName)!} alt="" width={22} height={22} /> : null}
+                          <span className="po-tag nodo-tag">{r.providerName}</span>
+                          {r.name}
+                          <span className="cell-sub">
+                            {[r.sku ? `SKU: ${r.sku}` : "", r.brand ?? "", r.stock !== null ? `stock ${r.stock}` : "", r.stale ? "precio desactualizado" : ""]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </span>
+                        <span className="po-price" title={r.originalCurrency === "USD" ? `US$ ${r.originalCostIva.toLocaleString("es-AR")} × ${r.fxRate}` : undefined}>
+                          {formatArs(r.costIvaCents)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {sel.own && pickerOpen && (pickerQuery.trim() || pickingLineId) ? (
                 <div className="picker-results" role="listbox">
                   {pickerComboMatches.length > 0 ? (
                     <div className="picker-section">
@@ -2564,6 +2676,8 @@ export function QuotesView({
                     <p className="picker-empty">Buscando en catálogo…</p>
                   ) : null}
                   {!catalogPickerLoading &&
+                  !nodoWanted &&
+                  !webWanted &&
                   !pickerOptions.some(
                     (o) => o.kind === "product" || o.kind === "combo" || o.kind === "catalog",
                   ) ? (
@@ -2618,6 +2732,8 @@ export function QuotesView({
                       );
                     })()}
                   </div>
+                </div>
+              ) : null}
                 </div>
               ) : null}
             </div>
@@ -2696,7 +2812,9 @@ export function QuotesView({
                           ) : (
                             <>
                               <span className="cell-strong">{item.name || "(sin nombre)"}</span>
-                              {item.productId ? null : (
+                              {item.source ? (
+                                <OriginTag source={item.source} />
+                              ) : item.productId ? null : (
                                 <span className="cell-sub">ítem libre</span>
                               )}
                             </>
@@ -2861,7 +2979,7 @@ export function QuotesView({
                 return <article className={`item-card${empty ? " pc-slot-empty" : ""}`} key={item.key}>
                   <div className="item-card-top">
                     <span className="item-index">{index + 1}</span>
-                    <div>{isBuiltPc ? <span className="cell-sub">{lineName ?? "Extra"}</span> : null}<strong>{empty ? "Componente sin elegir" : item.name || "(sin nombre)"}</strong></div>
+                    <div>{isBuiltPc ? <span className="cell-sub">{lineName ?? "Extra"}</span> : null}<strong>{empty ? "Componente sin elegir" : item.name || "(sin nombre)"}</strong>{!empty && item.source ? <OriginTag source={item.source} /> : null}</div>
                   </div>
                   {empty && isDraft ? <button type="button" className="btn-ghost" onClick={() => item.lineId ? openReplaceOnLine(item.key, item.lineId) : undefined}>{picking ? "Elegí un producto arriba…" : "Elegir producto…"}</button> : null}
                   {!empty && editing ? <>

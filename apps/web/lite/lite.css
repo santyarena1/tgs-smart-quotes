@@ -804,3 +804,29 @@
 .lite .lt-btn.tone-indigo { background: #4f46e5; }
 .lite .lt-btn.tone-indigo:hover:not(:disabled) { background: #4338ca; }
 .lite .lt-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ═════════ Distribuidores (NODO): selector de origen y resultados con color por distribuidor ═════════ */
+.lite .lt-results li.lt-nodo { border-left: 4px solid var(--nc); align-items: center; }
+.lite .lt-results li.lt-nodo.active { background: color-mix(in srgb, var(--nc) 12%, var(--paper)); }
+.lite .lt-res-main { display: grid; min-width: 0; gap: 1px; }
+.lite .lt-res-sub { font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lite .lt-prov { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--nc); color: #fff; font-weight: 650; font-size: 0.68rem; }
+.lite .lt-nodo .lt-res-price { display: grid; justify-items: end; font-weight: 650; color: var(--ink); }
+.lite .lt-nodo .lt-res-price small { font-size: 0.65rem; font-weight: 500; color: var(--muted); }
+.lite .lt-results li.lt-res-note { cursor: default; color: var(--muted); font-size: 0.82rem; }
+.lite .lt-results li.lt-res-note.err { color: var(--red); }
+
+.lite .src-pill, .lite .src-led { border-radius: 999px !important; }
+.lite .src-led { border-radius: 50% !important; }
+.lite .src-bar { margin: 0.15rem 0 0.2rem; }
+.lite .lt-prov { border-radius: 999px !important; }
+.lite .bot-switch input { border-radius: 999px !important; }
+.lite .bot-switch input::after { border-radius: 50% !important; }
+.lite .nodo-card { border-radius: 18px !important; }
+.lite .nodo-logo { border-radius: 14px !important; }
+.lite .nodo-logo img { border-radius: 0 !important; }
+.lite .nodo-btn, .lite .nodo-chip { border-radius: 999px !important; }
+.lite .nodo-pulse, .lite .nodo-dot { border-radius: 50% !important; }
+.lite .lt-logo { border-radius: 8px !important; }
+.lite .origin-tag { border-radius: 999px !important; }
+.lite .origin-dot { border-radius: 50% !important; }

@@ -8,6 +8,22 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.7",
+    date: "2026-10-07",
+    title: "Buscar en distribuidores y en la tienda web",
+    items: [
+      "Al armar un presupuesto (LITE y sistema completo) hay un selector \"Buscar en\" con Mis productos, Productos web (thegamershop.com.ar) y cada distribuidor de NODO. Se prenden y apagan a gusto y se recuerda la elección",
+      "Los distribuidores muestran nombre, stock y costo + IVA en pesos (el dólar se convierte con la cotización de la key de NODO). Cada uno tiene su color",
+      "Los productos de la web entran con su precio de venta y el costo en cero para completarlo; los de distribuidores entran con el costo + IVA y margen del 30 %",
+      "Todo lo que viene de distribuidores o de la web se agrega al presupuesto en mayúsculas",
+      "Funciona también al elegir el producto de cada componente en PC armada",
+      "Configuración → Distribuidores: tarjetas con el logo de cada uno y un switch para elegir cuáles aparecen al buscar. Lo que se apaga desaparece para todos los usuarios, en LITE y en el sistema completo",
+      "En esa pantalla hay un botón \"Sincronizar ahora\" y se ve cuándo fue la última sincronización de cada distribuidor",
+      "Los logos de los distribuidores y de la web se ven en los resultados de la búsqueda",
+      "Cada ítem agregado desde un distribuidor o la web lleva una etiqueta con su origen mientras se arma el presupuesto. Es solo para identificarlo: no se guarda ni va al PDF",
+    ],
+  },
+  {
     version: "0.18.6",
     date: "2026-10-07",
     title: "LITE: más acciones en Colecciones y botones de colores",
