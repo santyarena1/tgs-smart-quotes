@@ -37,6 +37,7 @@ import {
   resolveRuleAttachments,
   settingsDto,
   casualText,
+  bareHelloReply,
   pesosToCents,
   respondWithReview,
 } from './chatbot-core.js';
@@ -175,6 +176,12 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const localEscalationReason = body.messageType === 'AUDIO'
       ? 'Mensaje de audio recibido, requiere atención humana.'
       : keywordReason;
+    // "hola" solo, en el primer mensaje y sin anuncio: dos burbujas fijas, sin IA.
+    const alreadyGreeted = Boolean(conversation.lastOutboundText?.trim())
+      || (body.recentMessages ?? []).some((item) => item.direction === 'OUTBOUND');
+    const helloBubbles = !campaign && !alreadyGreeted && !localEscalationReason
+      ? bareHelloReply(body.message)
+      : null;
     // Datos reales del sistema (catálogo, PCs publicadas, presupuesto del chat).
     // Presupuesto del cliente: el que dijo, o el precio del anuncio por el que escribió.
     const budgetCents = typeof (conversation.profile as {budgetCents?: unknown} | null)?.budgetCents === 'number'
@@ -182,7 +189,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       : campaign?.advertisedPriceCents && /^\d+$/.test(campaign.advertisedPriceCents)
         ? Number(campaign.advertisedPriceCents)
         : null;
-    const catalogData = localEscalationReason ? '' : await buildSystemData({
+    const catalogData = localEscalationReason || helloBubbles ? '' : await buildSystemData({
       chatKey: body.chatKey,
       message: body.message,
       budgetCents,
@@ -191,23 +198,54 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const adContext = campaign ? formatAdContext(campaign, conversation.origin) : '';
     const systemData = [adContext, catalogData].filter(Boolean).join('\n\n');
     // Con precios, stock o un anuncio no se reutiliza una respuesta vieja: cada aviso es otro producto.
-    const reusable = localEscalationReason || systemData || campaign
+    const reusable = localEscalationReason || systemData || campaign || helloBubbles
       ? null
       : await findReusableReply(body.message, settings.reuseSimilarityThreshold, inbound.id, settings.updatedAt);
     const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
     const key = aiSettings.apiKeyEncrypted
       ? decryptSecret(aiSettings.apiKeyEncrypted)
       : process.env.OPENAI_API_KEY;
-    if(!localEscalationReason&&!reusable){
+    if(!localEscalationReason&&!reusable&&!helloBubbles){
       if(!aiSettings.enabled)throw new ServiceUnavailableException('La IA está deshabilitada en Configuración.');
       if(!aiSettings.responsesEnabled)throw new ServiceUnavailableException('Las respuestas con IA están deshabilitadas en Configuración.');
       if(!key?.trim())throw new ServiceUnavailableException('No hay una API key de OpenAI configurada para generar la sugerencia.');
     }
     const service = new ChatbotResponseService({
-      client: localEscalationReason ? null : createAiClient({apiKey: key}),
+      client: localEscalationReason || helloBubbles ? null : createAiClient({apiKey: key}),
       model: settings.model ?? aiSettings.model ?? DEFAULT_AI_MODEL,
     });
-    const result = reusable
+    const result = helloBubbles
+      ? {
+          result: {
+            reply: helloBubbles.join('\n'),
+            messages: helloBubbles,
+            shouldEscalate: false,
+            escalationReason: null,
+            updatedSummary: conversation.summary ?? null,
+            matchedKnowledgeIds: [],
+            decisionReason: 'El cliente solo saludó: dos burbujas fijas, sin preguntar para qué quiere la PC.',
+            shouldCreateRequest: false,
+            requestDraft: null,
+            signals: {
+              temperature: 20,
+              intent: 'GREETING' as const,
+              stageHint: null,
+              nextStep: 'Esperar a que cuente qué está buscando.',
+            },
+          },
+          metadata: {
+            model: 'saludo-fijo',
+            inputHash: inputHash({message: body.message, hello: true}),
+            usedAi: false,
+            cacheHit: false,
+            durationMs: 0,
+            success: true,
+            costUsdCents: 0n,
+            usage: {promptTokens: 0, completionTokens: 0, totalTokens: 0},
+            error: undefined,
+          },
+        }
+      : reusable
       ? {
           result:{
             reply:reusable.reply,
@@ -300,7 +338,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           },
         }), {bannedWords: settings.bannedWords, budgetCents, customerMessage: body.message, chatKey: body.chatKey});
 
-    if(!localEscalationReason&&!reusable&&(!result.metadata.usedAi||!result.metadata.success)){
+    if(!localEscalationReason&&!reusable&&!helloBubbles&&(!result.metadata.usedAi||!result.metadata.success)){
       throw new BadGatewayException(
         result.metadata.error
           ? `OpenAI no pudo generar la sugerencia: ${result.metadata.error}`
@@ -333,8 +371,8 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const legacyReply=[baseReply,...configuredUrls.filter(url=>!baseReply.includes(url))]
       .filter(Boolean)
       .join('\n\n');
-    const ruleAttachments=await resolveRuleAttachments(settings.responses,body.message);
-    const adAttachments=campaign?await resolveAdAttachments(campaign.quote,campaign.id):[];
+    const ruleAttachments=helloBubbles?[]:await resolveRuleAttachments(settings.responses,body.message);
+    const adAttachments=!helloBubbles&&campaign?await resolveAdAttachments(campaign.quote,campaign.id):[];
     const resolvedAttachments=[
       ...adAttachments,
       ...ruleAttachments.filter((item)=>!adAttachments.length||!(item as {quote?:unknown}).quote),
@@ -371,7 +409,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
       messages=[...messages,...urls];
     }
-    messages=shouldEscalate?[]:messages.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean);
+    messages=shouldEscalate?[]:helloBubbles
+      ?helloBubbles.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean)
+      :messages.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean);
     const reply=messages.join('\n');
     const quoteFollowupMessage=!shouldEscalate
       &&settings.multiMessage.quoteFollowup.enabled

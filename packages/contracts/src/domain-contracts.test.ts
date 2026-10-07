@@ -16,6 +16,8 @@ import {
   chatbotRespondSchema,
   applyFactorySalesRules,
   applyFactoryStagePlaybook,
+  applyFactoryStyleExamples,
+  BARE_HELLO_BUBBLES,
   DEFAULT_AI_MODEL,
   DEFAULT_SALES_RULES,
   RECOMMENDED_AI_MODELS,
@@ -218,9 +220,14 @@ describe("contratos del dominio", () => {
     const next = applyFactorySalesRules([oldPlazo, custom]);
     expect(next).not.toContain(oldPlazo);
     expect(next).toContain(custom);
-    // Las reglas de fábrica nuevas vienen completas con la migración; no se suman a reglas editadas.
-    expect(next).toEqual([custom]);
+    // La regla del saludo se suma aunque el resto esté editado. El plazo viejo no vuelve.
+    expect(next).toEqual([custom, DEFAULT_SALES_RULES[1]]);
     expect(applyFactorySalesRules(null)).toEqual(DEFAULT_SALES_RULES);
+    const oldGreeting = 'El saludo ("Hola! Soy Fede de The Gamer Shop") va una sola vez, en el primer mensaje del chat. Nunca vuelvas a saludar ni a presentarte en un chat que ya viene hablando.';
+    const replaced = applyFactorySalesRules([oldGreeting, custom]);
+    expect(replaced).not.toContain(oldGreeting);
+    expect(replaced[0]).toBe(custom);
+    expect(replaced.some((rule) => rule.includes(BARE_HELLO_BUBBLES[1]))).toBe(true);
   });
 
   it("actualiza el guion de fábrica viejo y no pisa uno editado", () => {
@@ -229,7 +236,18 @@ describe("contratos del dominio", () => {
       QUALIFYING: "Nuestro criterio de calificación",
     });
     expect(playbook.NEW).toContain("Si pidió el presupuesto");
+    expect(playbook.NEW).toContain(BARE_HELLO_BUBBLES[0]);
     expect(playbook.QUALIFYING).toBe("Nuestro criterio de calificación");
     expect(playbook.QUOTE_SENT).toContain("No armes otro");
+  });
+
+  it("suma el ejemplo de hola si la lista guardada no lo tiene", () => {
+    const stored = ['Cliente: "gracias!" → Fede: "De nada!"'];
+    const next = applyFactoryStyleExamples(stored);
+    expect(next[0]).toContain('Cliente: "hola"');
+    expect(next[1]).toBe(stored[0]);
+    expect(applyFactoryStyleExamples([])).toEqual([]);
+    const edited = ['Cliente: "hola" → Fede: "Hola!"'];
+    expect(applyFactoryStyleExamples(edited)).toEqual(edited);
   });
 });

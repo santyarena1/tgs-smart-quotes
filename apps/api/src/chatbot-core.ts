@@ -11,8 +11,9 @@ import {createQuoteRequest} from './quotes.js';
 import {
   applyFactorySalesRules,
   applyFactoryStagePlaybook,
+  applyFactoryStyleExamples,
+  BARE_HELLO_BUBBLES,
   DEFAULT_BANNED_WORDS,
-  DEFAULT_STYLE_EXAMPLES,
   DEFAULT_REQUEST_KEYWORDS,
   DEFAULT_WRITING_FILTERS,
   type ChatbotAdCampaign,
@@ -133,7 +134,7 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
       ? (row.requestKeywords as string[]).filter((item) => typeof item === 'string' && item.trim())
       : DEFAULT_REQUEST_KEYWORDS,
     teamAlerts: parseTeamAlerts(row.teamAlerts),
-    styleExamples: Array.isArray(row.styleExamples) ? (row.styleExamples as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_STYLE_EXAMPLES,
+    styleExamples: applyFactoryStyleExamples(Array.isArray(row.styleExamples) ? (row.styleExamples as string[]) : null),
     bannedWords: Array.isArray(row.bannedWords) ? (row.bannedWords as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_BANNED_WORDS,
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
@@ -488,6 +489,21 @@ export async function ensureChatbotRequest(
  * sin tildes, sin signos de apertura (¿ ¡) y sin punto al final del mensaje (los
  * suspensivos y los del medio quedan). La ñ se respeta. Los links no se tocan.
  */
+/**
+ * Si el mensaje es solo "hola" (con signos o espacios), devuelve las dos burbujas fijas.
+ * "hola, quiero una pc" no entra: eso lo redacta el bot.
+ */
+export function bareHelloReply(message: string): string[] | null {
+  const plain = message
+    .toLocaleLowerCase('es-AR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zñ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain === 'hola' ? [...BARE_HELLO_BUBBLES] : null;
+}
+
 export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITING_FILTERS, banned: string[] = []): string {
   let plain = removeBannedVocatives(text, banned);
   if (filters.noFormatting) {
