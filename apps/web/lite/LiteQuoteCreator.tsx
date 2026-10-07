@@ -2,7 +2,11 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
-import { bpsToPct, centsToInput, formatArs, lineTotalCents, parseArsToCents, roundCentsToPesosStep } from "../lib/money";
+import { bpsToPct, centsToInput, formatArs, lineTotalCents, parseArsToCents, roundCentsToPesosStep, saleFromCostAndPct } from "../lib/money";
+import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoProvider, type NodoResult, type SourceSelection, type WebResult } from "../lib/nodo";
+import { SourceBar } from "../components/SourceBar";
+import { OriginTag, type ItemSource } from "../components/OriginTag";
+import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
 import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
@@ -24,6 +28,8 @@ type Line = {
   markupPct: string;
   saleArs: string;
   priceMode: "markup" | "sale";
+  /** De dónde salió (distribuidor o web). Solo se muestra al armar: no se guarda ni va al PDF. */
+  source?: ItemSource;
 };
 
 type TradeIn = { key: string; name: string; valueArs: string };
@@ -51,6 +57,39 @@ function lineFromProduct(p: Product, lineId = ""): Line {
   };
 }
 
+/** Un producto de un distribuidor (NODO) entra como ítem libre: nombre y costo + IVA en pesos. */
+function lineFromNodo(r: NodoResult, lineId = "", color = "#64748b"): Line {
+  const costArs = centsToInput(r.costIvaCents);
+  return {
+    key: crypto.randomUUID(),
+    productId: "",
+    lineId,
+    name: r.name.toLocaleUpperCase("es-AR"),
+    quantity: "1",
+    costArs,
+    markupPct: DEFAULT_MARKUP,
+    saleArs: saleFromCostAndPct(costArs, DEFAULT_MARKUP),
+    priceMode: "markup",
+    source: { label: r.providerName, color },
+  };
+}
+
+/** Producto de la tienda web: el precio de la web es de venta, así que entra con ese precio y el costo sin cargar. */
+function lineFromWeb(r: WebResult, lineId = ""): Line {
+  return {
+    key: crypto.randomUUID(),
+    productId: "",
+    lineId,
+    name: r.name.toLocaleUpperCase("es-AR"),
+    quantity: "1",
+    costArs: "0",
+    markupPct: "0",
+    saleArs: centsToInput(r.priceCents),
+    priceMode: "sale",
+    source: { label: "Web", color: WEB_COLOR },
+  };
+}
+
 function validate(lines: Line[]): string | null {
   if (!lines.length) return "Agregá al menos un producto.";
   for (const [i, line] of lines.entries()) {
@@ -67,25 +106,118 @@ function validate(lines: Line[]): string | null {
   return null;
 }
 
-function SlotPicker({ products, preferLineId, onPick, onCreate }: {
+/** Resultado de un distribuidor (NODO) con el color del distribuidor. */
+function NodoRow({ r, providers, active, onHover, onPick }: {
+  r: NodoResult;
+  providers: NodoProvider[];
+  active: boolean;
+  onHover: () => void;
+  onPick: () => void;
+}) {
+  return (
+    <li
+      role="option"
+      aria-selected={active}
+      className={`lt-nodo${active ? " active" : ""}`}
+      style={{ "--nc": providerColor(providers, r.providerId) } as React.CSSProperties}
+      onMouseEnter={onHover}
+      onMouseDown={(e) => { e.preventDefault(); onPick(); }}
+    >
+      <span className="lt-res-left">
+        {providerLogo(r.providerName) ? <img className="lt-logo" src={providerLogo(r.providerName)!} alt="" width={28} height={28} /> : null}
+        <span className="lt-res-main">
+          <span className="lt-res-name">{r.name}</span>
+          <span className="lt-res-sub">
+            <span className="lt-prov">{r.providerName}</span>
+            {r.sku ? ` · ${r.sku}` : ""}{r.stock !== null ? ` · stock ${r.stock}` : ""}{r.stale ? " · precio desactualizado" : ""}
+          </span>
+        </span>
+      </span>
+      <span className="lt-res-price" title={r.originalCurrency === "USD" ? `US$ ${r.originalCostIva.toLocaleString("es-AR")} × ${r.fxRate}` : undefined}>
+        {formatArs(r.costIvaCents)}
+        <small>costo + IVA</small>
+      </span>
+    </li>
+  );
+}
+
+/** Resultado de la tienda web (precio de venta publicado). */
+function WebRow({ r, active, onHover, onPick }: { r: WebResult; active: boolean; onHover: () => void; onPick: () => void }) {
+  return (
+    <li
+      role="option"
+      aria-selected={active}
+      className={`lt-nodo${active ? " active" : ""}`}
+      style={{ "--nc": WEB_COLOR } as React.CSSProperties}
+      onMouseEnter={onHover}
+      onMouseDown={(e) => { e.preventDefault(); onPick(); }}
+    >
+      <span className="lt-res-left">
+        <img className="lt-logo" src={WEB_LOGO} alt="" width={28} height={28} />
+        <span className="lt-res-main">
+          <span className="lt-res-name">{r.name}</span>
+          <span className="lt-res-sub">
+            <span className="lt-prov">Web</span>
+            {r.sku ? ` · ${r.sku}` : ""}
+          </span>
+        </span>
+      </span>
+      <span className="lt-res-price">
+        {formatArs(r.priceCents)}
+        <small>precio de venta</small>
+      </span>
+    </li>
+  );
+}
+
+/** Avisos de las búsquedas externas (cargando, error, sin resultados). */
+function NodoNotes({ loading, error, query, hasOther }: { loading: boolean; error: string | null; query: string; hasOther: boolean }) {
+  return (
+    <>
+      {loading ? <li className="lt-res-note">Buscando…</li> : null}
+      {error ? <li className="lt-res-note err">{error}</li> : null}
+      {!loading && !error && !hasOther && query.trim().length >= 2 ? <li className="lt-res-note">Sin resultados.</li> : null}
+    </>
+  );
+}
+
+function SlotPicker({ products, preferLineId, providers, sel, onPick, onPickNodo, onPickWeb, onCreate }: {
   products: Product[];
   preferLineId: string;
+  providers: NodoProvider[];
+  sel: SourceSelection;
   onPick: (p: Product) => void;
+  onPickNodo: (r: NodoResult) => void;
+  onPickWeb: (r: WebResult) => void;
   onCreate: (name: string) => void;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const hits = useMemo(() => {
+  const ownHits = useMemo(() => {
+    if (!sel.own) return [];
     const tokens = norm(q).split(/\s+/).filter(Boolean);
     const pool = products.filter((p) => tokens.every((t) => norm(p.name).includes(t)));
     // Sin texto, primero los productos habituales de este componente.
     if (!tokens.length) return pool.filter((p) => p.defaultLineId === preferLineId).slice(0, 6);
     return pool.sort((a, b) => Number(b.defaultLineId === preferLineId) - Number(a.defaultLineId === preferLineId)).slice(0, 6);
-  }, [products, q, preferLineId]);
+  }, [products, q, preferLineId, sel.own]);
+  const nodo = useNodoSearch(q, sel.activeIds, providers.length);
+  const web = useWebSearch(q, sel.web);
+  const hits = ownHits;
   function pick(p: Product) {
     setOpen(false);
     setQ("");
     onPick(p);
+  }
+  function pickNodo(r: NodoResult) {
+    setOpen(false);
+    setQ("");
+    onPickNodo(r);
+  }
+  function pickWeb(r: WebResult) {
+    setOpen(false);
+    setQ("");
+    onPickWeb(r);
   }
   return (
     <div className="lt-search lt-slot">
@@ -103,6 +235,8 @@ function SlotPicker({ products, preferLineId, onPick, onCreate }: {
           if (e.key === "Enter") {
             e.preventDefault();
             if (hits[0]) pick(hits[0]);
+            else if (web.items[0]) pickWeb(web.items[0]);
+            else if (nodo.items[0]) pickNodo(nodo.items[0]);
             else if (q.trim()) { setOpen(false); onCreate(q.trim()); }
           }
         }}
@@ -115,6 +249,13 @@ function SlotPicker({ products, preferLineId, onPick, onCreate }: {
               <span className="lt-res-price">{formatArs(p.salePriceCents)}</span>
             </li>
           ))}
+          {web.items.map((r) => (
+            <WebRow key={`w${r.id}`} r={r} active={false} onHover={() => {}} onPick={() => pickWeb(r)} />
+          ))}
+          {nodo.items.map((r) => (
+            <NodoRow key={r.offerId} r={r} providers={providers} active={false} onHover={() => {}} onPick={() => pickNodo(r)} />
+          ))}
+          <NodoNotes loading={nodo.loading || web.loading} error={nodo.error ?? web.error} query={q} hasOther={hits.length > 0 || nodo.items.length > 0 || web.items.length > 0} />
           {q.trim() ? (
             <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); setOpen(false); onCreate(q.trim()); }}>
               <span className="lt-res-name">+ Crear “{q.trim()}” como producto nuevo</span>
@@ -173,7 +314,10 @@ const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate,
         if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && e.target instanceof HTMLInputElement) { e.preventDefault(); onDone(); }
       }}
     >
-      <input className="lt-cell" value={l.name} onChange={(e) => onPatch(l.key, (x) => ({ ...x, name: e.target.value }))} aria-label="Nombre" />
+      <div className="lt-name-cell">
+        <input className="lt-cell" value={l.name} onChange={(e) => onPatch(l.key, (x) => ({ ...x, name: e.target.value }))} aria-label="Nombre" />
+        {l.source ? <OriginTag source={l.source} /> : null}
+      </div>
       <input className="lt-cell num" type="number" min={1} value={l.quantity} onChange={(e) => onPatch(l.key, (x) => ({ ...x, quantity: e.target.value }))} aria-label="Cantidad" />
       <MoneyInput className="lt-cell num" value={l.costArs} onChange={(v) => onPatch(l.key, (x) => applyDraftCost(x, v))} aria-label="Costo" placeholder="0" />
       <input className={`lt-cell num${below ? " neg" : ""}`} inputMode="decimal" value={l.markupPct} title={below ? "Vendés por debajo del costo" : undefined} onChange={(e) => onPatch(l.key, (x) => applyDraftMarkup(x, e.target.value))} aria-label="Margen" />
@@ -209,6 +353,11 @@ export function LiteQuoteCreator() {
   const [notice, setNotice] = useState<string | null>(null);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
+  const { providers } = useNodoProviders();
+  const sel = useSourceSelection(providers);
+  const nodo = useNodoSearch(query, isBuiltPc ? [] : sel.activeIds, providers.length);
+  const web = useWebSearch(query, sel.web && !isBuiltPc);
   const [finPlans, setFinPlans] = useState<FinancingPlan[]>([]);
   const [listInterestBps, setListInterestBps] = useState(0);
   const [finLoaded, setFinLoaded] = useState(false);
@@ -318,6 +467,15 @@ export function LiteQuoteCreator() {
     return pool.slice(0, 7);
   }, [products, query]);
   useEffect(() => setActive(0), [query]);
+  const ownHits = useMemo(() => (sel.own ? results : []), [sel.own, results]);
+  const entries = useMemo(
+    () => [
+      ...ownHits.map((p) => ({ kind: "own" as const, p })),
+      ...web.items.map((w) => ({ kind: "web" as const, w })),
+      ...nodo.items.map((r) => ({ kind: "nodo" as const, r })),
+    ],
+    [ownHits, web.items, nodo.items],
+  );
   const recent = useMemo(
     () => [...products].filter((p) => p.lastUsedAt).sort((a, b) => (b.lastUsedAt ?? "").localeCompare(a.lastUsedAt ?? "")).slice(0, 6),
     [products],
@@ -411,6 +569,20 @@ export function LiteQuoteCreator() {
     setLines((current) => [...current, lineFromProduct(p, target)]);
     setQuery("");
     setSearchOpen(false);
+  }
+
+  function addWeb(r: WebResult, lineId = "") {
+    setLines((current) => [...current, lineFromWeb(r, lineId)]);
+    setQuery("");
+    setSearchOpen(false);
+    setNotice(`“${r.name}” agregado desde la web con su precio de venta ${formatArs(r.priceCents)}. Falta cargar el costo.`);
+  }
+
+  function addNodo(r: NodoResult, lineId = "") {
+    setLines((current) => [...current, lineFromNodo(r, lineId, providerColor(providers, r.providerId))]);
+    setQuery("");
+    setSearchOpen(false);
+    setNotice(`“${r.name}” agregado desde ${r.providerName}: costo + IVA ${formatArs(r.costIvaCents)}.`);
   }
 
   function startCreate(name: string, lineId = "") {
@@ -518,9 +690,10 @@ export function LiteQuoteCreator() {
   submitRef.current = submit;
 
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    const size = entries.length;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => Math.min(i + 1, Math.max(results.length - 1, 0)));
+      setActive((i) => Math.min(i + 1, Math.max(size - 1, 0)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((i) => Math.max(i - 1, 0));
@@ -529,8 +702,10 @@ export function LiteQuoteCreator() {
       setSearchOpen(false);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const hit = results[active];
-      if (hit) addProduct(hit);
+      const hit = entries[active];
+      if (hit?.kind === "own") addProduct(hit.p);
+      else if (hit?.kind === "web") addWeb(hit.w);
+      else if (hit?.kind === "nodo") addNodo(hit.r);
       else if (query.trim()) startCreate(query.trim());
     }
   }
@@ -726,6 +901,7 @@ export function LiteQuoteCreator() {
             </div>
           ) : null}
 
+          <SourceBar providers={providers} sel={sel} />
           <div className="lt-search">
             <input
               ref={searchRef}
@@ -740,21 +916,26 @@ export function LiteQuoteCreator() {
               disabled={isBuiltPc}
               aria-label="Buscar producto"
             />
-            {!isBuiltPc && searchOpen && (query.trim() || products.length) ? (
+            {!isBuiltPc && searchOpen && (query.trim() || ownHits.length) ? (
               <ul className="lt-results" role="listbox">
-                {results.map((p, i) => (
+                {entries.map((en, i) => en.kind === "own" ? (
                   <li
-                    key={p.id}
+                    key={en.p.id}
                     role="option"
                     aria-selected={i === active}
                     className={i === active ? "active" : ""}
                     onMouseEnter={() => setActive(i)}
-                    onMouseDown={(e) => { e.preventDefault(); addProduct(p); }}
+                    onMouseDown={(e) => { e.preventDefault(); addProduct(en.p); }}
                   >
-                    <span className="lt-res-name">{p.name}</span>
-                    <span className="lt-res-price">{formatArs(p.salePriceCents)}</span>
+                    <span className="lt-res-name">{en.p.name}</span>
+                    <span className="lt-res-price">{formatArs(en.p.salePriceCents)}</span>
                   </li>
+                ) : en.kind === "web" ? (
+                  <WebRow key={`w${en.w.id}`} r={en.w} active={i === active} onHover={() => setActive(i)} onPick={() => addWeb(en.w)} />
+                ) : (
+                  <NodoRow key={en.r.offerId} r={en.r} providers={providers} active={i === active} onHover={() => setActive(i)} onPick={() => addNodo(en.r)} />
                 ))}
+                <NodoNotes loading={nodo.loading || web.loading} error={nodo.error ?? web.error} query={query} hasOther={entries.length > 0} />
                 {query.trim() ? (
                   <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); startCreate(query.trim()); }}>
                     <span className="lt-res-name">+ Crear “{query.trim()}” como producto nuevo</span>
@@ -794,7 +975,11 @@ export function LiteQuoteCreator() {
                           <SlotPicker
                             products={products}
                             preferLineId={pc.id}
+                            providers={providers}
+                            sel={sel}
                             onPick={(p) => addProduct(p, pc.id)}
+                            onPickNodo={(r) => addNodo(r, pc.id)}
+                            onPickWeb={(r) => addWeb(r, pc.id)}
                             onCreate={(n) => startCreate(n, pc.id)}
                           />
                         ) : null}

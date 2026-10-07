@@ -1923,3 +1923,10 @@ model RecurringExpensePayment {
   @@unique([expenseId, period])
   @@index([period])
 }
+
+/// Distribuidores de NODO que se apagaron en Configuración (sin fila = activo). Cambia qué ven todos en el buscador.
+model NodoProviderSetting {
+  providerId String   @id
+  enabled    Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
