@@ -582,9 +582,33 @@ export const productBulkMergeSchema = z
   })
   .strict();
 
+/** Solo los dígitos de un CUIT/CUIL (acepta guiones y espacios). */
+export const normalizeCuit = (value: string): string => value.replace(/\D/g, '');
+
+/** CUIT/CUIL argentino válido: 11 dígitos y dígito verificador correcto (módulo 11). */
+export function isValidCuit(value: string): boolean {
+  const digits = normalizeCuit(value);
+  if (!/^\d{11}$/.test(digits)) return false;
+  const weights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  const sum = weights.reduce((acc, w, i) => acc + w * Number(digits[i]), 0);
+  const remainder = 11 - (sum % 11);
+  const check = remainder === 11 ? 0 : remainder === 10 ? 9 : remainder;
+  return check === Number(digits[10]);
+}
+
+/** CUIT con el formato habitual 20-12345678-9 (si no tiene 11 dígitos lo devuelve tal cual). */
+export function formatCuit(value: string): string {
+  const d = normalizeCuit(value);
+  return d.length === 11 ? `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}` : value;
+}
+
 export const customerCreateSchema = z
   .object({
     name: text,
+    kind: z.enum(['PERSONA', 'EMPRESA']).optional(),
+    cuit: z.string().trim().max(20).nullable().optional(),
+    email: z.string().trim().max(200).email('El email no es válido').nullable().optional().or(z.literal('')),
+    contactName: z.string().trim().max(200).nullable().optional(),
     phone: z.string().trim().max(100).nullable().optional(),
     dni: z.string().trim().max(50).nullable().optional(),
     notes: z.string().trim().max(5000).nullable().optional(),
@@ -613,7 +637,7 @@ export const pcLineCreateSchema = z
 export const pcLineUpdateSchema = nonEmptyUpdate(pcLineCreateSchema.shape);
 
 export const fieldOverrideSchema = z.enum(['HEREDAR', 'MOSTRAR', 'OCULTAR']);
-export const pdfKindSchema = z.enum(['SIMPLE', 'DETALLADO']);
+export const pdfKindSchema = z.enum(['SIMPLE', 'DETALLADO', 'FORMAL']);
 export const quoteStateEnum = z.enum([
   'BORRADOR',
   'ENVIADO',

@@ -352,6 +352,8 @@ export function LiteQuoteCreator() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  /** Modal para crear la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
+  const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
   const { providers, error: providersError, setEnabled: setProvidersEnabled } = useNodoProviders();
@@ -625,7 +627,7 @@ export function LiteQuoteCreator() {
     setIsBuiltPc(next);
   }
 
-  async function submit(kind: PdfKind) {
+  async function submit(kind: PdfKind, customerOverride?: Customer) {
     if (busy) return;
     const invalid = validate(lines);
     if (invalid) { setError(invalid); return; }
@@ -639,7 +641,8 @@ export function LiteQuoteCreator() {
     setError(null);
     setNotice(null);
     try {
-      const customerName = customers.find((c) => c.id === customerId)?.name;
+      const effectiveCustomerId = customerOverride?.id ?? customerId;
+      const customerName = customerOverride?.name ?? customers.find((c) => c.id === customerId)?.name;
       const internalName = name.trim() || customerName || lines[0]!.name;
       // Los componentes salen en el orden de la PC; los extras al final.
       const lineOrder = new Map(pcLines.map((l, i) => [l.id, i]));
@@ -650,7 +653,7 @@ export function LiteQuoteCreator() {
         method: editing ? "PUT" : "POST",
         body: {
           internalName,
-          customerId: customerId || null,
+          customerId: effectiveCustomerId || null,
           requestId: null,
           isBuiltPc,
           ...(editing ? { reason: null } : { kind: "PC" }),
@@ -675,7 +678,7 @@ export function LiteQuoteCreator() {
       resetForm();
       try {
         await downloadQuotePdf(created.id, created.visibleNumber, kind);
-        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"} · PDF ${kind === "SIMPLE" ? "simple" : "detallado"} descargado.`);
+        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"} · ${kind === "FORMAL" ? "Presupuesto formal" : `PDF ${kind === "SIMPLE" ? "simple" : "detallado"}`} descargado.`);
       } catch (err) {
         setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"}, pero el PDF falló: ${errorMessage(err)}`);
       }
@@ -685,6 +688,16 @@ export function LiteQuoteCreator() {
     } finally {
       setBusy(null);
     }
+  }
+
+  /** Presupuesto formal: pide una empresa como cliente. Si ya hay una elegida sigue directo; si no, abre el alta de la empresa. */
+  function startFormal() {
+    if (busy) return;
+    const invalid = validate(lines);
+    if (invalid) { setError(invalid); return; }
+    setError(null);
+    if (customers.find((c) => c.id === customerId)?.kind === "EMPRESA") { void submit("FORMAL"); return; }
+    setFormalCompanyOpen(true);
   }
 
   submitRef.current = submit;
@@ -767,6 +780,22 @@ export function LiteQuoteCreator() {
 
   return (
     <div className="lt-grid">
+      {formalCompanyOpen ? (
+        <LiteNewCustomer
+          initialKind="EMPRESA"
+          lockKind
+          title="Empresa para el presupuesto formal"
+          intro="El presupuesto formal va a nombre de una empresa. Cargá sus datos y se genera al instante; si ya la tenés cargada, cerrá esto y elegila en Cliente."
+          submitLabel="Crear empresa y generar presupuesto"
+          onCancel={() => setFormalCompanyOpen(false)}
+          onCreated={(customer) => {
+            setCustomers((current) => [...current, customer].sort((x, y) => x.name.localeCompare(y.name)));
+            setCustomerId(customer.id);
+            setFormalCompanyOpen(false);
+            void submit("FORMAL", customer);
+          }}
+        />
+      ) : null}
       {newCustomerOpen ? (
         <LiteNewCustomer
           onCancel={() => setNewCustomerOpen(false)}
@@ -872,7 +901,14 @@ export function LiteQuoteCreator() {
             <div className="lt-customer">
               <select className="lt-input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} aria-label="Cliente">
               <option value="">Sin cliente</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {customers.some((c) => c.kind === "EMPRESA") ? (
+                <optgroup label="Empresas">
+                  {customers.filter((c) => c.kind === "EMPRESA").map((c) => <option key={c.id} value={c.id}>{c.name}{c.cuit ? ` · ${c.cuit}` : ""}</option>)}
+                </optgroup>
+              ) : null}
+              <optgroup label={customers.some((c) => c.kind === "EMPRESA") ? "Consumidores finales" : "Clientes"}>
+                {customers.filter((c) => c.kind !== "EMPRESA").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </optgroup>
             </select>
               <button type="button" className="lt-btn ghost" onClick={() => setNewCustomerOpen(true)} title="Crear cliente nuevo">+ Cliente</button>
             </div>
@@ -1021,6 +1057,9 @@ export function LiteQuoteCreator() {
               {lines.length ? <small className="lt-total-meta"><span className="lt-cost">Costo {formatArs(cost)}</span> · <span className="lt-gain">Ganancia {formatArs(total - cost)}</span></small> : null}
             </div>
             <span className="lt-spacer" />
+            <button type="button" className="lt-btn tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+              {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
+            </button>
             <button type="button" className="lt-btn ghost" disabled={!ready} onClick={() => void submit("DETALLADO")}>
               {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
             </button>

@@ -59,6 +59,11 @@ export type Customer = {
   dni: string | null;
   address?: string | null;
   taxCondition?: string | null;
+  /** EMPRESA lleva razón social (name), CUIT y condición frente al IVA. */
+  kind?: "PERSONA" | "EMPRESA";
+  cuit?: string | null;
+  email?: string | null;
+  contactName?: string | null;
 };
 
 export type PcLine = {

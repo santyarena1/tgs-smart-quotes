@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.2",
+    date: "2026-10-07",
+    title: "Presupuesto Formal para empresas",
+    items: [
+      "Nuevo botón azul \"Presupuesto Formal\" junto a PDF detallado (LITE y sistema completo): PDF de estilo empresarial a nombre de una empresa, con cantidad, precio unitario e importe, y debajo el precio de lista y el efectivo / transferencia. Sin armado, demora, línea de PC armada, cuotas ni textos de la tienda",
+      "Si no hay una empresa elegida como cliente, se abre un modal para crearla (razón social, CUIT, condición frente al IVA, domicilio, teléfono, email y contacto); si ya hay una empresa elegida se genera directo",
+      "Al crear un cliente se elige si es Consumidor final o Empresa; la empresa suma sus datos fiscales. El CUIT se valida (dígito verificador)",
+      "El desplegable de clientes agrupa Empresas y Consumidores finales y se lee bien en tema claro y oscuro",
+    ],
+  },
+  {
     version: "0.19.1",
     date: "2026-10-07",
     title: "Distribuidores conectados entre Configuración y Presupuestos",

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, type Browser } from 'playwright';
 
-export type PdfKind = 'SIMPLE' | 'DETALLADO';
+export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL';
 
 export type PdfCompany = {
   name: string;
@@ -26,6 +26,11 @@ export type PdfCustomer = {
   dni?: string | null;
   address?: string | null;
   taxCondition?: string | null;
+  /** EMPRESA lleva razón social (name), CUIT y condición frente al IVA. */
+  kind?: 'PERSONA' | 'EMPRESA' | null;
+  cuit?: string | null;
+  email?: string | null;
+  contactName?: string | null;
 };
 
 export type PdfFinancingPlan = {
@@ -661,6 +666,7 @@ function buildFinancing(input: PdfRenderInput): string {
 }
 
 export function renderQuoteHtml(input: PdfRenderInput): string {
+  if (input.kind === 'FORMAL') return renderQuoteFormalHtml(input);
   if (input.template === 'MODERNO') return renderQuoteModernoHtml(input);
   const date = formatDateAr(input.date);
   const primary = escapeHtml(input.company.primaryColor || '#1a1a1a');
@@ -1145,6 +1151,134 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
       : html,
     input.layout,
   );
+}
+
+/**
+ * Presupuesto FORMAL para empresas: estilo corporativo y solo lo esencial. Datos de la empresa y de la empresa cliente,
+ * tabla con cantidad, precio unitario e importe, y debajo el precio de lista y el efectivo / transferencia.
+ * No lleva armado, demora, línea de PC armada, financiación, observaciones, RMA ni textos de la tienda.
+ */
+export function renderQuoteFormalHtml(input: PdfRenderInput): string {
+  const date = formatDateAr(input.date);
+  const navy = '#14284b';
+  const blue = '#1d4ed8';
+  const company = input.company;
+  const logo = company.logoUrl ? `<img class="logo" src="${escapeHtml(company.logoUrl)}" alt="" />` : '';
+
+  // Solo los datos que existen: un campo vacío o con "-" no se muestra.
+  const has = (value?: string | null): value is string => Boolean(value && value.trim() && value.trim() !== '-');
+  const companyLines = [
+    has(company.taxCondition) ? company.taxCondition : '',
+    has(company.cuit) ? `CUIT ${company.cuit}` : '',
+    has(company.grossIncome) ? `Ing. Brutos ${company.grossIncome}` : '',
+    has(company.activityStart) ? `Inicio de actividades ${company.activityStart}` : '',
+    has(company.address) ? company.address : '',
+    has(company.phones) ? company.phones : '',
+  ].filter(Boolean);
+
+  const c = input.customer;
+  const customerRows: Array<[string, string]> = [];
+  if (c) {
+    customerRows.push([c.kind === 'EMPRESA' ? 'Razón social' : 'Cliente', c.name]);
+    const taxId = c.cuit || c.dni;
+    if (taxId) customerRows.push([c.cuit ? 'CUIT' : 'DNI', taxId]);
+    if (c.taxCondition) customerRows.push(['Condición IVA', TAX_CONDITION_LABELS[c.taxCondition] ?? c.taxCondition]);
+    if (c.address) customerRows.push(['Domicilio', c.address]);
+    if (c.contactName) customerRows.push(['Atención', c.contactName]);
+    if (c.phone) customerRows.push(['Teléfono', c.phone]);
+    if (c.email) customerRows.push(['Email', c.email]);
+  }
+
+  // La línea principal de una PC armada ("Presupuesto de PC Armada…") no va: solo los productos.
+  const rows = input.items
+    .filter((item) => !item.isMainLine)
+    .map((item, index) => {
+      const code = escapeHtml(String(index + 1).padStart(3, '0'));
+      return `<tr><td class="code">${code}</td><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td><td class="unit">${formatArsFromCents(item.unitCents)}</td><td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`;
+    })
+    .join('');
+
+  return `<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1f2937; font-size: 11px; line-height: 1.4; }
+  .topbar { height: 6px; background: ${navy}; margin-bottom: 14px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+  .brand { display: flex; align-items: flex-start; gap: 12px; }
+  .brand .logo { height: 54px; width: auto; max-width: 140px; object-fit: contain; }
+  .brand .cname { font-size: 19px; font-weight: 800; color: ${navy}; line-height: 1.1; }
+  .brand .cdata { margin-top: 4px; color: #4b5563; font-size: 9.6px; line-height: 1.5; }
+  .doc { text-align: right; }
+  .doc h1 { margin: 0; font-size: 25px; font-weight: 800; letter-spacing: 0.08em; color: ${navy}; }
+  .doc dl { margin: 6px 0 0; display: grid; grid-template-columns: auto auto; gap: 2px 12px; justify-content: end; font-size: 10.4px; }
+  .doc dt { color: #6b7280; text-align: right; }
+  .doc dd { margin: 0; font-weight: 700; color: #111827; text-align: right; }
+  .client { margin-top: 16px; border: 1px solid #cbd5e1; border-radius: 4px; }
+  .client h2 { margin: 0; padding: 5px 12px; background: #eef2f9; border-bottom: 1px solid #cbd5e1; font-size: 9.6px; letter-spacing: 0.12em; text-transform: uppercase; color: ${navy}; }
+  .client dl { margin: 0; padding: 8px 12px 9px; display: grid; grid-template-columns: 96px 1fr 96px 1fr; gap: 4px 12px; }
+  .client dt { color: #6b7280; font-size: 10px; }
+  .client dd { margin: 0; font-weight: 600; color: #111827; font-size: 10.8px; }
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 16px; }
+  table.items thead th { background: ${navy}; color: #fff; padding: 7px 9px; font-size: 9.8px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; }
+  table.items thead th.qty { text-align: center; }
+  table.items thead th.unit, table.items thead th.amt { text-align: right; }
+  table.items td { padding: 7px 9px; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-size: 10.9px; }
+  table.items tbody tr:nth-child(even) td { background: #f8fafc; }
+  table.items .code { width: 46px; color: #6b7280; }
+  table.items td.name { font-weight: 600; color: #111827; }
+  table.items .qty { width: 54px; text-align: center; }
+  table.items .unit { width: 108px; text-align: right; white-space: nowrap; }
+  table.items .amt { width: 118px; text-align: right; white-space: nowrap; }
+  table.items td.amt { font-weight: 700; color: #111827; }
+  .totals { width: 56%; margin: 14px 0 0 auto; border: 1px solid #cbd5e1; border-top: 3px solid ${navy}; border-radius: 0 0 4px 4px; }
+  .totals .row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px; }
+  .totals .row + .row { border-top: 1px solid #e5e7eb; }
+  .totals .lbl { color: #374151; font-size: 11px; }
+  .totals .list .val { color: ${navy}; font-weight: 800; font-size: 14px; }
+  .totals .cash { background: #eef2f9; }
+  .totals .cash .lbl { color: ${blue}; font-weight: 800; }
+  .totals .cash .val { color: ${blue}; font-weight: 900; font-size: 18px; }
+</style>
+</head>
+<body>
+  <div class="topbar"></div>
+  <header class="header">
+    <div class="brand">
+      ${logo}
+      <div>
+        <div class="cname">${escapeHtml(company.name)}</div>
+        <div class="cdata">${companyLines.map((l) => escapeHtml(l)).join('<br />')}</div>
+      </div>
+    </div>
+    <div class="doc">
+      <h1>PRESUPUESTO</h1>
+      <dl>
+        <dt>Número</dt><dd>${escapeHtml(input.number)}</dd>
+        <dt>Fecha</dt><dd>${date}</dd>
+        <dt>Moneda</dt><dd>Pesos argentinos</dd>
+      </dl>
+    </div>
+  </header>
+
+  ${customerRows.length ? `<section class="client"><h2>Cliente</h2><dl>${customerRows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl></section>` : ''}
+
+  <table class="items">
+    <thead>
+      <tr><th class="code">Cód.</th><th class="name">Descripción</th><th class="qty">Cant.</th><th class="unit">Precio unitario</th><th class="amt">Importe</th></tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <section class="totals">
+    <div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>
+    <div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>
+  </section>
+</body>
+</html>`;
 }
 
 /** Renderer compartido por el preview live y la generación final. `editor` agrega hit-targets aun sin overrides. */

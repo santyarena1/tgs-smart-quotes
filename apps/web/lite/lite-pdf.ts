@@ -1,6 +1,6 @@
 import { api, downloadAuthenticated } from "../lib/api";
 
-export type PdfKind = "SIMPLE" | "DETALLADO";
+export type PdfKind = "SIMPLE" | "DETALLADO" | "FORMAL";
 
 /** Genera (si hace falta) y descarga el PDF de la versión activa de un presupuesto. */
 export async function downloadQuotePdf(quoteId: string, visibleNumber: string, kind: PdfKind): Promise<void> {

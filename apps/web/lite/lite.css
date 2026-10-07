@@ -831,3 +831,17 @@
 .lite .origin-tag { border-radius: 999px !important; }
 .lite .origin-dot { border-radius: 50% !important; }
 .lite .src-error, .lite .nodo-admin-note { border-radius: 14px !important; }
+
+/* Presupuesto Formal (azul, mismo estilo que los demás botones) */
+.lite .lt-btn.tone-blue { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.lite .lt-btn.tone-blue:hover:not(:disabled) { background: #1e40af; border-color: #1e40af; color: #fff; }
+.lite .lt-btn.tone-blue:focus-visible { outline-color: #1d4ed8; }
+.lite .lt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Selector Consumidor final / Empresa del alta de cliente */
+.lite .lt-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px !important; background: var(--canvas, #f1f5f9); border: 1px solid var(--line, #e2e8f0); }
+.lite .lt-seg button { height: 36px; border: 0; border-radius: 9px !important; background: transparent; color: var(--ink-2, #334155); font: inherit; font-weight: 650; font-size: 0.88rem; cursor: pointer; }
+.lite .lt-seg button.on { background: #1d4ed8; color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, #1d4ed8 35%, transparent); }
+.lite .lt-seg button:not(.on):hover { background: color-mix(in srgb, #1d4ed8 10%, transparent); color: var(--ink, #111827); }
+.lite .lt-modal-intro { margin: -0.2rem 0 0; font-size: 0.85rem; }
+.lite .lt-customer select.lt-input { background: var(--paper); color: var(--ink); border-radius: 12px !important; padding-right: 0.5rem; cursor: pointer; }
