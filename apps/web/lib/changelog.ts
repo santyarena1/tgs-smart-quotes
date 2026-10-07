@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.7",
+    date: "2026-10-07",
+    title: "El bot y el CRM pasan a GPT-5.2",
+    items: [
+      "El modelo de fábrica deja de ser GPT-4o mini (se quedaba corto en la charla de venta) y pasa a GPT-5.2",
+      "Si tenías el mini, se actualiza solo. Si ya habías elegido otro modelo, no se toca",
+      "Se elige en Configuración → IA, con tarjetas: GPT-5.2 (recomendado), GPT-4o o el mini. El bot puede heredar ese modelo o usar uno propio en Chatbot → Avanzado",
+    ],
+  },
+  {
     version: "0.18.6",
     date: "2026-10-07",
     title: "LITE: más acciones en Colecciones y botones de colores",

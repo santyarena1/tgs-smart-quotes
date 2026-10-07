@@ -23,6 +23,7 @@ import {
   Tabs,
   errorMessage,
 } from "./shared";
+import {RECOMMENDED_AI_MODELS} from "../lib/ai-models";
 import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
 import {WhatsappSettingsSection} from "./WhatsappSettingsSection";
 import {ThumbnailAiSettingsSection} from "./ThumbnailAiSettingsSection";
@@ -771,16 +772,51 @@ export function SettingsView() {
         <form className="form-grid card card-pad" onSubmit={saveAi} style={{ maxWidth: 820 }}>
           <h3 className="panel-title">Conexión de IA</h3>
           <p className="section-note">
-            Solo se configura y prueba la conexión. Análisis, similitud y respuestas con IA no están
-            activas en esta interfaz.
+            El bot de WhatsApp y el CRM usan este modelo. GPT-5.2 es el recomendado: entiende mejor
+            la charla de venta que el mini.
           </p>
-          <div className="grid-2">
-            <Checkbox
-              label="IA habilitada"
-              checked={ai.enabled}
-              onChange={(enabled) => setAi({ ...ai, enabled })}
-            />
-            <Field label="Modelo" htmlFor="ai-model">
+          <Checkbox
+            label="IA habilitada"
+            checked={ai.enabled}
+            onChange={(enabled) => setAi({ ...ai, enabled })}
+          />
+          <div className="field">
+            <span className="field-label">Modelo</span>
+            <div className="bot-choices" role="radiogroup" aria-label="Modelo">
+              {RECOMMENDED_AI_MODELS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={ai.model === option.id}
+                  className={`bot-choice${ai.model === option.id ? " active" : ""}`}
+                  onClick={() => setAi({ ...ai, model: option.id })}
+                >
+                  <strong>{option.title}</strong>
+                  <span>{option.text}</span>
+                </button>
+              ))}
+              {ai.model && !RECOMMENDED_AI_MODELS.some((option) => option.id === ai.model) ? (
+                <button type="button" role="radio" aria-checked className="bot-choice active">
+                  <strong>{ai.model}</strong>
+                  <span>
+                    {selectedAiModelUnavailable
+                      ? "No aparece en la cuenta actual. Elegí otro de la lista."
+                      : "Modelo actual de la cuenta."}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+            <span className="field-hint">
+              Se aplica al bot, al CRM y al resto de la IA. Guardá para que arranque en el próximo mensaje.
+            </span>
+          </div>
+          {aiModels.length > 0 ? (
+            <Field
+              label="Otros modelos de la cuenta"
+              htmlFor="ai-model"
+              hint="Lista completa de OpenAI. Solo si necesitás uno que no está arriba."
+            >
               <select
                 id="ai-model"
                 value={ai.model}
@@ -794,10 +830,15 @@ export function SettingsView() {
                       : `${ai.model} (actual)`}
                   </option>
                 ) : null}
-                {aiModels.map(model=><option key={model.id} value={model.id}>{model.id}{efficiencyHint(model.id)?` · ${efficiencyHint(model.id)}`:""}</option>)}
+                {aiModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.id}
+                    {efficiencyHint(model.id) ? ` · ${efficiencyHint(model.id)}` : ""}
+                  </option>
+                ))}
               </select>
             </Field>
-          </div>
+          ) : null}
           {selectedAiModelUnavailable ? (
             <Alert tone="error">
               El modelo guardado no aparece entre los modelos disponibles para la API key actual.

@@ -1,6 +1,12 @@
 import OpenAI from "openai";
 
-export const DEFAULT_AI_MODEL = "gpt-4o-mini";
+/** Modelo de fábrica para el bot, el CRM y el resto de la IA. Mini se queda corto en la charla. */
+export const DEFAULT_AI_MODEL = "gpt-5.2";
+
+/** GPT-5 y la familia o no aceptan temperature distinta de la de fábrica. */
+export function modelLocksTemperature(model: string): boolean {
+  return /^(gpt-5|o[1-9]|o-)/i.test(model.trim());
+}
 
 export type OpenAiErrorInfo = {
   kind: "AUTH" | "PERMISSION" | "MODEL" | "RATE_LIMIT" | "TIMEOUT" | "NETWORK" | "INVALID_REQUEST" | "INTERNAL_SCHEMA" | "UNKNOWN";

@@ -5,6 +5,7 @@ import {api, listWhatsappTemplates, type WhatsappTemplate} from "../lib/api";
 import { INTENT_LABEL, temperatureBadge } from "../lib/crm";
 import type {ChatbotAdCampaign, ChatbotResponseEntry, ChatbotSettings, Quote} from "../lib/types";
 import {parseArsToCents} from "../lib/money";
+import {RECOMMENDED_AI_MODELS} from "../lib/ai-models";
 import {Alert, Checkbox, Field, Loading, MoneyInput, Tabs, errorMessage} from "./shared";
 
 const uid=()=>globalThis.crypto?.randomUUID?.()??`respuesta-${Date.now()}-${Math.random()}`;
@@ -967,15 +968,29 @@ export function ChatbotSettingsSection() {
     </Section>:null}
 
     {activeTab==="advanced"?<Section title="Avanzado" note="Ajustes técnicos. Los valores actuales sirven para el uso normal.">
+      <ChoiceCards
+        label="Modelo de IA"
+        value={settings.model??""}
+        onChange={model=>set({model:model||null})}
+        options={[
+          {id:"",title:"El de Configuración → IA",text:"Hereda el modelo global. Hoy el recomendado es GPT-5.2."},
+          ...RECOMMENDED_AI_MODELS,
+          ...(settings.model&&!RECOMMENDED_AI_MODELS.some(option=>option.id===settings.model)
+            ?[{id:settings.model,title:settings.model,text:"Modelo actual de este bot."}]
+            :[]),
+        ]}
+      />
+      <div className="form-actions">
+        <button type="button" className="btn-ghost" disabled={modelsBusy} onClick={()=>void loadModels()}>{modelsBusy?"Consultando OpenAI…":"Cargar modelos disponibles"}</button>
+      </div>
+      {models.length>0?<Field label="Otros modelos de la cuenta" hint="Lista completa de OpenAI. Vacío = heredar el global.">
+        <select value={settings.model??""} onChange={event=>set({model:event.target.value||null})}>
+          <option value="">Heredar modelo global</option>
+          {settings.model&&!models.some(model=>model.id===settings.model)?<option value={settings.model}>{settings.model} (actual)</option>:null}
+          {models.map(model=><option key={model.id} value={model.id}>{model.id}{modelEfficiencyHint(model.id)?` · ${modelEfficiencyHint(model.id)}`:""}</option>)}
+        </select>
+      </Field>:null}
       <div className="grid-2">
-        <Field label="Modelo de IA" hint="Heredar usa el modelo de Configuración → IA.">
-          <select value={settings.model??""} onChange={event=>set({model:event.target.value||null})}>
-            <option value="">Heredar modelo global</option>
-            {settings.model&&!models.some(model=>model.id===settings.model)?<option value={settings.model}>{settings.model} (actual)</option>:null}
-            {models.map(model=><option key={model.id} value={model.id}>{model.id}{modelEfficiencyHint(model.id)?` · ${modelEfficiencyHint(model.id)}`:""}</option>)}
-          </select>
-        </Field>
-        <div className="form-actions" style={{alignItems:"end"}}><button type="button" className="btn-ghost" disabled={modelsBusy} onClick={()=>void loadModels()}>{modelsBusy?"Consultando OpenAI…":"Cargar modelos disponibles"}</button></div>
         <Field label="Mensajes anteriores que lee" hint="Cuántos mensajes del chat recibe la IA como contexto. Más contexto = mejores respuestas y más costo."><input type="number" min={0} max={50} value={settings.maxRecentSnippets} onChange={event=>set({maxRecentSnippets:Number(event.target.value)})}/></Field>
         <Field label="Actualizar la memoria del chat cada (mensajes)" hint="En chats largos el bot guarda un resumen; esto define cada cuánto lo renueva."><input type="number" min={2} max={100} value={settings.summaryRefreshEvery} onChange={event=>set({summaryRefreshEvery:Number(event.target.value)})}/></Field>
         <Field label="Reutilizar respuestas desde (% de similitud)" hint="Si una pregunta es casi igual a otra ya respondida, reusa esa respuesta y no gasta IA. 0 lo desactiva."><input type="number" min={0} max={100} value={settings.reuseSimilarityThreshold} onChange={event=>set({reuseSimilarityThreshold:Number(event.target.value)})}/></Field>

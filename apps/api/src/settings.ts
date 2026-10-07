@@ -25,6 +25,7 @@ import {
   externalModuleToggleSchema,
   externalModuleConfigInputSchema,
   operationsSettingsInputSchema,
+  RECOMMENDED_AI_MODELS,
   pdfLayoutConfigSchema,
   pdfLayoutPreviewInputSchema,
   pdfSettingsInputSchema,
@@ -371,10 +372,14 @@ export class SettingsController {
     try{
       const client=new OpenAI({apiKey:key.trim(),timeout:15000,maxRetries:1});
       const page=await client.models.list();
+      const rank=(id:string)=>{
+        const index=RECOMMENDED_AI_MODELS.findIndex((item)=>item.id===id);
+        return index===-1?1000:index;
+      };
       const models=page.data
         .filter(model=>isChatCompletionModel(model.id))
         .map(model=>({id:model.id,created:model.created,ownedBy:model.owned_by}))
-        .sort((a,b)=>a.id.localeCompare(b.id));
+        .sort((a,b)=>rank(a.id)-rank(b.id)||a.id.localeCompare(b.id));
       if(!models.length){
         throw new BadGatewayException('OpenAI no devolvió modelos de conversación disponibles para esta cuenta.');
       }
