@@ -1,14 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type { Customer } from "../lib/types";
+import { CustomerEditorModal } from "./CustomerEditorModal";
 import {
   Alert,
   EmptyState,
-  Field,
   Loading,
-  Modal,
   PageHeader,
   SearchInput,
   Stat,
@@ -17,24 +16,13 @@ import {
   initials,
 } from "./shared";
 
-type Draft = {
-  id?: string;
-  name: string;
-  phone: string;
-  dni: string;
-  address: string;
-  taxCondition: string;
-};
-const empty = (): Draft => ({ name: "", phone: "", dni: "", address: "", taxCondition: "" });
-
 export function CustomersView() {
   const [items, setItems] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft>(empty());
+  const [editing, setEditing] = useState<Customer | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
 
   const load = useCallback(async () => {
@@ -55,49 +43,13 @@ export function CustomersView() {
   }, [load]);
 
   function openNew() {
-    setDraft(empty());
+    setEditing(null);
     setModalOpen(true);
   }
 
   function openEdit(c: Customer) {
-    setDraft({
-      id: c.id,
-      name: c.name,
-      phone: c.phone ?? "",
-      dni: c.dni ?? "",
-      address: c.address ?? "",
-      taxCondition: c.taxCondition ?? "",
-    });
+    setEditing(c);
     setModalOpen(true);
-  }
-
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const body = {
-        name: draft.name.trim(),
-        phone: draft.phone.trim() || null,
-        dni: draft.dni.trim() || null,
-        address: draft.address.trim() || null,
-        taxCondition: draft.taxCondition || null,
-      };
-      if (draft.id) {
-        await api(`/customers/${draft.id}`, { method: "PUT", body });
-        setNotice("Cliente actualizado.");
-      } else {
-        await api("/customers", { method: "POST", body });
-        setNotice("Cliente creado.");
-      }
-      setModalOpen(false);
-      await load();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function remove(id: string) {
@@ -117,7 +69,9 @@ export function CustomersView() {
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.phone ?? "").toLowerCase().includes(q) ||
-        (c.dni ?? "").toLowerCase().includes(q),
+        (c.dni ?? "").toLowerCase().includes(q) ||
+        (c.cuit ?? "").replace(/\D/g, "").includes(q.replace(/\D/g, "") || "\u0000") ||
+        (c.cuit ?? "").toLowerCase().includes(q),
     );
   }, [filter, items]);
 
@@ -144,14 +98,14 @@ export function CustomersView() {
       <StatStrip>
         <Stat label="Total clientes" value={items.length} accent="var(--red)" />
         <Stat label="Con teléfono" value={withPhone} accent="var(--info)" />
-        <Stat label="Con DNI" value={items.filter((c) => c.dni).length} accent="var(--violet)" />
+        <Stat label="Empresas" value={items.filter((c) => c.kind === "EMPRESA").length} accent="var(--violet)" />
       </StatStrip>
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="ok">{notice}</Alert> : null}
 
       <div className="toolbar">
-        <SearchInput value={filter} onChange={setFilter} placeholder="Buscar por nombre, teléfono o DNI" />
+        <SearchInput value={filter} onChange={setFilter} placeholder="Buscar por nombre, teléfono, DNI o CUIT" />
       </div>
 
       {loading ? (
@@ -176,6 +130,7 @@ export function CustomersView() {
               <div className="dir-top">
                 <span className="dir-avatar">{initials(c.name)}</span>
                 <h3>{c.name}</h3>
+                {c.kind === "EMPRESA" ? <span className="kind-badge">Empresa</span> : null}
               </div>
               <div className="dir-row">
                 <span aria-hidden="true">✆</span>
@@ -183,7 +138,7 @@ export function CustomersView() {
               </div>
               <div className="dir-row">
                 <span aria-hidden="true">▣</span>
-                {c.dni ? `DNI ${c.dni}` : "Sin DNI"}
+                {c.kind === "EMPRESA" ? (c.cuit ? `CUIT ${c.cuit}` : "Sin CUIT") : c.dni ? `DNI ${c.dni}` : "Sin DNI"}
               </div>
               <div className="row-actions">
                 <button
@@ -202,72 +157,16 @@ export function CustomersView() {
         </div>
       )}
 
-      <Modal
+      <CustomerEditorModal
         open={modalOpen}
-        title={draft.id ? "Editar cliente" : "Nuevo cliente"}
+        customer={editing}
         onClose={() => setModalOpen(false)}
-        footer={
-          <>
-            <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>
-              Cancelar
-            </button>
-            <button type="submit" form="customer-form" disabled={saving}>
-              {saving ? "Guardando…" : draft.id ? "Guardar cambios" : "Crear cliente"}
-            </button>
-          </>
-        }
-      >
-        <form id="customer-form" className="form-grid" onSubmit={save}>
-          <Field label="Nombre" htmlFor="cust-name">
-            <input
-              id="cust-name"
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              required
-              autoFocus
-            />
-          </Field>
-          <div className="grid-2">
-            <Field label="Teléfono" htmlFor="cust-phone">
-              <input
-                id="cust-phone"
-                value={draft.phone}
-                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                placeholder="Ej: 11 2345 6789"
-              />
-            </Field>
-            <Field label="DNI" htmlFor="cust-dni">
-              <input
-                id="cust-dni"
-                value={draft.dni}
-                onChange={(e) => setDraft({ ...draft, dni: e.target.value })}
-              />
-            </Field>
-          </div>
-          <div className="grid-2">
-            <Field label="Dirección" htmlFor="cust-address">
-              <input
-                id="cust-address"
-                value={draft.address}
-                onChange={(e) => setDraft({ ...draft, address: e.target.value })}
-              />
-            </Field>
-            <Field label="Cond. Fiscal" htmlFor="cust-tax-condition">
-              <select
-                id="cust-tax-condition"
-                value={draft.taxCondition}
-                onChange={(e) => setDraft({ ...draft, taxCondition: e.target.value })}
-              >
-                <option value="">Sin especificar</option>
-                <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
-                <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
-                <option value="MONOTRIBUTO">Monotributo</option>
-                <option value="EXENTO">Exento</option>
-              </select>
-            </Field>
-          </div>
-        </form>
-      </Modal>
+        onSaved={(saved) => {
+          setModalOpen(false);
+          setNotice(editing ? "Cliente actualizado." : `Cliente “${saved.name}” creado.`);
+          void load();
+        }}
+      />
     </div>
   );
 }

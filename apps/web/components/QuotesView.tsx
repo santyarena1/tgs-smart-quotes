@@ -33,6 +33,7 @@ import { useSuite } from "./SuiteContext";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
 import { OriginTag, type ItemSource } from "./OriginTag";
+import { CustomerEditorModal } from "./CustomerEditorModal";
 import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
 import { getActiveVersion, getQuoteItems } from "../lib/types";
 import {
@@ -293,9 +294,10 @@ const STATE_LABEL: Record<QuoteState, string> = {
 };
 
 /** Tipo de PDF según el botón de submit que disparó el formulario (por defecto, simple). */
-function pdfKindFromSubmit(e: FormEvent): "SIMPLE" | "DETALLADO" {
+function pdfKindFromSubmit(e: FormEvent): "SIMPLE" | "DETALLADO" | "FORMAL" {
   const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
-  return submitter?.dataset.pdfKind === "DETALLADO" ? "DETALLADO" : "SIMPLE";
+  const kind = submitter?.dataset.pdfKind;
+  return kind === "DETALLADO" || kind === "FORMAL" ? kind : "SIMPLE";
 }
 
 function filledItems(items: ItemDraft[]): ItemDraft[] {
@@ -393,7 +395,9 @@ export function QuotesView({
   const [filtersReady, setFiltersReady] = useState(Boolean(embedded || onlyFamilyIds));
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [, setPdfs] = useState<QuotePdfRow[]>([]);
-  const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | null>(null);
+  const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | "FORMAL" | null>(null);
+  /** Alta de la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
+  const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
   const [similar, setSimilar] = useState<
     { familyId: string; visibleNumber: string; internalName: string; score: number }[]
   >([]);
@@ -1621,24 +1625,54 @@ export function QuotesView({
 
   /* ————— quote actions ————— */
 
-  async function createQuote(e: FormEvent) {
-    e.preventDefault();
-    const pdfKind = pdfKindFromSubmit(e);
+  /** Presupuesto formal: pide una empresa como cliente. Con una empresa ya elegida sigue directo; si no, abre el alta. */
+  function startFormal() {
+    if (busy) return;
+    const invalid = validateItems(items);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    setError(null);
+    const chosen = customers.find((c) => c.id === customerId);
+    if (chosen?.kind === "EMPRESA") {
+      if (detail) void saveDraft(null, { kind: "FORMAL", customerId, customerName: chosen.name });
+      else void createQuote(null, { kind: "FORMAL", customerId, customerName: chosen.name });
+      return;
+    }
+    setFormalCompanyOpen(true);
+  }
+
+  function onFormalCompanySaved(company: Customer) {
+    setFormalCompanyOpen(false);
+    setCustomers((cur) => [...cur, company].sort((a, b) => a.name.localeCompare(b.name)));
+    setCustomerId(company.id);
+    if (detail) void saveDraft(null, { kind: "FORMAL", customerId: company.id, customerName: company.name });
+    else void createQuote(null, { kind: "FORMAL", customerId: company.id, customerName: company.name });
+  }
+
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL"; customerId: string; customerName?: string }) {
+    e?.preventDefault();
+    const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
+    const effectiveCustomerId = opts?.customerId ?? customerId;
+    // El botón de presupuesto formal no pasa por la validación del formulario: sin nombre interno usa el de la empresa.
+    const effectiveName = internalName.trim() || opts?.customerName || items[0]?.name?.trim() || "Presupuesto";
     const invalid = validateItems(items);
     if (invalid) {
       setError(invalid);
       return;
     }
     setBusy(true);
-    const pdfTab = window.open("about:blank", "_blank");
+    // Si viene de crear la empresa en el modal, el navegador ya no deja abrir pestañas: se descarga el archivo.
+    const pdfTab = opts ? null : window.open("about:blank", "_blank");
     setError(null);
     setNotice(null);
     try {
       const created = await api<Quote>("/quotes", {
         method: "POST",
         body: {
-          internalName: internalName.trim(),
-          customerId: customerId || null,
+          internalName: effectiveName,
+          customerId: effectiveCustomerId || null,
           requestId: requestId || null,
           isBuiltPc,
           kind: isCombo ? "COMBO" : "PC",
@@ -1664,7 +1698,8 @@ export function QuotesView({
           method: "POST",
           body: { kind: pdfKind },
         });
-        if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
+        if (opts) await downloadAuthenticated(`/quotes/${created.id}/pdf/${pdfKind}`, `${created.visibleNumber}-${pdfKind}.pdf`);
+        else if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
         else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
         await reloadDetail(created.id);
       }
@@ -1676,9 +1711,11 @@ export function QuotesView({
     }
   }
 
-  async function saveDraft(e: FormEvent) {
-    e.preventDefault();
-    const pdfKind = pdfKindFromSubmit(e);
+  async function saveDraft(e: FormEvent | null, opts?: { kind: "FORMAL"; customerId: string; customerName?: string }) {
+    e?.preventDefault();
+    const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
+    const effectiveCustomerId = opts?.customerId ?? customerId;
+    const effectiveName = internalName.trim() || opts?.customerName || items[0]?.name?.trim() || "Presupuesto";
     if (!selectedId) return;
     const invalid = validateItems(items);
     if (invalid) {
@@ -1693,8 +1730,8 @@ export function QuotesView({
         method: "PUT",
         body: {
           reason: saveReason.trim() || null,
-          internalName: internalName.trim(),
-          customerId: customerId || null,
+          internalName: effectiveName,
+          customerId: effectiveCustomerId || null,
           requestId: requestId || null,
           isBuiltPc,
           publicObservation: observation.trim() || null,
@@ -2197,6 +2234,17 @@ export function QuotesView({
         </>
       )}
 
+      <CustomerEditorModal
+        open={formalCompanyOpen}
+        initialKind="EMPRESA"
+        lockKind
+        title="Empresa para el presupuesto formal"
+        intro="El presupuesto formal va a nombre de una empresa. Cargá sus datos y se genera al instante; si ya la tenés cargada, cerrá esto y elegila en Cliente."
+        submitLabel="Crear empresa y generar presupuesto"
+        onClose={() => setFormalCompanyOpen(false)}
+        onSaved={onFormalCompanySaved}
+      />
+
       <Drawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -2218,6 +2266,9 @@ export function QuotesView({
                 <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
                   {busy ? "Creando…" : "Crear presupuesto"}
                 </button>
+                <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+                  Presupuesto Formal
+                </button>
                 <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-ghost quote-foot-secondary" disabled={busy}>
                   Generar presupuesto detallado
                 </button>
@@ -2227,6 +2278,9 @@ export function QuotesView({
               <>
                 <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
                   {busy ? "Guardando…" : "Guardar y descargar PDF"}
+                </button>
+                <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+                  Presupuesto Formal
                 </button>
                 <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-ghost quote-foot-secondary" disabled={busy}>
                   Generar presupuesto detallado
@@ -2283,11 +2337,22 @@ export function QuotesView({
                 disabled={Boolean(detail) && !isDraft}
               >
                 <option value="">Sin cliente</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+                {customers.some((c) => c.kind === "EMPRESA") ? (
+                  <optgroup label="Empresas">
+                    {customers.filter((c) => c.kind === "EMPRESA").map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}{c.cuit ? ` · ${c.cuit}` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                <optgroup label={customers.some((c) => c.kind === "EMPRESA") ? "Consumidores finales" : "Clientes"}>
+                  {customers.filter((c) => c.kind !== "EMPRESA").map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </Field>
           </div>

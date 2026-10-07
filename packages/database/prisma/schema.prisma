@@ -43,6 +43,13 @@ enum RequestState {
 enum PdfKind {
   SIMPLE
   DETALLADO
+  /// Presupuesto formal para empresas: sin armado, demora, financiación ni textos de la tienda.
+  FORMAL
+}
+
+enum CustomerKind {
+  PERSONA
+  EMPRESA
 }
 
 enum PcConcept {
@@ -498,6 +505,11 @@ model Customer {
   address         String?
   taxCondition    TaxCondition?
   notes           String?
+  /// PERSONA (por defecto) o EMPRESA: las empresas llevan razón social (name), CUIT y condición frente al IVA.
+  kind            CustomerKind    @default(PERSONA)
+  cuit            String?
+  email           String?
+  contactName     String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   requests        QuoteRequest[]
@@ -507,6 +519,7 @@ model Customer {
   @@index([normalizedName])
   @@index([normalizedPhone])
   @@index([dni])
+  @@index([cuit])
 }
 
 model QuoteRequest {

@@ -1,7 +1,7 @@
 import {BadRequestException,Body,Controller,Delete,Get,NotFoundException,Param,Post,Put,Query} from '@nestjs/common';
 import {db} from '@tgs/database';
 import {
-  customerCreateSchema,
+  customerCreateSchema, isValidCuit, formatCuit,
   customerQuickCreateSchema,
   idSchema,
   pcLineCreateSchema,
@@ -621,13 +621,25 @@ export class ProductsController{
 
 function customerData(body:CustomerCreateInput){
   const phone=body.phone?.trim()||null;
+  const kind=body.kind;
+  const isCompany=kind==='EMPRESA';
+  if(isCompany){
+    if(!body.cuit||!isValidCuit(body.cuit))throw new BadRequestException('El CUIT de la empresa no es válido');
+    if(!body.taxCondition)throw new BadRequestException('Elegí la condición frente al IVA de la empresa');
+  }
   return {
     name:body.name.trim(),
     normalizedName:normalizeText(body.name),
     phone,
     normalizedPhone:normalizePhone(phone),
-    dni:body.dni?.trim()||null,
+    dni:isCompany?null:body.dni?.trim()||null,
     notes:body.notes?.trim()||null,
+    ...(kind!==undefined?{kind}:{}),
+    ...(isCompany?{cuit:formatCuit(body.cuit!)}:kind==='PERSONA'?{cuit:null}:{}),
+    ...(body.address!==undefined?{address:body.address?.trim()||null}:{}),
+    ...(body.taxCondition!==undefined?{taxCondition:body.taxCondition}:{}),
+    ...(body.email!==undefined?{email:body.email?.trim()||null}:{}),
+    ...(body.contactName!==undefined?{contactName:body.contactName?.trim()||null}:{}),
   };
 }
 

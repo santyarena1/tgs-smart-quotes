@@ -3799,3 +3799,22 @@ tr.selected { background: var(--canvas-2); }
 .nodo-admin-note { padding: 1rem 1.2rem; border-radius: 16px; background: color-mix(in srgb, #14b8a6 10%, var(--paper, #fff)); border: 1px solid color-mix(in srgb, #14b8a6 35%, transparent); }
 .nodo-admin-note h2 { margin: 0 0 0.35rem; }
 .nodo-admin-note p { margin: 0; }
+
+/* Listas desplegables: fondo y texto legibles en claro y oscuro (antes el texto salía blanco sobre blanco) */
+select { color-scheme: light; }
+:root[data-theme="dark"] select { color-scheme: dark; }
+select option, select optgroup { background: var(--paper, #fff); color: var(--ink, #111827); }
+select optgroup { font-weight: 700; font-style: normal; color: var(--muted, #64748b); }
+select option { font-weight: 500; }
+
+/* Presupuesto Formal (azul) y selector Consumidor final / Empresa */
+.btn-formal { background: #1d4ed8; border: 1px solid #1d4ed8; color: #fff; }
+.btn-formal:hover:not(:disabled) { background: #1e40af; border-color: #1e40af; color: #fff; }
+.btn-formal:focus-visible { outline-color: #1d4ed8; }
+.kind-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--canvas, #f1f5f9); border: 1px solid var(--line, #e2e8f0); }
+.kind-seg button { height: 36px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2, #334155); font: inherit; font-weight: 650; font-size: 0.88rem; cursor: pointer; }
+.kind-seg button.on { background: #1d4ed8; color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, #1d4ed8 35%, transparent); }
+.kind-seg button:not(.on):hover:not(:disabled) { background: color-mix(in srgb, #1d4ed8 10%, transparent); color: var(--ink, #111827); }
+.kind-badge { margin-left: auto; padding: 1px 9px; border-radius: 999px; font-size: 0.68rem; font-weight: 750; background: color-mix(in srgb, #1d4ed8 14%, transparent); color: #1d4ed8; border: 1px solid color-mix(in srgb, #1d4ed8 40%, transparent); }
+/* El modal del cliente se abre sobre el cajón del presupuesto */
+.overlay:has(#customer-editor-form) { z-index: 120; }

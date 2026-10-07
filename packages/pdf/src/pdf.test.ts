@@ -325,6 +325,41 @@ describe('@tgs/pdf', () => {
     expect(itemDisplayName('Memoria Ram 16gb ddr4')).toBe('MEMORIA RAM 16GB DDR4');
   });
 
+  it('el presupuesto FORMAL es solo lo esencial: sin armado, demora, PC armada, cuotas ni RMA', () => {
+    const base = sample();
+    const html = renderPdfHtml({
+      ...base,
+      kind: 'FORMAL',
+      isBuiltPc: true,
+      observation: 'Entrega en 48 hs',
+      customer: {
+        kind: 'EMPRESA', name: 'ACME S.A.', cuit: '30-71234567-8', taxCondition: 'RESPONSABLE_INSCRIPTO',
+        address: 'Av. Siempreviva 742', contactName: 'Marta Gómez', phone: '11 5555-0000', email: 'compras@acme.com',
+      },
+      items: [
+        { name: 'Presupuesto de PC Armada: The Gamer Shop', quantity: 1, unitCents: 500000n, subtotalCents: 500000n, isMainLine: true },
+        { name: 'Procesador Amd Ryzen 5 5600', quantity: 2, unitCents: 150000n, subtotalCents: 300000n, isComponent: true },
+        { name: 'Memoria Ram 16gb', quantity: 1, unitCents: 200000n, subtotalCents: 200000n, isComponent: true },
+      ],
+    });
+    // Lo que NO debe aparecer.
+    for (const texto of ['Incluye', 'Demora estimada', 'Presupuesto de PC Armada', 'PC Armada', 'BBVA', 'cuota', 'Observación', 'Entrega en 48 hs', 'RMA']) {
+      expect(html).not.toContain(texto);
+    }
+    // Lo que SÍ: datos de la empresa cliente, productos en mayúsculas con precio unitario, lista y efectivo.
+    expect(html).toContain('ACME S.A.');
+    expect(html).toContain('30-71234567-8');
+    expect(html).toContain('Responsable Inscripto');
+    expect(html).toContain('PROCESADOR AMD RYZEN 5 5600');
+    expect(html).toContain('Precio unitario');
+    expect(html).toContain(formatArsFromCents(150000n));
+    expect(html).toContain('Precio de lista');
+    expect(html).toContain('Efectivo / Transferencia');
+    // Columna de precio unitario entre cantidad e importe.
+    expect(html.indexOf('Cant.')).toBeLessThan(html.indexOf('Precio unitario'));
+    expect(html.indexOf('Precio unitario')).toBeLessThan(html.indexOf('Importe'));
+  });
+
   it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {
     const base = sample();
     const simple = renderQuoteHtml({ ...base, kind: 'SIMPLE' });

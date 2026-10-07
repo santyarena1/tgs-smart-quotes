@@ -197,6 +197,10 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
           dni: family.customer.dni,
           address: family.customer.address,
           taxCondition: family.customer.taxCondition,
+          kind: family.customer.kind,
+          cuit: family.customer.cuit,
+          email: family.customer.email,
+          contactName: family.customer.contactName,
         }
       : null,
     config,
