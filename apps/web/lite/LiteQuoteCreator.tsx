@@ -354,7 +354,7 @@ export function LiteQuoteCreator() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
-  const { providers } = useNodoProviders();
+  const { providers, error: providersError } = useNodoProviders();
   const sel = useSourceSelection(providers);
   const nodo = useNodoSearch(query, isBuiltPc ? [] : sel.activeIds, providers.length);
   const web = useWebSearch(query, sel.web && !isBuiltPc);
@@ -901,7 +901,7 @@ export function LiteQuoteCreator() {
             </div>
           ) : null}
 
-          <SourceBar providers={providers} sel={sel} />
+          <SourceBar providers={providers} sel={sel} error={providersError} />
           <div className="lt-search">
             <input
               ref={searchRef}

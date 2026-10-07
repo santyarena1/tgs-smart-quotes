@@ -2,7 +2,7 @@ import { BadGatewayException, Body, Controller, Get, Post, Put, Query, ServiceUn
 import { db } from "@tgs/database";
 import { z } from "zod";
 import { CurrentUser, Roles, ZodPipe, type RequestUser } from "./infrastructure.js";
-import { effectiveProviderIds, mapOffer, type NodoOffer, type NodoResult } from "./nodo-mapping.js";
+import { effectiveProviderIds, mapOffer, resolveNodoCredentials, type NodoOffer, type NodoResult } from "./nodo-mapping.js";
 
 /** Cliente de la API de catálogo de NODO (distribuidores). Las credenciales viven solo en el servidor. */
 const NODO_BASE = "https://api.nodohub.app";
@@ -15,10 +15,9 @@ const MAX_RESULTS = 40;
 export type NodoProvider = { id: string; name: string; offers: number; stale: boolean; status: string; lastSyncedAt: string | null };
 
 function credentials(): { key: string; secret: string } {
-  const key = process.env.NODO_API_KEY?.trim();
-  const secret = process.env.NODO_API_SECRET?.trim();
-  if (!key || !secret) throw new ServiceUnavailableException("NODO no está configurado: faltan NODO_API_KEY y NODO_API_SECRET en el servidor.");
-  return { key, secret };
+  const creds = resolveNodoCredentials(process.env);
+  if (!creds) throw new ServiceUnavailableException("NODO no está configurado: faltan NODO_API_KEY y NODO_API_SECRET en el servicio de la API.");
+  return creds;
 }
 
 async function nodoGet<T>(path: string, query?: Record<string, string | number | boolean | undefined>): Promise<T> {

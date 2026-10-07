@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { costWithIva, effectiveProviderIds, mapOffer } from "./nodo-mapping.js";
+import { costWithIva, effectiveProviderIds, mapOffer, resolveNodoCredentials } from "./nodo-mapping.js";
 
 const offer = {
   id: "off_1",
@@ -64,5 +64,19 @@ describe("distribuidores desactivados", () => {
   });
   it("ignora ids que no existen", () => {
     expect(effectiveProviderIds(["zzz"], all, new Set())).toEqual([]);
+  });
+});
+
+describe("credenciales de NODO", () => {
+  it("usa NODO_API_KEY y NODO_API_SECRET", () => {
+    expect(resolveNodoCredentials({ NODO_API_KEY: " k ", NODO_API_SECRET: "s" })).toEqual({ key: "k", secret: "s" });
+  });
+  it("acepta también los nombres API_KEY_NODO y API_SECRET_NODO", () => {
+    expect(resolveNodoCredentials({ API_KEY_NODO: "k", API_SECRET_NODO: "s" })).toEqual({ key: "k", secret: "s" });
+  });
+  it("si falta alguna devuelve null", () => {
+    expect(resolveNodoCredentials({ NODO_API_KEY: "k" })).toBeNull();
+    expect(resolveNodoCredentials({ NODO_API_KEY: "", NODO_API_SECRET: "s" })).toBeNull();
+    expect(resolveNodoCredentials({})).toBeNull();
   });
 });

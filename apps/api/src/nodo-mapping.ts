@@ -66,6 +66,13 @@ export function mapOffer(offer: NodoOffer, fxRate: number): NodoResult | null {
   };
 }
 
+/** Credenciales de NODO desde el entorno. Acepta NODO_API_KEY / NODO_API_SECRET y también los nombres API_KEY_NODO / API_SECRET_NODO. */
+export function resolveNodoCredentials(env: Record<string, string | undefined>): { key: string; secret: string } | null {
+  const key = (env.NODO_API_KEY ?? env.API_KEY_NODO)?.trim();
+  const secret = (env.NODO_API_SECRET ?? env.API_SECRET_NODO)?.trim();
+  return key && secret ? { key, secret } : null;
+}
+
 /**
  * En qué distribuidores se busca: lo pedido (o todos) sin los que se desactivaron en Configuración.
  * `null` = sin restricción (no se pidió ninguno y no hay nada desactivado); `[]` = no hay dónde buscar.

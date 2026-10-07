@@ -419,7 +419,7 @@ export function QuotesView({
   const [catalogPickerMatches, setCatalogPickerMatches] = useState<CatalogPickerItem[]>([]);
   const [catalogPickerLoading, setCatalogPickerLoading] = useState(false);
   /** Fuentes de búsqueda: productos propios (sistema y AcuStock) y los distribuidores de NODO que estén prendidos. */
-  const { providers: nodoProviders } = useNodoProviders();
+  const { providers: nodoProviders, error: nodoProvidersError } = useNodoProviders();
   const sel = useSourceSelection(nodoProviders);
   const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
   const nodoWanted = sel.activeIds.length > 0 && pickerQuery.trim().length >= 2;
@@ -2417,7 +2417,7 @@ export function QuotesView({
             </Alert>
           ) : (
             <div className="picker" ref={pickerRef}>
-              <SourceBar providers={nodoProviders} sel={sel} />
+              <SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />
               <div className="picker-input">
                 <div className="search">
                   <span className="ico" aria-hidden="true">

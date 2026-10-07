@@ -11,8 +11,10 @@ type Pill = { key: string; label: string; color: string; on: boolean; stale?: bo
  * Fila única para elegir en qué buscar antes de escribir. Cada fuente se enciende (con su color) o se apaga con un toque;
  * doble toque = "solo esta". Va en una sola línea con scroll horizontal para no ocupar espacio.
  */
-export function SourceBar({ providers, sel }: { providers: NodoProvider[]; sel: SourceSelection }) {
-  if (!providers.length) return null;
+export function SourceBar({ providers, sel, error }: { providers: NodoProvider[]; sel: SourceSelection; error?: string | null }) {
+  if (!providers.length) {
+    return error ? <p className="src-error" role="status">Los distribuidores no están disponibles: {error}</p> : null;
+  }
   const pills: Pill[] = [
     { key: "own", label: "Mis productos", color: OWN_COLOR, on: sel.own, toggle: sel.toggleOwn, only: () => sel.only("own") },
     { key: "web", label: "Web", color: WEB_COLOR, on: sel.web, toggle: sel.toggleWeb, only: () => sel.only("web") },

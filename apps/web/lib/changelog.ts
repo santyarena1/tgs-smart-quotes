@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.9",
+    date: "2026-10-07",
+    title: "Distribuidores: avisos claros cuando algo falla",
+    items: [
+      "Si los distribuidores no se pueden cargar, el buscador lo avisa con el motivo en vez de esconder la fila de fuentes",
+      "Las claves de NODO se aceptan también con los nombres API_KEY_NODO y API_SECRET_NODO",
+      "Configuración → Distribuidores muestra un mensaje claro cuando la cuenta no es de administrador",
+    ],
+  },
+  {
     version: "0.18.8",
     date: "2026-10-07",
     title: "Buscar en distribuidores y en la tienda web",
