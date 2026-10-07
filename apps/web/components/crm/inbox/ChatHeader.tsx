@@ -41,6 +41,7 @@ export function ChatHeader({
   onResolve,
   onReopen,
   onSnooze,
+  onReset,
   onToggleSide,
   sideOpen,
   onBack,
@@ -54,6 +55,7 @@ export function ChatHeader({
   onResolve: () => void;
   onReopen: () => void;
   onSnooze: (until: Date) => void;
+  onReset: () => void;
   onToggleSide: () => void;
   sideOpen: boolean;
   onBack: () => void;
@@ -61,19 +63,25 @@ export function ChatHeader({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [custom, setCustom] = useState("");
   const menu = useRef<HTMLDivElement>(null);
+  const resetMenu = useRef<HTMLDivElement>(null);
   const others = viewers.filter((viewer) => viewer.userId !== meId);
   const countdown = windowCountdown(conversation.window.expiresAt);
   const resolved = conversation.status === "RESOLVED";
 
-  useEffect(() => { setEditing(false); setSnoozeOpen(false); }, [conversation.chatKey]);
+  useEffect(() => { setEditing(false); setSnoozeOpen(false); setResetOpen(false); }, [conversation.chatKey]);
   useEffect(() => {
-    if (!snoozeOpen) return;
-    const close = (event: MouseEvent) => { if (!menu.current?.contains(event.target as Node)) setSnoozeOpen(false); };
+    if (!snoozeOpen && !resetOpen) return;
+    const close = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!menu.current?.contains(target)) setSnoozeOpen(false);
+      if (!resetMenu.current?.contains(target)) setResetOpen(false);
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [snoozeOpen]);
+  }, [snoozeOpen, resetOpen]);
 
   return (
     <header className="cx-chat-head">
@@ -165,6 +173,24 @@ export function ChatHeader({
                 <button type="submit">OK</button>
               </form>
               <p className="cx-hint">Vuelve antes si el cliente escribe.</p>
+            </div>
+          ) : null}
+        </div>
+        <div className="cx-menu-wrap" ref={resetMenu}>
+          <button
+            type="button"
+            className="cx-btn"
+            onClick={() => { setResetOpen(!resetOpen); setSnoozeOpen(false); }}
+            aria-expanded={resetOpen}
+            title="Borra el historial y lo que el bot recuerda de este chat"
+          >
+            ↺ Reiniciar
+          </button>
+          {resetOpen ? (
+            <div className="cx-menu reset" role="menu">
+              <p>Se borra el historial y la memoria del bot: resumen, ficha, etapa y derivación. El contacto, las notas, las solicitudes y los presupuestos quedan. El próximo mensaje se atiende como una charla nueva.</p>
+              <button type="button" className="danger" onClick={() => { setResetOpen(false); onReset(); }}>Sí, reiniciar</button>
+              <button type="button" onClick={() => setResetOpen(false)}>Cancelar</button>
             </div>
           ) : null}
         </div>

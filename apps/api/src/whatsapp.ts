@@ -55,7 +55,7 @@ import {settingsDto} from './chatbot-core.js';
 import {runChatbotResponse} from './chatbot-engine.js';
 import {enqueueOutbound} from './whatsapp-outbound.js';
 import {pauseBot, resumeBot} from './whatsapp-responder.js';
-import {conversationView, pauserNames, trainerKeys} from './crm-views.js';
+import {conversationInclude, conversationView, pauserNames, trainerKeys} from './crm-views.js';
 import {recordSellerEdit} from './bot-training.js';
 import {advanceStage} from './crm-pipeline.js';
 import {describeWindow, windowState} from './whatsapp-window.js';
@@ -500,6 +500,90 @@ export class WhatsappController {
       include: {assignedUser: {select: {id: true, username: true, displayName: true}}},
     });
     return jsonSafe({chatKey: row.chatKey, assignedUser: row.assignedUser});
+  }
+
+  /**
+   * Deja el chat como si recién empezara: borra el historial y la memoria del bot
+   * (resumen, ficha, etapa, derivación, pausa). El contacto, las notas, las
+   * solicitudes y los presupuestos quedan.
+   */
+  @Post('conversations/:chatKey/reset')
+  async resetConversation(@Param('chatKey') chatKey: string, @CurrentUser() actor: RequestUser) {
+    const conversation = await db.chatbotConversation.findUnique({where: {chatKey}});
+    if (!conversation) throw new NotFoundException('La conversación no existe');
+
+    const result = await db.$transaction(async (tx) => {
+      await tx.whatsappOutboundQueue.updateMany({
+        where: {conversationKey: chatKey, status: {in: ['PENDING', 'SENDING']}},
+        data: {status: 'CANCELLED', lastError: 'Se reinició el chat.'},
+      });
+      await tx.whatsappOutboundQueue.deleteMany({where: {conversationKey: chatKey}});
+      const messages = await tx.chatbotMessageLog.deleteMany({where: {conversationKey: chatKey}});
+      const notifications = await tx.notification.deleteMany({
+        where: {
+          type: {in: CHATBOT_NOTIFICATION_TYPES},
+          OR: [{chatPhone: chatKey}, {entityId: chatKey}],
+        },
+      });
+      await tx.chatbotConversation.update({
+        where: {chatKey},
+        data: {
+          summary: null,
+          summaryMessageCount: 0,
+          escalatedAt: null,
+          escalationReason: null,
+          activeRequestId: null,
+          lastQuoteFamilyId: null,
+          lastQuoteVersion: null,
+          lastInboundFingerprint: null,
+          lastInboundText: null,
+          lastInboundAt: null,
+          lastOutboundText: null,
+          lastOutboundAt: null,
+          replyDueAt: null,
+          botPausedAt: null,
+          botPausedById: null,
+          botPausedReason: null,
+          unreadCount: 0,
+          resolvedAt: null,
+          snoozedUntil: null,
+          stage: 'NEW',
+          stageChangedAt: null,
+          leadValueCents: null,
+          lostReason: null,
+          origin: Prisma.DbNull,
+          profile: Prisma.DbNull,
+          temperature: null,
+          lastIntent: null,
+          nextStep: null,
+          lastMessageAt: new Date(),
+        },
+      });
+      await tx.auditLog.create({data: {
+        userId: actor.id,
+        entityType: 'ChatbotConversation',
+        entityId: chatKey,
+        action: 'RESET',
+        previous: jsonSafe({
+          messages: messages.count,
+          notifications: notifications.count,
+          summary: conversation.summary,
+          stage: conversation.stage,
+          escalatedAt: conversation.escalatedAt,
+        }),
+        next: Prisma.JsonNull,
+      }});
+      return {messages: messages.count, notifications: notifications.count};
+    });
+    const row = await db.chatbotConversation.findUniqueOrThrow({
+      where: {chatKey},
+      include: conversationInclude,
+    });
+    return jsonSafe({
+      chatKey,
+      deleted: result,
+      conversation: conversationView(row, new Date(), await this.pauserNames([row]), await trainerKeys()),
+    });
   }
 
   // ------------------------------------------------------------------- borrado CRM
