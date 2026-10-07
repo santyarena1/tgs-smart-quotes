@@ -301,8 +301,8 @@ model User {
   navPrefsJson  Json?
   /// Tema elegido en el CRM: light | dark | system. Se guarda por usuario, no por navegador.
   themePreference String?
-  /// Distribuidores de NODO que este usuario apagó para buscar (sin ninguno = todos).
-  nodoOffProviders String[] @default([])
+  /// Distribuidores de NODO que este usuario apagó para buscar. Por defecto las dos distribuidoras de demostración quedan apagadas.
+  nodoOffProviders String[] @default(["prv_3A2i1P1LB6ERTmAz", "prv_jQVpXcxOxfNdphB5"])
   sessions      Session[]
   products      Product[]
   combos        Combo[]

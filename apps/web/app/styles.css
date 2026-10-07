@@ -3732,16 +3732,17 @@ tr.selected { background: var(--canvas-2); }
 .src-bar { display: flex; align-items: flex-start; gap: 0.6rem; margin-bottom: 0.5rem; min-width: 0; }
 .src-scroll { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 0.8rem 0.5rem; padding: 6px 4px; min-width: 0; }
 .src-quick { flex: none; display: flex; gap: 0.5rem; align-items: center; height: 36px; }
-.src-pill { --nc: #64748b; flex: none; display: inline-flex; align-items: center; gap: 0.4rem; height: 28px; padding: 0 0.7rem 0 0.55rem; border-radius: 999px; border: 1px solid var(--line-2, #d4d4d8); background: transparent; color: var(--muted, #64748b); font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.12s, color 0.12s, box-shadow 0.12s, border-color 0.12s; user-select: none; }
-.src-pill:hover { border-color: var(--nc); color: var(--nc); }
-.src-pill.on { background: var(--nc); border-color: var(--nc); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--nc) 22%, transparent), 0 0 12px color-mix(in srgb, var(--nc) 45%, transparent); }
+.src-pill { --nc: #64748b; flex: none; display: inline-flex; align-items: center; gap: 0.4rem; height: 28px; padding: 0 0.7rem 0 0.55rem; border-radius: 999px; border: 1px solid var(--line-2, #d4d4d8); background: transparent; color: var(--ink-2, #334155); font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.12s, color 0.12s, box-shadow 0.12s, border-color 0.12s; user-select: none; }
+/* El texto no toma el color del distribuidor al pasar el mouse: sobre el fondo teñido del mismo color no se leería. */
+.src-pill:hover { border-color: var(--nc); color: var(--ink, #111827); }
+.src-pill.on { background: var(--nc); border-color: var(--nc); color: var(--nt, #fff); box-shadow: 0 0 0 3px color-mix(in srgb, var(--nc) 22%, transparent), 0 0 12px color-mix(in srgb, var(--nc) 45%, transparent); }
 .src-led { width: 8px; height: 8px; border-radius: 50% !important; border: 1.5px solid var(--nc); background: transparent; flex: none; }
-.src-pill.on .src-led { background: #fff; border-color: #fff; }
+.src-pill.on .src-led { background: var(--nt, #fff); border-color: var(--nt, #fff); }
 .src-stale { font-size: 0.7rem; opacity: 0.85; }
 .src-all { flex: none; background: none; border: 0; padding: 0 0.3rem; font: inherit; font-size: 0.76rem; font-weight: 650; color: var(--muted, #64748b); text-decoration: underline; cursor: pointer; }
 .src-all:disabled { opacity: 0.35; text-decoration: none; cursor: default; }
-.src-pill:not(.on):hover:not(:disabled) { background: color-mix(in srgb, var(--nc) 10%, transparent); }
-.src-pill.on:hover:not(:disabled) { background: var(--nc); filter: brightness(1.08); }
+.src-pill:not(.on):hover:not(:disabled) { background: color-mix(in srgb, var(--nc) 16%, transparent); color: var(--ink, #111827); }
+.src-pill.on:hover:not(:disabled) { background: var(--nc); color: var(--nt, #fff); filter: brightness(1.06); }
 .src-all:hover:not(:disabled) { background: none; color: var(--ink, #111); }
 .src-pill:focus-visible { outline: 2px solid var(--nc); outline-offset: 2px; }
 .src-all:focus-visible { outline-color: var(--ink-2, #475569); }

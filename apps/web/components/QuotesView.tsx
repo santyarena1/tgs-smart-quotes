@@ -419,8 +419,8 @@ export function QuotesView({
   const [catalogPickerMatches, setCatalogPickerMatches] = useState<CatalogPickerItem[]>([]);
   const [catalogPickerLoading, setCatalogPickerLoading] = useState(false);
   /** Fuentes de búsqueda: productos propios (sistema y AcuStock) y los distribuidores de NODO que estén prendidos. */
-  const { providers: nodoProviders, error: nodoProvidersError } = useNodoProviders();
-  const sel = useSourceSelection(nodoProviders);
+  const { providers: nodoProviders, error: nodoProvidersError, setEnabled: setNodoProvidersEnabled } = useNodoProviders();
+  const sel = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
   const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
   const nodoWanted = sel.activeIds.length > 0 && pickerQuery.trim().length >= 2;
   const web = useWebSearch(pickerQuery, sel.web);

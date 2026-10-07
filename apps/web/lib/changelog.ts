@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.1",
+    date: "2026-10-07",
+    title: "Distribuidores conectados entre Configuración y Presupuestos",
+    items: [
+      "Prender o apagar un distribuidor en los globos del presupuesto y en Configuración → Distribuidores es lo mismo: lo que cambiás en un lado se ve en el otro",
+      "Las dos distribuidoras de demostración (Demo Norte y Demo Sur) quedan apagadas por defecto para todos los usuarios; cada uno puede prenderlas si quiere",
+      "Los globos de distribuidores se leen bien al pasar el mouse y los colores claros llevan texto oscuro",
+    ],
+  },
+  {
     version: "0.19.0",
     date: "2026-10-07",
     title: "Cada usuario elige sus distribuidores",

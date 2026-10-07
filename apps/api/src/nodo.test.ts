@@ -74,6 +74,9 @@ describe("credenciales de NODO", () => {
   it("acepta también los nombres API_KEY_NODO y API_SECRET_NODO", () => {
     expect(resolveNodoCredentials({ API_KEY_NODO: "k", API_SECRET_NODO: "s" })).toEqual({ key: "k", secret: "s" });
   });
+  it("acepta también NODO_API_SECRETO", () => {
+    expect(resolveNodoCredentials({ NODO_API_KEY: "k", NODO_API_SECRETO: "s" })).toEqual({ key: "k", secret: "s" });
+  });
   it("si falta alguna devuelve null", () => {
     expect(resolveNodoCredentials({ NODO_API_KEY: "k" })).toBeNull();
     expect(resolveNodoCredentials({ NODO_API_KEY: "", NODO_API_SECRET: "s" })).toBeNull();

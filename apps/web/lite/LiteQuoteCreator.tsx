@@ -354,8 +354,8 @@ export function LiteQuoteCreator() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
-  const { providers, error: providersError } = useNodoProviders();
-  const sel = useSourceSelection(providers);
+  const { providers, error: providersError, setEnabled: setProvidersEnabled } = useNodoProviders();
+  const sel = useSourceSelection(providers, setProvidersEnabled);
   const nodo = useNodoSearch(query, isBuiltPc ? [] : sel.activeIds, providers.length);
   const web = useWebSearch(query, sel.web && !isBuiltPc);
   const [finPlans, setFinPlans] = useState<FinancingPlan[]>([]);

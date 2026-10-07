@@ -5,6 +5,15 @@ import { providerColor, WEB_COLOR, type NodoProvider, type SourceSelection } fro
 
 const OWN_COLOR = "#14b8a6"; // turquesa
 
+/** Texto sobre el color de la pastilla: blanco o casi negro, el que más contraste dé (los colores claros llevan texto oscuro). */
+function textOn(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  const lum = 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  const vsWhite = 1.05 / (lum + 0.05);
+  const vsDark = (lum + 0.05) / 0.06;
+  return vsWhite >= vsDark ? "#ffffff" : "#111827";
+}
+
 type Pill = { key: string; label: string; color: string; on: boolean; stale?: boolean; toggle: () => void; only: () => void };
 
 /**
@@ -39,7 +48,7 @@ export function SourceBar({ providers, sel, error }: { providers: NodoProvider[]
             key={p.key}
             type="button"
             className={`src-pill${p.on ? " on" : ""}`}
-            style={{ "--nc": p.color } as CSSProperties}
+            style={{ "--nc": p.color, "--nt": textOn(p.color) } as CSSProperties}
             aria-pressed={p.on}
             title={`${p.stale ? "Precios desactualizados · " : ""}Clic: prender o apagar · doble clic: solo este`}
             onClick={p.toggle}

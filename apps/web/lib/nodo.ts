@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { errorMessage } from "../components/shared";
 
-export type NodoProvider = { id: string; name: string; offers: number; stale: boolean; status: string; lastSyncedAt: string | null };
+export type NodoProvider = { id: string; name: string; offers: number; stale: boolean; status: string; lastSyncedAt: string | null; enabled: boolean };
 
 export type NodoResult = {
   offerId: string;
@@ -73,7 +73,11 @@ export function providerColor(providers: NodoProvider[], providerId: string): st
   return FALLBACK[hash % FALLBACK.length]!;
 }
 
-/** Lista de distribuidores de NODO; si NODO no está configurado queda vacía y `error` explica por qué. */
+/**
+ * Distribuidores de NODO con su estado para este usuario (`enabled`). Es la misma elección que se hace en
+ * Configuración → Distribuidores: prender o apagar uno acá lo cambia allá y al revés.
+ * Si NODO no está configurado queda vacía y `error` explica por qué.
+ */
 export function useNodoProviders(enabled = true) {
   const [providers, setProviders] = useState<NodoProvider[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +89,23 @@ export function useNodoProviders(enabled = true) {
       .catch((err) => { if (!cancelled) setError(errorMessage(err)); });
     return () => { cancelled = true; };
   }, [enabled]);
-  return { providers, error };
+
+  /** Prende y apaga distribuidores: se ve al instante y se guarda en el usuario; si falla vuelve atrás. */
+  const setEnabled = useCallback((enableIds: string[], disableIds: string[]) => {
+    if (!enableIds.length && !disableIds.length) return;
+    let before: NodoProvider[] = [];
+    setProviders((cur) => {
+      before = cur;
+      return cur.map((p) => (enableIds.includes(p.id) ? { ...p, enabled: true } : disableIds.includes(p.id) ? { ...p, enabled: false } : p));
+    });
+    const send = (ids: string[], on: boolean) => (ids.length ? api("/nodo/settings", { method: "PUT", body: { ids, enabled: on } }) : Promise.resolve(null));
+    void Promise.all([send(enableIds, true), send(disableIds, false)]).catch((err) => {
+      setProviders(before);
+      setError(errorMessage(err));
+    });
+  }, []);
+
+  return { providers, error, setEnabled };
 }
 
 /** Busca en NODO con espera al tipear, solo en los distribuidores indicados (ids). Sin ids no busca. */
@@ -159,36 +179,53 @@ export type SourceSelection = {
 
 const SOURCES_KEY = "tgs.search.sources.v1";
 
-/** Qué fuentes se consultan al buscar. Se guarda en el navegador como lista de apagadas: un distribuidor nuevo arranca prendido. */
-export function useSourceSelection(providers: NodoProvider[]): SourceSelection {
-  const [state, setState] = useState<{ own: boolean; web: boolean; off: string[] }>({ own: true, web: true, off: [] });
+/**
+ * Qué fuentes se consultan al buscar. Los distribuidores salen del estado del usuario en el servidor (el mismo de
+ * Configuración → Distribuidores); "Mis productos" y "Web" se recuerdan solo en este navegador.
+ */
+export function useSourceSelection(
+  providers: NodoProvider[],
+  setProvidersEnabled: (enableIds: string[], disableIds: string[]) => void,
+): SourceSelection {
+  const [state, setState] = useState<{ own: boolean; web: boolean }>({ own: true, web: true });
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(SOURCES_KEY);
       if (raw) {
-        const saved = JSON.parse(raw) as { own?: boolean; web?: boolean; off?: string[] };
-        setState({ own: saved.own !== false, web: saved.web !== false, off: Array.isArray(saved.off) ? saved.off : [] });
+        const saved = JSON.parse(raw) as { own?: boolean; web?: boolean };
+        setState({ own: saved.own !== false, web: saved.web !== false });
       }
     } catch { /* sin storage */ }
   }, []);
-  const save = useCallback((next: { own: boolean; web: boolean; off: string[] }) => {
+  const save = useCallback((next: { own: boolean; web: boolean }) => {
     setState(next);
     try { window.localStorage.setItem(SOURCES_KEY, JSON.stringify(next)); } catch { /* sin storage */ }
   }, []);
-  const activeIds = useMemo(() => providers.filter((p) => !state.off.includes(p.id)).map((p) => p.id), [providers, state.off]);
+  const activeIds = useMemo(() => providers.filter((p) => p.enabled).map((p) => p.id), [providers]);
   return useMemo(() => ({
     own: state.own,
     web: state.web,
     activeIds,
     toggleOwn: () => save({ ...state, own: !state.own }),
     toggleWeb: () => save({ ...state, web: !state.web }),
-    toggleProvider: (id: string) => save({ ...state, off: state.off.includes(id) ? state.off.filter((x) => x !== id) : [...state.off, id] }),
-    all: () => save({ own: true, web: true, off: [] }),
-    none: () => save({ own: false, web: false, off: providers.map((p) => p.id) }),
-    only: (key: string) => save({
-      own: key === "own",
-      web: key === "web",
-      off: providers.filter((p) => p.id !== key).map((p) => p.id),
-    }),
-  }), [state, activeIds, providers, save]);
+    toggleProvider: (id: string) => {
+      const on = providers.find((p) => p.id === id)?.enabled;
+      setProvidersEnabled(on ? [] : [id], on ? [id] : []);
+    },
+    all: () => {
+      save({ own: true, web: true });
+      setProvidersEnabled(providers.filter((p) => !p.enabled).map((p) => p.id), []);
+    },
+    none: () => {
+      save({ own: false, web: false });
+      setProvidersEnabled([], providers.filter((p) => p.enabled).map((p) => p.id));
+    },
+    only: (key: string) => {
+      save({ own: key === "own", web: key === "web" });
+      setProvidersEnabled(
+        providers.filter((p) => p.id === key && !p.enabled).map((p) => p.id),
+        providers.filter((p) => p.id !== key && p.enabled).map((p) => p.id),
+      );
+    },
+  }), [state, activeIds, providers, save, setProvidersEnabled]);
 }

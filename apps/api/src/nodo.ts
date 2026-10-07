@@ -77,11 +77,11 @@ const settingsSchema = z.object({ ids: z.array(z.string().trim().min(1).max(80))
 
 @Controller("nodo")
 export class NodoController {
-  /** Distribuidores disponibles para buscar (sin los que este usuario apagó en Configuración). */
+  /** Todos los distribuidores con su estado para este usuario (prendido o apagado), para la barra de fuentes del presupuesto. */
   @Get("providers")
   async providers(@CurrentUser() actor: RequestUser) {
     const [providers, disabled] = await Promise.all([loadProviders(), loadDisabled(actor.id)]);
-    return { items: providers.filter((p) => !disabled.has(p.id)) };
+    return { items: providers.map((p) => ({ ...p, enabled: !disabled.has(p.id) })) };
   }
 
   /** Todos los distribuidores con su estado para este usuario (pantalla de Configuración). */

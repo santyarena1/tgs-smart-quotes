@@ -66,10 +66,10 @@ export function mapOffer(offer: NodoOffer, fxRate: number): NodoResult | null {
   };
 }
 
-/** Credenciales de NODO desde el entorno. Acepta NODO_API_KEY / NODO_API_SECRET y también los nombres API_KEY_NODO / API_SECRET_NODO. */
+/** Credenciales de NODO desde el entorno. Acepta NODO_API_KEY / NODO_API_SECRET y también API_KEY_NODO / API_SECRET_NODO y NODO_API_SECRETO. */
 export function resolveNodoCredentials(env: Record<string, string | undefined>): { key: string; secret: string } | null {
   const key = (env.NODO_API_KEY ?? env.API_KEY_NODO)?.trim();
-  const secret = (env.NODO_API_SECRET ?? env.API_SECRET_NODO)?.trim();
+  const secret = (env.NODO_API_SECRET ?? env.NODO_API_SECRETO ?? env.API_SECRET_NODO)?.trim();
   return key && secret ? { key, secret } : null;
 }
 
