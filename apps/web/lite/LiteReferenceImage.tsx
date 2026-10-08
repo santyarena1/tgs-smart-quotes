@@ -90,7 +90,7 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
             <div className="lt-refm-empty">
               <span className="lt-refm-empty-ico" aria-hidden="true">▣</span>
               <strong>Todavía no hay imagen</strong>
-              <span>Se arma con los {itemCount} ítem{itemCount === 1 ? "" : "s"} del presupuesto{job.status === "error" ? "" : " y la foto del gabinete, si la tiene."}</span>
+              <span>{itemCount === 0 ? "Primero cargá los productos del presupuesto: la imagen se arma con ellos." : `Se arma con los ${itemCount} ítem${itemCount === 1 ? "" : "s"} del presupuesto${job.status === "error" ? "" : " y la foto del gabinete, si la tiene."}`}</span>
             </div>
           )}
         </div>
@@ -129,7 +129,7 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
           ) : (
             <>
               <span className="lt-spacer" />
-              <button type="button" className="lt-btn lt-refm-go" onClick={onGenerate}>{job.status === "error" ? "Reintentar" : "Generar imagen"}</button>
+              <button type="button" className="lt-btn lt-refm-go" disabled={itemCount === 0} onClick={onGenerate}>{job.status === "error" ? "Reintentar" : "Generar imagen"}</button>
             </>
           )}
         </div>
