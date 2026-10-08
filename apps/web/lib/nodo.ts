@@ -23,6 +23,8 @@ export type NodoResult = {
   fxRate: number;
   /** Alícuota de IVA que informa el distribuidor, en bps. */
   ivaBps?: number | null;
+  /** Foto del producto del distribuidor. */
+  imageUrl?: string | null;
 };
 
 /** Producto publicado en la tienda web (precio de venta al público, en centavos). */

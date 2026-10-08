@@ -574,6 +574,9 @@ model QuoteFamily {
   /// Miniatura: la imagen chica que se ve en el listado de productos de la
   /// tienda y en "Recomendadas de la casa". Se sube a mano.
   thumbnailUrl         String?
+  /// Imagen de referencia de cómo quedaría la PC (generada con IA, elegida por el usuario). El PDF la muestra.
+  referenceImageUrl    String?
+  referenceImageKey    String?
   /// Imagen del hero: la foto grande de la ficha. Es una de las imágenes de
   /// los componentes, marcada desde la lista de componentes. Si no hay
   /// ninguna marcada, la ficha cae a la miniatura.

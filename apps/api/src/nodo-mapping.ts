@@ -36,6 +36,8 @@ export type NodoResult = {
   ivaBps: number | null;
   /** Categoría de NODO tal cual llega (para la memoria de IVA). */
   nodoCategory: string | null;
+  /** Foto del producto, si el distribuidor la tiene (sirve para la foto del gabinete en la imagen de referencia). */
+  imageUrl: string | null;
 };
 
 /** Texto de la categoría de NODO (la ruta completa si la hay), para reconocer el tipo de producto. */
@@ -84,6 +86,7 @@ export function mapOffer(offer: NodoOffer, fxRate: number): NodoResult | null {
     fxRate: rate,
     ivaBps: ivaBpsOf(offer.price?.cost),
     nodoCategory: categoryText(offer.product.category),
+    imageUrl: offer.product.imageUrl ?? null,
   };
 }
 

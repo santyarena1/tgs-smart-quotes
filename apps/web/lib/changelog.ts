@@ -8,12 +8,23 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.7",
+    date: "2026-10-08",
+    title: "Imagen de referencia de la PC en el presupuesto",
+    items: [
+      "Nuevo botón Imagen de referencia en el creador: genera con IA una imagen ilustrativa de cómo quedaría la PC con todo lo presupuestado (parte de la foto del gabinete si la tiene), la muestra en una vista previa y el usuario elige si la incluye, la regenera o la descarta",
+      "Si se incluye, queda guardada en el presupuesto y aparece en el PDF (normal, detallado y formal) con una nota de que es ilustrativa. Es opcional",
+      "Necesita la clave de OpenAI (Configuración → IA); cada imagen cuesta aprox. US$ 0,04 a 0,25",
+    ],
+  },
+  {
     version: "0.19.6",
     date: "2026-10-08",
     title: "Cinta de tipo en cada presupuesto",
     items: [
       "Cada presupuesto de la lista lleva una cinta diagonal en la esquina superior derecha con su tipo y la línea de color a la izquierda: Normal rojo, Detallado amarillo, Formal azul (el tipo es el del último PDF que se generó)",
       "Se quitó la etiqueta Borrador de la lista",
+      "Colecciones del presupuesto con diseño nuevo y más liviano: una sola línea de texto, con + para sumarlas y un tilde rojo en las elegidas (sin cajas ni bordes)",
       "El botón PDF detallado del creador ahora es amarillo; Normal pasa a rojo en el filtro y en el botón Ver",
     ],
   },

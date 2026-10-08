@@ -15,6 +15,7 @@ import { useLite } from "./LiteContext";
 import { LiteFinancing } from "./LiteFinancing";
 import { LiteNewCustomer } from "./LiteNewCustomer";
 import { LiteNewProduct } from "./LiteNewProduct";
+import { LiteReferenceImage, type ReferenceImage } from "./LiteReferenceImage";
 import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 
@@ -33,6 +34,8 @@ type Line = {
   ivaPct: string;
   /** true = sugerido automáticamente (la memoria todavía puede corregirlo); false = lo eligió el usuario. */
   ivaAuto: boolean;
+  /** Foto del producto (la trae NODO): sirve para la imagen de referencia de la PC. */
+  imageUrl?: string | null;
   /** De dónde salió (distribuidor o web). Solo se muestra al armar: no se guarda ni va al PDF. */
   source?: ItemSource;
 };
@@ -80,6 +83,7 @@ function lineFromNodo(r: NodoResult, lineId = "", color = "#64748b"): Line {
     // NODO informa la alícuota de cada producto: ese dato manda.
     ivaPct: r.ivaBps != null ? ivaPctFromBps(r.ivaBps) : DEFAULT_IVA_PCT,
     ivaAuto: r.ivaBps == null,
+    imageUrl: r.imageUrl ?? null,
     source: { label: r.providerName, color },
   };
 }
@@ -388,6 +392,10 @@ export function LiteQuoteCreator() {
   const [newProd, setNewProd] = useState<{ name: string; lineId: string } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [tradeOpen, setTradeOpen] = useState(false);
+  // Imagen de referencia: opcional. `refImage` es la que queda incluida; `refSavedKey` la que ya tiene el presupuesto que se edita.
+  const [refImage, setRefImage] = useState<ReferenceImage | null>(null);
+  const [refSavedKey, setRefSavedKey] = useState<string | null>(null);
+  const [refOpen, setRefOpen] = useState(false);
   const [tradeShowValues, setTradeShowValues] = useState(true);
   const [totalEditOpen, setTotalEditOpen] = useState(false);
   const [totalEditValue, setTotalEditValue] = useState("");
@@ -713,12 +721,21 @@ export function LiteQuoteCreator() {
           })),
         },
       });
+      // La imagen de referencia se deja en el presupuesto antes de armar el PDF, para que ya salga en él.
+      let refNote = "";
+      if (refImage || refSavedKey) {
+        try {
+          await api(`/quote-reference-image/${created.id}`, { method: "PUT", body: { image: refImage } });
+        } catch (err) {
+          refNote = ` La imagen de referencia no se pudo guardar: ${errorMessage(err)}`;
+        }
+      }
       // Lo que se eligió a mano también enseña a la memoria de IVA por categoría.
       teachIva(ordered.filter((l) => !l.ivaAuto).map((l) => ({ name: l.name.trim(), ivaBps: ivaBpsFromPct(l.ivaPct) })));
       resetForm();
       try {
         await downloadQuotePdf(created.id, created.visibleNumber, kind);
-        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"} · ${kind === "FORMAL" ? "Presupuesto formal" : `PDF ${kind === "SIMPLE" ? "simple" : "detallado"}`} descargado.`);
+        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"} · ${kind === "FORMAL" ? "Presupuesto formal" : `PDF ${kind === "SIMPLE" ? "simple" : "detallado"}`} descargado.${refNote}`);
       } catch (err) {
         setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"}, pero el PDF falló: ${errorMessage(err)}`);
       }
@@ -774,6 +791,9 @@ export function LiteQuoteCreator() {
     setTradeOpen(false);
     setTradeIns([]);
     setTradeShowValues(true);
+    setRefImage(null);
+    setRefSavedKey(null);
+    setRefOpen(false);
     setEditing(null);
     try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* sin storage */ }
     searchRef.current?.focus();
@@ -807,6 +827,8 @@ export function LiteQuoteCreator() {
       const savedTrade = getActiveVersion(quote)?.tradeIns;
       setTradeIns(savedTrade?.items.map((i) => ({ key: crypto.randomUUID(), name: i.name, valueArs: centsToInput(i.valueCents) })) ?? []);
       setTradeShowValues(savedTrade?.showValues ?? true);
+      setRefImage(quote.referenceImageUrl && quote.referenceImageKey ? { url: quote.referenceImageUrl, key: quote.referenceImageKey } : null);
+      setRefSavedKey(quote.referenceImageKey ?? null);
       setEditing({ id: quote.id, visibleNumber: quote.visibleNumber, observation: getActiveVersion(quote)?.publicObservation ?? null });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -913,6 +935,14 @@ export function LiteQuoteCreator() {
           </form>
         </div>
       ) : null}
+      {refOpen ? (
+        <LiteReferenceImage
+          items={lines.map((l) => ({ name: l.name, quantity: Number(l.quantity) || 1, imageUrl: l.imageUrl ?? null }))}
+          current={refImage}
+          onApply={setRefImage}
+          onClose={() => setRefOpen(false)}
+        />
+      ) : null}
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
       <LiteFinancing totalCents={net} plans={finPlans} listInterestBps={listInterestBps} loaded={finLoaded} />
       <section className="lt-col">
@@ -965,20 +995,22 @@ export function LiteQuoteCreator() {
             <span className="lt-trade-ico" aria-hidden="true">⇄</span>
             <span className="lt-pc-copy"><strong>Productos del cliente</strong><small>{tradeInTotal > 0n ? `− ${formatArs(tradeInTotal)} a cuenta` : "Entrega algo como parte de pago"}</small></span>
           </button>
+          <button type="button" className={`lt-pc ref${refImage ? " on" : ""}`} disabled={lines.length === 0} onClick={() => setRefOpen(true)} aria-haspopup="dialog" title={lines.length === 0 ? "Cargá productos para generar la imagen" : undefined}>
+            <span className="lt-trade-ico" aria-hidden="true">▣</span>
+            <span className="lt-pc-copy"><strong>Imagen de referencia</strong><small>{refImage ? "Incluida en el presupuesto y el PDF" : "Opcional · cómo quedaría la PC"}</small></span>
+          </button>
           </div>
 
           {collections.length ? (
-            <div className="lt-colls lt-colls-sq">
-              <span className="lt-colls-title">Colecciones{collectionIds.length ? ` · ${collectionIds.length}` : ""}</span>
-              <div className="lt-colls-list">
-                {collections.map((c) => (
-                  <label key={c.id} className={`lt-coll-tag${collectionIds.includes(c.id) ? " on" : ""}`}>
-                    <input type="checkbox" hidden checked={collectionIds.includes(c.id)} onChange={(e) => toggleCollection(c.id, e.target.checked)} />
-                    <span className="lt-coll-box" aria-hidden="true">{collectionIds.includes(c.id) ? "✓" : ""}</span>
-                    {c.icon ? `${c.icon} ` : ""}{c.name}
-                  </label>
-                ))}
-              </div>
+            <div className="lt-colls lt-colls-flat" role="group" aria-label="Colecciones">
+              <span className="lt-colls-title">Colecciones</span>
+              {collections.map((c) => (
+                <label key={c.id} className={`lt-coll-opt${collectionIds.includes(c.id) ? " on" : ""}`}>
+                  <input type="checkbox" hidden checked={collectionIds.includes(c.id)} onChange={(e) => toggleCollection(c.id, e.target.checked)} />
+                  <span className="lt-coll-mark" aria-hidden="true">{collectionIds.includes(c.id) ? "✓" : "+"}</span>
+                  {c.icon ? `${c.icon} ` : ""}{c.name}
+                </label>
+              ))}
             </div>
           ) : null}
 
