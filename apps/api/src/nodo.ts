@@ -2,7 +2,8 @@ import { BadGatewayException, Body, Controller, Get, Post, Put, Query, ServiceUn
 import { db } from "@tgs/database";
 import { z } from "zod";
 import { CurrentUser, ZodPipe, type RequestUser } from "./infrastructure.js";
-import { effectiveProviderIds, mapOffer, resolveNodoCredentials, type NodoOffer, type NodoResult } from "./nodo-mapping.js";
+import { applyIvaBaseline, buildIvaBaseline, recordIvaObservations } from "./iva-memory.js";
+import { categoryText, effectiveProviderIds, ivaBpsOf, mapOffer, resolveNodoCredentials, type NodoOffer, type NodoResult } from "./nodo-mapping.js";
 
 /** Cliente de la API de catálogo de NODO (distribuidores). Las credenciales viven solo en el servidor. */
 const NODO_BASE = "https://api.nodohub.app";
@@ -116,6 +117,30 @@ export class NodoController {
     return { ok: true, updated: ids.length };
   }
 
+  /**
+   * Mapea todo el catálogo de NODO y carga la memoria de IVA por categoría (sin pisar lo que ya aprendió).
+   * Tarda un rato: recorre todas las ofertas de a 200.
+   */
+  @Post("iva-sync")
+  async ivaSync() {
+    const observations: Array<{ name: string; nodoCategory: string | null; ivaBps: number }> = [];
+    let cursor: string | undefined;
+    let offers = 0;
+    for (let page = 0; page < 300; page++) {
+      const res = await nodoGet<{ data: NodoOffer[]; pagination?: { nextCursor?: string; hasMore?: boolean } }>("/v1/offers", { limit: 200, cursor });
+      for (const offer of res.data) {
+        offers++;
+        const ivaBps = ivaBpsOf(offer.price?.cost);
+        if (ivaBps !== null && offer.product) observations.push({ name: offer.product.name, nodoCategory: categoryText(offer.product.category), ivaBps });
+      }
+      cursor = res.pagination?.nextCursor;
+      if (!res.pagination?.hasMore || !cursor) break;
+    }
+    const rows = buildIvaBaseline(observations);
+    await applyIvaBaseline(rows);
+    return { offers, withIva: observations.length, memoryRows: rows.length };
+  }
+
   @Get("search")
   async search(@Query(new ZodPipe(searchSchema)) query: z.infer<typeof searchSchema>, @CurrentUser() actor: RequestUser) {
     const requested = [...new Set((query.provider ?? "").split(",").map((id) => id.trim()).filter(Boolean))];
@@ -142,6 +167,10 @@ export class NodoController {
       .filter((r): r is NodoResult => r !== null)
       .sort((a, b) => Number(BigInt(a.costIvaCents) - BigInt(b.costIvaCents)))
       .slice(0, MAX_RESULTS);
+    // La alícuota que informa cada distribuidor alimenta la memoria de IVA por categoría.
+    void recordIvaObservations(
+      items.flatMap((r) => (r.ivaBps === null ? [] : [{ name: r.name, nodoCategory: r.nodoCategory, ivaBps: r.ivaBps }])),
+    );
     return { items, fxRate: fx };
   }
 }

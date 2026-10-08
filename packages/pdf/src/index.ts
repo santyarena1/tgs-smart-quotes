@@ -49,6 +49,8 @@ export type PdfItem = {
   subtotalCents: bigint;
   isMainLine?: boolean;
   isComponent?: boolean;
+  /** IVA incluido en el precio de este ítem, en bps (1050 = 10,5 %). Sin valor se usa el de la empresa. */
+  ivaBps?: number | null;
 };
 
 export type PdfResolvedConfig = {
@@ -602,6 +604,21 @@ function netOfIva(withIvaCents: bigint, ivaBps: number): bigint {
   return (withIvaCents * 10000n + BigInt(10000 + ivaBps) / 2n) / BigInt(10000 + ivaBps);
 }
 
+/** Desglose de un ítem: precio sin IVA, IVA, precio con IVA (los cargados ya lo incluyen) e importe total. */
+function ivaCells(item: PdfItem, input: PdfRenderInput): string {
+  const bps = item.ivaBps ?? input.ivaBps ?? 2100;
+  const net = netOfIva(item.unitCents, bps);
+  return (
+    `<td class="unit">${formatArsFromCents(net)}</td>` +
+    `<td class="iva">${formatArsFromCents(item.unitCents - net)}<small>${ivaLabelOf(bps)}</small></td>` +
+    `<td class="gross">${formatArsFromCents(item.unitCents)}</td>`
+  );
+}
+
+function ivaHeadCells(): string {
+  return '<th class="unit">Precio sin IVA</th><th class="iva">IVA</th><th class="gross">Precio con IVA</th>';
+}
+
 function ivaLabelOf(ivaBps: number): string {
   return `${(ivaBps / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`;
 }
@@ -628,8 +645,7 @@ function buildItemsRows(input: PdfRenderInput): string {
           : formatArsFromCents(0n);
       const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
-        const ivaBps = input.ivaBps ?? 2100;
-        return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td><td class="unit">${formatArsFromCents(netOfIva(item.unitCents, ivaBps))}</td><td class="iva">${ivaLabelOf(ivaBps)}</td><td class="amt">${amount}</td></tr>`;
+        return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}</td></tr>`;
       }
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name">${name}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
@@ -783,9 +799,10 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
   table.items .code { width: 48px; }
   table.items .qty { width: 48px; text-align: center; }
   table.items .amt { width: 110px; text-align: right; white-space: nowrap; }
-  table.items .unit { width: 105px; text-align: right; white-space: nowrap; }
-  table.items .iva { width: 56px; text-align: right; white-space: nowrap; }
-  table.items thead th.unit, table.items thead th.iva { text-align: right; }
+  table.items .unit, table.items .gross { width: 88px; text-align: right; white-space: nowrap; }
+  table.items .iva { width: 78px; text-align: right; white-space: nowrap; }
+  table.items td.iva small { display: block; font-size: 8.5px; color: #666; }
+  table.items thead th.unit, table.items thead th.iva, table.items thead th.gross, table.items thead th.amt { text-align: right; color: #fff; }
   .totals { margin-top: 12px; width: 100%; }
   .totals .row {
     display: flex;
@@ -873,7 +890,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     <thead>
       ${
         input.kind === 'DETALLADO'
-          ? '<tr><th>Producto</th><th>Cant.</th><th class="unit">Precio unitario</th><th class="iva">IVA</th><th>Importe</th></tr>'
+          ? `<tr><th>Producto</th><th>Cant.</th>${ivaHeadCells()}<th class="amt">Importe total</th></tr>`
           : '<tr><th>Cód.</th><th>Artículo</th><th>Cant.</th><th>Importe</th></tr>'
       }
     </thead>
@@ -939,8 +956,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
           : '';
       const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
-        const ivaBps = input.ivaBps ?? 2100;
-        return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td><td class="unit">${formatArsFromCents(netOfIva(item.unitCents, ivaBps))}</td><td class="iva">${ivaLabelOf(ivaBps)}</td><td class="amt">${amount}</td></tr>`;
+        return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}</td></tr>`;
       }
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
@@ -1062,7 +1078,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 9px; border: 1px solid #dedede; }
   table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 6px 8px; font-weight: 700; font-size: 10.8px; border: 1px solid ${primary}; }
   table.items thead th.qty { text-align: center; }
-  table.items thead th.amt, table.items thead th.unit, table.items thead th.iva { text-align: right; }
+  table.items thead th.amt, table.items thead th.unit, table.items thead th.iva, table.items thead th.gross { text-align: right; color: #fff; }
   table.items td { border-bottom: 1px solid #e8e8e8; padding: 5px 8px; vertical-align: top; font-size: 10.9px; }
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
@@ -1073,8 +1089,10 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items .qty { width: 62px; text-align: center; }
   table.items td.qty { font-weight: 700; }
   table.items .amt { width: 115px; text-align: right; white-space: nowrap; }
-  table.items .unit { width: 105px; text-align: right; white-space: nowrap; }
-  table.items .iva { width: 54px; text-align: right; white-space: nowrap; color: #555; }
+  table.items .unit, table.items .gross { width: 88px; text-align: right; white-space: nowrap; }
+  table.items .iva { width: 74px; text-align: right; white-space: nowrap; }
+  table.items td.iva { color: #555; }
+  table.items td.iva small { display: block; font-size: 8.5px; color: #888; }
   table.items td.amt { font-weight: 800; }
   .price-block { border: 1px solid #d9d9d9; border-radius: 6px; padding: 4px 14px 10px; margin-top: 9px; }
   .totals { margin-top: 0; }
@@ -1151,7 +1169,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     <thead>
       ${
         input.kind === 'DETALLADO'
-          ? '<tr><th class="name" data-pdf-block="itemsTable.colName">Producto</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="unit">Precio unitario</th><th class="iva">IVA</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>'
+          ? `<tr><th class="name" data-pdf-block="itemsTable.colName">Producto</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th>${ivaHeadCells()}<th class="amt" data-pdf-block="itemsTable.colAmount">Importe total</th></tr>`
           : '<tr><th class="code" data-pdf-block="itemsTable.colCode">Cód.</th><th class="name" data-pdf-block="itemsTable.colName">Artículo</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>'
       }
     </thead>
@@ -1228,15 +1246,12 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
 
   // Los precios cargados ya incluyen IVA: el unitario se muestra neto, el IVA como alícuota
   // y el importe es precio con IVA × cantidad.
-  const ivaBps = input.ivaBps ?? 2100;
-  const ivaLabel = ivaLabelOf(ivaBps);
-  const netCents = (withIva: bigint) => netOfIva(withIva, ivaBps);
   // La línea principal de una PC armada ("Presupuesto de PC Armada…") no va: solo los productos.
   const rows = input.items
     .filter((item) => !item.isMainLine)
     .map(
       (item) =>
-        `<tr><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td><td class="unit">${formatArsFromCents(netCents(item.unitCents))}</td><td class="iva">${ivaLabel}</td><td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`,
+        `<tr><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td>${ivaCells(item, input)}<td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`,
     )
     .join('');
   const chequeRow =
@@ -1271,13 +1286,15 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 16px; }
   table.items thead th { background: ${navy}; color: #fff; padding: 7px 9px; font-size: 9.8px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; }
   table.items thead th.qty { text-align: center; }
-  table.items thead th.unit, table.items thead th.iva, table.items thead th.amt { text-align: right; }
+  table.items thead th.unit, table.items thead th.iva, table.items thead th.gross, table.items thead th.amt { text-align: right; color: #fff; }
   table.items td { padding: 7px 9px; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-size: 10.9px; }
   table.items tbody tr:nth-child(even) td { background: #f8fafc; }
   table.items td.name { font-weight: 600; color: #111827; }
   table.items .qty { width: 54px; text-align: center; }
-  table.items .iva { width: 62px; text-align: right; white-space: nowrap; color: #4b5563; }
-  table.items .unit { width: 108px; text-align: right; white-space: nowrap; }
+  table.items .iva { width: 84px; text-align: right; white-space: nowrap; }
+  table.items td.iva { color: #4b5563; }
+  table.items td.iva small { display: block; font-size: 8.5px; color: #9ca3af; }
+  table.items .unit, table.items .gross { width: 98px; text-align: right; white-space: nowrap; }
   table.items .amt { width: 118px; text-align: right; white-space: nowrap; }
   table.items td.amt { font-weight: 700; color: #111827; }
   .totals { width: 100%; margin: 14px 0 0; border: 1px solid #cbd5e1; border-top: 3px solid ${navy}; border-radius: 0 0 4px 4px; }
@@ -1316,7 +1333,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
 
   <table class="items">
     <thead>
-      <tr><th class="name">Producto</th><th class="qty">Cant.</th><th class="unit">Precio unitario</th><th class="iva">IVA</th><th class="amt">Importe</th></tr>
+      <tr><th class="name">Producto</th><th class="qty">Cant.</th>${ivaHeadCells()}<th class="amt">Importe total</th></tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>

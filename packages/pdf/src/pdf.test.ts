@@ -353,9 +353,10 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('30-71234567-8');
     expect(html).toContain('Responsable Inscripto');
     expect(html).toContain('PROCESADOR AMD RYZEN 5 5600');
-    expect(html).toContain('Precio unitario');
-    // Precio unitario sin IVA (150000 / 1,21) y alícuota; el importe lleva IVA × cantidad.
+    expect(html).toContain('Precio sin IVA');
+    // Precio sin IVA (150000 / 1,21), IVA (26033) y alícuota; el importe total lleva IVA × cantidad.
     expect(html).toContain(formatArsFromCents(123967n));
+    expect(html).toContain(formatArsFromCents(26033n));
     expect(html).toContain('21 %');
     expect(html).toContain(formatArsFromCents(300000n));
     expect(html).toContain('Cheque a 30 días');
@@ -363,7 +364,7 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('Precio de lista');
     expect(html).toContain('Efectivo / Transferencia');
     // Columnas: producto | cantidad | precio unitario | IVA | importe.
-    const order = ['>Producto<', '>Cant.<', '>Precio unitario<', '>IVA<', '>Importe<'].map((h) => html.indexOf(h));
+    const order = ['>Producto<', '>Cant.<', '>Precio sin IVA<', '>IVA<', '>Precio con IVA<', '>Importe total<'].map((h) => html.indexOf(h));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     // Los totales ocupan todo el ancho.
@@ -374,7 +375,7 @@ describe('@tgs/pdf', () => {
     const items = [{ name: 'Procesador Ryzen', quantity: 2, unitCents: 150000n, subtotalCents: 300000n }];
     for (const template of ['CLASICO', 'MODERNO'] as const) {
       const html = renderPdfHtml({ ...sample(), kind: 'DETALLADO', template, isBuiltPc: false, ivaBps: 2100, items });
-      const order = ['Producto<', 'Cant.<', 'Precio unitario<', 'IVA<', 'Importe<'].map((h) => html.indexOf(h));
+      const order = ['Producto<', 'Cant.<', 'Precio sin IVA<', 'IVA<', 'Precio con IVA<', 'Importe total<'].map((h) => html.indexOf(h));
       expect(order.every((i) => i >= 0)).toBe(true);
       expect([...order].sort((a, b) => a - b)).toEqual(order);
       expect(html).toContain(formatArsFromCents(123967n));
@@ -382,6 +383,21 @@ describe('@tgs/pdf', () => {
       expect(html).toContain(formatArsFromCents(300000n));
       expect(html).not.toContain('Cód.');
     }
+  });
+
+  it('cada ítem usa su propio IVA y el encabezado IVA queda en blanco', () => {
+    const items = [
+      { name: 'Motherboard B550', quantity: 1, unitCents: 110500n, subtotalCents: 110500n, ivaBps: 1050 },
+      { name: 'Teclado', quantity: 1, unitCents: 121000n, subtotalCents: 121000n },
+    ];
+    const html = renderPdfHtml({ ...sample(), kind: 'DETALLADO', template: 'MODERNO', isBuiltPc: false, ivaBps: 2100, items });
+    expect(html).toContain('10,5 %');
+    expect(html).toContain(formatArsFromCents(100000n));
+    expect(html).toContain('21 %');
+    expect(html).toContain(formatArsFromCents(100000n));
+    // El color gris de la columna no pisa al encabezado.
+    expect(html).toContain('table.items td.iva { color: #555; }');
+    expect(html).not.toMatch(/table\.items \.iva \{[^}]*color/);
   });
 
   it('el cheque a 30 días solo aparece en el FORMAL', () => {

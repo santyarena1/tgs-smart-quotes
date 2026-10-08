@@ -7,6 +7,7 @@ import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, use
 import { SourceBar } from "../components/SourceBar";
 import { OriginTag, type ItemSource } from "../components/OriginTag";
 import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
+import { DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva } from "../lib/iva";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
 import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
@@ -28,6 +29,10 @@ type Line = {
   markupPct: string;
   saleArs: string;
   priceMode: "markup" | "sale";
+  /** IVA incluido en el precio, en %. Lo sugiere NODO o la memoria por categoría; se puede cambiar. */
+  ivaPct: string;
+  /** true = sugerido automáticamente (la memoria todavía puede corregirlo); false = lo eligió el usuario. */
+  ivaAuto: boolean;
   /** De dónde salió (distribuidor o web). Solo se muestra al armar: no se guarda ni va al PDF. */
   source?: ItemSource;
 };
@@ -54,6 +59,8 @@ function lineFromProduct(p: Product, lineId = ""): Line {
     markupPct: bpsToPct(p.markupBps),
     saleArs: centsToInput(p.salePriceCents),
     priceMode: "markup",
+    ivaPct: p.ivaBps != null ? ivaPctFromBps(p.ivaBps) : DEFAULT_IVA_PCT,
+    ivaAuto: p.ivaBps == null,
   };
 }
 
@@ -70,6 +77,9 @@ function lineFromNodo(r: NodoResult, lineId = "", color = "#64748b"): Line {
     markupPct: DEFAULT_MARKUP,
     saleArs: saleFromCostAndPct(costArs, DEFAULT_MARKUP),
     priceMode: "markup",
+    // NODO informa la alícuota de cada producto: ese dato manda.
+    ivaPct: r.ivaBps != null ? ivaPctFromBps(r.ivaBps) : DEFAULT_IVA_PCT,
+    ivaAuto: r.ivaBps == null,
     source: { label: r.providerName, color },
   };
 }
@@ -86,6 +96,8 @@ function lineFromWeb(r: WebResult, lineId = ""): Line {
     markupPct: "0",
     saleArs: centsToInput(r.priceCents),
     priceMode: "sale",
+    ivaPct: DEFAULT_IVA_PCT,
+    ivaAuto: true,
     source: { label: "Web", color: WEB_COLOR },
   };
 }
@@ -96,6 +108,7 @@ function validate(lines: Line[]): string | null {
     if (!line.name.trim()) return `El ítem ${i + 1} necesita un nombre.`;
     if (!line.costArs.trim()) return `El ítem ${i + 1} necesita un costo.`;
     if (!Number(line.quantity) || Number(line.quantity) < 1) return `El ítem ${i + 1} necesita una cantidad válida.`;
+    if (!isValidIvaPct(line.ivaPct)) return `Revisá el IVA del ítem ${i + 1}.`;
     try {
       parseArsToCents(line.costArs);
       itemPricePayload(line);
@@ -322,6 +335,15 @@ const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate,
       <MoneyInput className="lt-cell num" value={l.costArs} onChange={(v) => onPatch(l.key, (x) => applyDraftCost(x, v))} aria-label="Costo" placeholder="0" />
       <input className={`lt-cell num${below ? " neg" : ""}`} inputMode="decimal" value={l.markupPct} title={below ? "Vendés por debajo del costo" : undefined} onChange={(e) => onPatch(l.key, (x) => applyDraftMarkup(x, e.target.value))} aria-label="Margen" />
       <MoneyInput className={`lt-cell num${below ? " neg" : ""}`} value={l.saleArs} onChange={(v) => onPatch(l.key, (x) => applyDraftSale(x, v))} aria-label="Venta" placeholder="0" />
+      <select
+        className={`lt-cell num lt-iva${l.ivaAuto ? " auto" : ""}`}
+        value={l.ivaPct}
+        title={l.ivaAuto ? "IVA sugerido según la categoría del producto (podés cambiarlo)" : "IVA elegido"}
+        onChange={(e) => onPatch(l.key, (x) => ({ ...x, ivaPct: e.target.value, ivaAuto: false }))}
+        aria-label="IVA"
+      >
+        {(IVA_PRESETS.includes(l.ivaPct) ? IVA_PRESETS : [...IVA_PRESETS, l.ivaPct]).map((v) => <option key={v} value={v}>{v.replace(".", ",")} %</option>)}
+      </select>
       <strong className="lt-line-total r">{formatArs(lineTotalCents(l.saleArs, l.quantity))}</strong>
       <span className="lt-row-actions">
         <button type="button" className="lt-x" onClick={() => onDuplicate(l.key)} aria-label="Duplicar ítem" title="Duplicar">⧉</button>
@@ -565,23 +587,38 @@ export function LiteQuoteCreator() {
     setRemoved(null);
   }
 
+  /** Si el IVA de la línea no es un dato firme (producto sin IVA cargado o web), le pone el que la memoria aprendió para su categoría. */
+  function suggestIvaFor(line: Line) {
+    if (!line.ivaAuto) return;
+    void fetchIvaSuggestion(line.name).then((s) => {
+      if (!s) return;
+      setLines((current) => current.map((l) => (l.key === line.key && l.ivaAuto ? { ...l, ivaPct: ivaPctFromBps(s.ivaBps) } : l)));
+    });
+  }
+
   function addProduct(p: Product, lineId?: string) {
     // En PC armada el producto va a su componente (el elegido o el habitual); sin componente queda como extra.
     const target = lineId ?? (isBuiltPc && pcLines.some((l) => l.id === p.defaultLineId) ? p.defaultLineId ?? "" : "");
-    setLines((current) => [...current, lineFromProduct(p, target)]);
+    const line = lineFromProduct(p, target);
+    setLines((current) => [...current, line]);
+    suggestIvaFor(line);
     setQuery("");
     setSearchOpen(false);
   }
 
   function addWeb(r: WebResult, lineId = "") {
-    setLines((current) => [...current, lineFromWeb(r, lineId)]);
+    const line = lineFromWeb(r, lineId);
+    setLines((current) => [...current, line]);
+    suggestIvaFor(line);
     setQuery("");
     setSearchOpen(false);
     setNotice(`“${r.name}” agregado desde la web con su precio de venta ${formatArs(r.priceCents)}. Falta cargar el costo.`);
   }
 
   function addNodo(r: NodoResult, lineId = "") {
-    setLines((current) => [...current, lineFromNodo(r, lineId, providerColor(providers, r.providerId))]);
+    const line = lineFromNodo(r, lineId, providerColor(providers, r.providerId));
+    setLines((current) => [...current, line]);
+    suggestIvaFor(line);
     setQuery("");
     setSearchOpen(false);
     setNotice(`“${r.name}” agregado desde ${r.providerName}: costo + IVA ${formatArs(r.costIvaCents)}.`);
@@ -671,10 +708,13 @@ export function LiteQuoteCreator() {
             costCents: parseArsToCents(l.costArs),
             position,
             observation: null,
+            ivaBps: ivaBpsFromPct(l.ivaPct),
             ...itemPricePayload(l),
           })),
         },
       });
+      // Lo que se eligió a mano también enseña a la memoria de IVA por categoría.
+      teachIva(ordered.filter((l) => !l.ivaAuto).map((l) => ({ name: l.name.trim(), ivaBps: ivaBpsFromPct(l.ivaPct) })));
       resetForm();
       try {
         await downloadQuotePdf(created.id, created.visibleNumber, kind);
@@ -761,6 +801,8 @@ export function LiteQuoteCreator() {
         saleArs: centsToInput(item.salePriceCents ?? "0"),
         // El precio guardado manda: no recalcular la venta desde un % redondeado.
         priceMode: "sale" as const,
+        ivaPct: item.ivaBps != null ? ivaPctFromBps(item.ivaBps) : DEFAULT_IVA_PCT,
+        ivaAuto: item.ivaBps == null,
       })));
       const savedTrade = getActiveVersion(quote)?.tradeIns;
       setTradeIns(savedTrade?.items.map((i) => ({ key: crypto.randomUUID(), name: i.name, valueArs: centsToInput(i.valueCents) })) ?? []);
@@ -1000,7 +1042,7 @@ export function LiteQuoteCreator() {
           ) : (
             <div className="lt-lines">
               <div className="lt-line head">
-                <span>Producto</span><span>Cant.</span><span>Costo</span><span>Margen %</span><span>Venta</span><span className="r">Total</span><span />
+                <span>Producto</span><span>Cant.</span><span>Costo</span><span>Margen %</span><span>Venta</span><span>IVA</span><span className="r">Total</span><span />
               </div>
               {isBuiltPc ? (
                 <>

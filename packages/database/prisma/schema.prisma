@@ -386,6 +386,8 @@ model Product {
   costCents         BigInt
   salePriceCents    BigInt
   markupBps         Int
+  /// IVA del producto en bps. Null = sin cargar: se sugiere según la categoría.
+  ivaBps            Int?
   usesGeneralMarkup Boolean               @default(true)
   defaultLineId     String?
   defaultLine       PcLine?               @relation(fields: [defaultLineId], references: [id])
@@ -716,6 +718,8 @@ model QuoteItem {
   frozenCostCents      BigInt
   frozenMarkupBps      Int
   frozenSalePriceCents BigInt
+  /// IVA incluido en el precio de este ítem, en bps (2100 = 21 %, 1050 = 10,5 %). Null = el de la empresa.
+  ivaBps               Int?
   subtotalCents        BigInt
   /// Fecha del precio maestro congelado; permite detectar diferencias contra el catálogo actual.
   masterPriceAt        DateTime?
@@ -1939,4 +1943,16 @@ model RecurringExpensePayment {
 
   @@unique([expenseId, period])
   @@index([period])
+}
+
+/// Memoria de IVA por categoría de producto: cuántas veces se vio cada alícuota en una categoría
+/// (lo que informa NODO y lo que se elige al armar presupuestos). La más vista es la sugerida.
+model IvaCategoryStat {
+  categoryKey String
+  ivaBps      Int
+  samples     Int      @default(1)
+  lastSeenAt  DateTime @default(now())
+
+  @@id([categoryKey, ivaBps])
+  @@index([categoryKey])
 }

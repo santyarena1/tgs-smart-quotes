@@ -16,6 +16,7 @@ import {QuoteAiController, RequestAiController} from './ai.js';
 import {DashboardController} from './dashboard.js';
 import {CatalogController} from './catalog.js';
 import {NodoController} from './nodo.js';
+import {IvaController} from './iva-memory.js';
 import {WebStoreController} from './web-store.js';
 import {ChatbotController} from './chatbot.js';
 import {CrmRealtimeController} from './crm-realtime.js';
@@ -69,6 +70,7 @@ class HealthController {
     SimilarityController,
     CatalogController,
     NodoController,
+    IvaController,
     WebStoreController,
     ChatbotController,
     CrmRealtimeController,

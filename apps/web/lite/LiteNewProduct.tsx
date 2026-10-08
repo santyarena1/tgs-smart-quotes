@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { DEFAULT_IVA_PCT, fetchIvaSuggestion, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS } from "../lib/iva";
 import { parseArsToCents, pctToBps } from "../lib/money";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
 import type { Product } from "../lib/types";
@@ -16,8 +17,22 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
 }) {
   const [name, setName] = useState(initialName);
   const [price, setPrice] = useState({ costArs: "", markupPct: "30", saleArs: "", priceMode: "markup" as "markup" | "sale" });
+  const [ivaPct, setIvaPct] = useState(DEFAULT_IVA_PCT);
+  // Mientras no elijas vos el IVA, se va corrigiendo con lo que la memoria sabe de la categoría del nombre.
+  const [ivaAuto, setIvaAuto] = useState(true);
+  const [ivaHint, setIvaHint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchIvaSuggestion(name).then((s) => {
+        setIvaHint(s ? `${s.categoryLabel}: ${ivaPctFromBps(s.ivaBps).replace(".", ",")} %` : null);
+        if (s && ivaAuto) setIvaPct(ivaPctFromBps(s.ivaBps));
+      });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [name, ivaAuto]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +50,7 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
           costCents: parseArsToCents(price.costArs),
           markupBps: price.priceMode === "sale" ? 0 : pctToBps(price.markupPct),
           ...(pricing.salePriceCents !== undefined ? { salePriceCents: pricing.salePriceCents } : {}),
+          ivaBps: ivaBpsFromPct(ivaPct),
           usesGeneralMarkup: false,
           defaultLineId: lineId || null,
           active: true,
@@ -66,7 +82,13 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
           <label className="lt-field">Precio de venta
             <MoneyInput className="lt-input num" value={price.saleArs} onChange={(v) => setPrice((p) => applyDraftSale(p, v))} placeholder="0" />
           </label>
+          <label className="lt-field">IVA
+            <select className="lt-input" value={ivaPct} onChange={(e) => { setIvaPct(e.target.value); setIvaAuto(false); }}>
+              {(IVA_PRESETS.includes(ivaPct) ? IVA_PRESETS : [...IVA_PRESETS, ivaPct]).map((v) => <option key={v} value={v}>{v.replace(".", ",")} %</option>)}
+            </select>
+          </label>
         </div>
+        {ivaHint ? <p className="lt-muted lt-hint">Sugerido por la memoria de IVA — {ivaHint}</p> : null}
         <div className="lt-modal-foot">
           <button type="button" className="lt-btn ghost" onClick={onCancel}>Cancelar</button>
           <button type="submit" className="lt-btn" disabled={busy}>{busy ? "Guardando…" : "Crear y agregar"}</button>

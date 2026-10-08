@@ -71,6 +71,7 @@ function productData(body:ProductCreateInput,userId:string,generalBps:number){
     usesGeneralMarkup:body.usesGeneralMarkup,
     defaultLineId:body.defaultLineId??null,
     active:body.active??true,
+    ...(body.ivaBps!==undefined?{ivaBps:body.ivaBps}:{}),
     updatedById:userId,
   };
 }

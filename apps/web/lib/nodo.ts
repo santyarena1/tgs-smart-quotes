@@ -21,6 +21,8 @@ export type NodoResult = {
   originalCurrency: "USD" | "ARS";
   originalCostIva: number;
   fxRate: number;
+  /** Alícuota de IVA que informa el distribuidor, en bps. */
+  ivaBps?: number | null;
 };
 
 /** Producto publicado en la tienda web (precio de venta al público, en centavos). */

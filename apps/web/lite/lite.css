@@ -78,7 +78,9 @@
 
 /* ————— Ítems ————— */
 .lite .lt-lines { display: grid; gap: 2px; overflow-x: auto; }
-.lite .lt-line { display: grid; grid-template-columns: minmax(180px, 1fr) 64px 110px 78px 110px 110px 56px; gap: 0.35rem; align-items: center; min-width: 720px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.lite .lt-iva { cursor: pointer; }
+.lite .lt-iva.auto { border-style: dashed; border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+.lite .lt-line { display: grid; grid-template-columns: minmax(180px, 1fr) 64px 110px 78px 110px 78px 110px 56px; gap: 0.35rem; align-items: center; min-width: 800px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .lite .lt-line.head { border-bottom: 1px solid var(--line); color: var(--faint); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0 0 0.35rem; }
 .lite .lt-line.head span { padding: 0 0.5rem; }
 .lite .r { text-align: right; }
@@ -847,7 +849,7 @@
 .lite .lt-customer select.lt-input { background: var(--paper); color: var(--ink); border-radius: 12px !important; padding-right: 0.5rem; cursor: pointer; }
 
 /* Colecciones del presupuesto: bloque con líneas arriba y abajo y etiquetas cuadradas con casilla (distinto de los globos de distribuidores) */
-.lite .lt-colls.lt-colls-sq { display: grid; gap: 0.45rem; margin-top: 0.7rem; padding: 0.6rem 0; border-top: 2px solid var(--ink-2, #334155); border-bottom: 2px solid var(--ink-2, #334155); }
+.lite .lt-colls.lt-colls-sq { display: grid; gap: 0.45rem; margin-top: 0.7rem; padding: 0.6rem 0; border-top: 1px solid color-mix(in srgb, var(--ink) 7%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--ink) 7%, transparent); }
 .lite .lt-colls-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2, #334155); }
 .lite .lt-colls-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.35rem; }
 .lite .lt-coll-tag { display: flex; align-items: center; gap: 0.5rem; min-width: 0; padding: 0.35rem 0.55rem; border: 1px solid var(--line-2, #cbd5e1); border-radius: 0 !important; background: var(--paper); color: var(--ink-2, #334155); font-size: 0.8rem; font-weight: 600; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background 120ms, border-color 120ms; }
