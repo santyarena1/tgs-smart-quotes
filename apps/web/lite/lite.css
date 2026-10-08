@@ -1068,3 +1068,8 @@
 
 /* Etiquetas de filtros activos: hover propio (sin el rojo global) */
 .lite .lt-pill:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 9%, var(--canvas)); color: var(--ink); }
+
+/* Resultado de la verificación automática de la imagen */
+.lite .lt-refm-issues { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); background: color-mix(in srgb, var(--red) 8%, var(--paper)); }
+.lite .lt-refm-issues span { color: var(--red); }
+.lite .lt-refm-ok { margin: 0; font-size: 0.8rem; font-weight: 600; color: #16a34a; animation: lt-refx-fade 0.35s ease-out; }

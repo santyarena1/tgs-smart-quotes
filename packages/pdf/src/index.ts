@@ -1564,14 +1564,14 @@ export async function generateAndStorePdf(opts: {
  * miniaturas de la tienda: el diseño se arma en HTML/CSS (tipografías web,
  * degradados, sombras) y se saca una captura del tamaño exacto pedido.
  */
-export async function renderHtmlToPng(html: string, size: { width: number; height: number }): Promise<Buffer> {
+export async function renderHtmlToPng(html: string, size: { width: number; height: number }, options: { transparent?: boolean } = {}): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: 1 });
   try {
     await page.setContent(html, { waitUntil: 'networkidle' });
     // Las fuentes web pueden seguir cargando después de networkidle.
     await page.evaluate(() => (document as any).fonts?.ready).catch(() => undefined);
-    const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: size.width, height: size.height } });
+    const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: size.width, height: size.height }, ...(options.transparent ? { omitBackground: true } : {}) });
     return Buffer.from(buffer);
   } finally {
     await page.close();
