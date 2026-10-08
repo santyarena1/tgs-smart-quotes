@@ -13,6 +13,8 @@ const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '../..'
 const config: NextConfig = {
   transpilePackages: ['html-to-image'],
   outputFileTracingRoot: repoRoot,
+  // El proxy de /api corta a los 30 s por defecto; generar la imagen de referencia con IA puede tardar hasta un par de minutos.
+  experimental: { proxyTimeout: 180_000 },
   async rewrites() {
     return [
       {
