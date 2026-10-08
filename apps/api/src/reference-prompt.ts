@@ -146,7 +146,7 @@ const RULE = '==================================================';
  * con presencia/ausencia de GPU, refrigeración, RGB y fondo resueltos para este pedido, y un orden de prioridades explícito.
  * `attached` = las fotos de componentes que se mandan (en ese orden: Imagen 1, 2…); `hasBackground` = la última imagen es el fondo.
  */
-export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, attached: RefImage[] = [], hasBackground = false, facts: PromptFacts | null = null, mode: 'scene' | 'interior' = 'scene'): string {
+export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, attached: RefImage[] = [], hasBackground = false, facts: PromptFacts | null = null, mode: 'scene' | 'interior' = 'scene', corrections: string[] = []): string {
   const photoOf = (role: RefRole) => {
     const index = attached.findIndex((r) => r.role === role);
     return index >= 0 ? index + 1 : null;
@@ -163,6 +163,15 @@ export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, att
     L.push('La Imagen 1 es la foto REAL del gabinete de este pedido. Debes devolver ESA MISMA IMAGEN: el mismo gabinete, el mismo ángulo, el mismo encuadre, la misma forma, colores, paneles, vidrio, ventiladores y detalles EXTERIORES, sin ningún cambio.');
     L.push('Lo único que cambia es el INTERIOR visible a través del vidrio y los paneles: debe quedar armado EXACTAMENTE con los componentes de este pedido. Primero VACIÁ el interior de la foto (si muestra componentes que NO están en la lista —placa de video, watercooler, RAM con RGB, tiras LED, cables o cualquier otro— ELIMINALOS) y después colocá solo lo que está en la lista.');
     L.push('FONDO: TRANSPARENTE. No agregues escritorio, pared, piso, sombras proyectadas ni ambiente: solo el gabinete. El sistema lo apoya después sobre el fondo. No escribas texto ni logos nuevos en ningún lado.');
+    // Las fotos de catálogo suelen mostrar el gabinete ya armado: se pide eliminar expresamente lo que este pedido no lleva.
+    if (!spec.gpu) L.push('IMPORTANTE: si la foto del gabinete muestra una placa de video montada, ELIMINALA. Este pedido NO lleva placa de video: el slot PCIe x16 queda VACÍO y la imagen usa los gráficos integrados del procesador.');
+    if (spec.cooling.type === 'stock') L.push('IMPORTANTE: si la foto muestra un radiador, watercooler, tubos o un disipador de torre grande, ELIMINALOS. Este pedido solo lleva el cooler stock pequeño del procesador.');
+    if (spec.ram.length && !spec.ramRgb) L.push('IMPORTANTE: los módulos de RAM deben verse lisos, SIN ninguna luz RGB.');
+    L.push('');
+  }
+  if (corrections.length) {
+    L.push('CORRECCIÓN OBLIGATORIA (el intento anterior falló en esto, no lo repitas):');
+    corrections.forEach((c) => L.push(`- ${c}`));
     L.push('');
   }
   L.push('Vas a recibir:');

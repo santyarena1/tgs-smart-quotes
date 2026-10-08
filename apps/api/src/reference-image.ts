@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { CurrentUser, jsonSafe, ZodPipe, type RequestUser } from './infrastructure.js';
 import { analyzeBuild, BACKGROUND_PROMPTS, buildReferencePrompt, collectReferences, type PromptFacts, type RefImage, type RefRole, type ReferenceStyle } from './reference-prompt.js';
 import { lookupProductFacts, lookupProductPhoto, serperKeyOrNull } from './product-lookup.js';
-import { composeOnBackground, sizeForCase, transparentCase, trimCase } from './reference-compose.js';
+import { addWatermark, composeOnBackground, sizeForCase, transparentCase, trimCase } from './reference-compose.js';
+import { evaluateFindings, inspectInterior } from './reference-verify.js';
 
 /**
  * Imagen de referencia de cómo quedaría la PC del presupuesto. La arma el modelo de imágenes de OpenAI
@@ -17,6 +18,9 @@ import { composeOnBackground, sizeForCase, transparentCase, trimCase } from './r
  * El usuario la mira y decide si la incluye; si la incluye, queda en el presupuesto y el PDF la muestra.
  */
 
+/** Intentos máximos por imagen (el primero + reintentos con corrección) y tiempo a partir del cual ya no se reintenta. */
+const MAX_ATTEMPTS = 3;
+const RETRY_TIME_BUDGET_MS = 110_000;
 /** Cuántas fotos de componentes se mandan como máximo (más el fondo). */
 const MAX_COMPONENT_PHOTOS = 6;
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
@@ -181,45 +185,77 @@ export class QuoteReferenceImageController {
     // componentes del pedido; el fondo y la composición los hace el sistema, sin IA. Así el modelo no puede cambiar el gabinete
     // ni el ambiente. Sin foto del gabinete no hay nada que conservar y se genera la escena completa como antes.
     const caseRef = attached.find((r) => r.role === 'gabinete');
+    const ai = await db.aiSettings.findUniqueOrThrow({ where: { id: 'singleton' } });
     const started = Date.now();
-    let result;
+    let result: Awaited<ReturnType<typeof generateReferenceImage>> | null = null;
     let finalBuffer: Buffer;
     let mode: 'interior' | 'escena' = 'escena';
+    let totalCost = 0n;
+    let attempts = 0;
+    let issues: string[] = [];
+    let verified = false;
     try {
       if (caseRef) {
         mode = 'interior';
         const caseCut = await trimCase(await transparentCase(caseRef.buffer));
         const caseMeta = await sharp(caseCut).metadata();
         const refs = [{ ...caseRef, buffer: caseCut }, ...attached.filter((r) => r !== caseRef)];
-        const prompt = buildReferencePrompt(spec, body.style, refs, false, facts, 'interior');
-        result = await generateReferenceImage(client, {
-          prompt,
-          model: settings.model,
-          quality,
-          size: sizeForCase(caseMeta.width ?? 1, caseMeta.height ?? 1),
-          images: refs.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
-          transparent: true,
-        });
-        // Si el modelo ignoró el fondo transparente se vuelve a recortar; después se apoya sobre el fondo del ambiente.
-        finalBuffer = await composeOnBackground(await transparentCase(result.buffer), background, body.style);
+        const size = sizeForCase(caseMeta.width ?? 1, caseMeta.height ?? 1);
+        let corrections: string[] = [];
+        let best: { cut: Buffer; issues: string[] } | null = null;
+        // Después de cada intento un modelo de visión mira el resultado y lo compara con el presupuesto (placa de video, refrigeración,
+        // RAM con RGB). Si no coincide se regenera con la corrección explícita, siempre desde la foto original del gabinete.
+        while (attempts < MAX_ATTEMPTS) {
+          attempts += 1;
+          const prompt = buildReferencePrompt(spec, body.style, refs, false, facts, 'interior', corrections);
+          result = await generateReferenceImage(client, {
+            prompt,
+            model: settings.model,
+            quality,
+            size,
+            images: refs.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
+            transparent: true,
+          });
+          totalCost += result.costUsdCents;
+          // Si el modelo ignoró el fondo transparente se vuelve a recortar.
+          const cut = await transparentCase(result.buffer);
+          const findings = await inspectInterior(client, ai.model, cut);
+          const evaluation = findings ? evaluateFindings(spec, findings) : { issues: [] as string[], corrections: [] as string[] };
+          verified = Boolean(findings);
+          if (!best || evaluation.issues.length < best.issues.length) best = { cut, issues: evaluation.issues };
+          if (!findings || evaluation.issues.length === 0) break;
+          if (Date.now() - started > RETRY_TIME_BUDGET_MS) break;
+          corrections = evaluation.corrections;
+        }
+        issues = best!.issues;
+        finalBuffer = await composeOnBackground(best!.cut, background, body.style);
       } else {
+        attempts = 1;
         const prompt = buildReferencePrompt(spec, body.style, attached, Boolean(background), facts);
         const images = [
           ...attached.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
           ...(background ? [{ buffer: background, name: `fondo-${body.style}.png`, mime: 'image/png' }] : []),
         ];
         result = await generateReferenceImage(client, { prompt, model: settings.model, quality, size: REFERENCE_SIZE, images });
+        totalCost = result.costUsdCents;
         finalBuffer = result.buffer;
+        const findings = await inspectInterior(client, ai.model, finalBuffer);
+        verified = Boolean(findings);
+        issues = findings ? evaluateFindings(spec, findings).issues : [];
       }
     } catch (error) {
       const info = describeOpenAiError(error);
-      await db.aiRequest.create({ data: { task: 'THUMBNAIL_IMAGE', model: settings.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: false, error: info.message, durationMs: Date.now() - started } });
-      throw new ServiceUnavailableException(`OpenAI no pudo generar la imagen: ${info.message}`);
+      // Además del mensaje traducido se deja el original de OpenAI: distingue un límite por minuto de una cuota agotada.
+      const raw = (error as { message?: string })?.message?.replace(/\s+/g, ' ').slice(0, 240);
+      await db.aiRequest.create({ data: { task: 'THUMBNAIL_IMAGE', model: settings.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: false, error: raw ? `${info.message} ${raw}` : info.message, costUsdCents: totalCost, durationMs: Date.now() - started } });
+      throw new ServiceUnavailableException(`OpenAI no pudo generar la imagen: ${info.message}${raw ? ` (${raw})` : ''}`);
     }
+    // Marca de agua discreta en la esquina: queda pegada a la imagen, así también sale en el PDF.
+    finalBuffer = await addWatermark(finalBuffer);
     const jpeg = await sharp(finalBuffer).jpeg({ quality: 90 }).toBuffer();
     const stored = await (await loadMediaStorage()).put(`reference-images/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
     await db.aiRequest.create({
-      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, attached: attached.map((r) => r.role), googled, facts, background: Boolean(background), mode, caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
+      data: { task: 'THUMBNAIL_IMAGE', model: result!.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: Date.now() - started, usageJson: (result!.usage ?? undefined) as any, costUsdCents: totalCost, resultJson: { url: stored.url, attempts, verified, issues, attached: attached.map((r) => r.role), googled, facts, background: Boolean(background), mode, caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
     });
     return jsonSafe({
       url: stored.url,
@@ -229,11 +265,12 @@ export class QuoteReferenceImageController {
       googled: googled.filter((role) => attached.some((r) => r.role === role)),
       facts,
       mode,
+      verification: { verified, attempts, issues },
       background: Boolean(background),
       caseName: spec.caseName,
       style: body.style,
       spec: { gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type },
-      costUsdCents: result.costUsdCents,
+      costUsdCents: totalCost,
     });
   }
 

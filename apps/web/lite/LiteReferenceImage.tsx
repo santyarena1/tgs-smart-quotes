@@ -132,6 +132,14 @@ export function LiteReferenceModal({ job, current, stale, suggested, onGenerate,
 
         {job.status === "error" ? <div className="lt-alert err" role="alert">{job.message}</div> : null}
         {stale && (ready || current) ? <div className="lt-refm-stale" role="status">Cambiaste productos desde que se generó la imagen. Si querés que lo refleje, regenerala.</div> : null}
+        {ready && job.image.verification?.issues.length ? (
+          <div className="lt-refm-warn lt-refm-issues" role="alert">
+            <span aria-hidden="true">✖</span>
+            <p>La verificación automática encontró diferencias con el presupuesto (después de {job.image.verification.attempts} intento{job.image.verification.attempts === 1 ? "" : "s"}): {job.image.verification.issues.join("; ")}. Podés regenerarla o descartarla.</p>
+          </div>
+        ) : ready && job.image.verification?.verified ? (
+          <p className="lt-refm-ok" role="status">✓ Verificada automáticamente contra el presupuesto{job.image.verification.attempts > 1 ? ` (se corrigió en el intento ${job.image.verification.attempts})` : ""}.</p>
+        ) : null}
         {shown || generating ? <div className="lt-refm-warn" role="note"><span aria-hidden="true">⚠</span><p>{REFERENCE_WARNING}</p></div> : null}
         {ready && job.image ? (
           <p className="lt-muted lt-hint">
