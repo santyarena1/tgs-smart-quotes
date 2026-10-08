@@ -2501,7 +2501,7 @@ export function QuotesView({
             </span>
           </div>
           <div className="quote-ref-row">
-            <button type="button" className={`quote-ref-btn ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog">
+            <button type="button" className={`quote-ref-btn motion-ok ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog">
               <span className="quote-ref-ico" aria-hidden="true">{refJob.job.status === "generating" ? <span className="qref-spin" /> : refJob.job.status === "ready" ? "✓" : "▣"}</span>
               <span className="quote-ref-copy">
                 <strong>Imagen de referencia</strong>

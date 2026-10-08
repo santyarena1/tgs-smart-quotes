@@ -1046,7 +1046,7 @@ export function LiteQuoteCreator() {
             <span className="lt-trade-ico" aria-hidden="true">⇄</span>
             <span className="lt-pc-copy"><strong>Productos del cliente</strong><small>{tradeInTotal > 0n ? `− ${formatArs(tradeInTotal)} a cuenta` : "Entrega algo como parte de pago"}</small></span>
           </button>
-          <button type="button" className={`lt-pc ref ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog" title={lines.length === 0 ? "Primero cargá productos: la imagen se arma con ellos" : undefined}>
+          <button type="button" className={`lt-pc ref motion-ok ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog" title={lines.length === 0 ? "Primero cargá productos: la imagen se arma con ellos" : undefined}>
             <span className="lt-trade-ico" aria-hidden="true">{refJob.job.status === "generating" ? <span className="lt-refx-spin sm"><span className="lt-refx-spin-core" /></span> : refJob.job.status === "ready" ? "✓" : "▣"}</span>
             <span className="lt-pc-copy"><strong>Imagen de referencia</strong><small>{refJob.job.status === "generating" ? "Generando en segundo plano…" : refJob.job.status === "ready" ? "Lista para revisar" : refImage ? "Incluida en el presupuesto y el PDF" : "Opcional · cómo quedaría la PC"}</small></span>
           </button>

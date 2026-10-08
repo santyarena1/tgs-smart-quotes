@@ -88,7 +88,7 @@ export function LiteReferenceModal({ job, current, stale, suggested, onGenerate,
   const steps: Array<[number, string]> = [[1, "Generar"], [2, "Revisar"], [3, "Incluir"]];
 
   return (
-    <div className="lt-modal lt-refm-backdrop" role="dialog" aria-modal="true" aria-label="Imagen de referencia" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="lt-modal lt-refm-backdrop motion-ok" role="dialog" aria-modal="true" aria-label="Imagen de referencia" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="lt-card lt-modal-card lt-refm" onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
         <header className="lt-refm-head">
           <span className="lt-refm-ico" aria-hidden="true">✦</span>
@@ -198,7 +198,7 @@ export function LiteReferenceBubble({ job, stale, onOpen, onInclude, onDiscard, 
   if (job.status === "idle") return null;
 
   return (
-    <aside className={`lt-refb ${job.status}`} role="status" aria-live="polite">
+    <aside className={`lt-refb motion-ok ${job.status}`} role="status" aria-live="polite">
       {generating ? (
         <button type="button" className="lt-refb-main" onClick={onOpen} title="Ver cómo va">
           <Spinner />
