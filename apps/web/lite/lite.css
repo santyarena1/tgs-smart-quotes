@@ -845,3 +845,40 @@
 .lite .lt-seg button:not(.on):hover { background: color-mix(in srgb, #1d4ed8 10%, transparent); color: var(--ink, #111827); }
 .lite .lt-modal-intro { margin: -0.2rem 0 0; font-size: 0.85rem; }
 .lite .lt-customer select.lt-input { background: var(--paper); color: var(--ink); border-radius: 12px !important; padding-right: 0.5rem; cursor: pointer; }
+
+/* Colecciones del presupuesto: bloque con líneas arriba y abajo y etiquetas cuadradas con casilla (distinto de los globos de distribuidores) */
+.lite .lt-colls.lt-colls-sq { display: grid; gap: 0.45rem; margin-top: 0.7rem; padding: 0.6rem 0; border-top: 2px solid var(--ink-2, #334155); border-bottom: 2px solid var(--ink-2, #334155); }
+.lite .lt-colls-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2, #334155); }
+.lite .lt-colls-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.35rem; }
+.lite .lt-coll-tag { display: flex; align-items: center; gap: 0.5rem; min-width: 0; padding: 0.35rem 0.55rem; border: 1px solid var(--line-2, #cbd5e1); border-radius: 0 !important; background: var(--paper); color: var(--ink-2, #334155); font-size: 0.8rem; font-weight: 600; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background 120ms, border-color 120ms; }
+.lite .lt-coll-tag:hover { background: var(--canvas); }
+.lite .lt-coll-box { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border: 2px solid var(--line-2, #94a3b8); border-radius: 0; font-size: 0.7rem; font-weight: 900; line-height: 1; color: #fff; }
+.lite .lt-coll-tag.on { border-color: var(--red); background: color-mix(in srgb, var(--red) 9%, var(--paper)); color: var(--ink); }
+.lite .lt-coll-tag.on .lt-coll-box { background: var(--red); border-color: var(--red); }
+
+/* Filtros de la lista: tipo de presupuesto (Normal verde, Detallado amarillo, Formal azul), etiquetas activas y estados */
+.lite .lt-kinds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3rem; }
+.lite .lt-kind { --k: var(--ink-2, #475569); padding: 0.38rem 0.3rem; border: 1px solid color-mix(in srgb, var(--k) 45%, var(--line)); border-radius: 8px; background: transparent; color: var(--k); font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 120ms, color 120ms; }
+.lite .lt-kind.simple { --k: #16a34a; }
+.lite .lt-kind.detallado { --k: #b45309; }
+.lite .lt-kind.formal { --k: #1d4ed8; }
+.lite .lt-kind:hover { background: color-mix(in srgb, var(--k) 10%, transparent); }
+.lite .lt-kind.on { background: var(--k); border-color: var(--k); color: #fff; }
+.lite .lt-kind.all.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+:root[data-theme="dark"] .lite .lt-kind.simple { --k: #4ade80; }
+:root[data-theme="dark"] .lite .lt-kind.detallado { --k: #facc15; }
+:root[data-theme="dark"] .lite .lt-kind.formal { --k: #60a5fa; }
+:root[data-theme="dark"] .lite .lt-kind.on { color: #0f1218; }
+:root[data-theme="dark"] .lite .lt-kind.all.on { background: #fff; border-color: #fff; color: #0f1218; }
+.lite .lt-active { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.lite .lt-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.2rem 0.15rem 0.6rem; border: 1px solid var(--line-2, #cbd5e1); border-radius: 999px; background: var(--canvas); color: var(--ink); font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+.lite .lt-pill span { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--line); font-size: 0.8rem; line-height: 1; }
+.lite .lt-pill:hover span { background: var(--red); color: #fff; }
+.lite .lt-states { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.lite .lt-kindtag { font-size: 0.64rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; }
+.lite .lt-kindtag.simple { color: #16a34a; }
+.lite .lt-kindtag.detallado { color: #b45309; }
+.lite .lt-kindtag.formal { color: #1d4ed8; }
+:root[data-theme="dark"] .lite .lt-kindtag.simple { color: #4ade80; }
+:root[data-theme="dark"] .lite .lt-kindtag.detallado { color: #facc15; }
+:root[data-theme="dark"] .lite .lt-kindtag.formal { color: #60a5fa; }

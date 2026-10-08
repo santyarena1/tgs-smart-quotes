@@ -180,6 +180,10 @@ export type PdfRenderInput = {
   tradeIns?: PdfTradeIns | null;
   listTotalCents: bigint;
   cashTotalCents: bigint;
+  /** Solo FORMAL: efectivo/transferencia + recargo del cheque a 30 días. Sin valor no se muestra. */
+  chequeTotalCents?: bigint | null;
+  /** Solo FORMAL: alícuota de IVA incluida en los precios, en bps (2100 = 21 %). Default 2100. */
+  ivaBps?: number;
   company: PdfCompany;
   customer?: PdfCustomer | null;
   config: PdfResolvedConfig;
@@ -236,6 +240,12 @@ export function pdfInputHash(input: PdfRenderInput): string {
     observation: input.observation ?? null,
     listTotalCents: input.listTotalCents.toString(),
     cashTotalCents: input.cashTotalCents.toString(),
+    ...(input.kind === 'FORMAL' || input.kind === 'DETALLADO'
+      ? {
+          ivaBps: input.ivaBps ?? 2100,
+          ...(input.kind === 'FORMAL' ? { chequeTotalCents: input.chequeTotalCents?.toString() ?? null } : {}),
+        }
+      : {}),
     company: input.company,
     customer: input.customer ?? null,
     config: input.config,
@@ -543,6 +553,7 @@ function decorateLayoutHtml(html: string, layout: PdfLayoutConfig): string {
     ['<table class="items">', '<table data-pdf-block="itemsTable" class="items">'],
     ['<th>Cód.</th>', '<th data-pdf-block="itemsTable.colCode" class="code">Cód.</th>'],
     ['<th>Artículo</th>', '<th data-pdf-block="itemsTable.colName" class="name">Artículo</th>'],
+    ['<th>Producto</th>', '<th data-pdf-block="itemsTable.colName" class="name">Producto</th>'],
     ['<th>Cant.</th>', '<th data-pdf-block="itemsTable.colQty" class="qty">Cant.</th>'],
     ['<th>Importe</th>', '<th data-pdf-block="itemsTable.colAmount" class="amt">Importe</th>'],
     ['<section class="totals">', '<section data-pdf-block="totalsBlock" class="totals">'],
@@ -586,6 +597,15 @@ export function resolvePdfFlags(
   return next;
 }
 
+/** Los precios cargados ya incluyen IVA: precio neto de una unidad según la alícuota (bps). */
+function netOfIva(withIvaCents: bigint, ivaBps: number): bigint {
+  return (withIvaCents * 10000n + BigInt(10000 + ivaBps) / 2n) / BigInt(10000 + ivaBps);
+}
+
+function ivaLabelOf(ivaBps: number): string {
+  return `${(ivaBps / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`;
+}
+
 function buildItemsRows(input: PdfRenderInput): string {
   // DETALLADO: siempre precios por ítem.
   // SIMPLE: solo la línea principal de PC armada lleva importe; el resto va sin precio
@@ -607,6 +627,10 @@ function buildItemsRows(input: PdfRenderInput): string {
           ? '—'
           : formatArsFromCents(0n);
       const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      if (input.kind === 'DETALLADO') {
+        const ivaBps = input.ivaBps ?? 2100;
+        return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td><td class="unit">${formatArsFromCents(netOfIva(item.unitCents, ivaBps))}</td><td class="iva">${ivaLabelOf(ivaBps)}</td><td class="amt">${amount}</td></tr>`;
+      }
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name">${name}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
     .join('');
@@ -759,6 +783,9 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
   table.items .code { width: 48px; }
   table.items .qty { width: 48px; text-align: center; }
   table.items .amt { width: 110px; text-align: right; white-space: nowrap; }
+  table.items .unit { width: 105px; text-align: right; white-space: nowrap; }
+  table.items .iva { width: 56px; text-align: right; white-space: nowrap; }
+  table.items thead th.unit, table.items thead th.iva { text-align: right; }
   .totals { margin-top: 12px; width: 100%; }
   .totals .row {
     display: flex;
@@ -844,12 +871,11 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
 
   <table class="items">
     <thead>
-      <tr>
-        <th>Cód.</th>
-        <th>Artículo</th>
-        <th>Cant.</th>
-        <th>Importe</th>
-      </tr>
+      ${
+        input.kind === 'DETALLADO'
+          ? '<tr><th>Producto</th><th>Cant.</th><th class="unit">Precio unitario</th><th class="iva">IVA</th><th>Importe</th></tr>'
+          : '<tr><th>Cód.</th><th>Artículo</th><th>Cant.</th><th>Importe</th></tr>'
+      }
     </thead>
     <tbody>
       ${buildItemsRows(input)}
@@ -912,6 +938,10 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
           ? `<div class="sub">${escapeHtml(input.config.builtPcDescription)}</div>`
           : '';
       const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      if (input.kind === 'DETALLADO') {
+        const ivaBps = input.ivaBps ?? 2100;
+        return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td><td class="unit">${formatArsFromCents(netOfIva(item.unitCents, ivaBps))}</td><td class="iva">${ivaLabelOf(ivaBps)}</td><td class="amt">${amount}</td></tr>`;
+      }
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
     .join('');
@@ -1032,7 +1062,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 9px; border: 1px solid #dedede; }
   table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 6px 8px; font-weight: 700; font-size: 10.8px; border: 1px solid ${primary}; }
   table.items thead th.qty { text-align: center; }
-  table.items thead th.amt { text-align: right; }
+  table.items thead th.amt, table.items thead th.unit, table.items thead th.iva { text-align: right; }
   table.items td { border-bottom: 1px solid #e8e8e8; padding: 5px 8px; vertical-align: top; font-size: 10.9px; }
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
@@ -1043,6 +1073,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items .qty { width: 62px; text-align: center; }
   table.items td.qty { font-weight: 700; }
   table.items .amt { width: 115px; text-align: right; white-space: nowrap; }
+  table.items .unit { width: 105px; text-align: right; white-space: nowrap; }
+  table.items .iva { width: 54px; text-align: right; white-space: nowrap; color: #555; }
   table.items td.amt { font-weight: 800; }
   .price-block { border: 1px solid #d9d9d9; border-radius: 6px; padding: 4px 14px 10px; margin-top: 9px; }
   .totals { margin-top: 0; }
@@ -1117,7 +1149,11 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
 
   <table class="items" data-pdf-block="itemsTable">
     <thead>
-      <tr><th class="code" data-pdf-block="itemsTable.colCode">Cód.</th><th class="name" data-pdf-block="itemsTable.colName">Artículo</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>
+      ${
+        input.kind === 'DETALLADO'
+          ? '<tr><th class="name" data-pdf-block="itemsTable.colName">Producto</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="unit">Precio unitario</th><th class="iva">IVA</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>'
+          : '<tr><th class="code" data-pdf-block="itemsTable.colCode">Cód.</th><th class="name" data-pdf-block="itemsTable.colName">Artículo</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>'
+      }
     </thead>
     <tbody>${buildItemsRowsModerno(input)}</tbody>
   </table>
@@ -1155,7 +1191,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
 
 /**
  * Presupuesto FORMAL para empresas: estilo corporativo y solo lo esencial. Datos de la empresa y de la empresa cliente,
- * tabla con cantidad, precio unitario e importe, y debajo el precio de lista y el efectivo / transferencia.
+ * tabla con producto, cantidad, precio unitario, IVA e importe, y debajo el precio de lista, el efectivo / transferencia
+ * y el cheque a 30 días (solo este PDF lo lleva).
  * No lleva armado, demora, línea de PC armada, financiación, observaciones, RMA ni textos de la tienda.
  */
 export function renderQuoteFormalHtml(input: PdfRenderInput): string {
@@ -1189,14 +1226,23 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
     if (c.email) customerRows.push(['Email', c.email]);
   }
 
+  // Los precios cargados ya incluyen IVA: el unitario se muestra neto, el IVA como alícuota
+  // y el importe es precio con IVA × cantidad.
+  const ivaBps = input.ivaBps ?? 2100;
+  const ivaLabel = ivaLabelOf(ivaBps);
+  const netCents = (withIva: bigint) => netOfIva(withIva, ivaBps);
   // La línea principal de una PC armada ("Presupuesto de PC Armada…") no va: solo los productos.
   const rows = input.items
     .filter((item) => !item.isMainLine)
-    .map((item, index) => {
-      const code = escapeHtml(String(index + 1).padStart(3, '0'));
-      return `<tr><td class="code">${code}</td><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td><td class="unit">${formatArsFromCents(item.unitCents)}</td><td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`;
-    })
+    .map(
+      (item) =>
+        `<tr><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td><td class="unit">${formatArsFromCents(netCents(item.unitCents))}</td><td class="iva">${ivaLabel}</td><td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`,
+    )
     .join('');
+  const chequeRow =
+    input.chequeTotalCents != null
+      ? `<div class="row cheque"><span class="lbl">Cheque a 30 días</span><span class="val">${formatArsFromCents(input.chequeTotalCents)}</span></div>`
+      : '';
 
   return `<!doctype html>
 <html lang="es-AR">
@@ -1225,16 +1271,16 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 16px; }
   table.items thead th { background: ${navy}; color: #fff; padding: 7px 9px; font-size: 9.8px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; }
   table.items thead th.qty { text-align: center; }
-  table.items thead th.unit, table.items thead th.amt { text-align: right; }
+  table.items thead th.unit, table.items thead th.iva, table.items thead th.amt { text-align: right; }
   table.items td { padding: 7px 9px; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-size: 10.9px; }
   table.items tbody tr:nth-child(even) td { background: #f8fafc; }
-  table.items .code { width: 46px; color: #6b7280; }
   table.items td.name { font-weight: 600; color: #111827; }
   table.items .qty { width: 54px; text-align: center; }
+  table.items .iva { width: 62px; text-align: right; white-space: nowrap; color: #4b5563; }
   table.items .unit { width: 108px; text-align: right; white-space: nowrap; }
   table.items .amt { width: 118px; text-align: right; white-space: nowrap; }
   table.items td.amt { font-weight: 700; color: #111827; }
-  .totals { width: 56%; margin: 14px 0 0 auto; border: 1px solid #cbd5e1; border-top: 3px solid ${navy}; border-radius: 0 0 4px 4px; }
+  .totals { width: 100%; margin: 14px 0 0; border: 1px solid #cbd5e1; border-top: 3px solid ${navy}; border-radius: 0 0 4px 4px; }
   .totals .row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px; }
   .totals .row + .row { border-top: 1px solid #e5e7eb; }
   .totals .lbl { color: #374151; font-size: 11px; }
@@ -1242,6 +1288,8 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
   .totals .cash { background: #eef2f9; }
   .totals .cash .lbl { color: ${blue}; font-weight: 800; }
   .totals .cash .val { color: ${blue}; font-weight: 900; font-size: 18px; }
+  .totals .cheque .lbl { color: #374151; font-weight: 700; }
+  .totals .cheque .val { color: #111827; font-weight: 800; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -1268,7 +1316,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
 
   <table class="items">
     <thead>
-      <tr><th class="code">Cód.</th><th class="name">Descripción</th><th class="qty">Cant.</th><th class="unit">Precio unitario</th><th class="amt">Importe</th></tr>
+      <tr><th class="name">Producto</th><th class="qty">Cant.</th><th class="unit">Precio unitario</th><th class="iva">IVA</th><th class="amt">Importe</th></tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
@@ -1276,6 +1324,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
   <section class="totals">
     <div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>
     <div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>
+    ${chequeRow}
   </section>
 </body>
 </html>`;

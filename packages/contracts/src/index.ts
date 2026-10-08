@@ -118,6 +118,9 @@ export const companySettingsInputSchema = z
     primaryColor: color,
     accentColor: color,
     listInterestBps: z.number().int().min(0),
+    /** Presupuesto Formal: recargo del cheque a 30 días sobre efectivo/transferencia y alícuota de IVA. */
+    chequeInterestBps: z.number().int().min(0).optional(),
+    ivaBps: z.number().int().min(0).max(10000).optional(),
   })
   .strict();
 export const companySettingsSchema = companySettingsInputSchema.extend({
@@ -1428,6 +1431,8 @@ export const quoteSearchSchema = z
     productName: z.string().trim().max(300).optional(),
     visibleNumber: z.string().trim().max(100).optional(),
     isBuiltPc: queryFlagSchema.optional(),
+    /** Tipo de PDF ya generado para la versión activa: SIMPLE (normal), DETALLADO o FORMAL. */
+    pdfKind: z.enum(['SIMPLE', 'DETALLADO', 'FORMAL']).optional(),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     sort: z

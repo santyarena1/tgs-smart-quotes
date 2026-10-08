@@ -331,6 +331,8 @@ describe('@tgs/pdf', () => {
       ...base,
       kind: 'FORMAL',
       isBuiltPc: true,
+      chequeTotalCents: 1080000n,
+      ivaBps: 2100,
       observation: 'Entrega en 48 hs',
       customer: {
         kind: 'EMPRESA', name: 'ACME S.A.', cuit: '30-71234567-8', taxCondition: 'RESPONSABLE_INSCRIPTO',
@@ -352,12 +354,42 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('Responsable Inscripto');
     expect(html).toContain('PROCESADOR AMD RYZEN 5 5600');
     expect(html).toContain('Precio unitario');
-    expect(html).toContain(formatArsFromCents(150000n));
+    // Precio unitario sin IVA (150000 / 1,21) y alícuota; el importe lleva IVA × cantidad.
+    expect(html).toContain(formatArsFromCents(123967n));
+    expect(html).toContain('21 %');
+    expect(html).toContain(formatArsFromCents(300000n));
+    expect(html).toContain('Cheque a 30 días');
+    expect(html).toContain(formatArsFromCents(1080000n));
     expect(html).toContain('Precio de lista');
     expect(html).toContain('Efectivo / Transferencia');
-    // Columna de precio unitario entre cantidad e importe.
-    expect(html.indexOf('Cant.')).toBeLessThan(html.indexOf('Precio unitario'));
-    expect(html.indexOf('Precio unitario')).toBeLessThan(html.indexOf('Importe'));
+    // Columnas: producto | cantidad | precio unitario | IVA | importe.
+    const order = ['>Producto<', '>Cant.<', '>Precio unitario<', '>IVA<', '>Importe<'].map((h) => html.indexOf(h));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // Los totales ocupan todo el ancho.
+    expect(html).toContain('.totals { width: 100%');
+  });
+
+  it('el DETALLADO lleva producto | cantidad | precio unitario | IVA | importe en ambas plantillas', () => {
+    const items = [{ name: 'Procesador Ryzen', quantity: 2, unitCents: 150000n, subtotalCents: 300000n }];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderPdfHtml({ ...sample(), kind: 'DETALLADO', template, isBuiltPc: false, ivaBps: 2100, items });
+      const order = ['Producto<', 'Cant.<', 'Precio unitario<', 'IVA<', 'Importe<'].map((h) => html.indexOf(h));
+      expect(order.every((i) => i >= 0)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      expect(html).toContain(formatArsFromCents(123967n));
+      expect(html).toContain('21 %');
+      expect(html).toContain(formatArsFromCents(300000n));
+      expect(html).not.toContain('Cód.');
+    }
+  });
+
+  it('el cheque a 30 días solo aparece en el FORMAL', () => {
+    const base = { ...sample(), chequeTotalCents: 1080000n };
+    for (const kind of ['SIMPLE', 'DETALLADO'] as const) {
+      expect(renderPdfHtml({ ...base, kind })).not.toContain('Cheque a 30 días');
+    }
+    expect(renderPdfHtml({ ...base, kind: 'FORMAL' })).toContain('Cheque a 30 días');
   });
 
   it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {

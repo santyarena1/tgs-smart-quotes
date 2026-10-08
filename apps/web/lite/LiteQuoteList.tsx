@@ -14,6 +14,9 @@ const STATES: Array<[QuoteState, string]> = [
   ["RECHAZADO", "Rechazado"], ["REEMPLAZADO", "Reemplazado"], ["NO_CONCRETADO", "No concretado"],
 ];
 const STATE_LABEL = Object.fromEntries(STATES) as Record<QuoteState, string>;
+/** Tipo de presupuesto = PDF ya generado de ese tipo. Colores = los de los botones de cada PDF. */
+const KINDS: Array<[PdfKind, string]> = [["SIMPLE", "Normal"], ["DETALLADO", "Detallado"], ["FORMAL", "Formal"]];
+const KIND_LABEL = Object.fromEntries(KINDS) as Record<PdfKind, string>;
 
 /** Todos los presupuestos, con búsqueda y filtros en la misma pantalla y acciones por presupuesto. */
 export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
@@ -26,6 +29,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [q, setQ] = useState("");
   const [state, setState] = useState("");
+  const [pdfKind, setPdfKind] = useState("");
   const [branchId, setBranchId] = useState("");
   const [collectionId, setCollectionId] = useState("");
   const [month, setMonth] = useState("");
@@ -57,6 +61,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
       const query: Record<string, string | number> = { page, pageSize: PAGE_SIZE, sort: "lastActivityAt", order: "desc" };
       if (q.trim()) query.q = q.trim();
       if (state) query.state = state;
+      if (pdfKind) query.pdfKind = pdfKind;
       const scopedBranch = locked ? homeBranchId : branchId;
       if (scopedBranch) query.branchId = scopedBranch;
       if (collectionId) query.collectionId = collectionId;
@@ -79,15 +84,26 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [q, state, branchId, collectionId, month, from, to, page, refreshKey, locked, homeBranchId]);
+  }, [q, state, pdfKind, branchId, collectionId, month, from, to, page, refreshKey, locked, homeBranchId]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void run(), 250);
     return () => window.clearTimeout(t);
   }, [run]);
 
-  const moreCount = [state, month, from, to].filter(Boolean).length;
-  const anyFilter = Boolean(q || branchId || collectionId || moreCount);
+  const moreCount = [month, from, to].filter(Boolean).length;
+  const anyFilter = Boolean(q || branchId || collectionId || state || pdfKind || moreCount);
+  const clearAll = () => { setQ(""); setState(""); setPdfKind(""); setBranchId(""); setCollectionId(""); setMonth(""); setFrom(""); setTo(""); setPage(1); };
+  const branchName = branches.find((b) => b.id === branchId)?.name;
+  const collName = collections.find((c) => c.id === collectionId)?.name;
+  const monthLabel = month ? new Date(Number(month.slice(0, 4)), Number(month.slice(5)) - 1, 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" }) : "";
+  // Etiquetas de los filtros activos, cada una se quita con un toque.
+  const active: Array<[string, string, () => void]> = [];
+  if (!locked && branchId) active.push(["local", branchName ?? "Local", () => reset(setBranchId)("")]);
+  if (collectionId) active.push(["coll", collName ?? "Colección", () => reset(setCollectionId)("")]);
+  if (state) active.push(["state", STATE_LABEL[state as QuoteState] ?? state, () => reset(setState)("")]);
+  if (from || to) active.push(["range", `${from ? from.split("-").reverse().join("/") : "…"} → ${to ? to.split("-").reverse().join("/") : "…"}`, () => { setFrom(""); setTo(""); setPage(1); }]);
+  else if (month) active.push(["month", monthLabel, () => reset(setMonth)("")]);
   const reset = (set: (v: string) => void) => (v: string) => { set(v); setPage(1); };
   const lastPage = total === null ? null : Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasNext = lastPage === null ? rows.length === PAGE_SIZE : page < lastPage;
@@ -133,20 +149,32 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
           {collections.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
         </select>
       </div>
-      <div className="lt-more-row">
-        <button type="button" className={`lt-btn ghost sm${moreCount ? " on" : ""}`} aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
-          Más filtros{moreCount ? ` (${moreCount})` : ""} {showFilters ? "▴" : "▾"}
-        </button>
-        {anyFilter ? (
-          <button type="button" className="lt-link" onClick={() => { setQ(""); setState(""); setBranchId(""); setCollectionId(""); setMonth(""); setFrom(""); setTo(""); setPage(1); }}>Limpiar todo</button>
-        ) : null}
+      <div className="lt-kinds" role="group" aria-label="Tipo de presupuesto">
+        <button type="button" className={`lt-kind all${pdfKind === "" ? " on" : ""}`} aria-pressed={pdfKind === ""} onClick={() => reset(setPdfKind)("")}>Todos</button>
+        {KINDS.map(([k, label]) => (
+          <button key={k} type="button" className={`lt-kind ${k.toLowerCase()}${pdfKind === k ? " on" : ""}`} aria-pressed={pdfKind === k} title={`Presupuestos con PDF ${label.toLowerCase()} generado`} onClick={() => reset(setPdfKind)(pdfKind === k ? "" : k)}>{label}</button>
+        ))}
       </div>
+      <div className="lt-more-row">
+        <button type="button" className={`lt-btn ghost sm${moreCount || state ? " on" : ""}`} aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
+          Estado y fechas{moreCount ? ` (${moreCount})` : ""} {showFilters ? "▴" : "▾"}
+        </button>
+        {anyFilter ? <button type="button" className="lt-link" onClick={clearAll}>Limpiar todo</button> : null}
+      </div>
+      {active.length ? (
+        <div className="lt-active" aria-label="Filtros activos">
+          {active.map(([key, label, remove]) => (
+            <button key={key} type="button" className="lt-pill" onClick={remove} title="Quitar este filtro">{label} <span aria-hidden="true">×</span></button>
+          ))}
+        </div>
+      ) : null}
       {showFilters ? (
         <div className="lt-list-filters">
-          <select className="lt-input" value={state} onChange={(e) => reset(setState)(e.target.value)} aria-label="Estado">
-            <option value="">Todos los estados</option>
-            {STATES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-          </select>
+          <div className="lt-states" role="group" aria-label="Estado">
+            {STATES.map(([v, label]) => (
+              <button key={v} type="button" className={`lt-chip${state === v ? " on" : ""}`} aria-pressed={state === v} onClick={() => reset(setState)(state === v ? "" : v)}>{label}</button>
+            ))}
+          </div>
           <label className="lt-field">Mes<input className="lt-input" type="month" value={month} onChange={(e) => reset(setMonth)(e.target.value)} /></label>
           <div className="lt-list-dates">
             <label className="lt-field">Desde<input className="lt-input" type="date" value={from} onChange={(e) => reset(setFrom)(e.target.value)} /></label>
@@ -178,6 +206,9 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
                 <div className="lt-qfoot">
                   <strong className="lt-qprice">{formatArs(v?.totalSaleCents)}</strong>
                   {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
+                  {KINDS.filter(([k]) => v?.pdfs?.some((pdf) => pdf.kind === k)).map(([k]) => (
+                    <span key={k} className={`lt-kindtag ${k.toLowerCase()}`} title={`PDF ${KIND_LABEL[k].toLowerCase()} generado`}>{KIND_LABEL[k]}</span>
+                  ))}
                   {v?.createdAt ? <span className="lt-qdate" title="Fecha de la última versión">Últ. {new Date(v.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span> : null}
                 </div>
                 <div className="lt-actions">

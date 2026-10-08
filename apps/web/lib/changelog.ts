@@ -8,6 +8,19 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.3",
+    date: "2026-10-08",
+    title: "Columnas con IVA en el detallado y cheque a 30 días en el Formal",
+    items: [
+      "El PDF detallado pasa a las columnas Producto | Cantidad | Precio unitario | IVA | Importe (precio con IVA × cantidad); el precio unitario se muestra sin IVA",
+      "El Presupuesto Formal usa las mismas columnas, con el rectángulo de Precio de lista y Efectivo / Transferencia a todo el ancho",
+      "El Presupuesto Formal suma debajo el precio de Cheque a 30 días (efectivo/transferencia + 8 %). Aparece solo ahí, no en el simple ni en el detallado",
+      "Configuración → Financiación: el recargo del cheque a 30 días y el IVA son editables",
+      "Lista de presupuestos: nuevo filtro por tipo (Normal verde, Detallado amarillo, Formal azul) junto a Local, estados como botones y filtros activos como etiquetas que se quitan con un toque; cada presupuesto muestra qué PDFs tiene generados",
+      "Las colecciones del presupuesto pasan a un bloque con líneas arriba y abajo y etiquetas cuadradas con casilla, para no confundirlas con los distribuidores",
+    ],
+  },
+  {
     version: "0.19.2",
     date: "2026-10-07",
     title: "Presupuesto Formal para empresas",
