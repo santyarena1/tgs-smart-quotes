@@ -11,7 +11,11 @@ export type ReferenceInputItem = { name: string; quantity?: number; imageUrl?: s
 
 /** Qué componente es cada foto que se manda como referencia. */
 export type RefRole = 'gabinete' | 'placa de video' | 'refrigeración' | 'memoria RAM' | 'motherboard' | 'procesador' | 'fuente';
-export type RefImage = { role: RefRole; name: string; imageUrl: string };
+/** `source: 'google'` = la foto no venía del distribuidor ni del catálogo: se buscó en Google para ese modelo exacto. */
+export type RefImage = { role: RefRole; name: string; imageUrl: string; source?: 'google' };
+
+/** Datos reales del producto encontrados en la web (medidas del gabinete, factor de forma, largo de la placa de video). */
+export type PromptFacts = { caseDimensions: string | null; caseForm: string | null; gpuLength: string | null };
 
 export type CoolingSpec = { type: 'liquid' | 'air' | 'stock'; name: string | null };
 
@@ -142,7 +146,7 @@ const RULE = '==================================================';
  * con presencia/ausencia de GPU, refrigeración, RGB y fondo resueltos para este pedido, y un orden de prioridades explícito.
  * `attached` = las fotos de componentes que se mandan (en ese orden: Imagen 1, 2…); `hasBackground` = la última imagen es el fondo.
  */
-export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, attached: RefImage[] = [], hasBackground = false): string {
+export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, attached: RefImage[] = [], hasBackground = false, facts: PromptFacts | null = null): string {
   const photoOf = (role: RefRole) => {
     const index = attached.findIndex((r) => r.role === role);
     return index >= 0 ? index + 1 : null;
@@ -165,7 +169,7 @@ export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, att
   L.push('');
   if (attached.length) {
     L.push('IMÁGENES RECIBIDAS (en este orden):');
-    attached.forEach((r, i) => L.push(`- Imagen ${i + 1}: ${r.role.toUpperCase()} — ${r.name}`));
+    attached.forEach((r, i) => L.push(`- Imagen ${i + 1}: ${r.role.toUpperCase()} — ${r.name}${r.source === 'google' ? ' (foto de ESTE modelo exacto, buscada en Google)' : ''}`));
     if (bgImg) L.push(`- Imagen ${bgImg}: FONDO / AMBIENTE ${ESTILO_LABEL[style]} (solo define el ambiente, NO los componentes)`);
     L.push('');
   }
@@ -183,6 +187,10 @@ export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, att
 
   L.push(...section('1. GABINETE — PRIORIDAD MÁXIMA'));
   L.push(`El gabinete de este pedido es: ${spec.caseName ?? 'ATX mid-tower con vidrio templado'}${ref(photoOf('gabinete'))}.`);
+  if (facts?.caseDimensions || facts?.caseForm) {
+    L.push(`DATOS REALES DEL GABINETE (buscados en Google para este modelo): ${[facts.caseDimensions ? `medidas ${facts.caseDimensions}` : null, facts.caseForm ? `tamaño ${facts.caseForm}` : null].filter(Boolean).join(', ')}.`);
+    L.push('Respeta esas proporciones: el gabinete tiene ese tamaño real, así que la motherboard, la placa de video, la fuente y los módulos de RAM deben verse a escala real dentro de él (ni gigantes ni diminutos).');
+  }
   L.push('El gabinete recibido DEBE SER UTILIZADO EXACTAMENTE COMO REFERENCIA.');
   L.push('- Debes mostrar EL MISMO MODELO DE GABINETE recibido.');
   L.push('- Respeta su diseño, estructura, tamaño, forma, panel lateral, vidrio, panel frontal, ventiladores, distribución y apariencia.');
@@ -196,6 +204,7 @@ export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, att
   L.push('La presencia o ausencia de GPU es OBLIGATORIA.');
   if (spec.gpu) {
     L.push(`EN ESTE PEDIDO SE RECIBE UNA PLACA DE VIDEO: ${spec.gpu}${ref(photoOf('placa de video'))}.`);
+    if (facts?.gpuLength) L.push(`- Largo real aproximado de la placa (buscado en Google): ${facts.gpuLength}. Respeta esa escala frente al gabinete.`);
     L.push('- DEBES MOSTRARLA DENTRO DEL GABINETE, visible y reconocible.');
     L.push('- Respeta su modelo, tamaño, color, diseño, cantidad de ventiladores y estética.');
     L.push('- Debe estar instalada en posición horizontal en el slot PCIe, salvo que la referencia indique otra posición.');

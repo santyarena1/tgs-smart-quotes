@@ -428,7 +428,7 @@ async function fillMissingDescriptions(versionId: string, userId: string): Promi
   return {status: 'DONE', detail};
 }
 
-async function downloadImage(url: string): Promise<{buffer: Buffer; contentType: string}> {
+export async function downloadImage(url: string): Promise<{buffer: Buffer; contentType: string}> {
   const response = await fetch(url, {
     headers: {'user-agent': BROWSER_UA, accept: 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8'},
     signal: AbortSignal.timeout(20_000),

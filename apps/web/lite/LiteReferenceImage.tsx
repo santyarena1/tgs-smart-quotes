@@ -138,7 +138,9 @@ export function LiteReferenceModal({ job, current, stale, suggested, onGenerate,
             {job.image.attached?.length
               ? `Se usaron las fotos de: ${job.image.attached.join(", ")}${job.image.background ? " y el fondo de ambiente" : ""}.`
               : job.image.usedPhoto ? `Parte de la foto del gabinete (${job.image.caseName ?? "gabinete"}).` : "Generada desde la descripción: los productos no tienen foto."}
-            {job.image.attached && !job.image.attached.includes("gabinete") ? " El gabinete no tiene foto: se reprodujo por su nombre." : ""}
+            {job.image.googled?.length ? ` Se buscaron en Google las fotos de: ${job.image.googled.join(", ")}.` : ""}
+            {job.image.facts?.caseDimensions || job.image.facts?.caseForm ? ` Medidas del gabinete según Google: ${[job.image.facts.caseDimensions, job.image.facts.caseForm].filter(Boolean).join(" · ")}.` : ""}
+            {job.image.attached && !job.image.attached.includes("gabinete") ? " No se encontró una foto del gabinete: se reprodujo por su nombre y puede no ser exacto." : ""}
             {Number.isFinite(Number(job.image.costUsdCents)) ? ` Costo aproximado: US$ ${(Number(job.image.costUsdCents) / 100).toFixed(2)}.` : ""}
           </p>
         ) : choosing && itemCount > 0 ? <p className="lt-muted lt-hint">Se arma con los {itemCount} ítem{itemCount === 1 ? "" : "s"} del presupuesto: gabinete exacto, con o sin placa de video, RAM con o sin RGB y la refrigeración que lleve. Aprox. US$ 0,04 a 0,25 por imagen.</p> : null}
