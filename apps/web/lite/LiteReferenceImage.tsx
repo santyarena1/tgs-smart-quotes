@@ -1,8 +1,9 @@
 "use client";
 
-import { formatElapsed, useElapsed, type GeneratedReference, type ReferenceImage, type ReferenceJob } from "./useReferenceImageJob";
+import { useState } from "react";
+import { formatElapsed, useElapsed, type GeneratedReference, type ReferenceImage, type ReferenceJob, type ReferenceStyle } from "./useReferenceImageJob";
 
-export type { ReferenceImage } from "./useReferenceImageJob";
+export type { ReferenceImage, ReferenceStyle } from "./useReferenceImageJob";
 
 /** Mensajes que van rotando mientras se genera: la IA no informa avance real, esto solo acompaña la espera. */
 const PHASES = [
@@ -16,6 +17,30 @@ const PHASE_SECONDS = 9;
 const phaseText = (seconds: number) => PHASES[Math.min(PHASES.length - 1, Math.floor(seconds / PHASE_SECONDS))]!;
 
 export const REFERENCE_WARNING = "Imagen ilustrativa generada con IA. Puede no coincidir al 100 % con los componentes (modelos, colores, luces o cables). Revisala antes de incluirla: no es un render oficial ni garantiza cómo se verá el equipo final.";
+
+const STYLE_CARDS: Array<{ style: ReferenceStyle; title: string; text: string }> = [
+  { style: "gamer", title: "PC Gamer", text: "Fondo de setup gamer: escritorio oscuro, monitores, periféricos e iluminación RGB." },
+  { style: "oficina", title: "PC de oficina", text: "Fondo limpio y minimalista: escritorio claro, luz natural y nada de decoración gamer." },
+];
+
+/** Antes de generar se pregunta el fondo: un toque en la opción elegida ya arranca la generación. */
+function StylePicker({ suggested, onPick }: { suggested: ReferenceStyle; onPick: (style: ReferenceStyle) => void }) {
+  return (
+    <div className="lt-refm-pick" role="group" aria-label="Fondo de la imagen">
+      <p className="lt-refm-pick-q">¿Qué fondo lleva la imagen?</p>
+      <div className="lt-refm-pick-grid">
+        {STYLE_CARDS.map((card) => (
+          <button key={card.style} type="button" className={`lt-refm-style ${card.style}${card.style === suggested ? " suggested" : ""}`} onClick={() => onPick(card.style)}>
+            <span className="lt-refm-style-art" aria-hidden="true"><i /><i /><i /></span>
+            <strong>{card.title}{card.style === suggested ? <em>Sugerido</em> : null}</strong>
+            <small>{card.text}</small>
+            <span className="lt-refm-style-go">Generar con este fondo →</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Spinner() {
   return (
@@ -35,14 +60,16 @@ function Check() {
 }
 
 /** Ventana de la imagen de referencia: generar, revisar y decidir. Cerrarla no frena la generación. */
-export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, onInclude, onDiscard, onRemove, onClose, itemCount }: {
+export function LiteReferenceModal({ job, current, stale, suggested, onGenerate, onCancel, onInclude, onDiscard, onRemove, onClose, itemCount }: {
   job: ReferenceJob;
   /** La que ya está incluida en el presupuesto. */
   current: ReferenceImage | null;
   /** Se cambiaron productos después de generar la imagen. */
   stale: boolean;
   itemCount: number;
-  onGenerate: () => void;
+  /** Fondo que se sugiere según los productos (el usuario igual elige). */
+  suggested: ReferenceStyle;
+  onGenerate: (style: ReferenceStyle) => void;
   onCancel: () => void;
   onInclude: () => void;
   onDiscard: () => void;
@@ -53,7 +80,11 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
   const ready = job.status === "ready";
   const elapsed = useElapsed(generating ? job.startedAt : null);
   const shown: (ReferenceImage & Partial<GeneratedReference>) | null = ready ? job.image : current;
-  const step = generating || (!ready && !current) ? 1 : ready ? 2 : 3;
+  // Antes de generar (o al regenerar) se pregunta el fondo.
+  const [picking, setPicking] = useState(false);
+  const choosing = !generating && (picking || !shown);
+  const step = generating || choosing ? 1 : ready ? 2 : 3;
+  const pick = (style: ReferenceStyle) => { setPicking(false); onGenerate(style); };
   const steps: Array<[number, string]> = [[1, "Generar"], [2, "Revisar"], [3, "Incluir"]];
 
   return (
@@ -74,7 +105,7 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
           ))}
         </ol>
 
-        <div className={`lt-refm-stage${generating ? " busy" : ""}${shown && !generating ? " has" : ""}`}>
+        <div className={`lt-refm-stage${generating ? " busy" : ""}${shown && !generating && !choosing ? " has" : ""}${choosing ? " choosing" : ""}`}>
           {generating ? (
             <div className="lt-refm-wait" role="status" aria-live="polite">
               <div className="lt-refm-orbs" aria-hidden="true"><i /><i /><i /></div>
@@ -84,15 +115,19 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
               <span className="lt-refm-bar" aria-hidden="true"><i /></span>
               <span className="lt-refm-hint">Podés cerrar esta ventana y seguir armando el presupuesto: un globo te avisa cuando esté lista.</span>
             </div>
+          ) : choosing ? (
+            itemCount === 0 ? (
+              <div className="lt-refm-empty">
+                <span className="lt-refm-empty-ico" aria-hidden="true">▣</span>
+                <strong>Todavía no hay imagen</strong>
+                <span>Primero cargá los productos del presupuesto: la imagen se arma con ellos.</span>
+              </div>
+            ) : (
+              <StylePicker suggested={suggested} onPick={pick} />
+            )
           ) : shown ? (
             <img key={shown.key} className="lt-refm-img" src={shown.url} alt="Imagen de referencia de la PC" />
-          ) : (
-            <div className="lt-refm-empty">
-              <span className="lt-refm-empty-ico" aria-hidden="true">▣</span>
-              <strong>Todavía no hay imagen</strong>
-              <span>{itemCount === 0 ? "Primero cargá los productos del presupuesto: la imagen se arma con ellos." : `Se arma con los ${itemCount} ítem${itemCount === 1 ? "" : "s"} del presupuesto${job.status === "error" ? "" : " y la foto del gabinete, si la tiene."}`}</span>
-            </div>
-          )}
+          ) : null}
         </div>
 
         {job.status === "error" ? <div className="lt-alert err" role="alert">{job.message}</div> : null}
@@ -103,7 +138,7 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
             {job.image.usedPhoto ? `Parte de la foto del gabinete (${job.image.caseName ?? "gabinete"}).` : "Generada desde la descripción: el gabinete no tiene foto."}
             {Number.isFinite(Number(job.image.costUsdCents)) ? ` Costo aproximado: US$ ${(Number(job.image.costUsdCents) / 100).toFixed(2)}.` : ""}
           </p>
-        ) : !shown && !generating ? <p className="lt-muted lt-hint">Se genera con IA (aprox. US$ 0,04 a 0,25 por imagen).</p> : null}
+        ) : choosing && itemCount > 0 ? <p className="lt-muted lt-hint">Se arma con los {itemCount} ítem{itemCount === 1 ? "" : "s"} del presupuesto: gabinete exacto, con o sin placa de video, RAM con o sin RGB y la refrigeración que lleve. Aprox. US$ 0,04 a 0,25 por imagen.</p> : null}
 
         <div className="lt-modal-foot lt-refm-foot">
           {generating ? (
@@ -112,24 +147,29 @@ export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, 
               <span className="lt-spacer" />
               <button type="button" className="lt-btn" onClick={onClose}>Seguir trabajando</button>
             </>
+          ) : picking ? (
+            <>
+              <span className="lt-spacer" />
+              <button type="button" className="lt-btn ghost" onClick={() => setPicking(false)}>Volver a la imagen</button>
+            </>
           ) : ready ? (
             <>
               <button type="button" className="lt-btn ghost" onClick={onDiscard}>Descartar</button>
               <span className="lt-spacer" />
-              <button type="button" className="lt-btn ghost" onClick={onGenerate}>Regenerar</button>
+              <button type="button" className="lt-btn ghost" onClick={() => setPicking(true)}>Regenerar</button>
               <button type="button" className="lt-btn lt-refm-go" onClick={onInclude}>Incluir en el presupuesto</button>
             </>
           ) : current ? (
             <>
               <button type="button" className="lt-btn ghost" onClick={onRemove}>Quitar del presupuesto</button>
               <span className="lt-spacer" />
-              <button type="button" className="lt-btn ghost" onClick={onGenerate}>Regenerar</button>
+              <button type="button" className="lt-btn ghost" onClick={() => setPicking(true)}>Regenerar</button>
               <button type="button" className="lt-btn" onClick={onClose}>Listo, queda incluida</button>
             </>
           ) : (
             <>
               <span className="lt-spacer" />
-              <button type="button" className="lt-btn lt-refm-go" disabled={itemCount === 0} onClick={onGenerate}>{job.status === "error" ? "Reintentar" : "Generar imagen"}</button>
+              <button type="button" className="lt-btn ghost" onClick={onClose}>Cerrar</button>
             </>
           )}
         </div>

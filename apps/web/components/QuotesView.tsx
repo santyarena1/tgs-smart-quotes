@@ -18,7 +18,7 @@ import {applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload} from
 import {DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva} from "../lib/iva";
 import {KINDS, KIND_LABEL, madeKinds, quoteKind, type PdfKind as QuoteKind} from "../lib/quote-kinds";
 import {LiteReferenceBubble, LiteReferenceModal, type ReferenceImage} from "../lite/LiteReferenceImage";
-import {useReferenceImageJob} from "../lite/useReferenceImageJob";
+import {suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle} from "../lite/useReferenceImageJob";
 import type {
   Collection,
   Combo,
@@ -1732,9 +1732,9 @@ export function QuotesView({
     setRefImage(next);
   }
 
-  function generateRef() {
+  function generateRef(style: ReferenceStyle) {
     if (filledItems(items).length === 0) return;
-    void refJob.start(refItems(), refSig);
+    void refJob.start(refItems(), refSig, style);
   }
 
   function includeRef() {
@@ -3628,6 +3628,7 @@ export function QuotesView({
             current={refImage}
             stale={refStale}
             itemCount={filledItems(items).length}
+            suggested={suggestReferenceStyle(refItems())}
             onGenerate={generateRef}
             onCancel={refJob.discard}
             onInclude={includeRef}
@@ -3636,7 +3637,7 @@ export function QuotesView({
             onClose={() => setRefOpen(false)}
           />
         ) : (
-          <LiteReferenceBubble job={refJob.job} stale={refStale} onOpen={() => setRefOpen(true)} onInclude={includeRef} onDiscard={refJob.discard} onRetry={generateRef} />
+          <LiteReferenceBubble job={refJob.job} stale={refStale} onOpen={() => setRefOpen(true)} onInclude={includeRef} onDiscard={refJob.discard} onRetry={() => generateRef(refJob.job.status === "error" ? refJob.job.style : suggestReferenceStyle(refItems()))} />
         )}
       </div>
 

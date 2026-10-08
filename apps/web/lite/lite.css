@@ -1021,3 +1021,33 @@
 :root[data-theme="dark"] .lite .lt-kindchip.detallado { --k: #facc15; }
 :root[data-theme="dark"] .lite .lt-kindchip.formal { --k: #60a5fa; }
 :root[data-theme="dark"] .lite .lt-kindchip.last { color: #0f1218; }
+
+/* Elegir el fondo antes de generar: PC Gamer u Oficina */
+.lite .lt-refm-stage.choosing { display: block; min-height: 0; background: transparent; border: 0; padding: 0; overflow: visible; animation: none; }
+.lite .lt-refm-pick { display: grid; gap: 0.6rem; animation: lt-refx-fade 0.3s ease-out; }
+.lite .lt-refm-pick-q { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--ink); }
+.lite .lt-refm-pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.lite .lt-refm-style { position: relative; display: grid; gap: 0.3rem; align-content: start; padding: 0.7rem; border: 2px solid var(--line-2); border-radius: 14px; background: var(--paper); color: var(--ink); text-align: left; font: inherit; cursor: pointer; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
+.lite .lt-refm-style:hover { border-color: var(--ai); transform: translateY(-2px); box-shadow: 0 10px 26px color-mix(in srgb, var(--ai) 20%, transparent); }
+.lite .lt-refm-style:active { transform: scale(0.98); }
+.lite .lt-refm-style.suggested { border-color: color-mix(in srgb, var(--ai) 55%, var(--line-2)); }
+.lite .lt-refm-style strong { display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; }
+.lite .lt-refm-style strong em { font-style: normal; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; background: var(--ai); color: #fff; }
+.lite .lt-refm-style small { color: var(--muted); font-size: 0.78rem; line-height: 1.35; }
+.lite .lt-refm-style-go { margin-top: 0.2rem; font-size: 0.78rem; font-weight: 700; color: var(--ai); opacity: 0.85; transition: transform 0.2s; }
+.lite .lt-refm-style:hover .lt-refm-style-go { transform: translateX(4px); opacity: 1; }
+.lite .lt-refm-style-art { position: relative; display: block; height: 92px; border-radius: 10px; overflow: hidden; margin-bottom: 0.2rem; }
+.lite .lt-refm-style-art i { position: absolute; display: block; }
+/* Gamer: cuarto oscuro con neón, monitor y torre */
+.lite .lt-refm-style.gamer .lt-refm-style-art { background: radial-gradient(circle at 20% 15%, #7c3aed99, transparent 45%), radial-gradient(circle at 85% 90%, #06b6d499, transparent 50%), #0b0f1a; }
+.lite .lt-refm-style.gamer .lt-refm-style-art i:nth-child(1) { left: 12%; top: 22%; width: 38%; height: 38%; border-radius: 4px !important; background: linear-gradient(135deg, #22d3ee, #a855f7); box-shadow: 0 0 14px #a855f799; animation: lt-refx-pulse 3s ease-in-out infinite; }
+.lite .lt-refm-style.gamer .lt-refm-style-art i:nth-child(2) { left: 62%; top: 30%; width: 16%; height: 56%; border-radius: 4px !important; background: #111827; border: 2px solid #22d3ee; box-shadow: 0 0 12px #22d3ee88; }
+.lite .lt-refm-style.gamer .lt-refm-style-art i:nth-child(3) { left: 8%; bottom: 10%; width: 46%; height: 8%; border-radius: 3px !important; background: linear-gradient(90deg, #f43f5e, #f59e0b, #22c55e, #3b82f6, #a855f7); }
+/* Oficina: claro, limpio, una mesa y un monitor */
+.lite .lt-refm-style.oficina .lt-refm-style-art { background: linear-gradient(#f8fafc 0 68%, #e2e8f0 68% 100%); }
+.lite .lt-refm-style.oficina .lt-refm-style-art i:nth-child(1) { left: 14%; top: 18%; width: 36%; height: 36%; border-radius: 3px !important; background: #fff; border: 2px solid #cbd5e1; }
+.lite .lt-refm-style.oficina .lt-refm-style-art i:nth-child(2) { left: 64%; top: 28%; width: 15%; height: 50%; border-radius: 3px !important; background: #e5e7eb; border: 2px solid #94a3b8; }
+.lite .lt-refm-style.oficina .lt-refm-style-art i:nth-child(3) { left: 8%; bottom: 8%; width: 84%; height: 6%; border-radius: 2px !important; background: #cbd5e1; }
+:root[data-theme="dark"] .lite .lt-refm-style.oficina .lt-refm-style-art { filter: brightness(0.92); }
+@media (max-width: 560px) { .lite .lt-refm-pick-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .lite .lt-refm-style, .lite .lt-refm-style.gamer .lt-refm-style-art i { animation: none !important; transition: none; } }
