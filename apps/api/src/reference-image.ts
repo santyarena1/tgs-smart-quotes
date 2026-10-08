@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { CurrentUser, jsonSafe, ZodPipe, type RequestUser } from './infrastructure.js';
 import { analyzeBuild, BACKGROUND_PROMPTS, buildReferencePrompt, collectReferences, type PromptFacts, type RefImage, type RefRole, type ReferenceStyle } from './reference-prompt.js';
 import { lookupProductFacts, lookupProductPhoto, serperKeyOrNull } from './product-lookup.js';
+import { composeOnBackground, sizeForCase, transparentCase, trimCase } from './reference-compose.js';
 
 /**
  * Imagen de referencia de cómo quedaría la PC del presupuesto. La arma el modelo de imágenes de OpenAI
@@ -106,7 +107,7 @@ async function withCatalogPhotos(items: z.infer<typeof generateSchema>['items'])
  * se reutiliza en todas las imágenes siguientes. Si no se puede generar, la imagen se arma igual con el ambiente descripto en el prompt.
  */
 async function getBackgroundImage(client: NonNullable<Awaited<ReturnType<typeof openAiClient>>>, style: ReferenceStyle, model: string, quality: ImageQuality): Promise<Buffer | null> {
-  const key = `reference-backgrounds/${style}-v1.png`;
+  const key = `reference-backgrounds/${style}-v2.png`;
   try {
     return await readMedia(key);
   } catch {
@@ -175,24 +176,50 @@ export class QuoteReferenceImageController {
       facts = looked;
     }
     const background = await getBackgroundImage(client, body.style, settings.model, quality).catch(() => null);
-    const prompt = buildReferencePrompt(spec, body.style, attached, Boolean(background), facts);
-    const images = [
-      ...attached.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
-      ...(background ? [{ buffer: background, name: `fondo-${body.style}.png`, mime: 'image/png' }] : []),
-    ];
+
+    // Con la foto del gabinete el método es otro: el gabinete REAL (recortado) se conserva y la IA solo arma su interior con los
+    // componentes del pedido; el fondo y la composición los hace el sistema, sin IA. Así el modelo no puede cambiar el gabinete
+    // ni el ambiente. Sin foto del gabinete no hay nada que conservar y se genera la escena completa como antes.
+    const caseRef = attached.find((r) => r.role === 'gabinete');
     const started = Date.now();
     let result;
+    let finalBuffer: Buffer;
+    let mode: 'interior' | 'escena' = 'escena';
     try {
-      result = await generateReferenceImage(client, { prompt, model: settings.model, quality, size: REFERENCE_SIZE, images });
+      if (caseRef) {
+        mode = 'interior';
+        const caseCut = await trimCase(await transparentCase(caseRef.buffer));
+        const caseMeta = await sharp(caseCut).metadata();
+        const refs = [{ ...caseRef, buffer: caseCut }, ...attached.filter((r) => r !== caseRef)];
+        const prompt = buildReferencePrompt(spec, body.style, refs, false, facts, 'interior');
+        result = await generateReferenceImage(client, {
+          prompt,
+          model: settings.model,
+          quality,
+          size: sizeForCase(caseMeta.width ?? 1, caseMeta.height ?? 1),
+          images: refs.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
+          transparent: true,
+        });
+        // Si el modelo ignoró el fondo transparente se vuelve a recortar; después se apoya sobre el fondo del ambiente.
+        finalBuffer = await composeOnBackground(await transparentCase(result.buffer), background, body.style);
+      } else {
+        const prompt = buildReferencePrompt(spec, body.style, attached, Boolean(background), facts);
+        const images = [
+          ...attached.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
+          ...(background ? [{ buffer: background, name: `fondo-${body.style}.png`, mime: 'image/png' }] : []),
+        ];
+        result = await generateReferenceImage(client, { prompt, model: settings.model, quality, size: REFERENCE_SIZE, images });
+        finalBuffer = result.buffer;
+      }
     } catch (error) {
       const info = describeOpenAiError(error);
       await db.aiRequest.create({ data: { task: 'THUMBNAIL_IMAGE', model: settings.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: false, error: info.message, durationMs: Date.now() - started } });
       throw new ServiceUnavailableException(`OpenAI no pudo generar la imagen: ${info.message}`);
     }
-    const jpeg = await sharp(result.buffer).jpeg({ quality: 90 }).toBuffer();
+    const jpeg = await sharp(finalBuffer).jpeg({ quality: 90 }).toBuffer();
     const stored = await (await loadMediaStorage()).put(`reference-images/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
     await db.aiRequest.create({
-      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, attached: attached.map((r) => r.role), googled, facts, background: Boolean(background), caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
+      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, attached: attached.map((r) => r.role), googled, facts, background: Boolean(background), mode, caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
     });
     return jsonSafe({
       url: stored.url,
@@ -201,6 +228,7 @@ export class QuoteReferenceImageController {
       attached: attached.map((r) => r.role),
       googled: googled.filter((role) => attached.some((r) => r.role === role)),
       facts,
+      mode,
       background: Boolean(background),
       caseName: spec.caseName,
       style: body.style,

@@ -89,9 +89,11 @@ export type ReferenceImageInput = {
   size: ImageSize;
   /** Imágenes de referencia en orden (fotos de componentes y fondo): el prompt las nombra como Imagen 1, 2… Sin imágenes, se genera solo desde la descripción. */
   images?: Array<{ buffer: Buffer; name: string; mime: string }>;
+  /** Fondo transparente (el gabinete se compone después sobre el fondo del ambiente). */
+  transparent?: boolean;
 };
 
-/** Imagen de referencia de una PC armada: edita la foto del gabinete o, sin foto, genera desde la descripción. */
+/** Imagen de referencia de una PC armada: edita las imágenes recibidas o, sin ninguna, genera desde la descripción. */
 export async function generateReferenceImage(client: OpenAI, input: ReferenceImageInput): Promise<ThumbnailImageResult> {
   const model = input.model?.trim() || DEFAULT_IMAGE_MODEL;
   const started = Date.now();
@@ -106,6 +108,7 @@ export async function generateReferenceImage(client: OpenAI, input: ReferenceIma
         quality: input.quality,
         input_fidelity: "high",
         output_format: "png",
+        ...(input.transparent ? { background: "transparent" as const } : {}),
       })
     : await client.images.generate({ model, prompt: input.prompt, n: 1, size: input.size, quality: input.quality, output_format: "png" });
   const b64 = response.data?.[0]?.b64_json;
