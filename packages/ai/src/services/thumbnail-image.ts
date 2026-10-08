@@ -87,18 +87,19 @@ export type ReferenceImageInput = {
   model?: string;
   quality: ImageQuality;
   size: ImageSize;
-  /** Foto del gabinete: si está, la imagen parte de ella; si no, se genera solo desde la descripción. */
-  photo?: { buffer: Buffer; name: string; mime: string } | null;
+  /** Imágenes de referencia en orden (fotos de componentes y fondo): el prompt las nombra como Imagen 1, 2… Sin imágenes, se genera solo desde la descripción. */
+  images?: Array<{ buffer: Buffer; name: string; mime: string }>;
 };
 
 /** Imagen de referencia de una PC armada: edita la foto del gabinete o, sin foto, genera desde la descripción. */
 export async function generateReferenceImage(client: OpenAI, input: ReferenceImageInput): Promise<ThumbnailImageResult> {
   const model = input.model?.trim() || DEFAULT_IMAGE_MODEL;
   const started = Date.now();
-  const response = input.photo
+  const images = input.images ?? [];
+  const response = images.length
     ? await client.images.edit({
         model,
-        image: await toFile(input.photo.buffer, input.photo.name, { type: input.photo.mime }),
+        image: await Promise.all(images.map((image) => toFile(image.buffer, image.name, { type: image.mime }))),
         prompt: input.prompt,
         n: 1,
         size: input.size,

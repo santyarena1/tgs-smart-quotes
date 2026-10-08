@@ -3892,3 +3892,11 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .btn-detallado { background: #eab308; border: 1px solid #eab308; color: #422006; }
 .btn-detallado:hover:not(:disabled) { background: #ca8a04; border-color: #ca8a04; color: #fff; }
 .btn-detallado:focus-visible { outline-color: #eab308; }
+
+/* Botones nuevos: hover propio con más prioridad que `button:hover` (rojo global) */
+.quote-ref-btn:hover:not(:disabled) { background: color-mix(in srgb, #7c3aed 6%, var(--paper)); color: var(--ink); border-color: #7c3aed; }
+.quote-ref-btn.generating:hover:not(:disabled) { background: color-mix(in srgb, #7c3aed 14%, var(--paper)); }
+.qkind:not(.on):hover:not(:disabled) { background: color-mix(in srgb, var(--k) 10%, transparent); color: var(--k); }
+.qkind.on:hover:not(:disabled) { background: var(--k); color: #fff; }
+.qkind.detallado.on:hover:not(:disabled) { background: #eab308; color: #422006; }
+.qkind.all.on:hover:not(:disabled) { background: var(--ink); color: var(--paper); }

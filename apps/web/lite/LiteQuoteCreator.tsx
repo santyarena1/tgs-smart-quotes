@@ -790,7 +790,7 @@ export function LiteQuoteCreator() {
 
   /** Huella de lo que lleva el presupuesto: sirve para avisar si se cambió algo después de generar la imagen. */
   const refSig = lines.map((l) => `${l.name.trim()}×${l.quantity}`).join("|");
-  const refItems = () => lines.map((l) => ({ name: l.name, quantity: Number(l.quantity) || 1, imageUrl: l.imageUrl ?? null }));
+  const refItems = () => lines.map((l) => ({ name: l.name, quantity: Number(l.quantity) || 1, imageUrl: l.imageUrl ?? null, productId: l.productId || null }));
   const refStale = (refJob.job.status === "ready" || refJob.job.status === "generating") && refJob.job.sig !== refSig;
 
   /** Cambia la imagen incluida; la que se reemplaza y nunca se guardó en el presupuesto se borra del almacenamiento. */

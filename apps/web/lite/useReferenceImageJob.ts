@@ -5,9 +5,9 @@ import { api } from "../lib/api";
 import { errorMessage } from "../components/shared";
 
 export type ReferenceImage = { url: string; key: string };
-export type GeneratedReference = ReferenceImage & { usedPhoto: boolean; caseName: string | null; costUsdCents: string | number };
+export type GeneratedReference = ReferenceImage & { usedPhoto: boolean; caseName: string | null; costUsdCents: string | number; attached?: string[]; background?: boolean };
 
-export type ReferenceItem = { name: string; quantity: number; imageUrl?: string | null };
+export type ReferenceItem = { name: string; quantity: number; imageUrl?: string | null; productId?: string | null };
 
 /** Fondo de la imagen: lo elige el usuario antes de generar. */
 export type ReferenceStyle = "gamer" | "oficina";
@@ -49,7 +49,7 @@ export function useReferenceImageJob() {
     try {
       const image = await api<GeneratedReference>("/quote-reference-image/generate", {
         method: "POST",
-        body: { style, items: items.map((i) => ({ name: i.name.trim(), quantity: i.quantity, imageUrl: i.imageUrl ?? null })) },
+        body: { style, items: items.map((i) => ({ name: i.name.trim(), quantity: i.quantity, imageUrl: i.imageUrl ?? null, productId: i.productId || null })) },
       });
       // Si mientras tanto se canceló o se arrancó otra, este resultado ya no sirve.
       if (id !== run.current) { discardFile(image.key); return; }
