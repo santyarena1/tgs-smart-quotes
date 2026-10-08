@@ -414,7 +414,7 @@ export function SettingsView() {
     try {
       const { id: _id, updatedAt: _u, ...body } = company;
       setCompany(await api<CompanySettings>("/settings/company", { method: "PUT", body }));
-      setNotice("Interés de lista guardado.");
+      setNotice("Configuración de precios guardada.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -986,6 +986,37 @@ export function SettingsView() {
                   step="0.01"
                   value={bpsToPct(company.listInterestBps)}
                   onChange={(e) => setCompany({ ...company, listInterestBps: pctToBps(e.target.value) })}
+                  required
+                />
+              </Field>
+              <Field
+                label="Cheque a 30 días — recargo (%)"
+                htmlFor="cheque-interest"
+                hint="Solo en el Presupuesto Formal: precio de efectivo/transferencia + este porcentaje."
+              >
+                <input
+                  id="cheque-interest"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={bpsToPct(company.chequeInterestBps ?? 800)}
+                  onChange={(e) => setCompany({ ...company, chequeInterestBps: pctToBps(e.target.value) })}
+                  required
+                />
+              </Field>
+              <Field
+                label="IVA incluido en los precios (%)"
+                htmlFor="iva-rate"
+                hint="Solo en el Presupuesto Formal: se usa para mostrar el precio unitario sin IVA y la columna IVA."
+              >
+                <input
+                  id="iva-rate"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={bpsToPct(company.ivaBps ?? 2100)}
+                  onChange={(e) => setCompany({ ...company, ivaBps: pctToBps(e.target.value) })}
                   required
                 />
               </Field>

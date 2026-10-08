@@ -926,14 +926,17 @@ export function LiteQuoteCreator() {
           </div>
 
           {collections.length ? (
-            <div className="lt-colls">
-              <span className="lt-muted">Colecciones</span>
-              {collections.map((c) => (
-                <label key={c.id} className={`lt-chip${collectionIds.includes(c.id) ? " on" : ""}`}>
-                  <input type="checkbox" hidden checked={collectionIds.includes(c.id)} onChange={(e) => toggleCollection(c.id, e.target.checked)} />
-                  {c.icon ? `${c.icon} ` : ""}{c.name}
-                </label>
-              ))}
+            <div className="lt-colls lt-colls-sq">
+              <span className="lt-colls-title">Colecciones{collectionIds.length ? ` · ${collectionIds.length}` : ""}</span>
+              <div className="lt-colls-list">
+                {collections.map((c) => (
+                  <label key={c.id} className={`lt-coll-tag${collectionIds.includes(c.id) ? " on" : ""}`}>
+                    <input type="checkbox" hidden checked={collectionIds.includes(c.id)} onChange={(e) => toggleCollection(c.id, e.target.checked)} />
+                    <span className="lt-coll-box" aria-hidden="true">{collectionIds.includes(c.id) ? "✓" : ""}</span>
+                    {c.icon ? `${c.icon} ` : ""}{c.name}
+                  </label>
+                ))}
+              </div>
             </div>
           ) : null}
 

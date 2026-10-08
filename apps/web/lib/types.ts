@@ -92,6 +92,8 @@ export type CompanySettings = {
   primaryColor: string;
   accentColor: string;
   listInterestBps: number;
+  chequeInterestBps?: number;
+  ivaBps?: number;
   updatedAt?: string;
 };
 
@@ -393,7 +395,7 @@ export type QuoteVersion = {
 
 export type QuotePdfRow = {
   id: string;
-  kind: "SIMPLE" | "DETALLADO";
+  kind: "SIMPLE" | "DETALLADO" | "FORMAL";
   versionId?: string;
   versionNumber?: number;
   versionState?: QuoteState;

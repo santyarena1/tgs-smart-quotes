@@ -176,6 +176,8 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     ...(tradeIns ? { tradeIns } : {}),
     listTotalCents,
     cashTotalCents,
+    chequeTotalCents: (cashTotalCents * BigInt(10000 + (company.chequeInterestBps ?? 800)) + 5000n) / 10000n,
+    ivaBps: company.ivaBps ?? 2100,
     company: {
       name: company.name,
       taxCondition: company.taxCondition,

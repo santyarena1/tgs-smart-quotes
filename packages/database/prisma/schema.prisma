@@ -951,6 +951,8 @@ model CompanySettings {
   primaryColor    String
   accentColor     String
   listInterestBps Int      @default(0)
+  chequeInterestBps Int    @default(800)
+  ivaBps          Int      @default(2100)
   updatedAt       DateTime @updatedAt
 }
 

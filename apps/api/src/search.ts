@@ -42,6 +42,9 @@ export class QuoteSearchController {
     if (query.state) {
       bundles = bundles.filter((bundle) => bundle.version?.state === query.state);
     }
+    if (query.pdfKind) {
+      bundles = bundles.filter((bundle) => (bundle.version?.pdfs ?? []).some((pdf: any) => pdf.kind === query.pdfKind));
+    }
     if (query.q) {
       const needle = normalizeText(query.q);
       const digits = query.q.replace(/\D/g, '');
