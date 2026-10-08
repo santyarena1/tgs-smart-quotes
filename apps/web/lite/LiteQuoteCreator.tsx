@@ -15,7 +15,8 @@ import { useLite } from "./LiteContext";
 import { LiteFinancing } from "./LiteFinancing";
 import { LiteNewCustomer } from "./LiteNewCustomer";
 import { LiteNewProduct } from "./LiteNewProduct";
-import { LiteReferenceImage, type ReferenceImage } from "./LiteReferenceImage";
+import { LiteReferenceBubble, LiteReferenceModal, type ReferenceImage } from "./LiteReferenceImage";
+import { useReferenceImageJob } from "./useReferenceImageJob";
 import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 
@@ -396,6 +397,13 @@ export function LiteQuoteCreator() {
   const [refImage, setRefImage] = useState<ReferenceImage | null>(null);
   const [refSavedKey, setRefSavedKey] = useState<string | null>(null);
   const [refOpen, setRefOpen] = useState(false);
+  const refJob = useReferenceImageJob();
+  useEffect(() => {
+    const base = document.title.replace(/^(⏳|✅) /, "");
+    if (refJob.job.status === "generating") document.title = `⏳ ${base}`;
+    else if (refJob.job.status === "ready") document.title = `✅ ${base}`;
+    return () => { document.title = base; };
+  }, [refJob.job.status]);
   const [tradeShowValues, setTradeShowValues] = useState(true);
   const [totalEditOpen, setTotalEditOpen] = useState(false);
   const [totalEditValue, setTotalEditValue] = useState("");
@@ -780,6 +788,31 @@ export function LiteQuoteCreator() {
     }
   }
 
+  /** Huella de lo que lleva el presupuesto: sirve para avisar si se cambió algo después de generar la imagen. */
+  const refSig = lines.map((l) => `${l.name.trim()}×${l.quantity}`).join("|");
+  const refItems = () => lines.map((l) => ({ name: l.name, quantity: Number(l.quantity) || 1, imageUrl: l.imageUrl ?? null }));
+  const refStale = (refJob.job.status === "ready" || refJob.job.status === "generating") && refJob.job.sig !== refSig;
+
+  /** Cambia la imagen incluida; la que se reemplaza y nunca se guardó en el presupuesto se borra del almacenamiento. */
+  function applyRefImage(next: ReferenceImage | null) {
+    if (refImage && refImage.key !== refSavedKey && refImage.key !== next?.key) {
+      void api("/quote-reference-image", { method: "DELETE", body: { key: refImage.key } }).catch(() => undefined);
+    }
+    setRefImage(next);
+  }
+
+  function generateRef() {
+    if (lines.length === 0) return;
+    void refJob.start(refItems(), refSig);
+  }
+
+  function includeRef() {
+    const image = refJob.keep();
+    if (image) applyRefImage({ url: image.url, key: image.key });
+    setRefOpen(false);
+    setNotice("Imagen de referencia incluida: va en el presupuesto y en el PDF.");
+  }
+
   function resetForm() {
     setLines([]);
     setName("");
@@ -791,6 +824,7 @@ export function LiteQuoteCreator() {
     setTradeOpen(false);
     setTradeIns([]);
     setTradeShowValues(true);
+    refJob.discard();
     setRefImage(null);
     setRefSavedKey(null);
     setRefOpen(false);
@@ -936,11 +970,27 @@ export function LiteQuoteCreator() {
         </div>
       ) : null}
       {refOpen ? (
-        <LiteReferenceImage
-          items={lines.map((l) => ({ name: l.name, quantity: Number(l.quantity) || 1, imageUrl: l.imageUrl ?? null }))}
+        <LiteReferenceModal
+          job={refJob.job}
           current={refImage}
-          onApply={setRefImage}
+          stale={refStale}
+          itemCount={lines.length}
+          onGenerate={generateRef}
+          onCancel={refJob.discard}
+          onInclude={includeRef}
+          onDiscard={refJob.discard}
+          onRemove={() => { applyRefImage(null); setRefOpen(false); }}
           onClose={() => setRefOpen(false)}
+        />
+      ) : null}
+      {!refOpen ? (
+        <LiteReferenceBubble
+          job={refJob.job}
+          stale={refStale}
+          onOpen={() => setRefOpen(true)}
+          onInclude={includeRef}
+          onDiscard={refJob.discard}
+          onRetry={generateRef}
         />
       ) : null}
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
@@ -995,9 +1045,9 @@ export function LiteQuoteCreator() {
             <span className="lt-trade-ico" aria-hidden="true">⇄</span>
             <span className="lt-pc-copy"><strong>Productos del cliente</strong><small>{tradeInTotal > 0n ? `− ${formatArs(tradeInTotal)} a cuenta` : "Entrega algo como parte de pago"}</small></span>
           </button>
-          <button type="button" className={`lt-pc ref${refImage ? " on" : ""}`} disabled={lines.length === 0} onClick={() => setRefOpen(true)} aria-haspopup="dialog" title={lines.length === 0 ? "Cargá productos para generar la imagen" : undefined}>
-            <span className="lt-trade-ico" aria-hidden="true">▣</span>
-            <span className="lt-pc-copy"><strong>Imagen de referencia</strong><small>{refImage ? "Incluida en el presupuesto y el PDF" : "Opcional · cómo quedaría la PC"}</small></span>
+          <button type="button" className={`lt-pc ref ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog" title={lines.length === 0 ? "Primero cargá productos: la imagen se arma con ellos" : undefined}>
+            <span className="lt-trade-ico" aria-hidden="true">{refJob.job.status === "generating" ? <span className="lt-refx-spin sm"><span className="lt-refx-spin-core" /></span> : refJob.job.status === "ready" ? "✓" : "▣"}</span>
+            <span className="lt-pc-copy"><strong>Imagen de referencia</strong><small>{refJob.job.status === "generating" ? "Generando en segundo plano…" : refJob.job.status === "ready" ? "Lista para revisar" : refImage ? "Incluida en el presupuesto y el PDF" : "Opcional · cómo quedaría la PC"}</small></span>
           </button>
           </div>
 

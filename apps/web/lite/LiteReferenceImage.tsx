@@ -1,103 +1,201 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { api } from "../lib/api";
-import { errorMessage } from "../components/shared";
+import { formatElapsed, useElapsed, type GeneratedReference, type ReferenceImage, type ReferenceJob } from "./useReferenceImageJob";
 
-export type ReferenceImage = { url: string; key: string };
+export type { ReferenceImage } from "./useReferenceImageJob";
 
-type Generated = ReferenceImage & { usedPhoto: boolean; caseName: string | null; costUsdCents: string | number };
+/** Mensajes que van rotando mientras se genera: la IA no informa avance real, esto solo acompaña la espera. */
+const PHASES = [
+  "Leyendo los componentes del presupuesto…",
+  "Armando el gabinete…",
+  "Colocando procesador, placa de video y memorias…",
+  "Ajustando luces y cables…",
+  "Dando los últimos retoques…",
+];
+const PHASE_SECONDS = 9;
+const phaseText = (seconds: number) => PHASES[Math.min(PHASES.length - 1, Math.floor(seconds / PHASE_SECONDS))]!;
 
-/**
- * Imagen de referencia de cómo quedaría la PC con lo que se está presupuestando. Es opcional: se genera,
- * se mira y el usuario decide si la incluye en el presupuesto (y por lo tanto en el PDF) o la descarta.
- */
-export function LiteReferenceImage({ items, current, onApply, onClose }: {
-  items: Array<{ name: string; quantity: number; imageUrl?: string | null }>;
-  /** La que ya está incluida en el presupuesto, si hay. */
+export const REFERENCE_WARNING = "Imagen ilustrativa generada con IA. Puede no coincidir al 100 % con los componentes (modelos, colores, luces o cables). Revisala antes de incluirla: no es un render oficial ni garantiza cómo se verá el equipo final.";
+
+function Spinner() {
+  return (
+    <span className="lt-refx-spin" aria-hidden="true">
+      <span className="lt-refx-spin-core" />
+    </span>
+  );
+}
+
+function Check() {
+  return (
+    <svg className="lt-refx-check" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10.5" />
+      <path d="M7 12.5l3.2 3.2L17 8.8" />
+    </svg>
+  );
+}
+
+/** Ventana de la imagen de referencia: generar, revisar y decidir. Cerrarla no frena la generación. */
+export function LiteReferenceModal({ job, current, stale, onGenerate, onCancel, onInclude, onDiscard, onRemove, onClose, itemCount }: {
+  job: ReferenceJob;
+  /** La que ya está incluida en el presupuesto. */
   current: ReferenceImage | null;
-  onApply: (image: ReferenceImage | null) => void;
+  /** Se cambiaron productos después de generar la imagen. */
+  stale: boolean;
+  itemCount: number;
+  onGenerate: () => void;
+  onCancel: () => void;
+  onInclude: () => void;
+  onDiscard: () => void;
+  onRemove: () => void;
   onClose: () => void;
 }) {
-  const [preview, setPreview] = useState<Generated | ReferenceImage | null>(current);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Lo recién generado que todavía no es del presupuesto se borra si no se incluye.
-  const pending = useRef<string | null>(null);
-
-  const isCurrent = Boolean(preview && current && preview.key === current.key);
-  const meta = preview && "usedPhoto" in preview ? preview : null;
-
-  function discardPending() {
-    const key = pending.current;
-    pending.current = null;
-    if (key) void api("/quote-reference-image", { method: "DELETE", body: { key } }).catch(() => undefined);
-  }
-
-  useEffect(() => () => discardPending(), []);
-
-  async function generate() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api<Generated>("/quote-reference-image/generate", { method: "POST", body: { items: items.map((i) => ({ name: i.name.trim(), quantity: i.quantity, imageUrl: i.imageUrl ?? null })) } });
-      discardPending();
-      pending.current = res.key;
-      setPreview(res);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function include() {
-    if (!preview) return;
-    // Lo incluido pasa a ser del presupuesto: ya no se borra al cerrar.
-    if (pending.current === preview.key) pending.current = null;
-    onApply({ url: preview.url, key: preview.key });
-    onClose();
-  }
-
-  function remove() {
-    discardPending();
-    onApply(null);
-    onClose();
-  }
-
-  const cost = meta ? Number(meta.costUsdCents) : null;
+  const generating = job.status === "generating";
+  const ready = job.status === "ready";
+  const elapsed = useElapsed(generating ? job.startedAt : null);
+  const shown: (ReferenceImage & Partial<GeneratedReference>) | null = ready ? job.image : current;
+  const step = generating || (!ready && !current) ? 1 : ready ? 2 : 3;
+  const steps: Array<[number, string]> = [[1, "Generar"], [2, "Revisar"], [3, "Incluir"]];
 
   return (
-    <div className="lt-modal" role="dialog" aria-modal="true" aria-label="Imagen de referencia" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
-      <div className="lt-card lt-modal-card lt-ref-card" onKeyDown={(e) => { if (e.key === "Escape" && !busy) onClose(); }}>
-        <h2>Imagen de referencia</h2>
-        <p className="lt-muted lt-modal-intro">Una imagen ilustrativa de cómo quedaría la PC con lo que estás presupuestando. Es opcional: vos elegís si va en el presupuesto y en el PDF.</p>
-        {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
+    <div className="lt-modal lt-refm-backdrop" role="dialog" aria-modal="true" aria-label="Imagen de referencia" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="lt-card lt-modal-card lt-refm" onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
+        <header className="lt-refm-head">
+          <span className="lt-refm-ico" aria-hidden="true">✦</span>
+          <div>
+            <h2>Imagen de referencia</h2>
+            <p className="lt-muted">Cómo quedaría la PC con lo que estás presupuestando. Es opcional: vos decidís si va en el presupuesto y en el PDF.</p>
+          </div>
+          <button type="button" className="lt-x" onClick={onClose} aria-label="Cerrar" title={generating ? "Cerrar: sigue generando en segundo plano" : "Cerrar"}>×</button>
+        </header>
 
-        <div className={`lt-ref-stage${busy ? " busy" : ""}`}>
-          {preview ? <img src={preview.url} alt="Imagen de referencia de la PC" /> : <div className="lt-ref-empty">Todavía no hay imagen. Generala con los {items.length} ítems del presupuesto.</div>}
-          {busy ? <div className="lt-ref-wait" role="status">Generando la imagen… puede tardar hasta un minuto</div> : null}
+        <ol className="lt-refm-steps" aria-label="Pasos">
+          {steps.map(([n, label]) => (
+            <li key={n} className={n < step ? "done" : n === step ? "now" : ""}><span>{n < step ? "✓" : n}</span>{label}</li>
+          ))}
+        </ol>
+
+        <div className={`lt-refm-stage${generating ? " busy" : ""}${shown && !generating ? " has" : ""}`}>
+          {generating ? (
+            <div className="lt-refm-wait" role="status" aria-live="polite">
+              <div className="lt-refm-orbs" aria-hidden="true"><i /><i /><i /></div>
+              <Spinner />
+              <strong key={phaseText(elapsed)} className="lt-refm-phase">{phaseText(elapsed)}</strong>
+              <span className="lt-refm-time">{formatElapsed(elapsed)} · suele tardar entre 20 y 60 segundos</span>
+              <span className="lt-refm-bar" aria-hidden="true"><i /></span>
+              <span className="lt-refm-hint">Podés cerrar esta ventana y seguir armando el presupuesto: un globo te avisa cuando esté lista.</span>
+            </div>
+          ) : shown ? (
+            <img key={shown.key} className="lt-refm-img" src={shown.url} alt="Imagen de referencia de la PC" />
+          ) : (
+            <div className="lt-refm-empty">
+              <span className="lt-refm-empty-ico" aria-hidden="true">▣</span>
+              <strong>Todavía no hay imagen</strong>
+              <span>{itemCount === 0 ? "Primero cargá los productos del presupuesto: la imagen se arma con ellos." : `Se arma con los ${itemCount} ítem${itemCount === 1 ? "" : "s"} del presupuesto${job.status === "error" ? "" : " y la foto del gabinete, si la tiene."}`}</span>
+            </div>
+          )}
         </div>
 
-        {meta ? (
+        {job.status === "error" ? <div className="lt-alert err" role="alert">{job.message}</div> : null}
+        {stale && (ready || current) ? <div className="lt-refm-stale" role="status">Cambiaste productos desde que se generó la imagen. Si querés que lo refleje, regenerala.</div> : null}
+        {shown || generating ? <div className="lt-refm-warn" role="note"><span aria-hidden="true">⚠</span><p>{REFERENCE_WARNING}</p></div> : null}
+        {ready && job.image ? (
           <p className="lt-muted lt-hint">
-            {meta.usedPhoto ? `Parte de la foto del gabinete (${meta.caseName ?? "gabinete"}).` : "Generada desde la descripción: el gabinete elegido no tiene foto."}
-            {cost !== null && Number.isFinite(cost) ? ` Costo aproximado: US$ ${(cost / 100).toFixed(2)}.` : ""}
+            {job.image.usedPhoto ? `Parte de la foto del gabinete (${job.image.caseName ?? "gabinete"}).` : "Generada desde la descripción: el gabinete no tiene foto."}
+            {Number.isFinite(Number(job.image.costUsdCents)) ? ` Costo aproximado: US$ ${(Number(job.image.costUsdCents) / 100).toFixed(2)}.` : ""}
           </p>
-        ) : !preview ? <p className="lt-muted lt-hint">Se genera con IA (aprox. US$ 0,04 a 0,25 por imagen) y parte de la foto del gabinete si la tiene.</p> : null}
+        ) : !shown && !generating ? <p className="lt-muted lt-hint">Se genera con IA (aprox. US$ 0,04 a 0,25 por imagen).</p> : null}
 
-        <div className="lt-modal-foot lt-ref-foot">
-          {preview && current ? <button type="button" className="lt-btn ghost" disabled={busy} onClick={remove}>Quitar del presupuesto</button> : null}
-          {preview && !current ? <button type="button" className="lt-btn ghost" disabled={busy} onClick={() => { discardPending(); setPreview(null); }}>Descartar</button> : null}
-          <span className="lt-spacer" />
-          <button type="button" className="lt-btn ghost" disabled={busy} onClick={() => void generate()}>{preview ? "Regenerar" : "Generar imagen"}</button>
-          {preview ? (
-            isCurrent
-              ? <button type="button" className="lt-btn" disabled={busy} onClick={onClose}>Listo, queda incluida</button>
-              : <button type="button" className="lt-btn" disabled={busy} onClick={include}>Incluir en el presupuesto</button>
-          ) : null}
+        <div className="lt-modal-foot lt-refm-foot">
+          {generating ? (
+            <>
+              <button type="button" className="lt-btn ghost" onClick={onCancel}>Cancelar</button>
+              <span className="lt-spacer" />
+              <button type="button" className="lt-btn" onClick={onClose}>Seguir trabajando</button>
+            </>
+          ) : ready ? (
+            <>
+              <button type="button" className="lt-btn ghost" onClick={onDiscard}>Descartar</button>
+              <span className="lt-spacer" />
+              <button type="button" className="lt-btn ghost" onClick={onGenerate}>Regenerar</button>
+              <button type="button" className="lt-btn lt-refm-go" onClick={onInclude}>Incluir en el presupuesto</button>
+            </>
+          ) : current ? (
+            <>
+              <button type="button" className="lt-btn ghost" onClick={onRemove}>Quitar del presupuesto</button>
+              <span className="lt-spacer" />
+              <button type="button" className="lt-btn ghost" onClick={onGenerate}>Regenerar</button>
+              <button type="button" className="lt-btn" onClick={onClose}>Listo, queda incluida</button>
+            </>
+          ) : (
+            <>
+              <span className="lt-spacer" />
+              <button type="button" className="lt-btn lt-refm-go" disabled={itemCount === 0} onClick={onGenerate}>{job.status === "error" ? "Reintentar" : "Generar imagen"}</button>
+            </>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Globo flotante que acompaña la generación en segundo plano: avisa que se está generando, cuando está lista (con
+ * acciones rápidas para incluirla sin abrir nada) o si falló. No bloquea nada y se puede cerrar.
+ */
+export function LiteReferenceBubble({ job, stale, onOpen, onInclude, onDiscard, onRetry }: {
+  job: ReferenceJob;
+  stale: boolean;
+  onOpen: () => void;
+  onInclude: () => void;
+  onDiscard: () => void;
+  onRetry: () => void;
+}) {
+  const generating = job.status === "generating";
+  const elapsed = useElapsed(generating ? job.startedAt : null);
+  if (job.status === "idle") return null;
+
+  return (
+    <aside className={`lt-refb ${job.status}`} role="status" aria-live="polite">
+      {generating ? (
+        <button type="button" className="lt-refb-main" onClick={onOpen} title="Ver cómo va">
+          <Spinner />
+          <span className="lt-refb-copy">
+            <strong>Generando imagen de referencia</strong>
+            <small key={phaseText(elapsed)}>{phaseText(elapsed)}</small>
+            <small className="lt-refb-time">{formatElapsed(elapsed)} · seguí trabajando, te aviso</small>
+          </span>
+          <span className="lt-refb-bar" aria-hidden="true"><i /></span>
+        </button>
+      ) : job.status === "ready" ? (
+        <>
+          <button type="button" className="lt-refb-main" onClick={onOpen} title="Ver la imagen">
+            <img className="lt-refb-thumb" src={job.image.url} alt="" />
+            <span className="lt-refb-copy">
+              <strong><Check /> ¡Tu imagen está lista!</strong>
+              <small>{stale ? "Cambiaste productos después de generarla." : "Revisala antes de incluirla: es ilustrativa."}</small>
+            </span>
+          </button>
+          <div className="lt-refb-actions">
+            <button type="button" className="lt-refb-act go" onClick={onInclude}>Incluir</button>
+            <button type="button" className="lt-refb-act" onClick={onOpen}>Ver</button>
+            <button type="button" className="lt-refb-act" onClick={onDiscard} aria-label="Descartar la imagen">Descartar</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <button type="button" className="lt-refb-main" onClick={onOpen} title="Ver el detalle">
+            <span className="lt-refb-fail" aria-hidden="true">!</span>
+            <span className="lt-refb-copy">
+              <strong>No se pudo generar la imagen</strong>
+              <small>{job.message}</small>
+            </span>
+          </button>
+          <div className="lt-refb-actions">
+            <button type="button" className="lt-refb-act go" onClick={onRetry}>Reintentar</button>
+            <button type="button" className="lt-refb-act" onClick={onDiscard}>Cerrar</button>
+          </div>
+        </>
+      )}
+    </aside>
   );
 }

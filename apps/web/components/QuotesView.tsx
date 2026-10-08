@@ -15,6 +15,10 @@ import {
   saleFromCostAndPct,
 } from "../lib/money";
 import {applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload} from "../lib/quote-item-pricing";
+import {DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva} from "../lib/iva";
+import {KINDS, KIND_LABEL, madeKinds, quoteKind, type PdfKind as QuoteKind} from "../lib/quote-kinds";
+import {LiteReferenceBubble, LiteReferenceModal, type ReferenceImage} from "../lite/LiteReferenceImage";
+import {useReferenceImageJob} from "../lite/useReferenceImageJob";
 import type {
   Collection,
   Combo,
@@ -68,7 +72,16 @@ type ItemDraft = {
   priceMode: "markup" | "sale";
   /** De dónde salió (distribuidor o web). Solo se muestra al armar: no se guarda ni va al PDF. */
   source?: ItemSource;
+  /** IVA incluido en el precio, en %. Lo informa NODO o lo sugiere la memoria por categoría; se puede cambiar. */
+  ivaPct: string;
+  /** true = sugerido automáticamente (la memoria todavía puede corregirlo); false = lo eligió el usuario o lo informó NODO. */
+  ivaAuto: boolean;
+  /** Foto del producto: sirve para la imagen de referencia de la PC. */
+  imageUrl?: string | null;
 };
+
+/** Borradores guardados antes del IVA por ítem no traen el campo. */
+const ivaOf = (item: Pick<ItemDraft, "ivaPct">): string => item.ivaPct ?? DEFAULT_IVA_PCT;
 
 type CatalogPickerItem = {
   mpn: string;
@@ -165,6 +178,8 @@ const blankItem = (): ItemDraft => ({
   saleArs: "",
   observation: "",
   priceMode: "markup",
+  ivaPct: DEFAULT_IVA_PCT,
+  ivaAuto: true,
 });
 
 function isSlotEmpty(item: ItemDraft): boolean {
@@ -187,6 +202,8 @@ function itemFromProduct(p: Product, quantity = "1", lineId = ""): ItemDraft {
     saleArs: centsToInput(p.salePriceCents),
     observation: "",
     priceMode: "markup",
+    ivaPct: p.ivaBps != null ? ivaPctFromBps(p.ivaBps) : DEFAULT_IVA_PCT,
+    ivaAuto: p.ivaBps == null,
   };
 }
 
@@ -205,6 +222,9 @@ function itemFromCatalog(p: CatalogPickerItem, lineId = ""): ItemDraft {
     saleArs: saleFromCostAndPct(costArs, markupPct),
     observation: "",
     priceMode: "markup",
+    ivaPct: DEFAULT_IVA_PCT,
+    ivaAuto: true,
+    imageUrl: p.imageUrl ?? null,
   };
 }
 
@@ -314,6 +334,7 @@ function itemsToPayload(items: ItemDraft[]) {
       costCents: parseArsToCents(item.costArs),
       position,
       observation: item.observation.trim() || null,
+      ivaBps: ivaBpsFromPct(ivaOf(item)),
     };
     return { ...base, ...itemPricePayload(item) };
   });
@@ -328,6 +349,7 @@ function validateItems(items: ItemDraft[]): string | null {
     if (!Number(item.quantity) || Number(item.quantity) < 1) {
       return `El ítem ${index + 1} necesita una cantidad válida.`;
     }
+    if (!isValidIvaPct(ivaOf(item))) return `Revisá el IVA del ítem ${index + 1}.`;
     try {
       parseArsToCents(item.costArs);
       if (item.priceMode === "sale") parseArsToCents(item.saleArs);
@@ -396,6 +418,17 @@ export function QuotesView({
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [, setPdfs] = useState<QuotePdfRow[]>([]);
   const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | "FORMAL" | null>(null);
+  // Filtro por tipo de PDF generado (Normal / Detallado / Formal).
+  const [kindFilter, setKindFilter] = useState<QuoteKind | "">("");
+  // Imagen de referencia de la PC (opcional): la generación corre en segundo plano y un globo avisa el estado.
+  const refJob = useReferenceImageJob();
+  const [refImage, setRefImage] = useState<ReferenceImage | null>(null);
+  const [refSavedKey, setRefSavedKey] = useState<string | null>(null);
+  const [refOpen, setRefOpen] = useState(false);
+  // Si el usuario tocó la imagen (la incluyó o la quitó) y todavía no se guardó, recargar el detalle no la pisa.
+  const refDirtyRef = useRef(false);
+  const refQuoteIdRef = useRef<string | null>(null);
+  const lastDetailIdRef = useRef<string | null>(null);
   /** Alta de la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
   const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
   const [similar, setSimilar] = useState<
@@ -580,6 +613,13 @@ export function QuotesView({
     (quote: Quote, restoreLocalDraft = true) => {
       setDetail(quote);
       setSelectedId(quote.id);
+      if (lastDetailIdRef.current !== quote.id) refJob.discard();
+      lastDetailIdRef.current = quote.id;
+      if (!(refDirtyRef.current && refQuoteIdRef.current === quote.id)) {
+        refDirtyRef.current = false;
+        setRefImage(quote.referenceImageUrl && quote.referenceImageKey ? { url: quote.referenceImageUrl, key: quote.referenceImageKey } : null);
+        setRefSavedKey(quote.referenceImageKey ?? null);
+      }
       setCollectionIds(
         (quote.collections ?? [])
           .map((row) => row.collectionId ?? row.collection?.id ?? "")
@@ -601,6 +641,8 @@ export function QuotesView({
         // ajustado al total volvía cambiado. Editar el costo sí recalcula la
         // venta y deja el margen (applyDraftCost).
         priceMode: "sale" as const,
+        ivaPct: item.ivaBps != null ? ivaPctFromBps(item.ivaBps) : DEFAULT_IVA_PCT,
+        ivaAuto: item.ivaBps == null,
       }));
       const fallback: QuoteLocalDraft = {
         internalName: quote.internalName,
@@ -1010,6 +1052,12 @@ export function QuotesView({
     setOpenedAsNewVersion(false);
     setTimeline([]);
     setPdfs([]);
+    refJob.discard();
+    setRefImage(null);
+    setRefSavedKey(null);
+    refDirtyRef.current = false;
+    refQuoteIdRef.current = null;
+    lastDetailIdRef.current = null;
     setDrawerOpen(true);
   }
 
@@ -1152,8 +1200,12 @@ export function QuotesView({
       availability: r.inStock ? "in_stock" : "out_of_stock",
       brand: r.brand,
       productType: null,
-      imageUrl: null,
-    }, { source: { label: r.providerName, color: providerColor(nodoProviders, r.providerId) } });
+      imageUrl: r.imageUrl ?? null,
+    }, {
+      source: { label: r.providerName, color: providerColor(nodoProviders, r.providerId) },
+      // NODO informa la alícuota de cada producto: ese dato manda sobre la sugerencia.
+      ...(r.ivaBps != null ? { ivaPct: ivaPctFromBps(r.ivaBps), ivaAuto: false } : {}),
+    });
   }
 
   /** Producto de la tienda web: entra con su precio de venta publicado; el costo queda en 0 para completarlo. */
@@ -1224,6 +1276,7 @@ export function QuotesView({
       item.lineId ||
       (item.productId ? productById.get(item.productId)?.defaultLineId ?? "" : "");
     const draft = lineId ? { ...item, lineId } : item;
+    suggestIvaFor(draft);
     setItems((prev) => {
       if (isBuiltPc && pcLines.length) {
         if (draft.lineId) {
@@ -1359,6 +1412,19 @@ export function QuotesView({
 
   function setSale(key: string, value: string) {
     setItems((prev) => prev.map((x) => (x.key === key ? applyDraftSale(x, value) : x)));
+  }
+
+  function setIva(key: string, value: string) {
+    setItems((prev) => prev.map((x) => (x.key === key ? { ...x, ivaPct: value, ivaAuto: false } : x)));
+  }
+
+  /** Si el IVA del ítem no es un dato firme, le pone el que la memoria aprendió para su categoría (siempre se puede cambiar). */
+  function suggestIvaFor(item: ItemDraft) {
+    if (item.ivaAuto === false || !item.name.trim()) return;
+    void fetchIvaSuggestion(item.name).then((s) => {
+      if (!s) return;
+      setItems((prev) => prev.map((x) => (x.ivaAuto !== false && x.name === item.name ? { ...x, ivaPct: ivaPctFromBps(s.ivaBps) } : x)));
+    });
   }
 
   /* ————— product picker ————— */
@@ -1651,6 +1717,46 @@ export function QuotesView({
     else void createQuote(null, { kind: "FORMAL", customerId: company.id, customerName: company.name });
   }
 
+  /** Huella de lo que lleva el presupuesto: sirve para avisar si se cambió algo después de generar la imagen. */
+  const refSig = filledItems(items).map((i) => `${i.name.trim()}×${i.quantity}`).join("|");
+  const refItems = () => filledItems(items).map((i) => ({ name: i.name, quantity: Number(i.quantity) || 1, imageUrl: i.imageUrl ?? null }));
+  const refStale = (refJob.job.status === "ready" || refJob.job.status === "generating") && refJob.job.sig !== refSig;
+
+  /** Cambia la imagen incluida; la que se reemplaza y nunca se guardó en el presupuesto se borra del almacenamiento. */
+  function applyRefImage(next: ReferenceImage | null) {
+    if (refImage && refImage.key !== refSavedKey && refImage.key !== next?.key) {
+      void api("/quote-reference-image", { method: "DELETE", body: { key: refImage.key } }).catch(() => undefined);
+    }
+    refDirtyRef.current = true;
+    refQuoteIdRef.current = selectedId;
+    setRefImage(next);
+  }
+
+  function generateRef() {
+    if (filledItems(items).length === 0) return;
+    void refJob.start(refItems(), refSig);
+  }
+
+  function includeRef() {
+    const image = refJob.keep();
+    if (image) applyRefImage({ url: image.url, key: image.key });
+    setRefOpen(false);
+    setNotice("Imagen de referencia incluida: va en el presupuesto y en el PDF cuando lo guardes.");
+  }
+
+  /** Deja la imagen elegida en el presupuesto (o la quita) antes de armar el PDF, para que ya salga en él. */
+  async function persistReferenceImage(familyId: string): Promise<string> {
+    if (!refImage && !refSavedKey) return "";
+    try {
+      await api(`/quote-reference-image/${familyId}`, { method: "PUT", body: { image: refImage } });
+      refDirtyRef.current = false;
+      setRefSavedKey(refImage?.key ?? null);
+      return "";
+    } catch (err) {
+      return ` La imagen de referencia no se pudo guardar: ${errorMessage(err)}`;
+    }
+  }
+
   async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL"; customerId: string; customerName?: string }) {
     e?.preventDefault();
     const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
@@ -1681,10 +1787,12 @@ export function QuotesView({
           items: itemsToPayload(items),
         },
       });
+      const refNote = created.id ? await persistReferenceImage(created.id) : "";
+      teachIva(filledItems(items).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
       if (editorDraftKey) removeQuoteDraft(editorDraftKey);
       setDraftRecovered(false);
       setNotice(
-        requestId
+        refNote ? `Presupuesto creado.${refNote}` : requestId
           ? "Presupuesto creado y solicitud marcada como Lista."
           : collectionIds.length
             ? `Presupuesto creado y agregado a ${collectionIds.length} colección(es).`
@@ -1739,9 +1847,11 @@ export function QuotesView({
           items: itemsToPayload(items),
         },
       });
+      const refNote = await persistReferenceImage(selectedId);
+      teachIva(filledItems(items).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
       setSaveReason("");
       setNotice(
-        isDraft
+        refNote ? `Cambios guardados.${refNote}` : isDraft
           ? (requestId ? "Cambios guardados. Solicitud en Lista si seguía en preparación." : "Cambios guardados.")
           : "Nueva versión guardada; la enviada quedó intacta.",
       );
@@ -1874,6 +1984,9 @@ export function QuotesView({
       if (branchFilter) {
         rows = rows.filter((quote) => quote.branch?.id === branchFilter);
       }
+      if (kindFilter) {
+        rows = rows.filter((quote) => (getActiveVersion(quote)?.pdfs ?? []).some((pdf) => pdf.kind === kindFilter));
+      }
     }
 
     return rows.sort((left, right) => {
@@ -1897,7 +2010,7 @@ export function QuotesView({
         ? leftCreatedAt - rightCreatedAt
         : rightCreatedAt - leftCreatedAt;
     });
-  }, [list, sort, familyFilterKey, filter, stateFilter, branchFilter]);
+  }, [list, sort, familyFilterKey, filter, stateFilter, branchFilter, kindFilter]);
 
   const stats = useMemo(() => {
     let sent = 0;
@@ -2082,15 +2195,21 @@ export function QuotesView({
             ))}
           </select>
         </label>
-        {filter || stateFilter || branchFilter || sort !== "created-desc" ? (
-          <button type="button" className="btn-ghost btn-sm filter-clear" onClick={clearFilters}>
+        <div className="qkind-filter" role="group" aria-label="Filtrar por tipo de presupuesto">
+          <button type="button" className={`qkind all${kindFilter === "" ? " on" : ""}`} aria-pressed={kindFilter === ""} onClick={() => setKindFilter("")}>Todos</button>
+          {KINDS.map(([k, label]) => (
+            <button key={k} type="button" className={`qkind ${k.toLowerCase()}${kindFilter === k ? " on" : ""}`} aria-pressed={kindFilter === k} title={`Presupuestos con PDF ${label.toLowerCase()} generado`} onClick={() => setKindFilter(kindFilter === k ? "" : k)}>{label}</button>
+          ))}
+        </div>
+        {filter || stateFilter || branchFilter || kindFilter || sort !== "created-desc" ? (
+          <button type="button" className="btn-ghost btn-sm filter-clear" onClick={() => { setKindFilter(""); clearFilters(); }}>
             Limpiar filtros
           </button>
         ) : null}
       </div>
       <p className="filter-count">
         {filtered.length} presupuesto{filtered.length === 1 ? "" : "s"}
-        {filter || stateFilter || branchFilter ? " con los filtros actuales" : ""}
+        {filter || stateFilter || branchFilter || kindFilter ? " con los filtros actuales" : ""}
       </p>
 
       {loading ? (
@@ -2113,6 +2232,7 @@ export function QuotesView({
                 <th>Nombre</th>
                 <th>Cliente</th>
                 <th>Estado</th>
+                <th>Tipo</th>
                 <th>Local</th>
                 <th>Creado por</th>
                 <th className="right">Total</th>
@@ -2134,7 +2254,7 @@ export function QuotesView({
                   .join("  ·  ");
                 return (
                   <Fragment key={quote.id}>
-                    <tr className="clickable quote-row-main" onClick={() => void openQuote(quote.id)}>
+                    <tr className={`clickable quote-row-main qk-${quoteKind(version?.pdfs)}`} onClick={() => void openQuote(quote.id)}>
                       <td>
                         <span className="cell-strong">{quote.visibleNumber}</span>
                         <span className="cell-sub">v{version?.version ?? quote.activeVersion}</span>
@@ -2147,6 +2267,15 @@ export function QuotesView({
                         ) : (
                           "—"
                         )}
+                      </td>
+                      <td>
+                        <div className="qkind-chips" aria-label="Tipos de PDF generados">
+                          {madeKinds(version?.pdfs).length === 0 ? (
+                            <span className="qkindchip simple last" title="Todavía no se generó ningún PDF: se ve como Normal">Normal</span>
+                          ) : madeKinds(version?.pdfs).map(([k, label]) => (
+                            <span key={k} className={`qkindchip ${k.toLowerCase()}${k === quoteKind(version?.pdfs) ? " last" : ""}`} title={`PDF ${label.toLowerCase()} generado${k === quoteKind(version?.pdfs) ? " (el último)" : ""}`}>{label}</span>
+                          ))}
+                        </div>
                       </td>
                       <td>
                         <span
@@ -2189,7 +2318,7 @@ export function QuotesView({
                         className="clickable quote-row-products"
                         onClick={() => void openQuote(quote.id)}
                       >
-                        <td colSpan={8} className="quote-products-cell">
+                        <td colSpan={9} className="quote-products-cell">
                           {productsLine}
                         </td>
                       </tr>
@@ -2205,7 +2334,9 @@ export function QuotesView({
             const version = getActiveVersion(quote);
             const cname = quote.customer?.name ?? customers.find((c) => c.id === quote.customerId)?.name ?? "—";
             const productsLine = getQuoteItems(quote).filter((item) => (item.name ?? "").trim()).map((item) => item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name).join(" · ");
-            return <article className="mobile-list-card" key={quote.id} onClick={() => void openQuote(quote.id)}>
+            const kind = quoteKind(version?.pdfs);
+            return <article className={`mobile-list-card qk-card qk-${kind}`} key={quote.id} onClick={() => void openQuote(quote.id)}>
+              <span className="qk-ribbon" title={`Presupuesto ${KIND_LABEL[kind].toLowerCase()}`}>{KIND_LABEL[kind]}</span>
               <div className="mobile-card-head">
                 <div><strong>{quote.visibleNumber}</strong><span className="cell-sub">v{version?.version ?? quote.activeVersion} · {cname}</span></div>
                 <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
@@ -2269,7 +2400,7 @@ export function QuotesView({
                 <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
                   Presupuesto Formal
                 </button>
-                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-ghost quote-foot-secondary" disabled={busy}>
+                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
                   Generar presupuesto detallado
                 </button>
               </>
@@ -2282,7 +2413,7 @@ export function QuotesView({
                 <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
                   Presupuesto Formal
                 </button>
-                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-ghost quote-foot-secondary" disabled={busy}>
+                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
                   Generar presupuesto detallado
                 </button>
               </>
@@ -2369,6 +2500,16 @@ export function QuotesView({
                 : "Simple: solo totales. Detallado: cantidad, unitario y subtotal."}
             </span>
           </div>
+          <div className="quote-ref-row">
+            <button type="button" className={`quote-ref-btn ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog">
+              <span className="quote-ref-ico" aria-hidden="true">{refJob.job.status === "generating" ? <span className="qref-spin" /> : refJob.job.status === "ready" ? "✓" : "▣"}</span>
+              <span className="quote-ref-copy">
+                <strong>Imagen de referencia</strong>
+                <small>{refJob.job.status === "generating" ? "Generando en segundo plano…" : refJob.job.status === "ready" ? "Lista para revisar" : refImage ? "Incluida en el presupuesto y el PDF" : "Opcional · cómo quedaría la PC"}</small>
+              </span>
+            </button>
+            {refImage ? <img className="quote-ref-thumb" src={refImage.url} alt="Imagen de referencia incluida" /> : null}
+          </div>
           <details className="quote-more" open={Boolean(requestId || observation || isCombo || collectionIds.length)}>
             <summary>Más opciones <span className="section-note">solicitud, combo, observación y colecciones</span></summary>
           <div className="grid-2">
@@ -2432,15 +2573,13 @@ export function QuotesView({
                 No hay colecciones activas. Creá una desde el menú Colecciones.
               </p>
             ) : (
-              <div className="check-grid" style={{ maxHeight: 180, overflow: "auto" }}>
+              <div className="qcolls" role="group" aria-label="Colecciones">
                 {collections.map((c) => (
-                  <Checkbox
-                    key={c.id}
-                    label={`${c.icon ? `${c.icon} ` : ""}${c.name}`}
-                    checked={collectionIds.includes(c.id)}
-                    onChange={(v) => void toggleCollection(c.id, v)}
-                    disabled={busy}
-                  />
+                  <label key={c.id} className={`qcoll${collectionIds.includes(c.id) ? " on" : ""}${busy ? " disabled" : ""}`}>
+                    <input type="checkbox" hidden checked={collectionIds.includes(c.id)} disabled={busy} onChange={(e) => void toggleCollection(c.id, e.target.checked)} />
+                    <span className="qcoll-mark" aria-hidden="true">{collectionIds.includes(c.id) ? "✓" : "+"}</span>
+                    {c.icon ? `${c.icon} ` : ""}{c.name}
+                  </label>
                 ))}
               </div>
             )}
@@ -2822,6 +2961,7 @@ export function QuotesView({
                     <th className="right">Costo</th>
                     <th className="right">% Markup</th>
                     <th className="right">Precio de venta</th>
+                    <th className="right" title="IVA incluido en el precio. Sugerido por la categoría: se puede cambiar">IVA</th>
                     <th />
                   </tr>
                 </thead>
@@ -2944,6 +3084,21 @@ export function QuotesView({
                             displayArs(item.saleArs)
                           )}
                         </td>
+                        <td className="right num">
+                          {empty ? (
+                            "—"
+                          ) : editing ? (
+                            <select className="iva-select" value={ivaOf(item)} onChange={(e) => setIva(item.key, e.target.value)} aria-label="IVA del ítem">
+                              {(IVA_PRESETS.includes(ivaOf(item)) ? IVA_PRESETS : [...IVA_PRESETS, ivaOf(item)]).map((v) => (
+                                <option key={v} value={v}>{v.replace(".", ",")} %</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={item.ivaAuto === false ? "iva-set" : "iva-auto"} title={item.ivaAuto === false ? "IVA elegido" : "IVA sugerido según la categoría (podés cambiarlo al editar)"}>
+                              {ivaOf(item).replace(".", ",")} %
+                            </span>
+                          )}
+                        </td>
                         <td className="actions">
                           {isDraft ? (
                             <div className="item-actions">
@@ -3007,7 +3162,7 @@ export function QuotesView({
                 </tbody>
                 <tfoot>
                   <tr className="items-total-row">
-                    <td colSpan={isBuiltPc ? 5 : 4} className="items-total-label">
+                    <td colSpan={isBuiltPc ? 6 : 5} className="items-total-label">
                       Total de venta
                     </td>
                     <td className="right num items-total-value">{formatArs(draftTotal)}</td>
@@ -3054,9 +3209,14 @@ export function QuotesView({
                       <Field label="Costo"><MoneyInput value={item.costArs} onChange={(v) => setCost(item.key, v)} /></Field>
                       <Field label="Markup %"><input list="tgs-markup-presets" value={item.markupPct} onChange={(e) => setMarkupPct(item.key, e.target.value)} /></Field>
                       <Field label="Precio de venta"><MoneyInput value={item.saleArs} onChange={(v) => setSale(item.key, v)} /></Field>
+                      <Field label="IVA">
+                        <select value={ivaOf(item)} onChange={(e) => setIva(item.key, e.target.value)}>
+                          {(IVA_PRESETS.includes(ivaOf(item)) ? IVA_PRESETS : [...IVA_PRESETS, ivaOf(item)]).map((v) => <option key={v} value={v}>{v.replace(".", ",")} %</option>)}
+                        </select>
+                      </Field>
                     </div>
                   </> : !empty ? <div className="item-fields mobile-item-values">
-                    <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong>{displayArs(item.saleArs)}</strong></div>
+                    <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong>{displayArs(item.saleArs)}</strong></div><div><span>IVA</span><strong>{ivaOf(item).replace(".", ",")} %</strong></div>
                   </div> : null}
                   {!empty ? <div className="item-foot"><span>Subtotal</span><strong className="item-subtotal">{formatArs(lineTotalCents(item.saleArs, item.quantity))}</strong></div> : null}
                   {isDraft ? <div className="mobile-card-actions">
@@ -3460,6 +3620,25 @@ export function QuotesView({
           ))}
         </div>
       </Modal>
+
+      <div className="lite lt-embed">
+        {refOpen ? (
+          <LiteReferenceModal
+            job={refJob.job}
+            current={refImage}
+            stale={refStale}
+            itemCount={filledItems(items).length}
+            onGenerate={generateRef}
+            onCancel={refJob.discard}
+            onInclude={includeRef}
+            onDiscard={refJob.discard}
+            onRemove={() => { applyRefImage(null); setRefOpen(false); }}
+            onClose={() => setRefOpen(false)}
+          />
+        ) : (
+          <LiteReferenceBubble job={refJob.job} stale={refStale} onOpen={() => setRefOpen(true)} onInclude={includeRef} onDiscard={refJob.discard} onRetry={generateRef} />
+        )}
+      </div>
 
       <Modal
         open={!!previewVersion}

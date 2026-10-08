@@ -8,12 +8,34 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.9",
+    date: "2026-10-08",
+    title: "Versión completa al día con Lite",
+    items: [
+      "Imagen de referencia de la PC también en la versión completa: botón en el editor, generación en segundo plano con globo de estado y animaciones, advertencia de imagen ilustrativa y, si se incluye, aparece en el PDF",
+      "IVA por ítem: columna IVA en la tabla de ítems (NODO trae la alícuota; el resto se sugiere según la categoría y se puede cambiar) y se guarda en cada presupuesto",
+      "Lista de presupuestos: filtro por tipo (Normal rojo, Detallado amarillo, Formal azul), columna Tipo con un chip por cada PDF generado, franja de color por fila y cinta diagonal en las tarjetas del celular",
+      "El botón de PDF detallado pasa a amarillo y las colecciones del presupuesto a una línea liviana sin cajas",
+    ],
+  },
+  {
+    version: "0.19.8",
+    date: "2026-10-08",
+    title: "Todos los tipos de PDF de un presupuesto",
+    items: [
+      "Si un presupuesto tiene más de un PDF generado (normal, detallado y/o formal), la lista muestra una fila Generado como con un chip de color por cada tipo; el último generado va resaltado y cada chip abre ese PDF",
+    ],
+  },
+  {
     version: "0.19.7",
     date: "2026-10-08",
     title: "Imagen de referencia de la PC en el presupuesto",
     items: [
       "Nuevo botón Imagen de referencia en el creador: genera con IA una imagen ilustrativa de cómo quedaría la PC con todo lo presupuestado (parte de la foto del gabinete si la tiene), la muestra en una vista previa y el usuario elige si la incluye, la regenera o la descarta",
       "Si se incluye, queda guardada en el presupuesto y aparece en el PDF (normal, detallado y formal) con una nota de que es ilustrativa. Es opcional",
+      "La imagen se genera en segundo plano: se puede cerrar la ventana y seguir trabajando. Un globo flotante avisa que se está generando (con tiempo y pasos), cuando está lista (con Incluir, Ver y Descartar al toque) o si falló, y la pestaña del navegador muestra ⏳ / ✅",
+      "Ventana con pasos (Generar, Revisar, Incluir), animaciones de espera y revelado de la imagen; avisa si cambiaste productos después de generarla",
+      "Advertencia visible: es una imagen ilustrativa generada con IA, puede no coincidir al 100 % con los componentes y conviene revisarla antes de incluirla",
       "Necesita la clave de OpenAI (Configuración → IA); cada imagen cuesta aprox. US$ 0,04 a 0,25",
     ],
   },

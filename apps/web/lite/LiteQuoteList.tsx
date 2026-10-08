@@ -201,6 +201,8 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
             const v = getActiveVersion(quote);
             const b = busy?.startsWith(quote.id);
             const kind = quoteKind(v?.pdfs);
+            // Un presupuesto puede tener más de un tipo generado (normal, detallado y formal): se listan todos.
+            const madeKinds = KINDS.filter(([k]) => v?.pdfs?.some((pdf) => pdf.kind === k));
             return (
               <li key={quote.id} className={editingId === quote.id ? "editing" : ""} data-kind={kind.toLowerCase()}>
                 <span className="lt-ribbon" title={`Presupuesto ${KIND_LABEL[kind].toLowerCase()}`}>{KIND_LABEL[kind]}</span>
@@ -216,6 +218,16 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
                   {v && v.state !== "BORRADOR" ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
                   {v?.createdAt ? <span className="lt-qdate" title="Fecha de la última versión">Últ. {new Date(v.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span> : null}
                 </div>
+                {madeKinds.length >= 2 ? (
+                  <div className="lt-kindrow" aria-label="Tipos de PDF generados">
+                    <span className="lt-kindrow-label">Generado como</span>
+                    {madeKinds.map(([k, label]) => (
+                      <button key={k} type="button" className={`lt-kindchip ${k.toLowerCase()}${k === kind ? " last" : ""}`} disabled={busy !== null} title={`Abrir el PDF ${label.toLowerCase()}${k === kind ? " (el último que se generó)" : ""}`} onClick={() => void print(quote, k)}>
+                        {b && busy === `${quote.id}:${k}` ? "…" : label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="lt-actions">
                   <button type="button" className="lt-act edit" disabled={busy !== null} onClick={() => onEdit(quote)}>Editar</button>
                   <button type="button" className="lt-act print" disabled={busy !== null} onClick={() => void print(quote, "SIMPLE")}>
