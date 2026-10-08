@@ -129,6 +129,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
         quantity: item.quantity,
         unitCents: item.frozenSalePriceCents,
         subtotalCents: item.subtotalCents,
+        ivaBps: item.ivaBps ?? null,
         isMainLine: false,
         isComponent: true,
       })),
@@ -140,6 +141,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
       quantity: item.quantity,
       unitCents: item.frozenSalePriceCents,
       subtotalCents: item.subtotalCents,
+      ivaBps: item.ivaBps ?? null,
       isMainLine: false,
       isComponent: false,
     }));

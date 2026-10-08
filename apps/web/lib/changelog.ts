@@ -17,6 +17,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       "El Presupuesto Formal suma debajo el precio de Cheque a 30 días (efectivo/transferencia + 8 %). Aparece solo ahí, no en el simple ni en el detallado",
       "Configuración → Financiación: el recargo del cheque a 30 días y el IVA son editables",
       "Lista de presupuestos: nuevo filtro por tipo (Normal verde, Detallado amarillo, Formal azul) junto a Local, estados como botones y filtros activos como etiquetas que se quitan con un toque; cada presupuesto muestra qué PDFs tiene generados",
+      "El IVA ahora es por producto: los ítems de NODO traen la alícuota que informa el distribuidor y el sistema arma una memoria de IVA por categoría (mother, procesador, placa de video…). Al elegir un producto o crear uno propio te sugiere el IVA que corresponde, y lo que elegís a mano también enseña a la memoria",
+      "El PDF detallado y el Formal muestran Producto | Cant. | Precio sin IVA | IVA | Precio con IVA | Importe total, cada ítem con su propio IVA",
       "Las colecciones del presupuesto pasan a un bloque con líneas arriba y abajo y etiquetas cuadradas con casilla, para no confundirlas con los distribuidores",
     ],
   },

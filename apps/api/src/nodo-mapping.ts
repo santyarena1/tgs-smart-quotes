@@ -1,5 +1,5 @@
 /** Conversión de ofertas de NODO a lo que usa el presupuesto. Sin dependencias del servidor. */
-export type NodoTax = { type: string; amount?: number };
+export type NodoTax = { type: string; amount?: number; percent?: number };
 export type NodoOffer = {
   id: string;
   provider: { id: string; name: string };
@@ -10,7 +10,7 @@ export type NodoOffer = {
     cost?: { net?: number; taxes?: NodoTax[]; gross?: number };
   };
   freshness?: { stale?: boolean };
-  product?: { name: string; brand?: { name: string } | null; partNumber?: string | null; ean?: string | null; imageUrl?: string | null };
+  product?: { name: string; category?: { name?: string } | null; brand?: { name: string } | null; partNumber?: string | null; ean?: string | null; imageUrl?: string | null };
 };
 
 export type NodoResult = {
@@ -32,7 +32,20 @@ export type NodoResult = {
   originalCostIva: number;
   /** Cotización usada para pasar USD a ARS (1 si ya viene en pesos). */
   fxRate: number;
+  /** Alícuota de IVA que informa NODO, en bps (1050 = 10,5 %). Null si no la informa. */
+  ivaBps: number | null;
+  /** Categoría de NODO tal cual llega (para la memoria de IVA). */
+  nodoCategory: string | null;
 };
+
+/** Alícuota de IVA de una oferta, en bps. Usa el porcentaje que informa NODO o lo deduce de neto e IVA. */
+export function ivaBpsOf(cost: { net?: number; taxes?: NodoTax[] } | undefined): number | null {
+  const iva = (cost?.taxes ?? []).find((t) => t.type === "iva");
+  if (!iva) return null;
+  if (typeof iva.percent === "number" && iva.percent >= 0) return Math.round(iva.percent * 100);
+  if (typeof iva.amount === "number" && cost?.net) return Math.round((iva.amount / cost.net) * 10000 / 50) * 50;
+  return null;
+}
 
 /** Costo + IVA de una oferta: neto más el IVA; las percepciones no se suman. */
 export function costWithIva(cost: { net?: number; taxes?: NodoTax[]; gross?: number } | undefined): { net: number; withIva: number } | null {
@@ -63,6 +76,8 @@ export function mapOffer(offer: NodoOffer, fxRate: number): NodoResult | null {
     originalCurrency: currency,
     originalCostIva: Math.round(cost.withIva * 100) / 100,
     fxRate: rate,
+    ivaBps: ivaBpsOf(offer.price?.cost),
+    nodoCategory: offer.product.category?.name ?? null,
   };
 }
 

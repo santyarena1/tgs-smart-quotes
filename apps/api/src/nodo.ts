@@ -2,6 +2,7 @@ import { BadGatewayException, Body, Controller, Get, Post, Put, Query, ServiceUn
 import { db } from "@tgs/database";
 import { z } from "zod";
 import { CurrentUser, ZodPipe, type RequestUser } from "./infrastructure.js";
+import { recordIvaObservations } from "./iva-memory.js";
 import { effectiveProviderIds, mapOffer, resolveNodoCredentials, type NodoOffer, type NodoResult } from "./nodo-mapping.js";
 
 /** Cliente de la API de catálogo de NODO (distribuidores). Las credenciales viven solo en el servidor. */
@@ -142,6 +143,10 @@ export class NodoController {
       .filter((r): r is NodoResult => r !== null)
       .sort((a, b) => Number(BigInt(a.costIvaCents) - BigInt(b.costIvaCents)))
       .slice(0, MAX_RESULTS);
+    // La alícuota que informa cada distribuidor alimenta la memoria de IVA por categoría.
+    void recordIvaObservations(
+      items.flatMap((r) => (r.ivaBps === null ? [] : [{ name: r.name, nodoCategory: r.nodoCategory, ivaBps: r.ivaBps }])),
+    );
     return { items, fxRate: fx };
   }
 }

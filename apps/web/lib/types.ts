@@ -12,6 +12,8 @@ export type Product = {
   costCents: string;
   salePriceCents: string;
   markupBps: number;
+  /** IVA del producto en bps (1050 = 10,5 %). Null = sin cargar. */
+  ivaBps?: number | null;
   usesGeneralMarkup: boolean;
   defaultLineId: string | null;
   active: boolean;
@@ -362,6 +364,8 @@ export type QuoteItem = {
   frozenMarkupBps?: number;
   frozenSalePriceCents?: string;
   frozenName?: string;
+  /** IVA incluido en el precio, en bps. */
+  ivaBps?: number | null;
   subtotalCents?: string;
   position: number;
   observation?: string | null;
@@ -566,6 +570,7 @@ export function getQuoteItems(quote: Quote): QuoteItem[] {
       salePriceCents: item.frozenSalePriceCents ?? item.salePriceCents,
       position: item.position ?? index,
       observation: item.observation ?? null,
+      ivaBps: item.ivaBps ?? null,
       subtotalCents: item.subtotalCents,
     }));
   }

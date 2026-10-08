@@ -534,6 +534,7 @@ export const productCreateSchema = z
     costCents: moneyCentsSchema,
     markupBps: z.number().int().nonnegative(),
     salePriceCents: moneyCentsSchema.optional(),
+    ivaBps: z.number().int().min(0).max(10000).nullable().optional(),
     usesGeneralMarkup: z.boolean(),
     defaultLineId: nullableIdSchema,
     active: z.boolean().optional().default(true),
@@ -1115,6 +1116,8 @@ export const quoteItemCreateSchema = z
     // Puede ser negativo (vender por debajo del costo); -100 % es el piso (venta 0).
     markupBps: z.number().int().min(-10000),
     salePriceCents: moneyCentsSchema.optional(),
+    /** IVA incluido en el precio, en bps. Sin valor = el de la empresa. */
+    ivaBps: z.number().int().min(0).max(10000).nullable().optional(),
     position: z.number().int().nonnegative(),
     observation: z.string().trim().max(1000).nullable().optional(),
     isPcMainLine: z.boolean().optional().default(false),
