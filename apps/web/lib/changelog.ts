@@ -14,7 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "Antes de generar se pregunta el fondo: PC Gamer (setup gamer oscuro con monitores, periféricos y RGB) o PC de oficina (fondo limpio y minimalista). Se marca uno como sugerido según lo que lleva el presupuesto, pero siempre elige el usuario",
       "El prompt ahora fija requisitos obligatorios: el modelo exacto del gabinete, si lleva o no placa de video (sin placa, el slot PCIe queda vacío), si la RAM tiene RGB o no, y la refrigeración: líquida o cooler de aire si el presupuesto los incluye, y si no, el cooler de stock de AMD o Intel según el procesador",
-      "Un gabinete con ventiladores en el nombre (por ejemplo "… + 3 COOLERS A-RGB") ya se reconoce como gabinete",
+      "Un gabinete con ventiladores en el nombre (por ejemplo '… + 3 COOLERS A-RGB') ya se reconoce como gabinete",
     ],
   },
   {
