@@ -1719,7 +1719,7 @@ export function QuotesView({
 
   /** Huella de lo que lleva el presupuesto: sirve para avisar si se cambió algo después de generar la imagen. */
   const refSig = filledItems(items).map((i) => `${i.name.trim()}×${i.quantity}`).join("|");
-  const refItems = () => filledItems(items).map((i) => ({ name: i.name, quantity: Number(i.quantity) || 1, imageUrl: i.imageUrl ?? null }));
+  const refItems = () => filledItems(items).map((i) => ({ name: i.name, quantity: Number(i.quantity) || 1, imageUrl: i.imageUrl ?? null, productId: i.productId || null }));
   const refStale = (refJob.job.status === "ready" || refJob.job.status === "generating") && refJob.job.sig !== refSig;
 
   /** Cambia la imagen incluida; la que se reemplaza y nunca se guardó en el presupuesto se borra del almacenamiento. */
