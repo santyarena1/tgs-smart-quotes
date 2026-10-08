@@ -18,6 +18,12 @@ const STATE_LABEL = Object.fromEntries(STATES) as Record<QuoteState, string>;
 const KINDS: Array<[PdfKind, string]> = [["SIMPLE", "Normal"], ["DETALLADO", "Detallado"], ["FORMAL", "Formal"]];
 const KIND_LABEL = Object.fromEntries(KINDS) as Record<PdfKind, string>;
 
+/** Tipo con el que se ve un presupuesto: el del último PDF que se generó; si todavía no tiene, Normal. */
+function quoteKind(pdfs: Array<{ kind: PdfKind; createdAt: string }> | undefined): PdfKind {
+  const latest = [...(pdfs ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  return latest?.kind ?? "SIMPLE";
+}
+
 /** Todos los presupuestos, con búsqueda y filtros en la misma pantalla y acciones por presupuesto. */
 export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   refreshKey: number;
@@ -194,8 +200,10 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
           {rows.map((quote) => {
             const v = getActiveVersion(quote);
             const b = busy?.startsWith(quote.id);
+            const kind = quoteKind(v?.pdfs);
             return (
-              <li key={quote.id} className={editingId === quote.id ? "editing" : ""}>
+              <li key={quote.id} className={editingId === quote.id ? "editing" : ""} data-kind={kind.toLowerCase()}>
+                <span className="lt-ribbon" title={`Presupuesto ${KIND_LABEL[kind].toLowerCase()}`}>{KIND_LABEL[kind]}</span>
                 <div className="lt-qrow">
                   <strong className="lt-qnum">{quote.visibleNumber}</strong>
                   <span className="lt-qname" title={quote.internalName}>{quote.internalName}</span>
@@ -205,10 +213,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
                 </div>
                 <div className="lt-qfoot">
                   <strong className="lt-qprice">{formatArs(v?.totalSaleCents)}</strong>
-                  {v ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
-                  {KINDS.filter(([k]) => v?.pdfs?.some((pdf) => pdf.kind === k)).map(([k]) => (
-                    <span key={k} className={`lt-kindtag ${k.toLowerCase()}`} title={`PDF ${KIND_LABEL[k].toLowerCase()} generado`}>{KIND_LABEL[k]}</span>
-                  ))}
+                  {v && v.state !== "BORRADOR" ? <span className={`lt-state ${v.state.toLowerCase()}`}>{STATE_LABEL[v.state]}</span> : null}
                   {v?.createdAt ? <span className="lt-qdate" title="Fecha de la última versión">Últ. {new Date(v.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span> : null}
                 </div>
                 <div className="lt-actions">

@@ -1105,7 +1105,7 @@ export function LiteQuoteCreator() {
             <button type="button" className="lt-btn tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
               {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
             </button>
-            <button type="button" className="lt-btn ghost" disabled={!ready} onClick={() => void submit("DETALLADO")}>
+            <button type="button" className="lt-btn tone-yellow" disabled={!ready} onClick={() => void submit("DETALLADO")}>
               {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
             </button>
             <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
