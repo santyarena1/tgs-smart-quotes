@@ -14,6 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "Cada presupuesto de la lista lleva una cinta diagonal en la esquina superior derecha con su tipo y la línea de color a la izquierda: Normal rojo, Detallado amarillo, Formal azul (el tipo es el del último PDF que se generó)",
       "Se quitó la etiqueta Borrador de la lista",
+      "Colecciones del presupuesto con diseño nuevo y más liviano: una sola línea de texto, con + para sumarlas y un tilde rojo en las elegidas (sin cajas ni bordes)",
       "El botón PDF detallado del creador ahora es amarillo; Normal pasa a rojo en el filtro y en el botón Ver",
     ],
   },
