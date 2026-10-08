@@ -10,7 +10,7 @@ export type NodoOffer = {
     cost?: { net?: number; taxes?: NodoTax[]; gross?: number };
   };
   freshness?: { stale?: boolean };
-  product?: { name: string; category?: { name?: string } | null; brand?: { name: string } | null; partNumber?: string | null; ean?: string | null; imageUrl?: string | null };
+  product?: { name: string; category?: { name?: string; path?: string[] } | null; brand?: { name: string } | null; partNumber?: string | null; ean?: string | null; imageUrl?: string | null };
 };
 
 export type NodoResult = {
@@ -37,6 +37,12 @@ export type NodoResult = {
   /** Categoría de NODO tal cual llega (para la memoria de IVA). */
   nodoCategory: string | null;
 };
+
+/** Texto de la categoría de NODO (la ruta completa si la hay), para reconocer el tipo de producto. */
+export function categoryText(category: { name?: string; path?: string[] } | null | undefined): string | null {
+  const text = category?.path?.length ? category.path.join(" ") : category?.name;
+  return text?.trim() ? text.trim() : null;
+}
 
 /** Alícuota de IVA de una oferta, en bps. Usa el porcentaje que informa NODO o lo deduce de neto e IVA. */
 export function ivaBpsOf(cost: { net?: number; taxes?: NodoTax[] } | undefined): number | null {
@@ -77,7 +83,7 @@ export function mapOffer(offer: NodoOffer, fxRate: number): NodoResult | null {
     originalCostIva: Math.round(cost.withIva * 100) / 100,
     fxRate: rate,
     ivaBps: ivaBpsOf(offer.price?.cost),
-    nodoCategory: offer.product.category?.name ?? null,
+    nodoCategory: categoryText(offer.product.category),
   };
 }
 

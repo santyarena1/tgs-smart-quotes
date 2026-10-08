@@ -77,3 +77,42 @@ export class IvaController {
     return { items: [...byCategory.entries()].map(([categoryKey, rates]) => ({ categoryKey, ivaBps: rates[0]!.ivaBps, rates })) };
   }
 }
+
+/** Hasta cuántas muestras reparte la línea base en cada categoría: alcanza para sugerir, pero lo que se elige a mano después todavía pesa. */
+const BASELINE_PER_CATEGORY = 30;
+
+export type IvaBaselineRow = { categoryKey: string; ivaBps: number; samples: number };
+
+/**
+ * Línea base de la memoria a partir de un recorrido del catálogo de NODO: cuenta cada alícuota por categoría
+ * y reparte las muestras en proporción (una categoría que es 95 % a 10,5 % queda sugiriendo 10,5 %).
+ */
+export function buildIvaBaseline(offers: ReadonlyArray<IvaObservation>): IvaBaselineRow[] {
+  const byCategory = new Map<string, Map<number, number>>();
+  for (const offer of offers) {
+    if (!Number.isInteger(offer.ivaBps) || offer.ivaBps < 0 || offer.ivaBps > 10000) continue;
+    const category = categoryFor(offer.name, offer.nodoCategory);
+    if (!category) continue;
+    const rates = byCategory.get(category.key) ?? new Map<number, number>();
+    rates.set(offer.ivaBps, (rates.get(offer.ivaBps) ?? 0) + 1);
+    byCategory.set(category.key, rates);
+  }
+  const rows: IvaBaselineRow[] = [];
+  for (const [categoryKey, rates] of byCategory) {
+    const total = [...rates.values()].reduce((a, b) => a + b, 0);
+    for (const [ivaBps, count] of rates) {
+      rows.push({ categoryKey, ivaBps, samples: Math.max(1, Math.round((count / total) * BASELINE_PER_CATEGORY)) });
+    }
+  }
+  return rows.sort((a, b) => a.categoryKey.localeCompare(b.categoryKey) || b.samples - a.samples);
+}
+
+/** Guarda la línea base sin pisar lo aprendido: si la fila ya existe, queda con el mayor de los dos valores. */
+export async function applyIvaBaseline(rows: IvaBaselineRow[]): Promise<number> {
+  for (const row of rows) {
+    const existing = await db.ivaCategoryStat.findUnique({ where: { categoryKey_ivaBps: { categoryKey: row.categoryKey, ivaBps: row.ivaBps } } });
+    if (!existing) await db.ivaCategoryStat.create({ data: row });
+    else if (existing.samples < row.samples) await db.ivaCategoryStat.update({ where: { categoryKey_ivaBps: { categoryKey: row.categoryKey, ivaBps: row.ivaBps } }, data: { samples: row.samples } });
+  }
+  return rows.length;
+}

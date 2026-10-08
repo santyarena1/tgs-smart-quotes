@@ -336,7 +336,7 @@ const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate,
       <input className={`lt-cell num${below ? " neg" : ""}`} inputMode="decimal" value={l.markupPct} title={below ? "Vendés por debajo del costo" : undefined} onChange={(e) => onPatch(l.key, (x) => applyDraftMarkup(x, e.target.value))} aria-label="Margen" />
       <MoneyInput className={`lt-cell num${below ? " neg" : ""}`} value={l.saleArs} onChange={(v) => onPatch(l.key, (x) => applyDraftSale(x, v))} aria-label="Venta" placeholder="0" />
       <select
-        className="lt-cell num lt-iva"
+        className={`lt-cell num lt-iva${l.ivaAuto ? " auto" : ""}`}
         value={l.ivaPct}
         title={l.ivaAuto ? "IVA sugerido según la categoría del producto (podés cambiarlo)" : "IVA elegido"}
         onChange={(e) => onPatch(l.key, (x) => ({ ...x, ivaPct: e.target.value, ivaAuto: false }))}
