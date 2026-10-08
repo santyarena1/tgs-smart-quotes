@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 import { errorMessage } from "../components/shared";
 
 export type ReferenceImage = { url: string; key: string };
-export type GeneratedReference = ReferenceImage & { usedPhoto: boolean; caseName: string | null; costUsdCents: string | number; attached?: string[]; background?: boolean };
+export type GeneratedReference = ReferenceImage & { usedPhoto: boolean; caseName: string | null; costUsdCents: string | number; attached?: string[]; background?: boolean; googled?: string[]; facts?: { caseDimensions: string | null; caseForm: string | null; gpuLength: string | null } | null };
 
 export type ReferenceItem = { name: string; quantity: number; imageUrl?: string | null; productId?: string | null };
 

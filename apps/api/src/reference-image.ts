@@ -7,7 +7,8 @@ import { db } from '@tgs/database';
 import { loadMediaStorage, ownStorageKeyFromUrl, readMedia } from '@tgs/storage';
 import { z } from 'zod';
 import { CurrentUser, jsonSafe, ZodPipe, type RequestUser } from './infrastructure.js';
-import { analyzeBuild, BACKGROUND_PROMPTS, buildReferencePrompt, collectReferences, type RefImage, type ReferenceStyle } from './reference-prompt.js';
+import { analyzeBuild, BACKGROUND_PROMPTS, buildReferencePrompt, collectReferences, type PromptFacts, type RefImage, type RefRole, type ReferenceStyle } from './reference-prompt.js';
+import { lookupProductFacts, lookupProductPhoto, serperKeyOrNull } from './product-lookup.js';
 
 /**
  * Imagen de referencia de cómo quedaría la PC del presupuesto. La arma el modelo de imágenes de OpenAI
@@ -145,8 +146,36 @@ export class QuoteReferenceImageController {
       const buffer = await loadPhoto(reference.imageUrl);
       if (buffer) attached.push({ ...reference, buffer: await toReferencePng(buffer) });
     }
+    // Búsqueda en Google (Serper) del producto exacto: la foto de los componentes que no la traen (sobre todo el gabinete)
+    // y sus medidas reales, para que la IA respete el modelo y la escala en vez de inventar.
+    const googled: RefRole[] = [];
+    let facts: PromptFacts | null = null;
+    const serperKey = await serperKeyOrNull();
+    if (serperKey) {
+      const have = new Set(attached.map((r) => r.role));
+      const wanted = ([['gabinete', spec.caseName], ['placa de video', spec.gpu], ['refrigeración', spec.cooling.name], ['motherboard', spec.motherboard]] as Array<[RefRole, string | null]>)
+        .filter(([role, name]) => name && !have.has(role));
+      const [found, looked] = await Promise.all([
+        Promise.all(wanted.map(async ([role, name]) => {
+          const hit = await lookupProductPhoto(name as string, role, serperKey);
+          if (!hit) return null;
+          try {
+            return { role, name: name as string, imageUrl: hit.sourceUrl, source: 'google' as const, buffer: await toReferencePng(hit.buffer) };
+          } catch {
+            return null; // formato que no se puede leer: se ignora esa candidata
+          }
+        })),
+        lookupProductFacts(spec.caseName, spec.gpu, serperKey).catch(() => null),
+      ]);
+      for (const hit of found) if (hit) { attached.push(hit); googled.push(hit.role); }
+      // El gabinete siempre primero, después el resto en el orden de importancia de siempre.
+      const order: RefRole[] = ['gabinete', 'placa de video', 'refrigeración', 'memoria RAM', 'motherboard', 'procesador', 'fuente'];
+      attached.sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+      attached.splice(MAX_COMPONENT_PHOTOS);
+      facts = looked;
+    }
     const background = await getBackgroundImage(client, body.style, settings.model, quality).catch(() => null);
-    const prompt = buildReferencePrompt(spec, body.style, attached, Boolean(background));
+    const prompt = buildReferencePrompt(spec, body.style, attached, Boolean(background), facts);
     const images = [
       ...attached.map((r, i) => ({ buffer: r.buffer, name: `${i + 1}-${r.role.replace(/\s+/g, '-')}.png`, mime: 'image/png' })),
       ...(background ? [{ buffer: background, name: `fondo-${body.style}.png`, mime: 'image/png' }] : []),
@@ -163,13 +192,15 @@ export class QuoteReferenceImageController {
     const jpeg = await sharp(result.buffer).jpeg({ quality: 90 }).toBuffer();
     const stored = await (await loadMediaStorage()).put(`reference-images/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
     await db.aiRequest.create({
-      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, attached: attached.map((r) => r.role), background: Boolean(background), caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
+      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, attached: attached.map((r) => r.role), googled, facts, background: Boolean(background), caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
     });
     return jsonSafe({
       url: stored.url,
       key: stored.key,
       usedPhoto: attached.some((r) => r.role === 'gabinete'),
       attached: attached.map((r) => r.role),
+      googled: googled.filter((role) => attached.some((r) => r.role === role)),
+      facts,
       background: Boolean(background),
       caseName: spec.caseName,
       style: body.style,

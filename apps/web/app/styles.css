@@ -2850,9 +2850,10 @@ tr.editing {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  /* Salvo lo que lleva .motion-ok: la imagen de referencia (ventana, globo y botón), cuyas animaciones se pidieron expresamente. */
+  *:not(.motion-ok):not(.motion-ok *),
+  *:not(.motion-ok):not(.motion-ok *)::before,
+  *:not(.motion-ok):not(.motion-ok *)::after {
     animation: none !important;
     transition: none !important;
   }
@@ -3888,7 +3889,6 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .qcoll.on .qcoll-mark { color: var(--red); }
 .qcoll.disabled { opacity: 0.55; cursor: default; }
 .qcoll:focus-within { border-bottom-color: var(--red); }
-@media (prefers-reduced-motion: reduce) { .qref-spin, .quote-ref-btn.ready { animation: none; } }
 .btn-detallado { background: #eab308; border: 1px solid #eab308; color: #422006; }
 .btn-detallado:hover:not(:disabled) { background: #ca8a04; border-color: #ca8a04; color: #fff; }
 .btn-detallado:focus-visible { outline-color: #eab308; }
