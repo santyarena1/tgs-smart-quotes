@@ -1,5 +1,6 @@
 "use client";
 
+import "../../lite/lite.css";
 import { SessionProvider } from "../../components/SessionProvider";
 import { SuiteProvider } from "../../components/SuiteContext";
 import { SuiteShell } from "../../components/SuiteShell";

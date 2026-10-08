@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.9",
+    date: "2026-10-08",
+    title: "Versión completa al día con Lite",
+    items: [
+      "Imagen de referencia de la PC también en la versión completa: botón en el editor, generación en segundo plano con globo de estado y animaciones, advertencia de imagen ilustrativa y, si se incluye, aparece en el PDF",
+      "IVA por ítem: columna IVA en la tabla de ítems (NODO trae la alícuota; el resto se sugiere según la categoría y se puede cambiar) y se guarda en cada presupuesto",
+      "Lista de presupuestos: filtro por tipo (Normal rojo, Detallado amarillo, Formal azul), columna Tipo con un chip por cada PDF generado, franja de color por fila y cinta diagonal en las tarjetas del celular",
+      "El botón de PDF detallado pasa a amarillo y las colecciones del presupuesto a una línea liviana sin cajas",
+    ],
+  },
+  {
     version: "0.19.8",
     date: "2026-10-08",
     title: "Todos los tipos de PDF de un presupuesto",
