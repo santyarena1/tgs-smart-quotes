@@ -7,7 +7,7 @@ import { db } from '@tgs/database';
 import { loadMediaStorage, ownStorageKeyFromUrl, readMedia } from '@tgs/storage';
 import { z } from 'zod';
 import { CurrentUser, jsonSafe, ZodPipe, type RequestUser } from './infrastructure.js';
-import { pickCaseItem } from './case-detect.js';
+import { analyzeBuild, buildReferencePrompt } from './reference-prompt.js';
 
 /**
  * Imagen de referencia de cómo quedaría la PC del presupuesto. La arma el modelo de imágenes de OpenAI
@@ -34,6 +34,8 @@ const generateSchema = z
       )
       .min(1)
       .max(60),
+    /** Fondo de la imagen: lo elige el usuario antes de generar (PC gamer o PC de oficina). */
+    style: z.enum(['gamer', 'oficina']),
   })
   .strict();
 
@@ -77,23 +79,6 @@ async function loadPhoto(url: string): Promise<Buffer | null> {
   }
 }
 
-/** Prompt con todo lo que lleva el presupuesto. Sin texto ni logos sobre la imagen. */
-export function buildReferencePrompt(componentNames: string[], caseName: string | null, hasPhoto: boolean): string {
-  const parts = componentNames.slice(0, MAX_COMPONENTS).map((name) => `- ${name}`).join('\n');
-  const caseLine = hasPhoto
-    ? 'Keep the exact PC case from the reference photo (same model, shape, color and proportions).'
-    : caseName
-      ? `The PC case is: ${caseName}.`
-      : 'Use a modern ATX gaming PC case with a tempered glass side panel.';
-  return [
-    'Photorealistic studio product render of a complete custom desktop PC, three-quarter view, clean neutral background, soft professional lighting.',
-    caseLine,
-    'Through the tempered glass side panel show the internals so they match this build as closely as possible (motherboard, CPU cooler, graphics card, RAM, storage, power supply, case fans, RGB lighting if the parts suggest it):',
-    parts,
-    'No text, no logos overlaid, no watermark, no people, no extra accessories. It must look like an illustrative reference of the finished PC.',
-  ].join('\n');
-}
-
 async function openAiClient() {
   const ai = await db.aiSettings.findUniqueOrThrow({ where: { id: 'singleton' } });
   const key = ai.apiKeyEncrypted ? decryptSecret(ai.apiKeyEncrypted) : process.env.OPENAI_API_KEY;
@@ -109,10 +94,10 @@ export class QuoteReferenceImageController {
     if (!client) throw new ServiceUnavailableException('Falta la clave de OpenAI para generar la imagen (Configuración → IA).');
     const settings = await db.thumbnailAiSettings.upsert({ where: { id: 'singleton' }, update: {}, create: { id: 'singleton' } });
 
-    const caseItem = pickCaseItem(body.items.map((item) => ({ ...item, line: null as string | null })));
-    const photo = caseItem?.imageUrl ? await loadPhoto(caseItem.imageUrl) : null;
-    const components = body.items.filter((item) => item !== caseItem && !/\b(garantia|servicio|armado|instalacion|flete|envio)\b/i.test(item.name)).map((item) => item.name);
-    const prompt = buildReferencePrompt(components, caseItem?.name ?? null, Boolean(photo));
+    // Lo que lleva el presupuesto se vuelve requisitos obligatorios del prompt (gabinete, placa de video, RAM, refrigeración).
+    const spec = analyzeBuild(body.items);
+    const photo = spec.caseImageUrl ? await loadPhoto(spec.caseImageUrl) : null;
+    const prompt = buildReferencePrompt(spec, body.style, Boolean(photo));
     const quality = (settings.quality || 'medium') as ImageQuality;
     const started = Date.now();
     let result;
@@ -132,9 +117,9 @@ export class QuoteReferenceImageController {
     const jpeg = await sharp(result.buffer).jpeg({ quality: 90 }).toBuffer();
     const stored = await (await loadMediaStorage()).put(`reference-images/${randomUUID()}.jpg`, jpeg, 'image/jpeg');
     await db.aiRequest.create({
-      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, usedPhoto: Boolean(photo), caseItem: caseItem?.name ?? null } as any },
+      data: { task: 'THUMBNAIL_IMAGE', model: result.model, inputHash: randomUUID(), entityType: 'ReferenceImage', entityId: actor.id, success: true, durationMs: result.durationMs, usageJson: (result.usage ?? undefined) as any, costUsdCents: result.costUsdCents, resultJson: { url: stored.url, usedPhoto: Boolean(photo), caseItem: spec.caseName, style: body.style, gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type } as any },
     });
-    return jsonSafe({ url: stored.url, key: stored.key, usedPhoto: Boolean(photo), caseName: caseItem?.name ?? null, costUsdCents: result.costUsdCents });
+    return jsonSafe({ url: stored.url, key: stored.key, usedPhoto: Boolean(photo), caseName: spec.caseName, style: body.style, spec: { gpu: spec.gpu, ramRgb: spec.ramRgb, cooling: spec.cooling.type }, costUsdCents: result.costUsdCents });
   }
 
   /** Deja la imagen elegida en el presupuesto (o la quita con `image: null`). El PDF la muestra mientras esté. */

@@ -16,7 +16,7 @@ import { LiteFinancing } from "./LiteFinancing";
 import { LiteNewCustomer } from "./LiteNewCustomer";
 import { LiteNewProduct } from "./LiteNewProduct";
 import { LiteReferenceBubble, LiteReferenceModal, type ReferenceImage } from "./LiteReferenceImage";
-import { useReferenceImageJob } from "./useReferenceImageJob";
+import { suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle } from "./useReferenceImageJob";
 import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 
@@ -801,9 +801,9 @@ export function LiteQuoteCreator() {
     setRefImage(next);
   }
 
-  function generateRef() {
+  function generateRef(style: ReferenceStyle) {
     if (lines.length === 0) return;
-    void refJob.start(refItems(), refSig);
+    void refJob.start(refItems(), refSig, style);
   }
 
   function includeRef() {
@@ -975,6 +975,7 @@ export function LiteQuoteCreator() {
           current={refImage}
           stale={refStale}
           itemCount={lines.length}
+          suggested={suggestReferenceStyle(refItems())}
           onGenerate={generateRef}
           onCancel={refJob.discard}
           onInclude={includeRef}
@@ -990,7 +991,7 @@ export function LiteQuoteCreator() {
           onOpen={() => setRefOpen(true)}
           onInclude={includeRef}
           onDiscard={refJob.discard}
-          onRetry={generateRef}
+          onRetry={() => generateRef(refJob.job.status === "error" ? refJob.job.style : suggestReferenceStyle(refItems()))}
         />
       ) : null}
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}

@@ -9,6 +9,16 @@ export type GeneratedReference = ReferenceImage & { usedPhoto: boolean; caseName
 
 export type ReferenceItem = { name: string; quantity: number; imageUrl?: string | null };
 
+/** Fondo de la imagen: lo elige el usuario antes de generar. */
+export type ReferenceStyle = "gamer" | "oficina";
+
+const GAMER_HINT = /\b(gamer|gaming|rgb|argb|rtx|gtx|geforce|radeon|rx ?\d{3,4}|water ?cool|liquid)\b/i;
+
+/** Fondo que se sugiere según lo que lleva el presupuesto (se muestra marcado, pero el usuario siempre elige). */
+export function suggestReferenceStyle(items: ReferenceItem[]): ReferenceStyle {
+  return items.some((item) => GAMER_HINT.test(item.name)) ? "gamer" : "oficina";
+}
+
 /**
  * Estado de la generación de la imagen de referencia. Vive en el creador y no en la ventana: cerrar la ventana no
  * la cancela, sigue en segundo plano y un globo va avisando el estado. `sig` identifica con qué productos se generó,
@@ -16,9 +26,9 @@ export type ReferenceItem = { name: string; quantity: number; imageUrl?: string 
  */
 export type ReferenceJob =
   | { status: "idle" }
-  | { status: "generating"; startedAt: number; sig: string }
-  | { status: "ready"; image: GeneratedReference; sig: string; finishedAt: number }
-  | { status: "error"; message: string; sig: string };
+  | { status: "generating"; startedAt: number; sig: string; style: ReferenceStyle }
+  | { status: "ready"; image: GeneratedReference; sig: string; finishedAt: number; style: ReferenceStyle }
+  | { status: "error"; message: string; sig: string; style: ReferenceStyle };
 
 const discardFile = (key: string) => {
   void api("/quote-reference-image", { method: "DELETE", body: { key } }).catch(() => undefined);
@@ -31,21 +41,21 @@ export function useReferenceImageJob() {
   const run = useRef(0);
 
   /** Arranca la generación. Si había una lista sin decidir, esa se descarta. */
-  const start = useCallback(async (items: ReferenceItem[], sig: string) => {
+  const start = useCallback(async (items: ReferenceItem[], sig: string, style: ReferenceStyle) => {
     const id = ++run.current;
     const prev = jobRef.current;
     if (prev.status === "ready") discardFile(prev.image.key);
-    setJob({ status: "generating", startedAt: Date.now(), sig });
+    setJob({ status: "generating", startedAt: Date.now(), sig, style });
     try {
       const image = await api<GeneratedReference>("/quote-reference-image/generate", {
         method: "POST",
-        body: { items: items.map((i) => ({ name: i.name.trim(), quantity: i.quantity, imageUrl: i.imageUrl ?? null })) },
+        body: { style, items: items.map((i) => ({ name: i.name.trim(), quantity: i.quantity, imageUrl: i.imageUrl ?? null })) },
       });
       // Si mientras tanto se canceló o se arrancó otra, este resultado ya no sirve.
       if (id !== run.current) { discardFile(image.key); return; }
-      setJob({ status: "ready", image, sig, finishedAt: Date.now() });
+      setJob({ status: "ready", image, sig, finishedAt: Date.now(), style });
     } catch (err) {
-      if (id === run.current) setJob({ status: "error", message: errorMessage(err), sig });
+      if (id === run.current) setJob({ status: "error", message: errorMessage(err), sig, style });
     }
   }, []);
 
