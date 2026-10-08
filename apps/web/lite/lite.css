@@ -888,9 +888,9 @@
 .lite .lt-kind.simple { --k: #dc2626; }
 .lite .lt-kind.detallado { --k: #ca8a04; }
 :root[data-theme="dark"] .lite .lt-kind.simple { --k: #f87171; }
-.lite .lt-act.print { --c: #dc2626; }
-:root[data-theme="dark"] .lite .lt-act.print { --c: #f87171; }
-.lite .lt-act.print:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.print:hover:not(:disabled) { color: #dc2626; border-color: #dc2626; background: transparent; }
+.lite .lt-act.print { --c: #0d9488; }
+:root[data-theme="dark"] .lite .lt-act.print { --c: #2dd4bf; }
+.lite .lt-act.print:hover:not(:disabled), :root[data-theme="dark"] .lite .lt-act.print:hover:not(:disabled) { color: #0d9488; border-color: #0d9488; background: transparent; }
 .lite .lt-btn.tone-yellow { background: #eab308; border-color: #eab308; color: #422006; }
 .lite .lt-btn.tone-yellow:hover:not(:disabled) { background: #ca8a04; border-color: #ca8a04; color: #fff; }
 .lite .lt-btn.tone-yellow:focus-visible { outline-color: #eab308; }
@@ -1051,3 +1051,31 @@
 :root[data-theme="dark"] .lite .lt-refm-style.oficina .lt-refm-style-art { filter: brightness(0.92); }
 @media (max-width: 560px) { .lite .lt-refm-pick-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .lite .lt-refm-style, .lite .lt-refm-style.gamer .lt-refm-style-art i { animation: none !important; transition: none; } }
+
+/* Tarjetas de fondo (Gamer / Oficina): hover propio con animaciones.
+   La regla global `button:hover` de la app pinta de rojo; estas reglas la pisan con más prioridad. */
+@keyframes lt-refx-sweep { to { transform: translateX(120%); } }
+@keyframes lt-refx-neon { from { box-shadow: 0 0 8px #a855f788; } to { box-shadow: 0 0 22px #22d3eecc; } }
+@keyframes lt-refx-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.lite .lt-refm-style { overflow: hidden; border-radius: 14px !important; background: var(--paper); color: var(--ink); animation: lt-refx-rise 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; transition: border-color 0.2s, transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2), box-shadow 0.25s, background 0.25s; }
+.lite .lt-refm-style:nth-child(2) { animation-delay: 0.09s; }
+.lite .lt-refm-style::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 35%, color-mix(in srgb, var(--ai) 16%, transparent) 50%, transparent 65%); transform: translateX(-120%); }
+.lite .lt-refm-style:hover:not(:disabled), .lite .lt-refm-style:focus-visible { background: color-mix(in srgb, var(--ai) 6%, var(--paper)); color: var(--ink); border-color: var(--ai); transform: translateY(-4px) scale(1.01); box-shadow: 0 14px 32px color-mix(in srgb, var(--ai) 24%, transparent); outline: none; }
+.lite .lt-refm-style:hover:not(:disabled)::before, .lite .lt-refm-style:focus-visible::before { animation: lt-refx-sweep 0.9s ease-out; }
+.lite .lt-refm-style:active:not(:disabled) { transform: translateY(-1px) scale(0.985); transition-duration: 0.08s; }
+.lite .lt-refm-style .lt-refm-style-art { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.lite .lt-refm-style:hover .lt-refm-style-art { transform: scale(1.04); }
+.lite .lt-refm-style.gamer:hover .lt-refm-style-art i:nth-child(1) { animation: lt-refx-neon 0.8s ease-in-out infinite alternate; }
+.lite .lt-refm-style.gamer:hover .lt-refm-style-art i:nth-child(2) { box-shadow: 0 0 20px #22d3eecc; transition: box-shadow 0.3s; }
+.lite .lt-refm-style.oficina:hover .lt-refm-style-art i:nth-child(1) { border-color: var(--ai); animation: lt-refx-bob 1.4s ease-in-out infinite; }
+.lite .lt-refm-style.oficina:hover .lt-refm-style-art i:nth-child(2) { border-color: var(--ai); }
+.lite .lt-refm-style.suggested:not(:hover) { animation: lt-refx-rise 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both, lt-refx-ring 2.6s 0.8s ease-out infinite; }
+.lite .lt-refm-style:hover .lt-refm-style-go { color: var(--ai); }
+@media (prefers-reduced-motion: reduce) {
+  .lite .lt-refm-style, .lite .lt-refm-style.suggested:not(:hover) { animation: none !important; }
+  .lite .lt-refm-style::before { display: none; }
+  .lite .lt-refm-style:hover:not(:disabled) { transform: none; }
+}
+
+/* Etiquetas de filtros activos: hover propio (sin el rojo global) */
+.lite .lt-pill:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 9%, var(--canvas)); color: var(--ink); }
