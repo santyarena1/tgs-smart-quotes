@@ -18,6 +18,8 @@ import { evaluateFindings, inspectInterior } from './reference-verify.js';
  * El usuario la mira y decide si la incluye; si la incluye, queda en el presupuesto y el PDF la muestra.
  */
 
+/** Modelo de visión que revisa la imagen generada contra el presupuesto: uno chico y barato alcanza para responder si hay o no una placa de video. */
+const VERIFY_MODEL = 'gpt-4o-mini';
 /** Intentos máximos por imagen (el primero + reintentos con corrección) y tiempo a partir del cual ya no se reintenta. */
 const MAX_ATTEMPTS = 3;
 const RETRY_TIME_BUDGET_MS = 110_000;
@@ -185,7 +187,6 @@ export class QuoteReferenceImageController {
     // componentes del pedido; el fondo y la composición los hace el sistema, sin IA. Así el modelo no puede cambiar el gabinete
     // ni el ambiente. Sin foto del gabinete no hay nada que conservar y se genera la escena completa como antes.
     const caseRef = attached.find((r) => r.role === 'gabinete');
-    const ai = await db.aiSettings.findUniqueOrThrow({ where: { id: 'singleton' } });
     const started = Date.now();
     let result: Awaited<ReturnType<typeof generateReferenceImage>> | null = null;
     let finalBuffer: Buffer;
@@ -219,7 +220,7 @@ export class QuoteReferenceImageController {
           totalCost += result.costUsdCents;
           // Si el modelo ignoró el fondo transparente se vuelve a recortar.
           const cut = await transparentCase(result.buffer);
-          const findings = await inspectInterior(client, ai.model, cut);
+          const findings = await inspectInterior(client, VERIFY_MODEL, cut);
           const evaluation = findings ? evaluateFindings(spec, findings) : { issues: [] as string[], corrections: [] as string[] };
           verified = Boolean(findings);
           if (!best || evaluation.issues.length < best.issues.length) best = { cut, issues: evaluation.issues };
@@ -239,7 +240,7 @@ export class QuoteReferenceImageController {
         result = await generateReferenceImage(client, { prompt, model: settings.model, quality, size: REFERENCE_SIZE, images });
         totalCost = result.costUsdCents;
         finalBuffer = result.buffer;
-        const findings = await inspectInterior(client, ai.model, finalBuffer);
+        const findings = await inspectInterior(client, VERIFY_MODEL, finalBuffer);
         verified = Boolean(findings);
         issues = findings ? evaluateFindings(spec, findings).issues : [];
       }
