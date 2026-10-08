@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.8",
+    date: "2026-10-08",
+    title: "Todos los tipos de PDF de un presupuesto",
+    items: [
+      "Si un presupuesto tiene más de un PDF generado (normal, detallado y/o formal), la lista muestra una fila Generado como con un chip de color por cada tipo; el último generado va resaltado y cada chip abre ese PDF",
+    ],
+  },
+  {
     version: "0.19.7",
     date: "2026-10-08",
     title: "Imagen de referencia de la PC en el presupuesto",

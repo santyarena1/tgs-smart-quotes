@@ -1002,3 +1002,22 @@
   .lite .lt-refx-check path { animation: none; stroke-dashoffset: 0; }
   .lite .lt-refm, .lite .lt-refb, .lite .lt-refm-img, .lite .lt-refb-thumb { animation-duration: 0.01ms !important; }
 }
+
+/* Presupuesto con más de un tipo de PDF generado: chips para abrir cada uno */
+.lite .lt-kindrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+.lite .lt-kindrow-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint, #94a3b8); margin-right: 0.1rem; }
+.lite .lt-kindchip { --k: #dc2626; display: inline-flex; align-items: center; gap: 0.3rem; height: 22px; min-height: 0; line-height: 1; padding: 0 0.55rem 0 0.45rem; border: 1px solid color-mix(in srgb, var(--k) 45%, var(--line)) !important; border-radius: 999px !important; background: color-mix(in srgb, var(--k) 9%, transparent); color: var(--k); font: inherit; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.lite .lt-kindchip::before { content: ""; width: 7px; height: 7px; border-radius: 50% !important; background: var(--k); }
+.lite .lt-kindchip.detallado { --k: #b45309; }
+.lite .lt-kindchip.formal { --k: #1d4ed8; }
+.lite .lt-kindchip:hover:not(:disabled) { background: color-mix(in srgb, var(--k) 18%, transparent); }
+.lite .lt-kindchip:active:not(:disabled) { transform: scale(0.95); }
+.lite .lt-kindchip:disabled { opacity: 0.6; cursor: default; }
+.lite .lt-kindchip.last { background: var(--k); color: #fff; }
+.lite .lt-kindchip.last::before { background: #fff; }
+.lite .lt-kindchip.detallado.last { background: #eab308; color: #422006; border-color: #eab308 !important; }
+.lite .lt-kindchip.detallado.last::before { background: #422006; }
+:root[data-theme="dark"] .lite .lt-kindchip.simple { --k: #f87171; }
+:root[data-theme="dark"] .lite .lt-kindchip.detallado { --k: #facc15; }
+:root[data-theme="dark"] .lite .lt-kindchip.formal { --k: #60a5fa; }
+:root[data-theme="dark"] .lite .lt-kindchip.last { color: #0f1218; }
