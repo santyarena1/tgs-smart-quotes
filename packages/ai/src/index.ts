@@ -68,6 +68,8 @@ export { QuoteEnrichmentService, DEFAULT_GAMES_TO_ANALYZE } from "./services/quo
 export { ComboEnrichmentService } from "./services/combo-enrichment.js";
 export {
   generateThumbnailImage,
+  generateReferenceImage,
+  type ReferenceImageInput,
   DEFAULT_IMAGE_MODEL,
   IMAGE_QUALITIES,
   IMAGE_SIZES,

@@ -9,6 +9,8 @@ import {
   Res,
 } from '@nestjs/common';
 import {db} from '@tgs/database';
+import {ownStorageKeyFromUrl,readMedia} from '@tgs/storage';
+import sharp from 'sharp';
 import {
   idSchema,
   pdfGenerateSchema,
@@ -64,6 +66,19 @@ function hasLayoutStyles(value: unknown): boolean {
   const count = (part: unknown) =>
     part && typeof part === 'object' ? Object.keys(part as object).length : 0;
   return count(layout.blocks) > 0 || count(layout.document) > 0;
+}
+
+/** Imagen de referencia del presupuesto, achicada para el PDF y embebida (el PDF se arma sin red). */
+async function loadReferenceImage(url: string | null | undefined): Promise<{url: string; dataUrl: string} | null> {
+  if (!url) return null;
+  try {
+    const key = ownStorageKeyFromUrl(url);
+    if (!key) return null;
+    const jpeg = await sharp(await readMedia(key)).resize({width: 1200, withoutEnlargement: true}).jpeg({quality: 82}).toBuffer();
+    return {url, dataUrl: `data:image/jpeg;base64,${jpeg.toString('base64')}`};
+  } catch {
+    return null;
+  }
 }
 
 async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind, printerBranch: {address: string | null; phones: string | null} | null): Promise<PdfRenderInput> {
@@ -178,6 +193,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     ...(tradeIns ? { tradeIns } : {}),
     listTotalCents,
     cashTotalCents,
+    referenceImage: await loadReferenceImage(family.referenceImageUrl),
     chequeTotalCents: (cashTotalCents * BigInt(10000 + (company.chequeInterestBps ?? 800)) + 5000n) / 10000n,
     ivaBps: company.ivaBps ?? 2100,
     company: {

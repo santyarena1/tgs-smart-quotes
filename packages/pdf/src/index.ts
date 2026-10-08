@@ -184,6 +184,8 @@ export type PdfRenderInput = {
   cashTotalCents: bigint;
   /** Solo FORMAL: efectivo/transferencia + recargo del cheque a 30 días. Sin valor no se muestra. */
   chequeTotalCents?: bigint | null;
+  /** Imagen de referencia de cómo quedaría la PC (si el usuario la incluyó). `dataUrl` va embebida en el PDF; `url` identifica la versión para el hash. */
+  referenceImage?: { url: string; dataUrl: string } | null;
   /** Solo FORMAL: alícuota de IVA incluida en los precios, en bps (2100 = 21 %). Default 2100. */
   ivaBps?: number;
   company: PdfCompany;
@@ -248,6 +250,7 @@ export function pdfInputHash(input: PdfRenderInput): string {
           ...(input.kind === 'FORMAL' ? { chequeTotalCents: input.chequeTotalCents?.toString() ?? null } : {}),
         }
       : {}),
+    ...(input.referenceImage ? { referenceImage: input.referenceImage.url } : {}),
     company: input.company,
     customer: input.customer ?? null,
     config: input.config,
@@ -619,6 +622,22 @@ function ivaHeadCells(): string {
   return '<th class="unit">Precio sin IVA</th><th class="iva">IVA</th><th class="gross">Precio con IVA</th>';
 }
 
+/** Bloque "Imagen de referencia" al pie del presupuesto (solo si el usuario la incluyó). Lleva sus propios estilos. */
+function referenceImageHtml(input: PdfRenderInput): string {
+  if (!input.referenceImage) return '';
+  return `<section class="refimg">
+    <div class="refimg-title">Imagen de referencia</div>
+    <img src="${escapeHtml(input.referenceImage.dataUrl)}" alt="" />
+    <div class="refimg-note">Imagen ilustrativa de cómo quedaría la PC con lo presupuestado; el equipo final puede variar levemente.</div>
+  </section>
+  <style>
+    .refimg { margin-top: 10px; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+    .refimg-title { font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
+    .refimg img { display: block; margin: 0 auto; max-width: 100%; max-height: 250px; width: auto; height: auto; object-fit: contain; border-radius: 6px; }
+    .refimg-note { margin-top: 3px; font-size: 8.5px; color: #9ca3af; }
+  </style>`;
+}
+
 function ivaLabelOf(ivaBps: number): string {
   return `${(ivaBps / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`;
 }
@@ -927,6 +946,8 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
       : ''
   }
 
+  ${referenceImageHtml(input)}
+
   <footer class="footer">${escapeHtml(input.company.footerText)} · ${escapeHtml(input.company.address)} · ${escapeHtml(input.company.phones)}</footer>
 </body>
 </html>`;
@@ -1193,6 +1214,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
 
   ${input.config.showRma ? `<div class="box box-red" data-pdf-block="rmaBlock">${renderRmaText(input.config.rmaText, input.company.rmaUrl)}</div>` : ''}
 
+  ${referenceImageHtml(input)}
+
   <footer class="footer" data-pdf-block="footerText">${escapeHtml(input.company.footerText)}</footer>
 </body>
 </html>`;
@@ -1343,6 +1366,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
     <div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>
     ${chequeRow}
   </section>
+  ${referenceImageHtml(input)}
 </body>
 </html>`;
 }

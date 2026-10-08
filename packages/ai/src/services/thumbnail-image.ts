@@ -81,3 +81,39 @@ export async function generateThumbnailImage(client: OpenAI, input: ThumbnailIma
     costUsdCents: estimateCostUsdCents(input.quality, input.size),
   };
 }
+
+export type ReferenceImageInput = {
+  prompt: string;
+  model?: string;
+  quality: ImageQuality;
+  size: ImageSize;
+  /** Foto del gabinete: si está, la imagen parte de ella; si no, se genera solo desde la descripción. */
+  photo?: { buffer: Buffer; name: string; mime: string } | null;
+};
+
+/** Imagen de referencia de una PC armada: edita la foto del gabinete o, sin foto, genera desde la descripción. */
+export async function generateReferenceImage(client: OpenAI, input: ReferenceImageInput): Promise<ThumbnailImageResult> {
+  const model = input.model?.trim() || DEFAULT_IMAGE_MODEL;
+  const started = Date.now();
+  const response = input.photo
+    ? await client.images.edit({
+        model,
+        image: await toFile(input.photo.buffer, input.photo.name, { type: input.photo.mime }),
+        prompt: input.prompt,
+        n: 1,
+        size: input.size,
+        quality: input.quality,
+        input_fidelity: "high",
+        output_format: "png",
+      })
+    : await client.images.generate({ model, prompt: input.prompt, n: 1, size: input.size, quality: input.quality, output_format: "png" });
+  const b64 = response.data?.[0]?.b64_json;
+  if (!b64) throw new Error("OpenAI no devolvió ninguna imagen");
+  return {
+    buffer: Buffer.from(b64, "base64"),
+    model,
+    durationMs: Date.now() - started,
+    usage: response.usage ?? null,
+    costUsdCents: estimateCostUsdCents(input.quality, input.size),
+  };
+}

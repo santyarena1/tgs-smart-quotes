@@ -400,6 +400,25 @@ describe('@tgs/pdf', () => {
     expect(html).not.toMatch(/table\.items \.iva \{[^}]*color/);
   });
 
+  it('la imagen de referencia solo aparece si el usuario la incluyó, en todas las plantillas', () => {
+    const referenceImage = { url: 'http://api/uploads/media/reference-images/a.jpg', dataUrl: 'data:image/jpeg;base64,AAAA' };
+    const cases = [
+      { kind: 'SIMPLE' as const, template: 'CLASICO' as const },
+      { kind: 'DETALLADO' as const, template: 'MODERNO' as const },
+      { kind: 'FORMAL' as const, template: 'MODERNO' as const },
+    ];
+    for (const c of cases) {
+      const con = renderPdfHtml({ ...sample(), ...c, referenceImage });
+      expect(con, c.kind).toContain('Imagen de referencia');
+      expect(con).toContain('data:image/jpeg;base64,AAAA');
+      expect(renderPdfHtml({ ...sample(), ...c })).not.toContain('Imagen de referencia');
+    }
+    // El PDF ya generado queda viejo cuando se agrega, cambia o quita la imagen.
+    const base = pdfInputHash(sample());
+    expect(pdfInputHash({ ...sample(), referenceImage })).not.toBe(base);
+    expect(pdfInputHash({ ...sample(), referenceImage: { ...referenceImage, url: 'http://api/b.jpg' } })).not.toBe(pdfInputHash({ ...sample(), referenceImage }));
+  });
+
   it('el cheque a 30 días solo aparece en el FORMAL', () => {
     const base = { ...sample(), chequeTotalCents: 1080000n };
     for (const kind of ['SIMPLE', 'DETALLADO'] as const) {

@@ -416,6 +416,9 @@ export type Quote = {
   requestId: string | null;
   customerId: string | null;
   isBuiltPc: boolean;
+  /** Imagen de referencia de cómo quedaría la PC (generada con IA); el PDF la muestra si está. */
+  referenceImageUrl?: string | null;
+  referenceImageKey?: string | null;
   /** 'COMBO' = pack de productos que se publica en la tienda como un producto único (BLOCK-10). */
   kind?: "PC" | "COMBO";
   /** Combos: descuento inverso en puntos básicos (1000 = 10 %). */
