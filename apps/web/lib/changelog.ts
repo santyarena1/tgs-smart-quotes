@@ -14,6 +14,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "Nuevo botón Imagen de referencia en el creador: genera con IA una imagen ilustrativa de cómo quedaría la PC con todo lo presupuestado (parte de la foto del gabinete si la tiene), la muestra en una vista previa y el usuario elige si la incluye, la regenera o la descarta",
       "Si se incluye, queda guardada en el presupuesto y aparece en el PDF (normal, detallado y formal) con una nota de que es ilustrativa. Es opcional",
+      "La imagen se genera en segundo plano: se puede cerrar la ventana y seguir trabajando. Un globo flotante avisa que se está generando (con tiempo y pasos), cuando está lista (con Incluir, Ver y Descartar al toque) o si falló, y la pestaña del navegador muestra ⏳ / ✅",
+      "Ventana con pasos (Generar, Revisar, Incluir), animaciones de espera y revelado de la imagen; avisa si cambiaste productos después de generarla",
+      "Advertencia visible: es una imagen ilustrativa generada con IA, puede no coincidir al 100 % con los componentes y conviene revisarla antes de incluirla",
       "Necesita la clave de OpenAI (Configuración → IA); cada imagen cuesta aprox. US$ 0,04 a 0,25",
     ],
   },
