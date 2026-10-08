@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.6",
+    date: "2026-10-08",
+    title: "Cinta de tipo en cada presupuesto",
+    items: [
+      "Cada presupuesto de la lista lleva una cinta diagonal en la esquina superior derecha con su tipo y la línea de color a la izquierda: Normal rojo, Detallado amarillo, Formal azul (el tipo es el del último PDF que se generó)",
+      "Se quitó la etiqueta Borrador de la lista",
+      "El botón PDF detallado del creador ahora es amarillo; Normal pasa a rojo en el filtro y en el botón Ver",
+    ],
+  },
+  {
     version: "0.19.3",
     date: "2026-10-08",
     title: "Columnas con IVA en el detallado y cheque a 30 días en el Formal",
