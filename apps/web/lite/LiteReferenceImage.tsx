@@ -135,7 +135,9 @@ export function LiteReferenceModal({ job, current, stale, suggested, onGenerate,
         {shown || generating ? <div className="lt-refm-warn" role="note"><span aria-hidden="true">⚠</span><p>{REFERENCE_WARNING}</p></div> : null}
         {ready && job.image ? (
           <p className="lt-muted lt-hint">
-            {job.image.attached?.length
+            {job.image.mode === "interior"
+              ? `El gabinete es la foto real de ese modelo y la IA solo armó su interior; el fondo lo pone el sistema. Fotos usadas: ${job.image.attached?.join(", ")}.`
+              : job.image.attached?.length
               ? `Se usaron las fotos de: ${job.image.attached.join(", ")}${job.image.background ? " y el fondo de ambiente" : ""}.`
               : job.image.usedPhoto ? `Parte de la foto del gabinete (${job.image.caseName ?? "gabinete"}).` : "Generada desde la descripción: los productos no tienen foto."}
             {job.image.googled?.length ? ` Se buscaron en Google las fotos de: ${job.image.googled.join(", ")}.` : ""}

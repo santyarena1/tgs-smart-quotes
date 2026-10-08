@@ -133,9 +133,9 @@ export function collectReferences(spec: BuildSpec, limit = 6): RefImage[] {
 /** Prompt del fondo que se genera una sola vez por estilo y se reutiliza como imagen de referencia de ambiente. */
 export const BACKGROUND_PROMPTS: Record<ReferenceStyle, string> = {
   gamer:
-    'Photorealistic empty gaming room setup used as a background plate: a dark room, a wide gaming desk with two monitors showing colorful game scenes, an RGB mechanical keyboard, a gaming mouse and mousepad, a headset, neon and RGB ambient wall lighting. In the center-left of the desk leave a clearly EMPTY space (or an empty floor space next to the desk) where a PC tower will be placed later. Do NOT include any PC tower or computer case. No text, no logos, no people.',
+    'Photorealistic empty gaming room setup used as a background plate: a dark room, a wide gaming desk with two monitors showing colorful game scenes, an RGB mechanical keyboard, a gaming mouse and mousepad, a headset, neon and RGB ambient wall lighting. Leave the entire left-center third of the image completely EMPTY: just a clean desk surface and the wall behind it, with no objects at all there (a PC tower will be placed there later). Put the monitors and peripherals only in the right third. Do NOT include any PC tower or computer case. No text, no logos, no people.',
   oficina:
-    'Photorealistic empty modern minimalist office used as a background plate: a clean light-colored desk, a plain white wall, soft natural daylight from a window, a monitor and a keyboard in neutral colors, a tidy, professional atmosphere with no RGB lighting. In the center-left of the desk leave a clearly EMPTY space (or an empty floor space next to the desk) where a PC tower will be placed later. Do NOT include any PC tower or computer case. No text, no logos, no people.',
+    'Photorealistic empty modern minimalist office used as a background plate: a clean light-colored desk, a plain white wall, soft natural daylight from a window, a monitor and a keyboard in neutral colors, a tidy, professional atmosphere with no RGB lighting. Leave the entire left-center third of the image completely EMPTY: just a clean desk surface and the wall behind it, with no objects at all there (a PC tower will be placed there later). Put the monitor and keyboard only in the right third. Do NOT include any PC tower or computer case. No text, no logos, no people.',
 };
 
 const ESTILO_LABEL: Record<ReferenceStyle, string> = { gamer: 'GAMER', oficina: 'OFICINA' };
@@ -146,20 +146,28 @@ const RULE = '==================================================';
  * con presencia/ausencia de GPU, refrigeración, RGB y fondo resueltos para este pedido, y un orden de prioridades explícito.
  * `attached` = las fotos de componentes que se mandan (en ese orden: Imagen 1, 2…); `hasBackground` = la última imagen es el fondo.
  */
-export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, attached: RefImage[] = [], hasBackground = false, facts: PromptFacts | null = null): string {
+export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, attached: RefImage[] = [], hasBackground = false, facts: PromptFacts | null = null, mode: 'scene' | 'interior' = 'scene'): string {
   const photoOf = (role: RefRole) => {
     const index = attached.findIndex((r) => r.role === role);
     return index >= 0 ? index + 1 : null;
   };
-  const bgImg = hasBackground ? attached.length + 1 : null;
+  const interior = mode === 'interior';
+  const bgImg = hasBackground && !interior ? attached.length + 1 : null;
   const ref = (n: number | null) => (n ? ` (ver Imagen ${n})` : ' (sin foto: reproducilo por su nombre y modelo)');
   const section = (title: string) => ['', RULE, title, RULE, ''];
   const L: string[] = [];
 
   L.push('TAREA PRINCIPAL', '');
+  if (interior) {
+    L.push('MODO: INTERIOR DEL GABINETE.');
+    L.push('La Imagen 1 es la foto REAL del gabinete de este pedido. Debes devolver ESA MISMA IMAGEN: el mismo gabinete, el mismo ángulo, el mismo encuadre, la misma forma, colores, paneles, vidrio, ventiladores y detalles EXTERIORES, sin ningún cambio.');
+    L.push('Lo único que cambia es el INTERIOR visible a través del vidrio y los paneles: debe quedar armado EXACTAMENTE con los componentes de este pedido. Primero VACIÁ el interior de la foto (si muestra componentes que NO están en la lista —placa de video, watercooler, RAM con RGB, tiras LED, cables o cualquier otro— ELIMINALOS) y después colocá solo lo que está en la lista.');
+    L.push('FONDO: TRANSPARENTE. No agregues escritorio, pared, piso, sombras proyectadas ni ambiente: solo el gabinete. El sistema lo apoya después sobre el fondo. No escribas texto ni logos nuevos en ningún lado.');
+    L.push('');
+  }
   L.push('Vas a recibir:');
   L.push(`1. ${attached.length ? `${attached.length === 1 ? 'UNA IMAGEN' : `${attached.length} IMÁGENES`} DE COMPONENTES DE UNA PC (Imagen 1${attached.length > 1 ? ` a Imagen ${attached.length}` : ''})` : 'LA LISTA DE COMPONENTES DE UNA PC (no hay fotos de componentes)'}.`);
-  L.push(`2. ${bgImg ? `UNA IMAGEN DE FONDO / REFERENCIA DE AMBIENTE ${ESTILO_LABEL[style]} (Imagen ${bgImg})` : `UN AMBIENTE ${ESTILO_LABEL[style]}, descripto en la sección 9`}.`);
+  L.push(`2. ${bgImg ? `UNA IMAGEN DE FONDO / REFERENCIA DE AMBIENTE ${ESTILO_LABEL[style]} (Imagen ${bgImg})` : interior ? 'NO recibís fondo: el sistema lo agrega después (fondo transparente)' : `UN AMBIENTE ${ESTILO_LABEL[style]}, descripto en la sección 9`}.`);
   L.push('');
   L.push('Tu tarea es crear UNA ÚNICA IMAGEN REALISTA Y PROFESIONAL de una PC ARMADA utilizando EXACTAMENTE los componentes recibidos.');
   L.push('');
@@ -264,6 +272,9 @@ export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, att
   L.push('Los componentes que normalmente no sean visibles desde el exterior pueden quedar parcialmente ocultos de manera natural, pero NO deben convertirse en otros componentes.');
 
   L.push(...section('9. FONDO / AMBIENTE'));
+  if (interior) {
+    L.push('En este modo el fondo es TRANSPARENTE: no generes ningún ambiente, escritorio ni pared. Solo el gabinete con su interior.');
+  } else {
   L.push(bgImg ? `La imagen de fondo recibida (Imagen ${bgImg}) determina el ambiente general: ${ESTILO_LABEL[style]}.` : `El ambiente de este pedido es ${ESTILO_LABEL[style]}.`);
   if (style === 'gamer') {
     L.push('- Crear una escena gamer moderna, tecnológica y atractiva (escritorio oscuro, monitores, periféricos, iluminación ambiental).');
@@ -273,6 +284,7 @@ export function buildReferencePrompt(spec: BuildSpec, style: ReferenceStyle, att
     L.push('- NO convertirla en una habitación gamer: sin neón, sin decoración gamer, sin desorden.');
   }
   L.push('IMPORTANTE: el fondo determina EL AMBIENTE, NO LOS COMPONENTES. No modificar los componentes para adaptarlos al fondo.');
+  }
 
   L.push(...section('10. REALISMO Y COMPOSICIÓN'));
   L.push('La PC debe verse físicamente armada y funcional.');
