@@ -118,6 +118,9 @@
 .cx-menu-custom input { flex: 1 1 auto; min-width: 0; font-size: 0.8rem; }
 .cx-menu-custom button { padding: 0.3rem 0.6rem; }
 .cx-menu .cx-hint { padding: 0.2rem 0.4rem 0; }
+.cx-menu.reset { width: 280px; padding: 0.7rem; }
+.cx-menu.reset p { margin: 0 0 0.55rem; color: var(--ink-2); font-size: 0.82rem; line-height: 1.4; }
+.cx-menu.reset button.danger { color: var(--red); font-weight: 700; }
 
 /* Hilo */
 .cx-thread { flex: 1 1 auto; overflow-y: auto; padding: 0.9rem 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }

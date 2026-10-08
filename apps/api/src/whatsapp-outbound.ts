@@ -118,7 +118,7 @@ async function authorize(conversationKey: string, kind: string, logId: string | 
       where: {chatKey: conversationKey},
       select: {escalatedAt: true, modeOverride: true, windowExpiresAt: true, waId: true, botPausedAt: true, lastInboundAt: true},
     }),
-    logId ? db.chatbotMessageLog.findUnique({where: {id: logId}, select: {actor: true, createdAt: true}}) : null,
+    logId ? db.chatbotMessageLog.findUnique({where: {id: logId}, select: {actor: true, createdAt: true, decisionMetadata: true}}) : null,
   ]);
   // Lo que se le manda al número entrenador no es una respuesta a un cliente.
   const toTrainer = Boolean(settings?.trainerNumbers.includes(conversationKey));
@@ -127,7 +127,13 @@ async function authorize(conversationKey: string, kind: string, logId: string | 
   if (fromBot) {
     if (!settings?.enabled) return {ok: false, reason: 'Las respuestas del bot se desactivaron antes del envío.', fromBot};
     if (conversation.botPausedAt) return {ok: false, reason: 'Un vendedor tomó el chat antes del envío.', fromBot};
-    if (conversation.escalatedAt) return {ok: false, reason: 'El chat fue derivado mientras el mensaje esperaba en la cola.', fromBot};
+    const handoffReply = Boolean(
+      log?.decisionMetadata
+      && typeof log.decisionMetadata === 'object'
+      && !Array.isArray(log.decisionMetadata)
+      && (log.decisionMetadata as {handoff?: unknown}).handoff === true,
+    );
+    if (conversation.escalatedAt && !handoffReply) return {ok: false, reason: 'El chat fue derivado mientras el mensaje esperaba en la cola.', fromBot};
     if ((conversation.modeOverride ?? settings.defaultMode) === 'OFF') {
       return {ok: false, reason: 'El chat quedó en modo apagado antes del envío.', fromBot};
     }

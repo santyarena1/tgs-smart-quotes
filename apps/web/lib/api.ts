@@ -539,6 +539,15 @@ export function createCrmCustomer(body: {
   return api('/customers', {method: 'POST', body});
 }
 
+/** Borra el historial y la memoria del bot. El contacto queda. */
+export function resetWhatsappConversation(chatKey: string): Promise<{
+  chatKey: string;
+  deleted: {messages: number; notifications: number};
+  conversation: WhatsappConversation;
+}> {
+  return api(`/whatsapp/conversations/${encodeURIComponent(chatKey)}/reset`, {method: 'POST'});
+}
+
 /** Borra una conversación con todo su historial. Irreversible. */
 export function deleteWhatsappConversation(chatKey: string): Promise<{
   chatKey: string;

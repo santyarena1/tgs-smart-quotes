@@ -11,8 +11,9 @@ import {createQuoteRequest} from './quotes.js';
 import {
   applyFactorySalesRules,
   applyFactoryStagePlaybook,
+  applyFactoryStyleExamples,
+  BARE_HELLO_BUBBLES,
   DEFAULT_BANNED_WORDS,
-  DEFAULT_STYLE_EXAMPLES,
   DEFAULT_REQUEST_KEYWORDS,
   DEFAULT_WRITING_FILTERS,
   type ChatbotAdCampaign,
@@ -133,7 +134,7 @@ export function settingsDto(row: any): ChatbotSettingsInput & {id: 'singleton'; 
       ? (row.requestKeywords as string[]).filter((item) => typeof item === 'string' && item.trim())
       : DEFAULT_REQUEST_KEYWORDS,
     teamAlerts: parseTeamAlerts(row.teamAlerts),
-    styleExamples: Array.isArray(row.styleExamples) ? (row.styleExamples as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_STYLE_EXAMPLES,
+    styleExamples: applyFactoryStyleExamples(Array.isArray(row.styleExamples) ? (row.styleExamples as string[]) : null),
     bannedWords: Array.isArray(row.bannedWords) ? (row.bannedWords as string[]).filter((item) => typeof item === 'string' && item.trim()) : DEFAULT_BANNED_WORDS,
     writingFilters: row.writingFilters && typeof row.writingFilters === 'object'
       ? {...DEFAULT_WRITING_FILTERS, ...(row.writingFilters as Partial<WritingFilters>)}
@@ -488,6 +489,21 @@ export async function ensureChatbotRequest(
  * sin tildes, sin signos de apertura (¿ ¡) y sin punto al final del mensaje (los
  * suspensivos y los del medio quedan). La ñ se respeta. Los links no se tocan.
  */
+/**
+ * Si el mensaje es solo "hola" (con signos o espacios), devuelve las dos burbujas fijas.
+ * "hola, quiero una pc" no entra: eso lo redacta el bot.
+ */
+export function bareHelloReply(message: string): string[] | null {
+  const plain = message
+    .toLocaleLowerCase('es-AR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zñ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain === 'hola' ? [...BARE_HELLO_BUBBLES] : null;
+}
+
 export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITING_FILTERS, banned: string[] = []): string {
   let plain = removeBannedVocatives(text, banned);
   if (filters.noFormatting) {
@@ -546,12 +562,9 @@ const reviewLogger = new Logger('ChatbotReview');
 
 const plainText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-AR');
 
-/** Pide algo distinto a lo que tenía pensado: ahí sí se puede ofrecer algo más caro. */
-const ASKS_FOR_MORE = /\b(mas potente|mejor|mas cara|otra opcion|algo mas|estirar|subir el presupuesto|lo maximo|tope de gama)\b/;
-
 /**
- * Lo que el bot nunca puede mandar aunque la IA lo escriba: frases prohibidas y precios
- * por encima del presupuesto del cliente (salvo que él haya pedido algo mejor).
+ * Lo que el bot nunca puede mandar aunque la IA lo escriba: frases prohibidas y
+ * cualquier precio. El precio de un producto lo pasa el presupuesto o un vendedor.
  */
 export function replyViolations(
   bubbles: string[],
@@ -565,15 +578,8 @@ export function replyViolations(
       problems.push(`usaste "${word}", que está prohibido: decilo como lo diría un vendedor por WhatsApp`);
     }
   }
-  if (context.budgetCents && !ASKS_FOR_MORE.test(plainText(context.customerMessage))) {
-    const limit = context.budgetCents * 1.15;
-    for (const match of bubbles.join('\n').matchAll(/\$\s?(\d{1,3}(?:\.\d{3})+|\d{5,})/g)) {
-      const cents = Number(match[1]!.replace(/\./g, '')) * 100;
-      if (cents > limit) {
-        problems.push(`ofreciste algo de ${match[0]} y el presupuesto del cliente es $${Math.round(context.budgetCents / 100).toLocaleString('es-AR')}: no ofrezcas nada por encima de su presupuesto; si no hay opciones que entren, pedí el presupuesto a medida al equipo (shouldCreateRequest=true) o preguntale si puede estirarse`);
-        break;
-      }
-    }
+  if (/\$\s?\d/.test(bubbles.join('\n'))) {
+    problems.push('no digas precios ni montos: si hace falta un número, pedí el presupuesto al equipo (shouldCreateRequest=true) y no lo inventes');
   }
   return problems;
 }
@@ -584,11 +590,14 @@ export async function respondWithReview<T extends {result: {messages?: string[];
   context: {bannedWords: string[]; budgetCents: number | null; customerMessage: string; chatKey: string},
 ): Promise<T> {
   const first = await ask();
-  if (!first.metadata.success || first.result.shouldEscalate) return first;
+  if (!first.metadata.success) return first;
   const bubbles = first.result.messages?.length ? first.result.messages : [first.result.reply];
   const problems = replyViolations(bubbles, context);
   if (!problems.length) return first;
   reviewLogger.log(JSON.stringify({event: 'chatbot_reply_revised', chatKey: context.chatKey, problems}));
-  const second = await ask(`Tu borrador anterior fue: ${JSON.stringify(bubbles)}. No se puede mandar porque ${problems.join('; ')}. Reescribí la respuesta corrigiendo eso y manteniendo el tono de los ejemplos.`);
+  const keepEscalation = first.result.shouldEscalate
+    ? ' Mantené shouldEscalate=true y la pregunta para el cliente, sin anunciar que lo derivás.'
+    : '';
+  const second = await ask(`Tu borrador anterior fue: ${JSON.stringify(bubbles)}. No se puede mandar porque ${problems.join('; ')}. Reescribí la respuesta corrigiendo eso y manteniendo el tono de los ejemplos.${keepEscalation}`);
   return second.metadata.success ? second : first;
 }

@@ -12,6 +12,7 @@ import {
   listWhatsappTemplates,
   markWhatsappRead,
   releaseConversation,
+  resetWhatsappConversation,
   requestWhatsappSuggestion,
   sendWhatsappMessage,
   sendWhatsappSuggestion,
@@ -419,6 +420,12 @@ export function Inbox() {
               onResolve={() => void act(() => resolveConversation(conversation.chatKey), "Chat resuelto.")}
               onReopen={() => void act(() => reopenConversation(conversation.chatKey), "Chat reabierto.")}
               onSnooze={(until) => void act(() => snoozeConversation(conversation.chatKey, until), `Pospuesto hasta ${until.toLocaleString("es-AR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}.`)}
+              onReset={() => void act(async () => {
+                await resetWhatsappConversation(conversation.chatKey);
+                setMessages([]);
+                setOlderCursor(null);
+                setQuote(null);
+              }, "Chat reiniciado. El próximo mensaje se atiende como una charla nueva.")}
             />
             {quote ? (
               <QuoteBar

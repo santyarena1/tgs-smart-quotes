@@ -37,10 +37,12 @@ import {
   resolveRuleAttachments,
   settingsDto,
   casualText,
+  bareHelloReply,
   pesosToCents,
   respondWithReview,
 } from './chatbot-core.js';
 import {formatAdContext, matchAdCampaign} from './chatbot-ads.js';
+import {scriptedTurn} from './chatbot-scripts.js';
 
 /** Mismo texto ignorando mayúsculas, tildes, signos y espacios: "¡Hola!" = "Hola". */
 function sameText(left: string, right: string): boolean {
@@ -172,9 +174,22 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     }
 
     const keywordReason = explicitEscalation(body.message, settings.escalationKeywords);
+    // "hola" solo, en el primer mensaje y sin anuncio: dos burbujas fijas, sin IA.
+    const alreadyGreeted = Boolean(conversation.lastOutboundText?.trim())
+      || (body.recentMessages ?? []).some((item) => item.direction === 'OUTBOUND');
+    const recentText = (body.recentMessages ?? []).slice(-6).map((item) => item.text).join(' ');
+    // Charlas de ejemplo: pago, stock, reclamo, pedido y el armado de la PC salen tal cual.
+    const scripted = body.messageType === 'AUDIO'
+      ? null
+      : scriptedTurn(body.message, {alreadyGreeted, recentText, fromAd: Boolean(campaign)});
     const localEscalationReason = body.messageType === 'AUDIO'
       ? 'Mensaje de audio recibido, requiere atención humana.'
-      : keywordReason;
+      : scripted
+        ? null
+        : keywordReason;
+    const helloBubbles = !campaign && !alreadyGreeted && !localEscalationReason && !scripted
+      ? bareHelloReply(body.message)
+      : null;
     // Datos reales del sistema (catálogo, PCs publicadas, presupuesto del chat).
     // Presupuesto del cliente: el que dijo, o el precio del anuncio por el que escribió.
     const budgetCents = typeof (conversation.profile as {budgetCents?: unknown} | null)?.budgetCents === 'number'
@@ -182,7 +197,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       : campaign?.advertisedPriceCents && /^\d+$/.test(campaign.advertisedPriceCents)
         ? Number(campaign.advertisedPriceCents)
         : null;
-    const catalogData = localEscalationReason ? '' : await buildSystemData({
+    const catalogData = localEscalationReason || helloBubbles || scripted ? '' : await buildSystemData({
       chatKey: body.chatKey,
       message: body.message,
       budgetCents,
@@ -191,23 +206,89 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const adContext = campaign ? formatAdContext(campaign, conversation.origin) : '';
     const systemData = [adContext, catalogData].filter(Boolean).join('\n\n');
     // Con precios, stock o un anuncio no se reutiliza una respuesta vieja: cada aviso es otro producto.
-    const reusable = localEscalationReason || systemData || campaign
+    const reusable = localEscalationReason || systemData || campaign || helloBubbles || scripted
       ? null
       : await findReusableReply(body.message, settings.reuseSimilarityThreshold, inbound.id, settings.updatedAt);
     const aiSettings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
     const key = aiSettings.apiKeyEncrypted
       ? decryptSecret(aiSettings.apiKeyEncrypted)
       : process.env.OPENAI_API_KEY;
-    if(!localEscalationReason&&!reusable){
+    if(!localEscalationReason&&!reusable&&!helloBubbles&&!scripted){
       if(!aiSettings.enabled)throw new ServiceUnavailableException('La IA está deshabilitada en Configuración.');
       if(!aiSettings.responsesEnabled)throw new ServiceUnavailableException('Las respuestas con IA están deshabilitadas en Configuración.');
       if(!key?.trim())throw new ServiceUnavailableException('No hay una API key de OpenAI configurada para generar la sugerencia.');
     }
     const service = new ChatbotResponseService({
-      client: localEscalationReason ? null : createAiClient({apiKey: key}),
+      client: localEscalationReason || helloBubbles || scripted ? null : createAiClient({apiKey: key}),
       model: settings.model ?? aiSettings.model ?? DEFAULT_AI_MODEL,
     });
-    const result = reusable
+    const result = helloBubbles
+      ? {
+          result: {
+            reply: helloBubbles.join('\n'),
+            messages: helloBubbles,
+            shouldEscalate: false,
+            escalationReason: null,
+            updatedSummary: conversation.summary ?? null,
+            matchedKnowledgeIds: [],
+            decisionReason: 'El cliente solo saludó: dos burbujas fijas, sin preguntar para qué quiere la PC.',
+            shouldCreateRequest: false,
+            requestDraft: null,
+            signals: {
+              temperature: 20,
+              intent: 'GREETING' as const,
+              stageHint: null,
+              nextStep: 'Esperar a que cuente qué está buscando.',
+            },
+          },
+          metadata: {
+            model: 'saludo-fijo',
+            inputHash: inputHash({message: body.message, hello: true}),
+            usedAi: false,
+            cacheHit: false,
+            durationMs: 0,
+            success: true,
+            costUsdCents: 0n,
+            usage: {promptTokens: 0, completionTokens: 0, totalTokens: 0},
+            error: undefined,
+          },
+        }
+      : scripted
+      ? {
+          result: {
+            reply: scripted.bubbles.join('\n'),
+            messages: scripted.bubbles,
+            shouldEscalate: scripted.escalate,
+            escalationReason: scripted.reason,
+            updatedSummary: conversation.summary ?? null,
+            matchedKnowledgeIds: [],
+            decisionReason: scripted.reason ?? 'Respuesta fija de las charlas de ejemplo, sin decir el precio.',
+            shouldCreateRequest: scripted.createRequest,
+            requestDraft: null,
+            signals: {
+              temperature: scripted.createRequest ? 70 : scripted.escalate ? 30 : 40,
+              intent: scripted.createRequest ? 'BUILD_PC' as const : scripted.escalate ? 'SUPPORT' as const : 'PRODUCT' as const,
+              stageHint: scripted.createRequest ? 'QUALIFYING' as const : null,
+              nextStep: scripted.escalate
+                ? 'Un vendedor sigue este chat.'
+                : scripted.createRequest
+                  ? 'Armar el presupuesto.'
+                  : 'Seguir con lo que el cliente responda.',
+            },
+          },
+          metadata: {
+            model: 'charla-fija',
+            inputHash: inputHash({message: body.message, scripted: scripted.bubbles}),
+            usedAi: false,
+            cacheHit: false,
+            durationMs: 0,
+            success: true,
+            costUsdCents: 0n,
+            usage: {promptTokens: 0, completionTokens: 0, totalTokens: 0},
+            error: undefined,
+          },
+        }
+      : reusable
       ? {
           result:{
             reply:reusable.reply,
@@ -300,7 +381,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           },
         }), {bannedWords: settings.bannedWords, budgetCents, customerMessage: body.message, chatKey: body.chatKey});
 
-    if(!localEscalationReason&&!reusable&&(!result.metadata.usedAi||!result.metadata.success)){
+    if(!localEscalationReason&&!reusable&&!helloBubbles&&!scripted&&(!result.metadata.usedAi||!result.metadata.success)){
       throw new BadGatewayException(
         result.metadata.error
           ? `OpenAI no pudo generar la sugerencia: ${result.metadata.error}`
@@ -314,7 +395,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const hasActiveRequest = Boolean(conversation.activeRequest && conversation.activeRequest.state !== 'CERRADA');
     // Si el cliente pidió el presupuesto con una frase configurada, se crea en este turno.
     // Si el anuncio ya tiene PDF, ese PDF se adjunta: no hace falta otra solicitud.
-    if (!shouldEscalate && askedForQuote && !hasActiveRequest && !campaign?.quote) {
+    if (!shouldEscalate && (askedForQuote || result.result.shouldCreateRequest) && !hasActiveRequest && !campaign?.quote) {
       result.result.shouldCreateRequest = true;
       if (!result.result.requestDraft) {
         const {maximumBudgetCents, ...draft} = draftFromLead(
@@ -333,8 +414,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const legacyReply=[baseReply,...configuredUrls.filter(url=>!baseReply.includes(url))]
       .filter(Boolean)
       .join('\n\n');
-    const ruleAttachments=await resolveRuleAttachments(settings.responses,body.message);
-    const adAttachments=campaign?await resolveAdAttachments(campaign.quote,campaign.id):[];
+    const fixedTurn=Boolean(helloBubbles||scripted);
+    const ruleAttachments=fixedTurn?[]:await resolveRuleAttachments(settings.responses,body.message);
+    const adAttachments=!fixedTurn&&campaign?await resolveAdAttachments(campaign.quote,campaign.id):[];
     const resolvedAttachments=[
       ...adAttachments,
       ...ruleAttachments.filter((item)=>!adAttachments.length||!(item as {quote?:unknown}).quote),
@@ -361,9 +443,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       ?[
           // Solo en la primera respuesta del chat. El historial cubre el simulador, que
           // no registra salientes en la conversación. Si vino de un anuncio, manda esa apertura.
-          ...(!conversation.lastOutboundText&&!(body.recentMessages??[]).some(item=>item.direction==='OUTBOUND')&&fixedOpening?[fixedOpening]:[]),
+          ...(!shouldEscalate&&!conversation.lastOutboundText&&!(body.recentMessages??[]).some(item=>item.direction==='OUTBOUND')&&fixedOpening?[fixedOpening]:[]),
           ...aiMessages.map(withoutFixed).filter(Boolean),
-          ...(fixedClosing?[fixedClosing]:[]),
+          ...(!shouldEscalate&&fixedClosing?[fixedClosing]:[]),
         ]
       :[legacyReply];
     if(settings.multiMessage.enabled&&configuredUrls.length){
@@ -371,7 +453,18 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       const urls=configuredUrls.filter(url=>!messages.some(message=>message.includes(url)));
       messages=[...messages,...urls];
     }
-    messages=shouldEscalate?[]:messages.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean);
+    const fixedBubbles=helloBubbles??scripted?.bubbles??null;
+    if(fixedBubbles){
+      messages=fixedBubbles.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean);
+    }else if(shouldEscalate&&!result.result.reply.trim()&&!(result.result.messages??[]).some((text)=>text.trim())){
+      messages=[];
+    }else{
+      messages=messages.map((text)=>casualText(text,settings.writingFilters,settings.bannedWords)).filter(Boolean);
+      if(messages.some((text)=>/\$\s?\d/.test(text))){
+        messages=messages.filter((text)=>!/\$\s?\d/.test(text));
+      }
+    }
+    const sendsHandoff=shouldEscalate&&messages.length>0;
     const reply=messages.join('\n');
     const quoteFollowupMessage=!shouldEscalate
       &&settings.multiMessage.quoteFollowup.enabled
@@ -420,7 +513,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
         mode: effectiveMode,
         status: body.simulation
           ? 'SUGGESTED'
-          : shouldEscalate
+          : shouldEscalate && !sendsHandoff
             ? 'ESCALATED'
             : effectiveMode === 'AUTO'
               ? 'SEND_PENDING'
@@ -441,6 +534,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           matchedResponseScore: responseMatch?.score??null,
           matchedAdId: campaign?.id??null,
           decisionReason: result.result.decisionReason,
+          handoff: sendsHandoff,
           // Lo que se aprueba desde el CRM: burbujas separadas y adjuntos, igual que en AUTO.
           bubbles: messages,
           attachments: resolvedAttachments,
@@ -482,6 +576,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             ? {summary: result.result.updatedSummary}
             : {}),
           summaryMessageCount: {increment: 1},
+          ...((!shouldEscalate || sendsHandoff) && reply ? {lastOutboundText: reply, lastOutboundAt: new Date()} : {}),
           ...(shouldEscalate ? {escalatedAt: new Date(), escalationReason: reason} : {}),
         },
       });
@@ -493,7 +588,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           data: {
             ...(result.result.updatedSummary !== null ? {summary: result.result.updatedSummary} : {}),
             summaryMessageCount: {increment: 1},
-            ...(!shouldEscalate && reply ? {lastOutboundText: reply, lastOutboundAt: new Date()} : {}),
+            ...(reply ? {lastOutboundText: reply, lastOutboundAt: new Date()} : {}),
             ...(shouldEscalate ? {escalatedAt: new Date(), escalationReason: reason} : {}),
           },
         });
@@ -502,7 +597,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
       if (shouldEscalate) {
         const notification = await createEscalationNotification(tx, body.chatKey, reason ?? 'Revisión humana requerida', log.id);
         await tx.chatbotMessageLog.update({where: {id: log.id}, data: {notificationId: notification.id}});
-        return {log, notification, action: 'ESCALATED' as const, requestResult};
+        if (!sendsHandoff) return {log, notification, action: 'ESCALATED' as const, requestResult};
+        if (effectiveMode !== 'AUTO') return {log, notification, action: 'SUGGESTED' as const, requestResult};
+        return {log, notification, action: 'AUTO_REPLY' as const, requestResult};
       }
       if (effectiveMode === 'SUGGEST') {
         // La sugerencia ya queda visible en el panel del chat y auditada en ChatbotMessageLog.
@@ -531,7 +628,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
 
     // El modelo derivó porque no sabía: queda como pregunta para enseñarle (y se le
     // consulta al entrenador). Las derivaciones por palabra clave o audio no cuentan.
-    if (output.action === 'ESCALATED' && !localEscalationReason && !reusable && !body.simulation) {
+    if (shouldEscalate && !localEscalationReason && !scripted && !reusable && !body.simulation) {
       void recordUnansweredQuestion(body.chatKey, body.message, reason, output.log.id).catch(() => undefined);
     }
 

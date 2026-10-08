@@ -12,12 +12,12 @@ describe('revisión de la respuesta del bot', () => {
     expect(problems).toHaveLength(2);
   });
 
-  it('deja pasar lo que entra en el presupuesto', () => {
-    expect(replyViolations(['Dale! Esta sale $640.000', 'Te la separo?'], {bannedWords, budgetCents: 65_000_000, customerMessage: 'ok'})).toEqual([]);
+  it('no deja pasar un precio, aunque entre en el presupuesto', () => {
+    expect(replyViolations(['Dale! Esta sale $640.000', 'Te la separo?'], {bannedWords, budgetCents: 65_000_000, customerMessage: 'ok'})).toHaveLength(1);
   });
 
-  it('si pide algo mejor, puede ofrecer algo más caro', () => {
-    expect(replyViolations(['La mas potente sale $1.400.000'], {bannedWords, budgetCents: 65_000_000, customerMessage: 'quiero algo más potente'})).toEqual([]);
+  it('tampoco cotiza cuando pide algo mejor', () => {
+    expect(replyViolations(['La mas potente sale $1.400.000'], {bannedWords, budgetCents: 65_000_000, customerMessage: 'quiero algo más potente'})).toHaveLength(1);
   });
 
   it('"para tu papá" no cuenta como apodo prohibido solo si no es la palabra suelta', () => {
