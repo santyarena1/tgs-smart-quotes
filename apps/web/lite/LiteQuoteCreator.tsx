@@ -445,7 +445,8 @@ export function LiteQuoteCreator() {
       if (raw) {
         const d = JSON.parse(raw) as { lines?: Line[]; name?: string; customerId?: string; isBuiltPc?: boolean; collectionIds?: string[]; tradeIns?: TradeIn[]; tradeShowValues?: boolean };
         if (d.lines?.length) {
-          setLines(d.lines);
+          // Los borradores de versiones anteriores no traían el IVA: se completa para que la fila no falle.
+          setLines(d.lines.map((l) => ({ ...l, ivaPct: l.ivaPct ?? DEFAULT_IVA_PCT, ivaAuto: l.ivaAuto ?? l.ivaPct == null })));
           setName(d.name ?? "");
           setCustomerId(d.customerId ?? "");
           setIsBuiltPc(Boolean(d.isBuiltPc));

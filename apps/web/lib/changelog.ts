@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.12",
+    date: "2026-10-09",
+    title: "LITE ya no falla con borradores viejos",
+    items: [
+      "Arreglo: abrir LITE en una PC con un presupuesto sin guardar de una versión anterior (sin el IVA por ítem) rompía la pantalla con un Application error. Ahora el borrador se restaura completando el IVA que falta",
+      "Si una pantalla falla al cargar, ahora muestra el error real y botones para reintentar, en vez del mensaje genérico Application error",
+    ],
+  },
+  {
     version: "0.19.11",
     date: "2026-10-09",
     title: "Guardar y descargar el presupuesto es más rápido",
