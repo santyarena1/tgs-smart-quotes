@@ -1,0 +1,39 @@
+/* ============================================================
+   Temas: base común a todos
+   Valores por defecto de las variables que usan los componentes
+   nuevos y arreglos estructurales para los temas sin barra flotante.
+   Los temas solo cambian el aspecto; nada de esto altera la estructura.
+   ============================================================ */
+:root {
+  --tgs-red: #d4171e;
+  --tgs-red-bright: #ef4148;
+  --tgs-red-deep: #a91016;
+  --tgs-red-rgb: 212, 23, 30;
+  --tgs-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --display: var(--brand);
+  --font-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+  --tgs-glow: 0 8px 22px rgba(var(--tgs-red-rgb), 0.28);
+  --tgs-glow-hover: 0 12px 30px rgba(var(--tgs-red-rgb), 0.38);
+  --tgs-grid: transparent;
+  --tgs-grid-lite: transparent;
+}
+
+/* La barra de LITE: sin asa ni botón "más" salvo en los temas con barra flotante; los controles van en línea */
+.lite .lt-bar-grip,
+.lite .lt-bar-more { display: none; }
+.lite .lt-bar-tools { display: contents; }
+
+/* Temas sin fondo animado */
+html:is([data-skin="original"], [data-skin="minimal"], [data-skin="simplicity"]) .fx-canvas { display: none; }
+
+/* Barra de LITE en celulares para los temas con barra fija: se desplaza hacia el costado en vez de desbordar */
+@media (max-width: 980px) {
+  html:is([data-skin="original"], [data-skin="minimal"], [data-skin="simplicity"]) .lite .lt-bar {
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0.4rem;
+  }
+  html:is([data-skin="original"], [data-skin="minimal"], [data-skin="simplicity"]) .lite .lt-bar::-webkit-scrollbar { display: none; }
+  html:is([data-skin="original"], [data-skin="minimal"], [data-skin="simplicity"]) .lite .lt-bar > * { flex: none; }
+  html:is([data-skin="original"], [data-skin="minimal"], [data-skin="simplicity"]) .lite .lt-tabs { max-width: none; }
+}

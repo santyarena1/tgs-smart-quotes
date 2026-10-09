@@ -25,14 +25,16 @@ import {
 } from "./shared";
 import {RECOMMENDED_AI_MODELS} from "../lib/ai-models";
 import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
+import {ThemesSection} from "./ThemesSection";
 import {WhatsappSettingsSection} from "./WhatsappSettingsSection";
 import {ThumbnailAiSettingsSection} from "./ThumbnailAiSettingsSection";
 import {NodoProvidersSettingsSection} from "./NodoProvidersSettingsSection";
 
-type Tab = "empresa" | "pdf" | "ia" | "miniaturas" | "chatbot" | "whatsapp" | "financiacion" | "distribuidores" | "extension" | "modulo-externo";
+type Tab = "empresa" | "temas" | "pdf" | "ia" | "miniaturas" | "chatbot" | "whatsapp" | "financiacion" | "distribuidores" | "extension" | "modulo-externo";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
+  { id: "temas", label: "Temas" },
   { id: "pdf", label: "PDF" },
   { id: "ia", label: "IA" },
   { id: "miniaturas", label: "Miniaturas" },
@@ -106,7 +108,7 @@ const emptyFin = (): FinDraft => ({
   sortOrder: "0",
 });
 
-const TAB_IDS: Tab[] = ["empresa", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "distribuidores", "extension", "modulo-externo"];
+const TAB_IDS: Tab[] = ["empresa", "temas", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "distribuidores", "extension", "modulo-externo"];
 
 /** `?tab=chatbot` abre esa pestaña directo (lo usa el botón "Bot" del CRM). */
 function initialTab(): Tab {
@@ -1121,6 +1123,8 @@ export function SettingsView() {
           </Modal>
         </div>
       ) : null}
+
+      {tab === "temas" ? <ThemesSection /> : null}
 
       {!loading && tab === "chatbot" ? <ChatbotSettingsSection /> : null}
 

@@ -1,0 +1,96 @@
+/* ============================================================
+   DarkYellow: negro cálido con amarillo dorado, inspirado en
+   DarkBlueRed. Modo claro en crema. Mismo motor visual (cristal
+   líquido, fondo animado) con otra paleta; el texto sobre amarillo
+   siempre es oscuro para que se lea.
+   ============================================================ */
+:root[data-skin="darkyellow"] {
+  --tgs-red: #facc15;
+  --tgs-red-bright: #fde047;
+  --tgs-red-deep: #ca8a04;
+  --tgs-red-rgb: 250, 204, 21;
+  --font: var(--font-inter), "Inter", "Segoe UI", system-ui, sans-serif;
+  --brand: var(--font-space), "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --display: var(--font-space), "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --bar-rgb: 14, 11, 4;
+  --side-a: #17120a;
+  --side-b: #0a0804;
+}
+:root[data-skin="darkyellow"][data-theme="dark"] {
+  --tgs-red: #facc15;
+  --tgs-red-bright: #fde047;
+  --tgs-red-deep: #ca8a04;
+  --tgs-red-rgb: 250, 204, 21;
+  --red: #ef4444;
+  --red-deep: #dc2626;
+  --red-soft: rgba(250, 204, 21, 0.13);
+  --red-line: rgba(250, 204, 21, 0.4);
+  --ink: #fff7dc; --ink-bg: #221b0b; --ink-2: #e6d9ab; --muted: #aa9e74; --faint: #70674a;
+  --line: rgba(250, 204, 21, 0.15); --line-2: rgba(250, 204, 21, 0.28);
+  --paper: #17130a; --canvas: #0b0905; --canvas-2: #100d06; --panel: #17130a;
+  --ok: #4ade80; --warn: #fbbf24; --info: #7dd3fc; --violet: #c4b5fd;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --sh-2: 0 2px 8px rgba(0, 0, 0, 0.5), 0 14px 38px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 22px 70px rgba(0, 0, 0, 0.72);
+  --tgs-grid: rgba(250, 204, 21, 0.035);
+  --tgs-grid-lite: rgba(250, 204, 21, 0.07);
+  --dk-card-a: #1b160a;
+  --dk-card-b: #130f07;
+  --dk-field: #0c0a05;
+  --dk-chip: #251e0c;
+  --dk-chip2: #2e250e;
+}
+:root[data-skin="darkyellow"][data-theme="light"] {
+  --tgs-red: #e0a800;
+  --tgs-red-bright: #f6c92b;
+  --tgs-red-deep: #b58300;
+  --tgs-red-rgb: 224, 168, 0;
+  --red: #dc2626;
+  --red-deep: #b91c1c;
+  --red-soft: rgba(224, 168, 0, 0.13);
+  --red-line: rgba(181, 131, 0, 0.4);
+  --ink: #1c1708; --ink-bg: #1c1708; --ink-2: #4a3f1a; --muted: #6f6440; --faint: #867a50;
+  --line: #e8e0c4; --line-2: #d9cfa8;
+  --paper: #fffdf5; --canvas: #fbf7ea; --canvas-2: #fffcf2;
+  --sh-1: 0 1px 2px rgba(60, 45, 0, 0.07);
+  --sh-2: 0 2px 8px rgba(60, 45, 0, 0.08), 0 14px 34px rgba(60, 45, 0, 0.09);
+  --sh-3: 0 22px 60px rgba(60, 45, 0, 0.25);
+  --tgs-grid: rgba(90, 70, 0, 0.045);
+  --tgs-grid-lite: rgba(90, 70, 0, 0.085);
+}
+html:root[data-skin="darkyellow"] :is(.page-head h1, .login-panel h1, .lite .lt-head h1, .lite .lt-side h2, .lite .lt-modal-card h2, .lite .lt-total strong, .stat .stat-value) {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+html:root[data-skin="darkyellow"] .page-head h1 { text-transform: none; }
+/* Texto oscuro sobre todo lo que lleva fondo amarillo */
+html:root[data-skin="darkyellow"] :is(button:not([class]), button.btn-sm:not(.btn-ghost):not(.btn-dark):not(.btn-danger), .lite .lt-btn:not(.ghost), .page-actions button:not(.btn-ghost), .lite .lt-bar .lt-tab.active, .tab.active) {
+  color: #1a1400;
+  text-shadow: none;
+}
+html:root[data-skin="darkyellow"][data-theme] .lite .lt-bar .lt-tab.active { background: linear-gradient(180deg, #fde047, #e0a800); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 4px 14px -4px rgba(250, 204, 21, 0.7); }
+html:root[data-skin="darkyellow"] .page-head .eyebrow { border-color: rgba(250, 204, 21, 0.4); background: rgba(250, 204, 21, 0.1); color: var(--tgs-red); }
+html:root[data-skin="darkyellow"][data-theme="light"] .page-head .eyebrow { color: #8a6500; }
+html:root[data-skin="darkyellow"] .nav-link.active { box-shadow: inset 3px 0 0 #facc15, 0 0 22px rgba(var(--tgs-red-rgb), 0.14); }
+html:root[data-skin="darkyellow"] .brand-badge { background: linear-gradient(135deg, #fde047, #ca8a04); color: #1a1400; }
+html:root[data-skin="darkyellow"] .lite .lt-bar .lt-store { background: linear-gradient(180deg, #fde047, #e0a800); color: #1a1400; }
+html:root[data-skin="darkyellow"] .lite .lt-bar .lt-store svg { color: #1a1400; stroke: #1a1400; }
+html:root[data-skin="darkyellow"] .side-switch[aria-checked="true"] .side-lite-track,
+html:root[data-skin="darkyellow"] .lite .lt-switch.tgs-red.on .lt-switch-track { background: #facc15; box-shadow: 0 0 14px rgba(250, 204, 21, 0.6); }
+html:root[data-skin="darkyellow"] .lite .lt-bar::after { background: linear-gradient(90deg, transparent 0%, #facc15 25%, #fff 50%, #f59e0b 75%, transparent 100%); background-size: 220% 100%; }
+html:root[data-skin="darkyellow"] .login-panel::before { background: linear-gradient(90deg, transparent, #facc15, #f59e0b, #facc15, transparent); background-size: 200% 100%; }
+
+/* Botón principal y línea superior de la barra del total en dorado */
+html:root[data-skin="darkyellow"] .lite .lt-btn:not(.ghost),
+html:root[data-skin="darkyellow"] .lite .lt-foot .lt-btn:not(.ghost):not(:disabled) { background: linear-gradient(135deg, #fde047, #e0a800); border-color: #e0a800; }
+html:root[data-skin="darkyellow"] .lite .lt-foot { border-top-color: #facc15; }
+html:root[data-skin="darkyellow"] .lite .lt-total strong { color: #facc15; text-shadow: 0 0 22px rgba(250, 204, 21, 0.4); }
+html:root[data-skin="darkyellow"][data-theme="light"] .lite .lt-total strong { color: #8a6500; text-shadow: none; }
+html:root[data-skin="darkyellow"] .lite .lt-act, html:root[data-skin="darkyellow"] .lite .lt-kind.on { color: inherit; }
+
+html:root[data-skin="darkyellow"][data-theme="light"] .btn-ghost:hover:not(:disabled),
+html:root[data-skin="darkyellow"][data-theme="light"] .page-actions .btn-ghost:hover:not(:disabled) { color: #7a5b00; border-color: #b58300; }
+
+html:root[data-skin="darkyellow"][data-theme] .lite .lt-bar .lt-tab.active { color: #1a1400; text-shadow: none; background: linear-gradient(180deg, #fde047, #e0a800); }
+html:root[data-skin="darkyellow"][data-theme] .lite .lt-bar .lt-tab.active:hover { color: #1a1400; }

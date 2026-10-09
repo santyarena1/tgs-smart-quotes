@@ -8,6 +8,36 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-10-09",
+    title: "Nuevo diseño y temas visuales por usuario",
+    items: [
+      "Nuevo apartado Configuración → Temas: cada usuario elige el suyo y se guarda en su cuenta (no afecta a nadie más). Cambia solo el aspecto —colores, tipografías, animaciones, barras y detalles—, nunca el funcionamiento ni la estructura, y vale para el modo normal y para LITE, en claro y oscuro",
+      "Ocho temas: Original (la interfaz de antes), TGS (el predeterminado), SuperMinimalist, DarkBlueRed, DarkYellow, BeGamer, Gotham y Simplicity",
+      "La primera vez que un usuario entra aparece un aviso (una sola vez) que presenta los temas y deja elegir uno al instante",
+      "Tema TGS: negro profundo y rojo, títulos en Anton y texto en Lexend, botones con degradé y brillo, tarjetas que se elevan, entradas animadas y todos los modales con animación de cierre",
+      "Fondo animado con partículas unidas por líneas de neón, anillos que giran, destellos que recorren la cuadrícula y ondas al hacer clic; interruptor Efectos (y Modo oscuro) en la barra lateral y en la barra de LITE para apagarlo",
+      "Barra de LITE flotante estilo cristal líquido: se puede arrastrar y soltar donde quieras (doble toque en el asa para volver a su lugar), se comprime al hacer scroll y se esconde al bajar",
+      "BeGamer: fondo con un reel de PCs gamer dibujado en vivo, rayos, componentes flotando en neón, humo y láseres; y una capa de glitch por encima de toda la interfaz al cambiar de pestaña, aplicar un filtro o abrirse una ventana. Si se copia un video propio a public/fx/gamer-showcase.mp4 se usa de fondo",
+      "Gotham: ciudad nocturna con lluvia, relámpagos, niebla, skyline con ventanas encendidas y un reflector que cruza las nubes; barra de LITE fija y de punta a punta",
+      "SuperMinimalist y Simplicity con más margen en financiación, vista previa y tarjetas de presupuestos, y textos con contraste corregido",
+      "El presupuesto común suma Productos del cliente (se resta del total y se guarda con el presupuesto) y Copiar para WhatsApp, que copia un resumen en texto y lo confirma con un aviso",
+      "Antes de generar la imagen de referencia se muestra un aviso sobre el costo de cada generación, con la opción de no volver a mostrarlo",
+      "LITE muestra la versión en la barra: al tocarla se abre el historial de novedades, y al actualizar aparece un aviso con lo nuevo; el modo normal muestra la versión junto al nombre de la suite",
+      "PDF detallado y Presupuesto formal en LITE pasan a texto de color; el menú del modo normal vuelve a abrirse en el teléfono y LITE muestra primero el presupuesto",
+      "Requiere migración de base de datos (columna User.uiSkin)",
+    ],
+  },
+  {
+    version: "0.19.12",
+    date: "2026-10-09",
+    title: "LITE ya no falla con borradores viejos",
+    items: [
+      "Arreglo: abrir LITE en una PC con un presupuesto sin guardar de una versión anterior (sin el IVA por ítem) rompía la pantalla con un Application error. Ahora el borrador se restaura completando el IVA que falta",
+      "Si una pantalla falla al cargar, ahora muestra el error real y botones para reintentar, en vez del mensaje genérico Application error",
+    ],
+  },
+  {
     version: "0.19.11",
     date: "2026-10-09",
     title: "Guardar y descargar el presupuesto es más rápido",

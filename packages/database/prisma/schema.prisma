@@ -308,6 +308,8 @@ model User {
   navPrefsJson  Json?
   /// Tema elegido en el CRM: light | dark | system. Se guarda por usuario, no por navegador.
   themePreference String?
+  /// Tema visual elegido (original | tgs | minimal | bluered | gamer | simplicity). Se guarda por usuario; null = el de TGS.
+  uiSkin String?
   /// Distribuidores de NODO que este usuario apagó para buscar. Por defecto las dos distribuidoras de demostración quedan apagadas.
   nodoOffProviders String[] @default(["prv_3A2i1P1LB6ERTmAz", "prv_jQVpXcxOxfNdphB5"])
   sessions      Session[]

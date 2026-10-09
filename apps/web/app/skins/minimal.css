@@ -1,0 +1,198 @@
+/* ============================================================
+   SuperMinimalist: blanco y negro, líneas finas, sin sombras
+   ni efectos. Lo justo para trabajar.
+   ============================================================ */
+:root[data-skin="minimal"] {
+  --font: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --brand: var(--font-inter), "Inter", system-ui, sans-serif;
+  --display: var(--font-inter), "Inter", system-ui, sans-serif;
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 8px;
+  --tgs-red: #111;
+  --tgs-red-rgb: 17, 17, 17;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+}
+:root[data-skin="minimal"][data-theme="light"] {
+  --red: #111111; --red-deep: #000000; --red-soft: #f6f6f6; --red-line: #dedede;
+  --ink: #111111; --ink-bg: #111111; --ink-2: #333333; --muted: #767676; --faint: #9a9a9a;
+  --line: #ececec; --line-2: #e0e0e0; --paper: #ffffff; --canvas: #ffffff; --canvas-2: #fafafa;
+  --sh-1: none; --sh-2: none; --sh-3: 0 10px 40px rgba(0, 0, 0, 0.08);
+  --ok: #1f7a4d; --ok-bg: #f0f7f3; --warn: #8a6100; --warn-bg: #fbf6e8; --info: #1f4f91; --info-bg: #eff4fb; --violet: #4c3a8a; --violet-bg: #f4f1fa;
+}
+:root[data-skin="minimal"][data-theme="dark"] {
+  color-scheme: dark;
+  --red: #ffffff; --red-deep: #e6e6e6; --red-soft: #161616; --red-line: #333333;
+  --ink: #ededed; --ink-bg: #1a1a1a; --ink-2: #c4c4c4; --muted: #8f8f8f; --faint: #6a6a6a;
+  --line: #1f1f1f; --line-2: #2a2a2a; --paper: #0a0a0a; --canvas: #0a0a0a; --canvas-2: #0f0f0f; --panel: #0a0a0a;
+  --sh-1: none; --sh-2: none; --sh-3: 0 10px 40px rgba(0, 0, 0, 0.6);
+  --ok: #5fd397; --ok-bg: #0f1a14; --warn: #e0b84a; --warn-bg: #1b1608; --info: #7fb0ee; --info-bg: #0e1622; --violet: #b3a1f5; --violet-bg: #15111f;
+}
+html:root[data-skin="minimal"] h1,
+html:root[data-skin="minimal"] h2,
+html:root[data-skin="minimal"] h3,
+html:root[data-skin="minimal"] h4 { font-family: var(--brand); font-weight: 500; letter-spacing: -0.02em; text-transform: none; }
+html:root[data-skin="minimal"] .page-head h1 { font-size: clamp(1.4rem, 2.2vw, 1.8rem); font-weight: 500; }
+html:root[data-skin="minimal"] .page-head .eyebrow { color: var(--muted); letter-spacing: 0.08em; }
+
+/* Botones planos */
+:where(html[data-skin="minimal"]) button {
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 6px;
+  transition: opacity 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+/* Solo los botones primarios (sin otra clase) llevan el color de acento; el resto conserva su estilo. */
+html:root[data-skin="minimal"] button:not([class]),
+html:root[data-skin="minimal"] button.btn-sm:not(.btn-ghost):not(.btn-dark):not(.btn-danger) {
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: none;
+}
+html:root[data-skin="minimal"] button:not([class]):hover:not(:disabled) { background: var(--ink); opacity: 0.82; }
+html:root[data-skin="minimal"] button:not([class]):active:not(:disabled) { transform: none; }
+html:root[data-skin="minimal"] .btn-ghost,
+html:root[data-skin="minimal"] .btn-danger,
+html:root[data-skin="minimal"] .btn-icon { background: transparent; color: var(--ink); border: 1px solid var(--line-2); }
+html:root[data-skin="minimal"] .btn-ghost:hover:not(:disabled),
+html:root[data-skin="minimal"] .btn-danger:hover:not(:disabled) { background: var(--canvas-2); opacity: 1; }
+html:root[data-skin="minimal"] .btn-danger { color: #b3261e; border-color: #ecc9c6; }
+html:root[data-skin="minimal"] .btn-dark { background: var(--ink); color: var(--paper); }
+html:root[data-skin="minimal"] input,
+html:root[data-skin="minimal"] select,
+html:root[data-skin="minimal"] textarea { border-radius: 6px; border-color: var(--line-2); background: var(--paper); }
+html:root[data-skin="minimal"] input:focus,
+html:root[data-skin="minimal"] select:focus,
+html:root[data-skin="minimal"] textarea:focus { border-color: var(--ink); box-shadow: none; }
+
+/* Superficies sin sombra, solo línea fina */
+html:root[data-skin="minimal"] .card,
+html:root[data-skin="minimal"] .stat,
+html:root[data-skin="minimal"] .modal,
+html:root[data-skin="minimal"] .drawer,
+html:root[data-skin="minimal"] .login-panel { box-shadow: none; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+html:root[data-skin="minimal"] .stat::before { display: none; }
+html:root[data-skin="minimal"] .stat .stat-value { font-weight: 500; letter-spacing: -0.02em; }
+html:root[data-skin="minimal"] .login-screen { background: var(--canvas); }
+html:root[data-skin="minimal"] th { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+html:root[data-skin="minimal"] .pill, html:root[data-skin="minimal"] .badge { background: transparent; border: 1px solid var(--line-2); color: var(--ink-2); }
+
+/* Barra lateral clara y delgada */
+html:root[data-skin="minimal"] .side { background: var(--paper); color: var(--ink); border-right: 1px solid var(--line); }
+html:root[data-skin="minimal"] .brand { border-bottom: 1px solid var(--line); }
+html:root[data-skin="minimal"] .brand strong { color: var(--ink); font-weight: 600; }
+html:root[data-skin="minimal"] .brand small { color: var(--muted); }
+html:root[data-skin="minimal"] .brand-badge { background: var(--ink); color: var(--paper); border-radius: 4px; }
+html:root[data-skin="minimal"] .nav-group-label,
+html:root[data-skin="minimal"] .nav-group-toggle { color: var(--muted); }
+html:root[data-skin="minimal"] .nav-group-toggle:hover,
+html:root[data-skin="minimal"] .nav-group.open > .nav-group-toggle { background: transparent; color: var(--ink); }
+html:root[data-skin="minimal"] .nav-link { color: var(--ink-2); }
+html:root[data-skin="minimal"] .nav-link:hover { background: var(--canvas-2); color: var(--ink); }
+html:root[data-skin="minimal"] .nav-link.active { background: transparent; color: var(--ink); font-weight: 600; box-shadow: inset 2px 0 0 var(--ink); }
+html:root[data-skin="minimal"] .nav-group.ungrouped,
+html:root[data-skin="minimal"] .side-foot { border-color: var(--line); }
+html:root[data-skin="minimal"] .side-local,
+html:root[data-skin="minimal"] .side-lite-switch,
+html:root[data-skin="minimal"] .side-lite-switch:hover:not(:disabled),
+html:root[data-skin="minimal"] .side-changelog-btn { background: transparent; border: 1px solid var(--line); color: var(--ink-2); box-shadow: none; }
+html:root[data-skin="minimal"] .side-local-copy small, html:root[data-skin="minimal"] .side-local-copy strong,
+html:root[data-skin="minimal"] .side-user p, html:root[data-skin="minimal"] .side-user small,
+html:root[data-skin="minimal"] .side-lite-label, html:root[data-skin="minimal"] .side-changelog-ver { color: var(--ink-2); }
+html:root[data-skin="minimal"] .side-lite-track { background: var(--line-2); }
+html:root[data-skin="minimal"] .side-lite-knob { background: var(--paper); box-shadow: 0 0 0 1px var(--line-2); }
+html:root[data-skin="minimal"] .side-switch[aria-checked="true"] .side-lite-track { background: var(--ink); box-shadow: none; }
+html:root[data-skin="minimal"] .side-foot .btn-ghost { background: transparent; border-color: var(--line); color: var(--ink-2); }
+html:root[data-skin="minimal"] .side-user-avatar, html:root[data-skin="minimal"] .side-user .avatar { background: var(--canvas-2); color: var(--ink); }
+html:root[data-skin="minimal"] .side-changelog-panel { background: var(--paper); border-color: var(--line-2); }
+html:root[data-skin="minimal"] .side-changelog-entry strong { color: var(--ink); }
+html:root[data-skin="minimal"] .brand-version { color: var(--muted); }
+
+/* LITE: barra fija fina, sin degradé; pestañas con línea inferior */
+html:root[data-skin="minimal"] .lite { background: var(--canvas); }
+html:root[data-skin="minimal"] .lite .lt-bar { background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: none; color: var(--ink); height: 48px; backdrop-filter: none; }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-brand,
+html:root[data-skin="minimal"] .lite .lt-bar .lt-brand-text { color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-tab { color: var(--muted); border-radius: 0 !important; background: transparent; border-bottom: 2px solid transparent; padding: 0.5rem 0.7rem; }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-tab:hover { background: transparent; color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-tab.active { background: transparent; color: var(--ink); border-bottom-color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-icon { color: var(--ink-2); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-user { background: var(--canvas-2); color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-store { background: transparent; color: var(--ink); border: 1px solid var(--line-2); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-switch,
+html:root[data-skin="minimal"] .lite .lt-bar .lt-branch,
+html:root[data-skin="minimal"] .lite .lt-bar .lt-version { background: transparent; border: 1px solid var(--line-2); color: var(--ink-2); box-shadow: none; }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-switch-track { background: var(--line-2); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-switch.on .lt-switch-track,
+html:root[data-skin="minimal"] .lite .lt-switch.tgs-red.on .lt-switch-track { background: var(--ink); box-shadow: none; }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-switch-knob { background: var(--paper); box-shadow: 0 0 0 1px var(--line-2); }
+html:root[data-skin="minimal"] .lite .lt-logo-img { background: #fff; border-radius: 6px; }
+html:root[data-skin="minimal"] .lite .lt-card,
+html:root[data-skin="minimal"] .lite .lt-fin,
+html:root[data-skin="minimal"] .lite .lt-recent li,
+html:root[data-skin="minimal"] .lite .lt-quote-list li,
+html:root[data-skin="minimal"] .lite .lt-pc { background: var(--paper); border: 1px solid var(--line); box-shadow: none; }
+html:root[data-skin="minimal"] .lite .lt-fin { border-top: 1px solid var(--line); }
+html:root[data-skin="minimal"] .lite .lt-fin-card { background: var(--paper); border: 1px solid var(--line); }
+html:root[data-skin="minimal"] .lite .lt-fin-cash { background: var(--canvas-2); color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-head h1,
+html:root[data-skin="minimal"] .lite .lt-side h2 { font-weight: 500; letter-spacing: -0.02em; }
+html:root[data-skin="minimal"] .lite .lt-btn { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-btn.ghost { background: transparent; color: var(--ink); border-color: var(--line-2); }
+html:root[data-skin="minimal"] .lite .lt-total strong { color: var(--ink); }
+html:root[data-skin="minimal"] .lite .lt-foot { background: var(--paper); border-color: var(--line); box-shadow: none; }
+html:root[data-skin="minimal"][data-theme="dark"] .lite,
+html:root[data-skin="minimal"][data-theme="dark"] .lite .lt-coll-list { background: var(--canvas); }
+html:root[data-skin="minimal"][data-theme="dark"] .lite .lt-trade-modal,
+html:root[data-skin="minimal"][data-theme="dark"] .lite .lt-modal-card { background: var(--paper); }
+html:root[data-skin="minimal"][data-theme="dark"] .lite .lt-bar .lt-tab.active { background: transparent; color: var(--ink); }
+html:root[data-skin="minimal"] .lite :is(.lt-card, .lt-fin, .lt-recent li, .lt-input, select, input, .lt-btn, .lt-pc, .lt-fin-card, .lt-modal-card) { border-radius: 6px !important; }
+
+/* Textos de la barra de LITE siempre legibles (el local, el modo oscuro, los efectos) */
+html:root[data-skin="minimal"] .lite .lt-bar :is(select, .lt-branch select) { color: var(--ink); background: transparent; }
+html:root[data-skin="minimal"] .lite .lt-bar select option { color: #111; background: #fff; }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-switch > span:last-child,
+html:root[data-skin="minimal"] .lite .lt-bar .lt-version,
+html:root[data-skin="minimal"] .lite .lt-bar .lt-store span { color: var(--ink-2); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-dot { background: var(--ok); }
+html:root[data-skin="minimal"] .lite .lt-bar .lt-store svg { color: var(--ink-2); stroke: var(--ink-2); }
+
+/* Botones negros: al pasar el mouse cambian el fondo pero el texto sigue contrastando (blanco sobre gris oscuro / negro sobre gris claro) */
+html:root[data-skin="minimal"] .btn-dark:hover:not(:disabled),
+html:root[data-skin="minimal"] button:not([class]):hover:not(:disabled),
+html:root[data-skin="minimal"] .lite .lt-btn:not(.ghost):hover:not(:disabled) {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+  color: var(--paper);
+  opacity: 1;
+}
+html:root[data-skin="minimal"] .lite .lt-btn.ghost:hover:not(:disabled) { background: var(--canvas-2); color: var(--ink); border-color: var(--ink); }
+
+html:root[data-skin="minimal"] .lite .lt-pc small, html:root[data-skin="minimal"] .lite .lt-pc-copy small { color: var(--muted); }
+
+/* Botón del CRM en la barra lateral clara */
+html:root[data-skin="minimal"] .side-crm { background: var(--canvas-2); border: 1px solid var(--line-2); color: var(--ink); box-shadow: none; }
+html:root[data-skin="minimal"] .side-crm:hover { background: var(--paper); border-color: var(--ink-2); }
+html:root[data-skin="minimal"] .side-crm-copy strong { color: var(--ink); }
+html:root[data-skin="minimal"] .side-crm-copy small { color: var(--muted); }
+
+/* Más aire: financiación, vista previa (presupuesto en curso) y tarjetas de presupuestos */
+html:root[data-skin="minimal"] .lite .lt-fin { padding: 1.3rem 1.5rem 1.5rem; gap: 0.8rem; }
+html:root[data-skin="minimal"] .lite .lt-fin-head { padding-bottom: 0.85rem; }
+html:root[data-skin="minimal"] .lite .lt-fin-list { gap: 0.6rem; }
+html:root[data-skin="minimal"] .lite .lt-fin-card { padding: 0.8rem 1.05rem; }
+html:root[data-skin="minimal"] .lite .lt-fin-cash { padding: 0.7rem 1rem; }
+html:root[data-skin="minimal"] .lite .lt-card { padding: 1.5rem 1.5rem; }
+html:root[data-skin="minimal"] .lite .lt-pc { padding: 0.85rem 1.1rem; }
+html:root[data-skin="minimal"] .lite .lt-foot { padding: 1.05rem 1.5rem; }
+html:root[data-skin="minimal"] .lite .lt-recent { gap: 0.9rem; }
+html:root[data-skin="minimal"] .lite .lt-recent li { padding: 1.15rem 1.5rem; }
+html:root[data-skin="minimal"] .lite .lt-side { gap: 1.1rem; }
+html:root[data-skin="minimal"] .lite .lt-list-filters, html:root[data-skin="minimal"] .lite .lt-states { padding: 1rem 1.15rem; }
+html:root[data-skin="minimal"] .card-pad { padding: 1.5rem 1.5rem; }
+html:root[data-skin="minimal"] .stat { padding: 1.15rem 1.3rem; }
+html:root[data-skin="minimal"] .main { padding-top: 1.7rem; }
