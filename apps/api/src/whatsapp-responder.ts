@@ -224,7 +224,10 @@ export async function respondNow(chatKey: string): Promise<void> {
     return;
   }
 
-  const hasAudio = usable.some((message) => ((message.decisionMetadata ?? {}) as Record<string, unknown>).messageType === 'AUDIO');
+  const hasAudio = usable.some((message) => {
+    const metadata = (message.decisionMetadata ?? {}) as Record<string, unknown>;
+    return metadata.messageType === 'AUDIO' || metadata.wasAudio === true;
+  });
   const liveMode = conversation.modeOverride ?? settings.defaultMode;
   const outsideHours = !conversation.alwaysOn && isOutsideBusinessHours(settings.businessHours);
   const credentials = await loadCredentials().catch(() => null);

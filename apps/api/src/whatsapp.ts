@@ -1000,7 +1000,7 @@ export class WhatsappController {
 
     const conversation = await db.chatbotConversation.findUnique({where: {chatKey}, select: {displayName: true}});
     const metadata = (lastInbound.decisionMetadata ?? {}) as Record<string, unknown>;
-    const messageType = metadata.messageType === 'AUDIO' ? 'AUDIO' as const : 'TEXT' as const;
+    const messageType = metadata.messageType === 'AUDIO' || metadata.wasAudio === true ? 'AUDIO' as const : 'TEXT' as const;
     const settings = await db.chatbotSettings.findUniqueOrThrow({
       where: {id: 'singleton'},
       select: {maxRecentSnippets: true},
