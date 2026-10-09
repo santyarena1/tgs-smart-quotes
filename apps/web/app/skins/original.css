@@ -1,0 +1,16 @@
+/* ============================================================
+   Tema Original: la interfaz de antes de los temas.
+   No pisa nada: se ve lo que definen styles.css y lite.css.
+   Solo se cuida que lo nuevo (interruptores, versión) no rompa el aspecto clásico.
+   ============================================================ */
+html[data-skin="original"] .lite .lt-bar .lt-version {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  height: auto;
+}
+html[data-skin="original"] .lite .lt-bar .lt-switch { height: 30px; font-size: 0.72rem; }
+html[data-skin="original"] .side-switch .side-lite-label { letter-spacing: 0.06em; }

@@ -14,6 +14,8 @@ const PHASES = [
   "Dando los últimos retoques…",
 ];
 const PHASE_SECONDS = 9;
+/** Si vale "1", el aviso de costos antes de generar no se vuelve a mostrar en este navegador. */
+const WARN_OFF_KEY = "tgs.refimage.warn.off";
 const phaseText = (seconds: number) => PHASES[Math.min(PHASES.length - 1, Math.floor(seconds / PHASE_SECONDS))]!;
 
 export const REFERENCE_WARNING = "Imagen ilustrativa generada con IA. Puede no coincidir al 100 % con los componentes (modelos, colores, luces o cables). Revisala antes de incluirla: no es un render oficial ni garantiza cómo se verá el equipo final.";
@@ -84,7 +86,24 @@ export function LiteReferenceModal({ job, current, stale, suggested, onGenerate,
   const [picking, setPicking] = useState(false);
   const choosing = !generating && (picking || !shown);
   const step = generating || choosing ? 1 : ready ? 2 : 3;
-  const pick = (style: ReferenceStyle) => { setPicking(false); onGenerate(style); };
+  // Aviso de costos: aparece cada vez que se toca generar, salvo que se haya tildado "no volver a mostrar".
+  const [warnStyle, setWarnStyle] = useState<ReferenceStyle | null>(null);
+  const [skipWarn, setSkipWarn] = useState(false);
+  const pick = (style: ReferenceStyle) => {
+    let muted = false;
+    try { muted = window.localStorage.getItem(WARN_OFF_KEY) === "1"; } catch { /* sin storage: se muestra el aviso */ }
+    if (muted) { setPicking(false); onGenerate(style); return; }
+    setSkipWarn(false);
+    setWarnStyle(style);
+  };
+  const confirmWarn = () => {
+    if (!warnStyle) return;
+    if (skipWarn) { try { window.localStorage.setItem(WARN_OFF_KEY, "1"); } catch { /* sin storage */ } }
+    const style = warnStyle;
+    setWarnStyle(null);
+    setPicking(false);
+    onGenerate(style);
+  };
   const steps: Array<[number, string]> = [[1, "Generar"], [2, "Revisar"], [3, "Incluir"]];
 
   return (
@@ -187,6 +206,35 @@ export function LiteReferenceModal({ job, current, stale, suggested, onGenerate,
               <button type="button" className="lt-btn ghost" onClick={onClose}>Cerrar</button>
             </>
           )}
+        </div>
+      </div>
+      {warnStyle ? <ReferenceCostWarning skip={skipWarn} onSkip={setSkipWarn} onCancel={() => setWarnStyle(null)} onContinue={confirmWarn} /> : null}
+    </div>
+  );
+}
+
+/** Aviso previo a generar: la imagen cuesta dinero cada vez, así que se pide un uso responsable. */
+function ReferenceCostWarning({ skip, onSkip, onCancel, onContinue }: { skip: boolean; onSkip: (v: boolean) => void; onCancel: () => void; onContinue: () => void }) {
+  return (
+    <div className="rcw-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="rcw-title" onMouseDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="rcw-card" tabIndex={-1} ref={(el) => el?.focus()} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onCancel(); } }}>
+        <div className="rcw-icon" aria-hidden="true"><span>!</span><i /><i /></div>
+        <h2 id="rcw-title">Antes de generar la imagen</h2>
+        <p className="rcw-lead">Cada imagen generada con IA tiene un <strong>costo real</strong> para el negocio. Usala con criterio.</p>
+        <ul className="rcw-list">
+          <li><b>Se cobra cada generación.</b> También las que se descartan o se regeneran: el costo exacto depende del plan de OpenAI del negocio.</li>
+          <li><b>Revisá el presupuesto antes.</b> Si los productos están completos, la imagen sale bien a la primera y no hace falta repetirla.</li>
+          <li><b>No regeneres para probar.</b> Cada intento extra suma gasto sin aportar al cliente.</li>
+          <li><b>Generala solo cuando sume.</b> Es una ayuda visual opcional, no un requisito del presupuesto.</li>
+        </ul>
+        <label className="rcw-check">
+          <input type="checkbox" checked={skip} onChange={(e) => onSkip(e.target.checked)} />
+          <span className="rcw-box" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg></span>
+          <span>No volver a mostrar este aviso</span>
+        </label>
+        <div className="rcw-actions">
+          <button type="button" className="rcw-cancel" onClick={onCancel}>Cancelar</button>
+          <button type="button" className="rcw-go" onClick={onContinue}>Continuar y generar</button>
         </div>
       </div>
     </div>

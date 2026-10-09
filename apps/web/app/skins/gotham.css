@@ -1,0 +1,186 @@
+/* ============================================================
+   Gotham: noir de ciudad nocturna. Acero y negro con el amarillo
+   de la señal como único acento. Lluvia, relámpagos, niebla,
+   skyline y un reflector (dibujados en el fondo animado).
+   Tipografía: Bebas Neue para los títulos, Barlow para el texto.
+   ============================================================ */
+:root[data-skin="gotham"] {
+  --tgs-red: #8ea4b8;
+  --tgs-red-bright: #b6c6d4;
+  --tgs-red-deep: #5a6f84;
+  --tgs-red-rgb: 142, 164, 184;
+  --gt-yellow: #f2c230;
+  --gt-yellow-rgb: 242, 194, 48;
+  --font: var(--font-barlow), "Barlow", "Segoe UI", system-ui, sans-serif;
+  --brand: var(--font-barlow), "Barlow", "Segoe UI", system-ui, sans-serif;
+  --display: var(--font-bebas), "Bebas Neue", Impact, "Arial Narrow", sans-serif;
+  --r-sm: 3px;
+  --r: 6px;
+  --r-lg: 8px;
+  --bar-rgb: 6, 8, 11;
+  --side-a: #0d1116;
+  --side-b: #05070a;
+  font-size: 15px;
+}
+:root[data-skin="gotham"][data-theme="dark"] {
+  --red: #f2c230; --red-deep: #c99a12; --red-soft: rgba(242, 194, 48, 0.1); --red-line: rgba(242, 194, 48, 0.36);
+  --ink: #e6ebf0; --ink-bg: #151b22; --ink-2: #b5c0ca; --muted: #96a2ae; --faint: #7d8894;
+  --line: rgba(143, 163, 181, 0.14); --line-2: rgba(143, 163, 181, 0.27);
+  --paper: #0f1318; --canvas: #06080b; --canvas-2: #0a0d11; --panel: #0f1318;
+  --ok: #5fd397; --warn: #f2c230; --info: #7fb0ee; --violet: #b3a1f5;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --sh-2: 0 2px 8px rgba(0, 0, 0, 0.55), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --sh-3: 0 24px 70px rgba(0, 0, 0, 0.75);
+  --tgs-grid: transparent;
+  --tgs-grid-lite: transparent;
+  --dk-card-a: rgba(18, 23, 29, 0.9);
+  --dk-card-b: rgba(11, 15, 19, 0.92);
+  --dk-field: #070a0d;
+  --dk-chip: #1a2129;
+  --dk-chip2: #222b35;
+}
+:root[data-skin="gotham"][data-theme="light"] {
+  --tgs-red: #4d6277;
+  --tgs-red-bright: #6f869b;
+  --tgs-red-deep: #34485b;
+  --tgs-red-rgb: 77, 98, 119;
+  --red: #b98a00; --red-deep: #8f6a00; --red-soft: rgba(185, 138, 0, 0.1); --red-line: rgba(143, 106, 0, 0.38);
+  --ink: #0d1116; --ink-bg: #0d1116; --ink-2: #2c353e; --muted: #56616b; --faint: #67717b;
+  --line: #c9d0d6; --line-2: #b6bec6;
+  --paper: #f4f6f8; --canvas: #dfe3e7; --canvas-2: #e9ecef;
+  --sh-1: 0 1px 2px rgba(13, 17, 22, 0.08);
+  --sh-2: 0 2px 8px rgba(13, 17, 22, 0.1), 0 14px 34px rgba(13, 17, 22, 0.1);
+  --sh-3: 0 22px 60px rgba(13, 17, 22, 0.3);
+  --tgs-grid: transparent;
+  --tgs-grid-lite: transparent;
+}
+/* Cielo de Gotham detrás de todo (si no hay efectos, un fondo liso) */
+html[data-skin="gotham"][data-fx="off"] body { background: var(--canvas); }
+
+/* Títulos: cartel de película negra */
+html:root[data-skin="gotham"] :is(h1, h2, .page-head h1, .login-panel h1, .lite .lt-head h1, .lite .lt-side h2, .lite .lt-modal-card h2, .lite .lt-total strong, .stat .stat-value) {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+html:root[data-skin="gotham"] .page-head h1 { font-size: clamp(2rem, 3.4vw, 2.9rem); line-height: 1; }
+html:root[data-skin="gotham"][data-theme="dark"] :is(.page-head h1, .login-panel h1, .lite .lt-head h1) { text-shadow: 0 0 26px rgba(var(--gt-yellow-rgb), 0.18); }
+html:root[data-skin="gotham"] .stat .stat-value { font-size: 2.1rem; }
+html:root[data-skin="gotham"] .page-head .eyebrow { border-color: rgba(var(--gt-yellow-rgb), 0.45); background: rgba(var(--gt-yellow-rgb), 0.08); color: var(--gt-yellow); }
+html:root[data-skin="gotham"][data-theme="light"] .page-head .eyebrow { color: #7a5b00; }
+html:root[data-skin="gotham"] .page-head .eyebrow::before { background: var(--gt-yellow); box-shadow: 0 0 10px var(--gt-yellow); }
+html:root[data-skin="gotham"] .stat::before { background: var(--gt-yellow); box-shadow: 0 0 12px rgba(var(--gt-yellow-rgb), 0.55); }
+
+/* Botones de acero ahumado; al pasar el mouse se enciende el borde amarillo */
+html:root[data-skin="gotham"] button:not([class]),
+html:root[data-skin="gotham"] button.btn-sm:not(.btn-ghost):not(.btn-dark):not(.btn-danger),
+html:root[data-skin="gotham"] .lite .lt-btn:not(.ghost),
+html:root[data-skin="gotham"] .page-actions button:not(.btn-ghost) {
+  background: linear-gradient(180deg, #38465a, #1a222c) 0 0 / 100% 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #eef2f5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 16px -8px rgba(0, 0, 0, 0.7);
+  text-shadow: none;
+  letter-spacing: 0.1em;
+  border-radius: 3px;
+}
+html:root[data-skin="gotham"] button:not([class]):hover:not(:disabled),
+html:root[data-skin="gotham"] button.btn-sm:not(.btn-ghost):not(.btn-dark):not(.btn-danger):hover:not(:disabled),
+html:root[data-skin="gotham"] .lite .lt-btn:not(.ghost):hover:not(:disabled),
+html:root[data-skin="gotham"] .page-actions button:not(.btn-ghost):hover:not(:disabled) {
+  background: linear-gradient(180deg, #44546a, #202a36);
+  border-color: var(--gt-yellow);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(var(--gt-yellow-rgb), 0.5), 0 0 22px rgba(var(--gt-yellow-rgb), 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+html:root[data-skin="gotham"] .btn-danger { color: #ff7a72; border-color: rgba(220, 70, 60, 0.5); }
+html:root[data-skin="gotham"] .btn-danger:hover:not(:disabled) { background: rgba(220, 70, 60, 0.12); box-shadow: 0 0 0 3px rgba(220, 70, 60, 0.15); }
+html:root[data-skin="gotham"] input:focus,
+html:root[data-skin="gotham"] select:focus,
+html:root[data-skin="gotham"] textarea:focus { border-color: var(--gt-yellow); box-shadow: 0 0 0 3px rgba(var(--gt-yellow-rgb), 0.16), 0 0 22px rgba(var(--gt-yellow-rgb), 0.1); }
+html:root[data-skin="gotham"] :focus-visible { outline-color: var(--gt-yellow); }
+html:root[data-skin="gotham"] ::selection { background: var(--gt-yellow); color: #111; }
+html:root[data-skin="gotham"] input[type="checkbox"], html:root[data-skin="gotham"] input[type="radio"] { accent-color: var(--gt-yellow); }
+
+/* Barra lateral: concreto oscuro con filo amarillo en la sección activa */
+html:root[data-skin="gotham"] .side { border-right: 1px solid rgba(143, 163, 181, 0.18); }
+html:root[data-skin="gotham"] .side::after { background: linear-gradient(180deg, var(--gt-yellow), transparent 40%); opacity: 0.6; }
+html:root[data-skin="gotham"] .nav-link { font-family: var(--font); font-weight: 500; letter-spacing: 0.04em; }
+html:root[data-skin="gotham"] .nav-link.active { background: linear-gradient(90deg, rgba(var(--gt-yellow-rgb), 0.16), rgba(var(--gt-yellow-rgb), 0.02)); box-shadow: inset 3px 0 0 var(--gt-yellow); color: #fff; }
+html:root[data-skin="gotham"] .nav-link.active .ico { color: var(--gt-yellow); }
+html:root[data-skin="gotham"] .brand-badge { background: linear-gradient(135deg, #f7d154, #c99a12); color: #14100a; font-family: var(--display); letter-spacing: 0.04em; }
+html:root[data-skin="gotham"] .brand-version { color: var(--gt-yellow); }
+html:root[data-skin="gotham"] .side-switch[aria-checked="true"] .side-lite-track,
+html:root[data-skin="gotham"] .lite .lt-switch.tgs-red.on .lt-switch-track { background: var(--gt-yellow); box-shadow: 0 0 14px rgba(var(--gt-yellow-rgb), 0.55); }
+
+/* Barra de LITE: acero ahumado con una línea de señal amarilla */
+html:root[data-skin="gotham"] .lite .lt-bar { border-color: rgba(143, 163, 181, 0.22); }
+html:root[data-skin="gotham"] .lite .lt-bar::after { background: linear-gradient(90deg, transparent 0%, #f2c230 28%, #fff7cf 50%, #f2c230 72%, transparent 100%); background-size: 220% 100%; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-tab { font-family: var(--display); font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 0.2rem; padding-bottom: 0.15rem; }
+html:root[data-skin="gotham"][data-theme] .lite .lt-bar .lt-tab.active { background: rgba(var(--gt-yellow-rgb), 0.14); color: var(--gt-yellow); border-color: rgba(var(--gt-yellow-rgb), 0.5); box-shadow: inset 0 -2px 0 var(--gt-yellow), 0 0 18px rgba(var(--gt-yellow-rgb), 0.25); animation: none; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-store { background: linear-gradient(180deg, #f7d154, #c99a12); color: #14100a; border-color: rgba(255, 255, 255, 0.35); }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-store span, html:root[data-skin="gotham"] .lite .lt-bar .lt-store svg { color: #14100a; stroke: #14100a; }
+
+/* Barra del total */
+html:root[data-skin="gotham"] .lite .lt-foot { border-top: 2px solid var(--gt-yellow); }
+html:root[data-skin="gotham"][data-theme="dark"] .lite .lt-foot { background: linear-gradient(180deg, rgba(20, 26, 33, 0.94), rgba(8, 11, 14, 0.97)); }
+html:root[data-skin="gotham"] .lite .lt-total strong { color: var(--gt-yellow); text-shadow: 0 0 24px rgba(var(--gt-yellow-rgb), 0.35); }
+html:root[data-skin="gotham"][data-theme="light"] .lite .lt-total strong { color: #7a5b00; text-shadow: none; }
+
+/* Tarjetas: bordes finos de acero con una esquina remachada */
+html:root[data-skin="gotham"] :is(.card, .stat, .modal, .lite .lt-card, .lite .lt-fin, .lite .lt-pc) { border-radius: 4px; }
+html:root[data-skin="gotham"] .login-screen { background: radial-gradient(900px 520px at 50% 118%, rgba(var(--gt-yellow-rgb), 0.2), transparent 62%), radial-gradient(700px 400px at 12% -10%, rgba(var(--tgs-red-rgb), 0.16), transparent 60%), var(--canvas); }
+html:root[data-skin="gotham"] .login-panel::before { background: linear-gradient(90deg, transparent, #f2c230, #fff7cf, #f2c230, transparent); background-size: 200% 100%; }
+html:root[data-skin="gotham"] .skin-tag.on { color: #14100a; }
+html:root[data-skin="gotham"] .tab.active { background: rgba(var(--gt-yellow-rgb), 0.16); color: var(--gt-yellow); box-shadow: inset 0 -2px 0 var(--gt-yellow); }
+html:root[data-skin="gotham"][data-theme="light"] .tab.active { color: #7a5b00; }
+
+/* Viñeta de calle oscura (solo con efectos) */
+html[data-skin="gotham"][data-fx="on"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 42%, transparent 52%, rgba(0, 0, 0, 0.5) 100%);
+  opacity: 0.8;
+}
+html[data-skin="gotham"][data-theme="light"][data-fx="on"] body::after { opacity: 0.25; }
+
+/* ————— Barra de LITE de Gotham: fija y de punta a punta ————— */
+html:root[data-skin="gotham"] .lite .lt-bar {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  max-width: none;
+  height: 56px;
+  margin: 0;
+  padding: 0 1.1rem;
+  border-radius: 0 !important;
+  border-width: 0 0 1px 0;
+  border-bottom-color: rgba(143, 163, 181, 0.28);
+  transform: none;
+  scale: none;
+  clip-path: none;
+  background: linear-gradient(180deg, rgba(20, 26, 33, 0.97), rgba(7, 9, 12, 0.98));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.8);
+}
+html:root[data-skin="gotham"] .lite .lt-bar::before,
+html:root[data-skin="gotham"] .lite .lt-bar::after { border-radius: 0 !important; }
+html:root[data-skin="gotham"] .lite .lt-bar::after { left: 0; right: 0; bottom: -1px; height: 2px; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-bar-grip { display: none; }
+html:root[data-skin="gotham"] .lite .lt-tabs { border-radius: 0 !important; background: transparent; border: 0; padding: 0; margin-left: 0.6rem; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-tab { border-radius: 0 !important; border-color: transparent; background: transparent; padding: 0.55rem 1rem; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-tab:hover:not(.active) { background: rgba(255, 255, 255, 0.05); transform: none; }
+html:root[data-skin="gotham"][data-theme] .lite .lt-bar .lt-tab.active { border-radius: 0 !important; background: linear-gradient(180deg, transparent, rgba(var(--gt-yellow-rgb), 0.16)); box-shadow: inset 0 -3px 0 var(--gt-yellow); }
+html:root[data-skin="gotham"] .lite .lt-bar :is(.lt-store, .lt-branch, .lt-switch, .lt-version, .lt-icon, .lt-user) { border-radius: 4px !important; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-switch-track { border-radius: 999px !important; }
+html:root[data-skin="gotham"] .lite .lt-bar .lt-user { border-radius: 50% !important; }
+@media (max-width: 980px) {
+  html:root[data-skin="gotham"] .lite .lt-bar { height: 54px; margin: 0; padding: 0 0.6rem; }
+  html:root[data-skin="gotham"] .lite .lt-bar .lt-tab { padding: 0.5rem 0.7rem; }
+  html:root[data-skin="gotham"] .lite .lt-bar-tools { left: 0; right: 0; border-radius: 0 0 14px 14px !important; top: 100%; border-top: 0; }
+}

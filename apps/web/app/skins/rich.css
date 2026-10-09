@@ -1,0 +1,1117 @@
+/* Diseño "rico" (cristal líquido, efectos, animaciones). Se aplica a los temas tgs, bluered y gamer; cada tema ajusta colores y detalles. */
+/* ============================================================
+   Capa visual "The Gamer Shop"
+   Negro casi puro + rojo #ff2438, títulos Anton, texto Lexend,
+   bordes finos, brillo rojo y entradas animadas.
+   Se carga después de styles.css y solo pisa tokens y estilos.
+   ============================================================ */
+:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) {
+  --tgs-red: #ff2438;
+  --tgs-red-bright: #ff4c5d;
+  --tgs-red-deep: #cf001f;
+  --tgs-red-rgb: 255, 36, 56;
+  --tgs-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  --font: var(--font-lexend), "Lexend", "Segoe UI", system-ui, sans-serif;
+  --display: var(--font-anton), "Anton", "Bahnschrift", "Arial Narrow", Impact, sans-serif;
+  --brand: var(--font-lexend), "Lexend", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+}
+/* ————— Claro: limpio, papel blanco, rojo TGS ————— */
+:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] {
+  --red: #e8192c;
+  --red-deep: #c20f20;
+  --red-soft: #fff1f2;
+  --red-line: #f7b9bf;
+
+  --ink: #0d0d10;
+  --ink-bg: #0d0d10;
+  --ink-2: #34343b;
+  --muted: #666672;
+  --faint: #9a9aa6;
+
+  --line: #e7e7ec;
+  --line-2: #d4d4dc;
+  --paper: #ffffff;
+  --canvas: #f8f8fa;
+  --canvas-2: #fcfcfd;
+
+  --sh-1: 0 1px 2px rgba(13, 13, 16, 0.05);
+  --sh-2: 0 2px 8px rgba(13, 13, 16, 0.06), 0 14px 34px rgba(13, 13, 16, 0.06);
+  --sh-3: 0 22px 60px rgba(13, 13, 16, 0.2);
+  --tgs-grid: rgba(13, 13, 16, 0.035);
+  --tgs-grid-lite: rgba(13, 13, 16, 0.07);
+  --tgs-glow: 0 8px 22px rgba(var(--tgs-red-rgb), 0.28);
+  --tgs-glow-hover: 0 12px 30px rgba(var(--tgs-red-rgb), 0.38);
+}
+/* ————— Oscuro: el negro de la tienda ————— */
+:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] {
+  --red: #ff2438;
+  --red-deep: #d50025;
+  --red-soft: rgba(255, 36, 56, 0.12);
+  --red-line: rgba(255, 36, 56, 0.38);
+
+  --ink: #f5f5f5;
+  --ink-bg: var(--dk-chip, #17171b);
+  --ink-2: #c5c5ca;
+  --muted: #99999f;
+  --faint: #6c6c74;
+
+  --line: rgba(255, 255, 255, 0.09);
+  --line-2: rgba(255, 255, 255, 0.17);
+  --paper: #111114;
+  --canvas: #070708;
+  --canvas-2: var(--dk-field, #0b0b0d);
+  --panel: #111114;
+
+  --ok: #34d399;
+  --ok-bg: rgba(52, 211, 153, 0.12);
+  --warn: #fbbf24;
+  --warn-bg: rgba(251, 191, 36, 0.12);
+  --info: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.12);
+  --violet: #a78bfa;
+  --violet-bg: rgba(167, 139, 250, 0.13);
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --sh-2: 0 2px 8px rgba(0, 0, 0, 0.5), 0 14px 38px rgba(0, 0, 0, 0.42);
+  --sh-3: 0 22px 70px rgba(0, 0, 0, 0.7);
+  --tgs-grid: rgba(255, 255, 255, 0.028);
+  --tgs-grid-lite: rgba(255, 255, 255, 0.06);
+  --tgs-glow: 0 10px 28px rgba(var(--tgs-red-rgb), 0.28);
+  --tgs-glow-hover: 0 14px 36px rgba(var(--tgs-red-rgb), 0.44);
+}
+/* ————— Base ————— */
+:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) {
+  letter-spacing: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) body {
+  background:
+    linear-gradient(var(--tgs-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, var(--tgs-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--canvas);
+  background-attachment: fixed;
+}
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) ::selection { background: var(--tgs-red); color: #fff; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) * { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) *::-webkit-scrollbar { width: 9px; height: 9px; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) *::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) *::-webkit-scrollbar-thumb:hover { background: var(--tgs-red); background-clip: padding-box; border: 2px solid transparent; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) h1,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) h2,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) h3,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) h4 { font-family: var(--brand); font-weight: 700; letter-spacing: 0; }
+/* Anton solo en los títulos grandes de pantalla */
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .page-head h1,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .login-panel h1,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-head h1,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) :focus-visible { outline: 2px solid var(--tgs-red); outline-offset: 2px; }
+/* ————— Botones ————— */
+/* Tipografía y movimiento para todos; con especificidad mínima para que cada clase conserve su propio fondo. */
+:where(html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])) button {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 8px;
+  transition: background-position 280ms var(--tgs-ease), background-color 160ms ease, box-shadow 220ms var(--tgs-ease),
+    transform 160ms var(--tgs-ease), border-color 160ms ease, color 160ms ease;
+}
+/* Brillo rojo solo en los botones primarios (sin clase de otro estilo). */
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) button:not([class]),
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) button.btn-sm:not(.btn-ghost):not(.btn-dark):not(.btn-danger) {
+  background: linear-gradient(135deg, var(--tgs-red-bright), var(--tgs-red-deep)) 0 0 / 160% 100%;
+  box-shadow: var(--tgs-glow);
+}
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) button:not([class]):hover:not(:disabled),
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) button.btn-sm:not(.btn-ghost):not(.btn-dark):not(.btn-danger):hover:not(:disabled) {
+  background-position: 100% 0;
+  box-shadow: var(--tgs-glow-hover);
+}
+:where(html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])) button:hover:not(:disabled) { transform: translateY(-1px); }
+:where(html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])) button:active:not(:disabled) { transform: translateY(0) scale(0.985); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-group-toggle { text-transform: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-group-toggle { text-transform: uppercase; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-ghost,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-dark,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-danger,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-icon {
+  box-shadow: none;
+  background: var(--paper);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-ghost {
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-ghost:hover:not(:disabled) {
+  background: var(--canvas-2);
+  border-color: var(--tgs-red);
+  color: var(--tgs-red);
+  box-shadow: 0 0 0 3px var(--red-soft);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-dark { background: var(--ink-bg); color: #fff; border: 1px solid var(--line-2); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-dark:hover:not(:disabled) { background: #1f1f25; border-color: var(--tgs-red); box-shadow: 0 0 0 3px var(--red-soft); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-danger { border: 1px solid var(--red-line); color: var(--red-deep); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .btn-danger { color: #ff8a94; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-danger:hover:not(:disabled) { background: var(--red-soft); box-shadow: 0 0 0 3px var(--red-soft); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .btn-sm { font-size: 0.74rem; }
+/* ————— Campos ————— */
+:where(html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])) input,
+:where(html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])) select,
+:where(html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])) textarea {
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] input,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] select,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] textarea { background: var(--dk-field, #0b0b0d); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) input:hover:not(:focus):not(:disabled),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) select:hover:not(:focus):not(:disabled),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) textarea:hover:not(:focus):not(:disabled) { border-color: var(--faint); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) input:focus,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) select:focus,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) textarea:focus {
+  border-color: var(--tgs-red);
+  box-shadow: 0 0 0 3px rgba(var(--tgs-red-rgb), 0.18), 0 0 18px rgba(var(--tgs-red-rgb), 0.12);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) input[type="checkbox"],
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) input[type="radio"] { accent-color: var(--tgs-red); }
+/* ————— Login ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .login-screen {
+  background:
+    radial-gradient(900px 460px at 12% -8%, rgba(var(--tgs-red-rgb), 0.07), transparent 62%),
+    radial-gradient(700px 420px at 100% 105%, rgba(var(--tgs-red-rgb), 0.1), transparent 60%),
+    linear-gradient(var(--tgs-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, var(--tgs-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--canvas);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .login-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--sh-3), 0 0 60px rgba(var(--tgs-red-rgb), 0.1);
+  animation: tgs-rise 520ms var(--tgs-ease) both;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .login-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--tgs-red), var(--tgs-red-bright), transparent);
+  background-size: 200% 100%;
+  animation: tgs-sweep 3.2s linear infinite;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .login-panel h1 { font-size: 2rem; }
+/* ————— Barra lateral ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side {
+  background:
+    radial-gradient(260px 200px at 0% 0%, rgba(var(--tgs-red-rgb), 0.16), transparent 70%),
+    linear-gradient(180deg, var(--side-a, #0c0c0f), var(--side-b, #070708));
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -1px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, var(--tgs-red), transparent 38%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .brand { border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-group-label,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-group-toggle {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: #7c7c86;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link {
+  position: relative;
+  color: #b4b4bc;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  transition: background 180ms ease, color 180ms ease, transform 180ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link:hover { background: rgba(255, 255, 255, 0.05); color: #fff; transform: translateX(3px); box-shadow: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link .ico { transition: transform 220ms var(--tgs-ease), opacity 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link:hover .ico { transform: scale(1.18); opacity: 1; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link.active {
+  background: linear-gradient(90deg, rgba(var(--tgs-red-rgb), 0.3), rgba(var(--tgs-red-rgb), 0.06));
+  box-shadow: inset 3px 0 0 var(--tgs-red), 0 0 22px rgba(var(--tgs-red-rgb), 0.12);
+  color: #fff;
+  font-weight: 600;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link.active .ico { color: var(--tgs-red-bright); }
+/* ————— Cabeceras de página ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main { animation: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main > * { animation: tgs-rise 420ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main > *:nth-child(2) { animation-delay: 60ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main > *:nth-child(3) { animation-delay: 120ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main > *:nth-child(4) { animation-delay: 180ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main > *:nth-child(n + 5) { animation-delay: 240ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .page-head h1 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .page-head .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem;
+  margin: 0 0 0.55rem;
+  border: 1px solid var(--red-line);
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--tgs-red);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .page-head .eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tgs-red);
+  box-shadow: 0 0 8px var(--tgs-red);
+  animation: tgs-pulse 1.8s ease-in-out infinite;
+}
+/* ————— Tarjetas, métricas, tablas ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .drawer {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .stat {
+  background: linear-gradient(180deg, var(--dk-card-a, #131317), var(--dk-card-b, #0f0f12));
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat {
+  transition: border-color 220ms ease, box-shadow 260ms var(--tgs-ease), transform 260ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .card:hover {
+  border-color: var(--red-line);
+  box-shadow: var(--sh-2), 0 0 28px rgba(var(--tgs-red-rgb), 0.08);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat:hover { transform: translateY(-2px); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat::before { width: 3px; background: var(--accent, var(--tgs-red)); box-shadow: 0 0 14px var(--accent, var(--tgs-red)); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat .stat-value { font-family: var(--display); font-weight: 400; font-size: 1.85rem; letter-spacing: 0.02em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat .stat-label { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.12em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat-strip .stat { animation: tgs-rise 460ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat-strip .stat:nth-child(2) { animation-delay: 60ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat-strip .stat:nth-child(3) { animation-delay: 120ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat-strip .stat:nth-child(4) { animation-delay: 180ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat-strip .stat:nth-child(n + 5) { animation-delay: 240ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .panel-title { font-family: var(--font); font-weight: 800; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) td button,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .table-wrap button { font-size: 0.7rem; letter-spacing: 0.03em; padding: 0.38rem 0.65rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) th {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr { transition: background 140ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr:hover { background: rgba(var(--tgs-red-rgb), 0.055); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .table-wrap { border-radius: var(--r-lg); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .pill,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .badge { font-family: var(--font-mono); letter-spacing: 0.06em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) label,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .field-label,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .field > span { font-family: var(--font); font-weight: 600; letter-spacing: 0.02em; }
+/* ————— Pestañas ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .tab { transition: background 160ms ease, color 160ms ease, box-shadow 200ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .tab.active {
+  background: linear-gradient(135deg, var(--tgs-red-bright), var(--tgs-red-deep));
+  color: #fff;
+  box-shadow: var(--tgs-glow);
+}
+/* ————— Ventanas ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal { box-shadow: var(--sh-3), 0 0 60px rgba(var(--tgs-red-rgb), 0.08); animation: tgs-pop 280ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .drawer { animation: tgs-slide 320ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-head,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .drawer-head { border-bottom: 1px solid var(--line); }
+/* ————— LITE ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite { background: var(--canvas); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-recent li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-quote-list li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-fin,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-trade-modal { background: linear-gradient(180deg, var(--dk-card-a, #131317), var(--dk-card-b, #0f0f12)); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-coll-list { background: var(--canvas-2); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-fin-cash { background: var(--dk-chip2, #1a1a1f); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite input,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite select,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite textarea { background: var(--dk-field, #0b0b0d); color: var(--ink); border-color: var(--line-2); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-bar { background: rgb(var(--bar-rgb, 10, 10, 12)); border-bottom-color: rgba(255, 255, 255, 0.08); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-bar .lt-tab.active { background: var(--tgs-red); color: #fff; box-shadow: var(--tgs-glow); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-coll-head h2 { font-family: var(--font); font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-head h2 { font-family: var(--font); font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list li {
+  border-radius: var(--r-lg);
+  transition: border-color 220ms ease, box-shadow 260ms var(--tgs-ease), transform 260ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-card:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list li:hover {
+  border-color: var(--red-line);
+  box-shadow: var(--sh-2), 0 0 26px rgba(var(--tgs-red-rgb), 0.08);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin { animation: tgs-rise 460ms var(--tgs-ease) both; }
+/* ————— LITE: fondo de cuadros y efectos ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite {
+  background:
+    radial-gradient(900px 380px at 8% -6%, rgba(var(--tgs-red-rgb), 0.13), transparent 62%),
+    radial-gradient(700px 360px at 100% 100%, rgba(var(--tgs-red-rgb), 0.07), transparent 60%),
+    linear-gradient(var(--tgs-grid-lite) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, var(--tgs-grid-lite) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--canvas);
+  background-attachment: fixed;
+}
+/* Barra superior: línea de luz que recorre el borde inferior */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar { position: relative; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--tgs-red) 25%, #fff 50%, var(--tgs-red) 75%, transparent 100%);
+  background-size: 220% 100%;
+  animation: tgs-sweep 4.2s linear infinite;
+  opacity: 0.9;
+  pointer-events: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo { transition: transform 260ms var(--tgs-ease), filter 260ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo:hover { transform: scale(1.06) rotate(-2deg); filter: drop-shadow(0 0 10px rgba(var(--tgs-red-rgb), 0.6)); }
+/* Buscador y resultados: el brillo va en el campo, redondeado y difuso, no en el contenedor */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-search-input { transition: border-color 200ms ease, box-shadow 280ms var(--tgs-ease); border-radius: 12px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-search-input:focus {
+  border-color: var(--tgs-red);
+  box-shadow: 0 0 0 3px rgba(var(--tgs-red-rgb), 0.14), 0 10px 34px -8px rgba(var(--tgs-red-rgb), 0.45);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-results { animation: tgs-pop 220ms var(--tgs-ease) both; border-radius: var(--r); box-shadow: var(--sh-2); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-results > * { position: relative; transition: background 140ms ease, transform 180ms var(--tgs-ease), padding-left 180ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-results > *:hover { transform: translateX(3px); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-results > *::before {
+  content: "";
+  position: absolute; left: 0; top: 18%; bottom: 18%;
+  width: 3px; border-radius: 3px;
+  background: var(--tgs-red);
+  box-shadow: 0 0 10px var(--tgs-red);
+  opacity: 0; transform: scaleY(0.4);
+  transition: opacity 160ms ease, transform 200ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-results > *:hover::before { opacity: 1; transform: none; }
+/* Filas del presupuesto */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-line {
+  position: relative;
+  border-radius: var(--r);
+  animation: tgs-rise 380ms var(--tgs-ease) both;
+  transition: background 160ms ease, box-shadow 220ms ease, transform 220ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-line:hover { background: rgba(var(--tgs-red-rgb), 0.05); box-shadow: inset 3px 0 0 var(--tgs-red); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-line:focus-within { box-shadow: inset 3px 0 0 var(--tgs-red), 0 0 24px rgba(var(--tgs-red-rgb), 0.08); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-cell { transition: border-color 160ms ease, box-shadow 200ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-x { transition: transform 200ms var(--tgs-ease), color 160ms ease, background 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-x:hover { transform: rotate(90deg) scale(1.1); }
+/* Chips y colecciones */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-chip { transition: transform 180ms var(--tgs-ease), box-shadow 220ms ease, border-color 160ms ease, background 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--red-line); }
+/* Botones de la barra inferior y herramientas */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-btn,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tool { transition: transform 180ms var(--tgs-ease), box-shadow 240ms ease, filter 200ms ease, background-color 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-btn:hover:not(:disabled),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tool:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28), 0 0 22px rgba(var(--tgs-red-rgb), 0.18); }
+/* Total y panel inferior */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-total { position: relative; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-total b,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-total strong { text-shadow: 0 0 22px rgba(var(--tgs-red-rgb), 0.35); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-alert,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-note { border-radius: var(--r); animation: tgs-rise 380ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-modal-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-trade-modal { animation: tgs-pop 280ms var(--tgs-ease) both; box-shadow: var(--sh-3), 0 0 60px rgba(var(--tgs-red-rgb), 0.1); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card { transition: transform 220ms var(--tgs-ease), box-shadow 240ms ease, border-color 200ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:hover { transform: translateX(3px); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card { animation: tgs-rise 420ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:nth-child(2) { animation-delay: 40ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:nth-child(3) { animation-delay: 80ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:nth-child(4) { animation-delay: 120ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:nth-child(5) { animation-delay: 160ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:nth-child(n + 6) { animation-delay: 200ms; }
+/* ————— LITE: paneles sólidos que se despegan de los cuadros ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-fin,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-pc,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-modal-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-trade-modal { background: #fff; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-fin,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-card {
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(13, 13, 16, 0.05), 0 12px 32px -12px rgba(13, 13, 16, 0.14);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-pc { border: 1px solid var(--line-2); box-shadow: 0 1px 2px rgba(13, 13, 16, 0.05), 0 8px 20px -10px rgba(13, 13, 16, 0.16); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-fin-card { background: color-mix(in srgb, var(--g, #888) 7%, #fff); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-meta .lt-input,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-customer .lt-input { background: #fff; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="light"] .lite .lt-foot { background: rgba(255, 255, 255, 0.94); box-shadow: 0 -8px 30px -10px rgba(13, 13, 16, 0.18); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-pc,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-fin { background: linear-gradient(180deg, var(--dk-card-a, #141418), var(--dk-card-b, #0f0f12)); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-fin,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-pc { border: 1px solid var(--line-2); box-shadow: 0 14px 36px -14px rgba(0, 0, 0, 0.8); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-foot { background: rgba(var(--bar-rgb, 10, 10, 12), 0.94); box-shadow: 0 -10px 34px -10px rgba(0, 0, 0, 0.8); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-meta .lt-input,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-customer .lt-input { background: var(--dk-field, #0b0b0d); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc { transition: transform 200ms var(--tgs-ease), border-color 180ms ease, box-shadow 240ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--tgs-red); box-shadow: 0 12px 28px -10px rgba(var(--tgs-red-rgb), 0.4); }
+/* ————— Animaciones ————— */
+/* ————— Texto de color en vez de botón (PDF detallado / Presupuesto formal) ————— */
+/* ————— Versión visible ————— */
+/* ————— Más aire en los contenedores ————— */
+/* Financiación: sin hueco blanco abajo (se ajusta a su contenido) y tarjetas con margen propio */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin {
+  position: static;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  align-self: start;
+  padding: 1.15rem 1.25rem 1.25rem;
+  gap: 0.7rem;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-head { padding-bottom: 0.7rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-list { gap: 8px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card { border-radius: 12px; padding-inline: 0.85rem; border: 1px solid color-mix(in srgb, var(--g, #888) 28%, transparent); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-cash { padding: 0.55rem 0.85rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin > p,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin .lt-muted { padding-inline: 0.15rem; }
+/* Presupuesto en curso (vista previa) */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-card { padding: 1.35rem 1.5rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-foot { padding: 0.95rem 1.3rem; border-radius: 14px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc { padding-inline: 1rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-alert { padding: 0.65rem 1rem; }
+/* Lista de presupuestos: filtros y filas en tarjetas blancas */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side { display: grid; gap: 0.9rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-list-filters,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-filters,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-kinds,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-states {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 2px rgba(13, 13, 16, 0.04), 0 10px 26px -14px rgba(13, 13, 16, 0.18);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-list-filters,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-filters,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-kinds,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-states { background: linear-gradient(180deg, var(--dk-card-a, #141418), var(--dk-card-b, #0f0f12)); border-color: var(--line-2); box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.8); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-list-filters .lt-input,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-filters .lt-input { background: var(--paper); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list li {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.95rem 1.15rem;
+  box-shadow: 0 1px 2px rgba(13, 13, 16, 0.04), 0 10px 26px -16px rgba(13, 13, 16, 0.2);
+  transition: transform 220ms var(--tgs-ease), box-shadow 240ms ease, border-color 180ms ease;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-recent li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-quote-list li { background: linear-gradient(180deg, var(--dk-card-a, #141418), var(--dk-card-b, #0f0f12)); border-color: var(--line-2); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list li:hover { transform: translateY(-2px); border-color: var(--red-line); box-shadow: 0 14px 30px -14px rgba(var(--tgs-red-rgb), 0.35); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list { gap: 0.7rem; }
+/* Modo normal: más margen en tarjetas, filtros y métricas */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .card-pad { padding: 1.25rem 1.4rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .stat { padding: 1rem 1.2rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .main { padding-top: 1.5rem; }
+/* ————— Filtros de la lista de presupuestos: fondo blanco y esquinas apenas redondeadas ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side :is(input, select, .lt-input),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-list-filters :is(input, select) {
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  box-shadow: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-side :is(input, select, .lt-input) { background: var(--dk-card-b, #0f0f12); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-kinds,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-states,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-list-filters { border-radius: 8px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-kind:not(.on),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-chip:not(.on),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-more-row .lt-btn:not(.on) { background: var(--paper); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side :is(.lt-kind, .lt-chip, .lt-more-row .lt-btn, .lt-pill) { border-radius: 6px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-side .lt-kind:not(.on),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-side .lt-chip:not(.on),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-side .lt-more-row .lt-btn:not(.on) { background: var(--dk-card-b, #0f0f12); }
+/* ————— Íconos (PNG/WebP sin fondo) en las tarjetas de acciones, cada una con su destello de color ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc { --glow: var(--tgs-red-rgb); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc.trade { --glow: 250, 204, 21; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc.ref { --glow: 139, 92, 246; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc.wa { --glow: 34, 197, 94; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc:hover:not(:disabled),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc.on { border-color: rgb(var(--glow)); box-shadow: 0 12px 28px -10px rgba(var(--glow), 0.5), 0 0 0 1px rgba(var(--glow), 0.25); }
+/* ————— Tipos de presupuesto: solo los globos, sin el contenedor; el texto siempre queda dentro ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-kinds,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-side .lt-kinds,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-states,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-side .lt-states {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-kinds { gap: 0.5rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side .lt-kind {
+  min-width: 0;
+  padding-inline: 0.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Textos de botones siempre dentro de su globo */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-total strong { white-space: nowrap; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-act { padding-inline: 0.65rem; font-size: 0.7rem; letter-spacing: 0.03em; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* ————— "+ Cliente" en celeste y el switch de PC armada en rojo ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc:not(.trade):not(.ref):not(.wa).on .lt-switch-track { background: var(--tgs-red); box-shadow: 0 0 14px rgba(var(--tgs-red-rgb), 0.55); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc:not(.trade):not(.ref):not(.wa).on { border-color: var(--tgs-red); background: color-mix(in srgb, var(--tgs-red) 7%, var(--paper)); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-switch-knob { transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* ============================================================
+   Efectos dinámicos: fondo animado (canvas) + animaciones en todo
+   Se apagan con el botón de efectos (html[data-fx="off"]).
+   ============================================================ */
+/* Con efectos encendidos, el canvas dibuja la cuadrícula: las superficies de fondo quedan transparentes */
+/* El fondo lo pone <html>; si el body pintara el suyo taparía el canvas */
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="on"] body { background: transparent; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="on"][data-theme] .lite,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="on"] .login-screen { background: transparent; }
+/* ————— Entradas escalonadas ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list li { animation: tgs-rise 440ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(2) { animation-delay: 50ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(3) { animation-delay: 100ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(4) { animation-delay: 150ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(5) { animation-delay: 200ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(6) { animation-delay: 250ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(7) { animation-delay: 300ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:nth-child(n + 8) { animation-delay: 350ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin { animation: tgs-slide-left 520ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side nav .nav-link { animation: tgs-slide-left 420ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side nav .nav-group-links > *:nth-child(2) .nav-link,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side nav .nav-link:nth-child(2) { animation-delay: 50ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side nav .nav-link:nth-child(3) { animation-delay: 100ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side nav .nav-link:nth-child(4) { animation-delay: 150ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side nav .nav-link:nth-child(n + 5) { animation-delay: 200ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr { animation: tgs-fade 380ms ease both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr:nth-child(2) { animation-delay: 40ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr:nth-child(3) { animation-delay: 80ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr:nth-child(4) { animation-delay: 120ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr:nth-child(5) { animation-delay: 160ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) tbody tr:nth-child(n + 6) { animation-delay: 200ms; }
+/* ————— Financiación ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card { position: relative; overflow: hidden; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.4) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 750ms var(--tgs-ease);
+  pointer-events: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-fin-card::after { background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.1) 50%, transparent 65%); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:hover::after { transform: translateX(130%); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:hover { border-color: color-mix(in srgb, var(--g, #888) 70%, transparent); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card img { transition: transform 280ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:hover img { transform: scale(1.1) rotate(-4deg); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-cash { animation: tgs-fade 500ms ease both; transition: box-shadow 240ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-cash:hover { box-shadow: 0 0 0 1px var(--red-line), 0 8px 22px -10px rgba(var(--tgs-red-rgb), 0.45); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-cash strong { display: inline-block; animation: tgs-pop-in 420ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-head svg,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-head button { transition: transform 420ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-head button:hover:not(:disabled) { transform: rotate(120deg) scale(1.1); }
+/* ————— Lista de presupuestos ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-quote-list li { position: relative; overflow: hidden; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, transparent, var(--tgs-red), transparent);
+  transform: scaleY(0);
+  transition: transform 320ms var(--tgs-ease);
+  pointer-events: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li:hover::after { transform: scaleY(1); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-act { transition: transform 180ms var(--tgs-ease), box-shadow 220ms ease, background-color 160ms ease, color 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-act:hover:not(:disabled) { transform: translateY(-2px) scale(1.04); box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--c, var(--tgs-red)) 70%, transparent); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-ribbon { animation: tgs-fade 600ms ease both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-kind,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-chip,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pill { transition: transform 180ms var(--tgs-ease), background-color 160ms ease, box-shadow 220ms ease, color 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-kind:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-chip:hover { transform: translateY(-2px); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-kind.on,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-chip.on,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pill { animation: tgs-pop-in 300ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-kind.on { box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--k, var(--tgs-red)) 75%, transparent); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pager button { transition: transform 180ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pager button:hover:not(:disabled) { transform: scale(1.12); }
+/* ————— Ventanas ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .overlay,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-modal { animation: tgs-fade 220ms ease both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-modal-card,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-trade-modal { animation: tgs-pop-spring 380ms cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-head h2 { animation: tgs-slide-left 420ms var(--tgs-ease) 60ms both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-body > *,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lt-trade-rows > * { animation: tgs-rise 380ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-body > *:nth-child(2) { animation-delay: 60ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-body > *:nth-child(3) { animation-delay: 110ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-body > *:nth-child(n + 4) { animation-delay: 160ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-head button,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-modal-card button.lt-x { transition: transform 260ms var(--tgs-ease), background-color 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .modal-head button:hover:not(:disabled) { transform: rotate(90deg) scale(1.1); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-modal-foot .lt-btn { animation: tgs-rise 420ms var(--tgs-ease) 120ms both; }
+/* ————— Botones y controles ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-foot .lt-btn:not(.ghost):not(:disabled),
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .page-actions button:not(.btn-ghost):not(:disabled) {
+  position: relative;
+  overflow: hidden;
+  animation: tgs-cta 2.8s ease-in-out infinite;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-foot .lt-btn:not(.ghost):not(:disabled)::after,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .page-actions button:not(.btn-ghost):not(:disabled)::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-160%) skewX(-18deg);
+  animation: tgs-shine 4.6s ease-in-out infinite;
+  pointer-events: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-icon { transition: transform 260ms var(--tgs-ease), background-color 160ms ease, color 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-icon:hover:not(:disabled) { transform: rotate(18deg) scale(1.15); background: rgba(var(--tgs-red-rgb), 0.18); color: #fff; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tab { transition: transform 180ms var(--tgs-ease), background-color 160ms ease, color 160ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tab:hover:not(.active) { transform: translateY(-2px); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-user { transition: transform 260ms var(--tgs-ease), box-shadow 240ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-user:hover { transform: scale(1.12); box-shadow: 0 0 0 2px var(--tgs-red), 0 0 16px rgba(var(--tgs-red-rgb), 0.6); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-alert.err { animation: tgs-shake 460ms ease both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-alert.ok { animation: tgs-rise 380ms var(--tgs-ease) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .nav-link.active .ico { animation: tgs-glow 2.6s ease-in-out infinite; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side-lite-switch .side-lite-knob,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-switch-knob { transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .brand-badge,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .brand-badge-img { transition: transform 320ms var(--tgs-ease), box-shadow 260ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .brand:hover .brand-badge,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .brand:hover .brand-badge-img { transform: rotate(-6deg) scale(1.08); box-shadow: 0 0 22px rgba(var(--tgs-red-rgb), 0.6); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .pill,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .badge { transition: transform 180ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .pill:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .badge:hover { transform: scale(1.06); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-line { transition: background 160ms ease, box-shadow 220ms ease, transform 220ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-line:hover { transform: translateX(2px); }
+/* ————— Interruptor de efectos ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fx { color: #fff; opacity: 0.75; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fx.on { opacity: 1; color: #ffd24a; text-shadow: 0 0 12px rgba(255, 210, 74, 0.8); animation: tgs-spin 9s linear infinite; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side-fx.on { border-color: var(--red-line); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .side-fx.on::first-letter { color: #ffb020; }
+/* ————— Con los efectos apagados: sin animaciones decorativas ————— */
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] :is(
+  .main > *, .stat-strip .stat, tbody tr, .side nav .nav-link, .login-panel, .modal, .overlay, .drawer, .modal-head h2, .modal-body > *,
+  .lite .lt-card, .lite .lt-fin, .lite .lt-fin-card, .lite .lt-fin-cash, .lite .lt-fin-cash strong, .lite .lt-line, .lite .lt-recent li, .lite .lt-quote-list li,
+  .lite .lt-pc, .lite .lt-alert, .lite .lt-note, .lite .lt-results, .lite .lt-modal, .lite .lt-modal-card, .lite .lt-trade-modal, .lite .lt-ribbon,
+  .lite .lt-kind.on, .lite .lt-chip.on, .lite .lt-pill, .lite .lt-modal-foot .lt-btn, .lt-trade-rows > *, .lite .lt-fx.on,
+  .lite .lt-foot .lt-btn, .page-actions button, .nav-link.active .ico
+) { animation: none !important; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] :is(.lite .lt-foot .lt-btn, .page-actions button)::after,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .login-panel::before,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar::after,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .page-head .eyebrow::before { animation: none !important; display: none; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-fin-card::after,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-recent li::after { display: none; }
+/* ————— Animaciones nuevas ————— */
+/* ————— Interruptores (efectos y modo oscuro) ————— */
+/* ————— Financiación: neón del color de cada tarjeta al tocarla ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card {
+  --neon: var(--g, #ff2438);
+  cursor: pointer;
+  transition: transform 220ms var(--tgs-ease), box-shadow 280ms ease, border-color 200ms ease, background-color 220ms ease;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:focus-visible,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:active {
+  border-color: color-mix(in srgb, var(--neon) 22%, transparent);
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--neon) 16%, transparent),
+    inset 0 0 26px color-mix(in srgb, var(--neon) 7%, transparent);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card:active { animation: tgs-neon-flash 420ms ease-out; transform: scale(0.985); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card.k-bbva { --neon: #1a6fc4; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card.k-single,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card.k-others { --neon: #14b8a6; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card.k-mp { --neon: #2db7ff; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-fin-card.k-go { --neon: #f5508f; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-fin-card:active { animation: none; }
+/* ————— Lista de presupuestos: neón del color del tipo (normal rojo, detallado amarillo, formal azul) ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li[data-kind] { --neon: var(--k); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li[data-kind]:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li[data-kind]:focus-within {
+  border-color: color-mix(in srgb, var(--k) 22%, transparent);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--k) 14%, transparent),
+    inset 0 0 28px color-mix(in srgb, var(--k) 6%, transparent);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-recent li[data-kind]:active { animation: tgs-neon-flash 420ms ease-out; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-recent li[data-kind]:active { animation: none; }
+/* ============================================================
+   Barra de LITE: flotante, cristal líquido, estilo isla/notch
+   ============================================================ */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar {
+  position: sticky;
+  top: 10px;
+  z-index: 40;
+  width: min(1260px, calc(100% - 24px));
+  height: 58px;
+  margin: 10px auto 0;
+  padding: 0 0.7rem 0 0.55rem;
+  gap: 0.5rem;
+  border-radius: 999px;
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 55%),
+    rgba(var(--bar-rgb, 8, 8, 12), 0.58);
+  -webkit-backdrop-filter: blur(26px) saturate(1.9);
+  backdrop-filter: blur(26px) saturate(1.9);
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    0 22px 44px -16px rgba(0, 0, 0, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.22);
+  transition: width 520ms cubic-bezier(0.34, 1.3, 0.64, 1), height 420ms var(--tgs-ease), top 420ms var(--tgs-ease), background-color 300ms ease, box-shadow 400ms ease;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.scrolled {
+  width: min(1040px, calc(100% - 28px));
+  height: 50px;
+  top: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 55%),
+    rgba(var(--bar-rgb, 8, 8, 12), 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 26px 50px -14px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(var(--tgs-red-rgb), 0.12);
+}
+/* Reflejo líquido que se desliza por el vidrio */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 150% at 12% -45%, rgba(255, 255, 255, 0.38), transparent 52%),
+    linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, 0.1) 46%, transparent 60%);
+  background-size: 100% 100%, 260% 100%;
+  background-position: 0 0, 120% 0;
+  animation: tgs-glass 9s ease-in-out infinite;
+  pointer-events: none;
+}
+/* Línea de neón que recorre el borde inferior, dentro de la curva */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar::after {
+  left: 28px;
+  right: 28px;
+  bottom: 0;
+  height: 1.5px;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar > * { position: relative; z-index: 1; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-tools { display: contents; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more { display: none; }
+/* Logo */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo-img { height: 40px; width: 40px; border-radius: 50%; padding: 3px; background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 6px 16px -6px rgba(0, 0, 0, 0.6); }
+/* Pestañas: píldora de vidrio con brillo rojo en la activa */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tabs { gap: 3px; padding: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); margin-left: 0.3rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab {
+  position: relative;
+  padding: 0.38rem 0.95rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 200ms ease, color 200ms ease, box-shadow 260ms ease;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab:hover:not(.active) { background: rgba(255, 255, 255, 0.12); color: #fff; transform: translateY(-1px) scale(1.04); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab.active {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255, 90, 105, 0.95), rgba(var(--tgs-red-rgb), 0.78));
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 8px 22px -6px rgba(var(--tgs-red-rgb), 0.75), 0 0 20px rgba(var(--tgs-red-rgb), 0.35);
+  animation: tgs-pop-in 380ms var(--tgs-ease) both;
+}
+/* Controles de la derecha: vidrio */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar :is(.lt-switch, .lt-branch):hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); transform: translateY(-1px); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-branch select { color: #fff; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-branch select option { color: #111; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store {
+  background: linear-gradient(180deg, rgba(255, 82, 98, 0.95), rgba(var(--tgs-red-rgb), 0.75));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 8px 20px -8px rgba(var(--tgs-red-rgb), 0.8);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-user { background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.25); }
+/* Botón de "más" (solo teléfono): la isla se expande */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more {
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more span { display: block; width: 16px; height: 2px; border-radius: 2px; background: #fff; position: relative; transition: transform 300ms var(--tgs-ease), background-color 200ms ease; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more span::before,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more span::after { content: ""; position: absolute; left: 0; width: 16px; height: 2px; border-radius: 2px; background: #fff; transition: transform 300ms var(--tgs-ease); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more span::before { top: -5px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more span::after { top: 5px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.tools-open .lt-bar-more span { background: transparent; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.tools-open .lt-bar-more span::before { transform: translateY(5px) rotate(45deg); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.tools-open .lt-bar-more span::after { transform: translateY(-5px) rotate(-45deg); }
+@media (max-width: 980px) {
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar { width: calc(100% - 16px); height: 54px; top: 8px; margin-top: 8px; border-radius: 28px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.scrolled { width: calc(100% - 28px); height: 48px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-more { display: grid; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-spacer { display: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tabs { flex: 1 1 auto; min-width: 0; max-width: none; overflow-x: auto; scrollbar-width: none; margin-left: 0; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tabs::-webkit-scrollbar { display: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab { white-space: nowrap; padding-inline: 0.8rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-tools {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem;
+    border-radius: 26px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03)), rgba(var(--bar-rgb, 8, 8, 12), 0.8);
+    -webkit-backdrop-filter: blur(26px) saturate(1.8);
+    backdrop-filter: blur(26px) saturate(1.8);
+    border: 1px solid rgba(255, 255, 255, 0.17);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 24px 50px -16px rgba(0, 0, 0, 0.7);
+    transform-origin: top right;
+  }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.tools-open .lt-bar-tools { display: flex; animation: tgs-island 380ms cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-tools .lt-store span { max-width: 60vw; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-tools .lt-user { display: grid; }
+}
+@media (max-width: 520px) {
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo-img { height: 36px; width: 36px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar { padding-inline: 0.45rem 0.5rem; gap: 0.35rem; }
+}
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar::before,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar.tools-open .lt-bar-tools,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar .lt-tab.active { animation: none; }
+/* ============================================================
+   Aviso de costos antes de generar la imagen de referencia
+   ============================================================ */
+/* ————— Animación de cierre de modales (ver ModalExit) ————— */
+/* El ícono del aviso siempre redondo (LITE fuerza esquinas en otros elementos) */
+/* ————— Aviso de "copiado" ————— */
+/* La tarjeta de WhatsApp confirma el copiado */
+/* ============================================================
+   Barra de LITE, ajustes: más oscura, logo sin fondo, controles
+   más chicos, movible y adaptable al scroll
+   ============================================================ */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar {
+  height: 52px;
+  gap: 0.4rem;
+  padding: 0 0.6rem 0 0.35rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.01) 55%),
+    rgba(var(--bar-rgb, 8, 8, 12), 0.84);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translate(var(--bx, 0px), calc(var(--by, 0px) + var(--hide, 0px)));
+  transition: transform 560ms cubic-bezier(0.34, 1.3, 0.64, 1), width 520ms cubic-bezier(0.34, 1.3, 0.64, 1), height 420ms var(--tgs-ease), top 420ms var(--tgs-ease), box-shadow 400ms ease, scale 260ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.scrolled { height: 46px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.01) 55%), rgba(var(--bar-rgb, 8, 8, 12), 0.9); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.away { --hide: -120px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.dragging { transition: width 300ms ease, height 300ms ease; scale: 1.025; cursor: grabbing; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 34px 70px -14px rgba(0, 0, 0, 0.75), 0 0 40px rgba(var(--tgs-red-rgb), 0.28); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.dragging * { cursor: grabbing; }
+/* Asa para mover la barra */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 34px;
+  padding: 0;
+  margin-right: -2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.55;
+  transition: opacity 200ms ease, background-color 200ms ease, transform 260ms var(--tgs-ease);
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-grip span {
+  width: 6px;
+  height: 18px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 1.2px, transparent 1.6px) 0 0 / 6px 6px;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-grip:hover:not(:disabled) { opacity: 1; background: rgba(255, 255, 255, 0.1); transform: none; box-shadow: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-grip:active { cursor: grabbing; }
+/* Logo sin fondo: un halo fino mantiene legibles las letras negras sobre la barra oscura */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo-img,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-theme="dark"] .lite .lt-logo-img {
+  height: 54px;
+  width: 54px;
+  margin: -6px -4px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.95)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 260ms ease;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-brand:hover .lt-logo-img { transform: scale(1.08) rotate(-3deg); filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 2px #fff) drop-shadow(0 0 12px rgba(var(--tgs-red-rgb), 0.75)); }
+/* Controles más chicos y discretos */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tabs { padding: 3px; gap: 2px; background: rgba(255, 255, 255, 0.045); border-color: rgba(255, 255, 255, 0.08); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab { padding: 0.28rem 0.72rem; font-size: 0.76rem; letter-spacing: 0.01em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab.active { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 14px -4px rgba(var(--tgs-red-rgb), 0.7); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store { height: 28px; padding: 0 0.65rem 0 0.5rem; gap: 0.35rem; font-size: 0.7rem; letter-spacing: 0.01em; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store svg { width: 13px; height: 13px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-branch { height: 28px; padding: 0 0.5rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-branch select { font-size: 0.72rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch { height: 28px; padding: 0 0.6rem 0 0.4rem; gap: 0.35rem; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch-track { width: 24px; height: 14px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch-knob { width: 10px; height: 10px; top: 2px; left: 2px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch.on .lt-switch-knob { transform: translateX(10px); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-user { width: 26px; height: 26px; font-size: 0.7rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-icon { width: 28px; height: 28px; font-size: 0.9rem; }
+@media (max-width: 980px) {
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-grip { display: none; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar { height: 50px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo-img { height: 46px; width: 46px; margin: -4px -2px; }
+}
+@media (max-width: 520px) {
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-logo-img { height: 42px; width: 42px; }
+}
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar { transition-duration: 1ms; }
+/* ============================================================
+   Barra de LITE: bordes bien redondos (LITE fuerza esquinas
+   cuadradas con !important, acá se pisa solo para la barra)
+   y compresión por etapas al hacer scroll
+   ============================================================ */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar { border-radius: 999px !important; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar::before,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar::after { border-radius: 999px !important; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-tabs,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-branch,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-icon,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-user,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-bar-more { border-radius: 999px !important; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-bar-grip { border-radius: 14px !important; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch-track { border-radius: 999px !important; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch-knob,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-dot { border-radius: 50% !important; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar-tools { border-radius: 30px !important; }
+/* Compresión: 1) al empezar a bajar se acorta; 2) más abajo queda como una isla compacta que se expande al pasar el mouse */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store span,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-switch > span:last-child,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-branch {
+  max-width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 520ms cubic-bezier(0.34, 1.2, 0.64, 1), opacity 260ms ease, margin 360ms ease, padding 360ms ease, border-width 360ms ease;
+}
+@media (min-width: 981px) {
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact { width: min(820px, calc(100% - 28px)); height: 44px; top: 8px; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:hover,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:focus-within,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact.dragging { width: min(1040px, calc(100% - 28px)); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:not(:hover):not(:focus-within):not(.dragging) .lt-store span,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:not(:hover):not(:focus-within):not(.dragging) .lt-switch > span:last-child { max-width: 0; opacity: 0; margin: 0; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:not(:hover):not(:focus-within):not(.dragging) .lt-store { padding-inline: 0.5rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:not(:hover):not(:focus-within):not(.dragging) .lt-switch { padding-inline: 0.35rem; gap: 0; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:not(:hover):not(:focus-within):not(.dragging) .lt-branch { max-width: 0; opacity: 0; padding: 0; border-width: 0; margin-inline: -0.2rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact .lt-logo-img { height: 46px; width: 46px; margin: -4px -3px; }
+}
+/* Entrada de los controles cuando la isla se expande */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar.compact:hover .lt-bar-tools > * { animation: tgs-fade 380ms ease both; }
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar .lt-store span,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar .lt-switch > span:last-child,
+html:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"])[data-fx="off"] .lite .lt-bar .lt-branch { transition-duration: 1ms; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-tab,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store { white-space: nowrap; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-bar .lt-store svg { flex: none; width: 14px; height: 14px; color: #fff; stroke: #fff; overflow: visible; }
+/* ————— Editor común: Productos del cliente y Copiar para WhatsApp ————— */
+/* ————— LITE: títulos con la misma tipografía display que el modo común ————— */
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite :is(.lt-head h1, .lt-side h2, .lt-modal-card h2, .lt-trade-head h2, .lt-refm-head h2, .lt-coll-head h2) {
+  font-family: var(--display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-head h1 { font-size: clamp(1.9rem, 3vw, 2.4rem); line-height: 1.05; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-side h2 { font-size: 1.6rem; line-height: 1.1; color: var(--ink); }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-modal-card h2,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-trade-head h2,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-refm-head h2 { font-size: 1.55rem; line-height: 1.1; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-coll-head h2 { font-size: 1.4rem; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-total strong { font-family: var(--display); font-weight: 400; font-size: 2.1rem; letter-spacing: 0.02em; line-height: 1; }
+/* Teléfono: primero se arma el presupuesto y la financiación queda debajo */
+@media (max-width: 980px) {
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-grid > .lt-col { order: 1; }
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-grid > .lt-fin { order: 2; }
+}
+
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc small,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) .lite .lt-pc-copy small,
+html:root:is([data-skin="tgs"],[data-skin="bluered"],[data-skin="gamer"],[data-skin="darkyellow"],[data-skin="gotham"]) th { color: var(--muted); }

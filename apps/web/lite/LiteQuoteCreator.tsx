@@ -7,6 +7,10 @@ import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, use
 import { SourceBar } from "../components/SourceBar";
 import { OriginTag, type ItemSource } from "../components/OriginTag";
 import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
+import swapIcon from "./icons/swap.png";
+import { newTradeIn, TradeInModal, tradeInCents, type TradeIn } from "./TradeInModal";
+import pcImageIcon from "./icons/pcimage.png";
+import wspIcon from "./icons/wsp.webp";
 import { DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva } from "../lib/iva";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
 import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
@@ -39,12 +43,6 @@ type Line = {
   imageUrl?: string | null;
   /** De dónde salió (distribuidor o web). Solo se muestra al armar: no se guarda ni va al PDF. */
   source?: ItemSource;
-};
-
-type TradeIn = { key: string; name: string; valueArs: string };
-
-const tradeInCents = (t: TradeIn): bigint => {
-  try { return t.valueArs.trim() ? BigInt(parseArsToCents(t.valueArs)) : 0n; } catch { return 0n; }
 };
 
 const DEFAULT_MARKUP = "30";
@@ -378,6 +376,7 @@ export function LiteQuoteCreator() {
   const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [waCopy, setWaCopy] = useState<"idle" | "copied" | "error">("idle");
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   /** Modal para crear la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
   const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
@@ -542,6 +541,26 @@ export function LiteQuoteCreator() {
   );
   const net = total > tradeInTotal ? total - tradeInTotal : 0n;
 
+  /** Resumen del presupuesto en texto, listo para pegar en WhatsApp (negritas con *). */
+  async function copyWhatsappSummary() {
+    const rows = lines.filter((l) => l.name.trim()).map((l) => {
+      const qty = Math.max(1, Math.trunc(Number(l.quantity) || 1));
+      return `• ${qty > 1 ? `${qty} x ` : ""}${l.name.trim()} — ${formatArs(BigInt(lineTotalCents(l.saleArs, l.quantity)))}`;
+    });
+    const customerName = customers.find((c) => c.id === customerId)?.name;
+    const closing = tradeInTotal > 0n
+      ? [`Subtotal: ${formatArs(total)}`, `Productos del cliente: − ${formatArs(tradeInTotal)}`, `*A pagar: ${formatArs(net)}*`]
+      : [`*Total: ${formatArs(total)}*`];
+    const text = [customerName ? `Presupuesto para ${customerName}` : "Presupuesto", "", ...rows, "", ...closing, "", "The Gamer Shop"].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setWaCopy("copied");
+    } catch {
+      setWaCopy("error");
+    }
+    window.setTimeout(() => setWaCopy("idle"), 2600);
+  }
+
   function openTotalEdit() {
     if (!lines.length) { setError("Cargá productos antes de editar el total."); return; }
     setError(null);
@@ -563,7 +582,7 @@ export function LiteQuoteCreator() {
   }
 
   function openTradeIn() {
-    if (!tradeIns.length) setTradeIns([{ key: crypto.randomUUID(), name: "", valueArs: "" }]);
+    if (!tradeIns.length) setTradeIns([newTradeIn()]);
     setTradeOpen(true);
   }
   /** Al cerrar se descartan las filas vacías para no dejar basura en el borrador. */
@@ -572,8 +591,6 @@ export function LiteQuoteCreator() {
     setTradeOpen(false);
     searchRef.current?.focus();
   }
-  const patchTradeIn = (key: string, fn: (t: TradeIn) => TradeIn) =>
-    setTradeIns((current) => current.map((t) => (t.key === key ? fn(t) : t)));
 
   const patch = useCallback((key: string, fn: (line: Line) => Line) => {
     setLines((current) => current.map((l) => (l.key === key ? fn(l) : l)));
@@ -907,53 +924,15 @@ export function LiteQuoteCreator() {
         />
       ) : null}
       {tradeOpen ? (
-        <div className="lt-modal" role="dialog" aria-modal="true" aria-label="Productos entregados por el cliente" onMouseDown={(e) => { if (e.target === e.currentTarget) closeTradeIn(); }}>
-          <div className="lt-card lt-modal-card lt-trade-modal" onKeyDown={(e) => { if (e.key === "Escape") closeTradeIn(); }}>
-            <div className="lt-trade-head">
-              <h2>Productos entregados por el cliente</h2>
-              <p>Cargá a cuánto tomás cada uno. Se resta del total y de las cuotas.</p>
-            </div>
-
-            <div className="lt-trade-rows">
-              {tradeIns.map((t, i) => (
-                <div className="lt-trade-row" key={t.key}>
-                  <input className="lt-input" autoFocus={i === tradeIns.length - 1 && !t.name} value={t.name} placeholder="Producto" onChange={(e) => patchTradeIn(t.key, (x) => ({ ...x, name: e.target.value }))} aria-label="Producto del cliente" />
-                  <MoneyInput
-                    className="lt-input num"
-                    value={t.valueArs}
-                    placeholder="$ valor"
-                    onChange={(v) => patchTradeIn(t.key, (x) => ({ ...x, valueArs: v }))}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
-                      e.preventDefault();
-                      // Enter en la última fila completa abre otra; en una vacía cierra.
-                      if (i === tradeIns.length - 1 && t.name.trim() && tradeInCents(t) > 0n) setTradeIns((c) => [...c, { key: crypto.randomUUID(), name: "", valueArs: "" }]);
-                      else closeTradeIn();
-                    }}
-                    aria-label="Valor del producto del cliente"
-                  />
-                  <button type="button" className="lt-x" onClick={() => setTradeIns((c) => c.filter((x) => x.key !== t.key))} aria-label="Quitar producto del cliente">×</button>
-                </div>
-              ))}
-            </div>
-            <button type="button" className="lt-trade-add" onClick={() => setTradeIns((c) => [...c, { key: crypto.randomUUID(), name: "", valueArs: "" }])}>+ Agregar otro</button>
-
-            <label className="lt-trade-check">
-              <input type="checkbox" checked={tradeShowValues} onChange={(e) => setTradeShowValues(e.target.checked)} />
-              <span>Mostrar a cuánto lo tomamos en el presupuesto</span>
-            </label>
-
-            <div className={`lt-trade-summary${tradeInTotal > total ? " over" : ""}`}>
-              <div><span>A descontar</span><strong>− {formatArs(tradeInTotal)}</strong></div>
-              <div><span>{tradeInTotal > total ? "Supera el total" : "Precio final"}</span><strong>{formatArs(net)}</strong></div>
-            </div>
-
-            <div className="lt-modal-foot">
-              <button type="button" className="lt-trade-clear" onClick={() => { setTradeIns([]); setTradeOpen(false); }}>Quitar todo</button>
-              <button type="button" className="lt-btn lt-btn-amber" onClick={closeTradeIn}>Listo</button>
-            </div>
-          </div>
-        </div>
+        <TradeInModal
+          items={tradeIns}
+          setItems={setTradeIns}
+          showValues={tradeShowValues}
+          setShowValues={setTradeShowValues}
+          total={total}
+          onClose={closeTradeIn}
+          onClear={() => { setTradeIns([]); setTradeOpen(false); }}
+        />
       ) : null}
       {totalEditOpen ? (
         <div className="lt-modal" role="dialog" aria-modal="true" aria-label="Total de la venta" onMouseDown={(e) => { if (e.target === e.currentTarget) setTotalEditOpen(false); }}>
@@ -1034,7 +1013,7 @@ export function LiteQuoteCreator() {
                 {customers.filter((c) => c.kind !== "EMPRESA").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </optgroup>
             </select>
-              <button type="button" className="lt-btn ghost" onClick={() => setNewCustomerOpen(true)} title="Crear cliente nuevo">+ Cliente</button>
+              <button type="button" className="lt-btn ghost lt-add-client" onClick={() => setNewCustomerOpen(true)} title="Crear cliente nuevo">+ Cliente</button>
             </div>
           </div>
 
@@ -1044,12 +1023,18 @@ export function LiteQuoteCreator() {
               <span className="lt-pc-copy"><strong>PC armada</strong><small>{isBuiltPc ? "Un renglón por componente" : "Activalo para cargar por componentes"}</small></span>
             </button>
           <button type="button" className={`lt-pc trade${tradeInTotal > 0n ? " on" : ""}`} onClick={openTradeIn} aria-haspopup="dialog">
-            <span className="lt-trade-ico" aria-hidden="true">⇄</span>
+            <span className="lt-trade-ico has-img" aria-hidden="true"><img src={swapIcon.src} alt="" width={30} height={30} /></span>
             <span className="lt-pc-copy"><strong>Productos del cliente</strong><small>{tradeInTotal > 0n ? `− ${formatArs(tradeInTotal)} a cuenta` : "Entrega algo como parte de pago"}</small></span>
           </button>
           <button type="button" className={`lt-pc ref motion-ok ${refJob.job.status}${refImage ? " on" : ""}`} onClick={() => setRefOpen(true)} aria-haspopup="dialog" title={lines.length === 0 ? "Primero cargá productos: la imagen se arma con ellos" : undefined}>
-            <span className="lt-trade-ico" aria-hidden="true">{refJob.job.status === "generating" ? <span className="lt-refx-spin sm"><span className="lt-refx-spin-core" /></span> : refJob.job.status === "ready" ? "✓" : "▣"}</span>
+            <span className="lt-trade-ico has-img" aria-hidden="true">{refJob.job.status === "generating" ? <span className="lt-refx-spin sm"><span className="lt-refx-spin-core" /></span> : refJob.job.status === "ready" ? "✓" : <img src={pcImageIcon.src} alt="" width={30} height={30} />}</span>
             <span className="lt-pc-copy"><strong>Imagen de referencia</strong><small>{refJob.job.status === "generating" ? "Generando en segundo plano…" : refJob.job.status === "ready" ? "Lista para revisar" : refImage ? "Incluida en el presupuesto y el PDF" : "Opcional · cómo quedaría la PC"}</small></span>
+          </button>
+          <button type="button" className={`lt-pc wa${waCopy === "copied" ? " copied" : ""}${waCopy === "error" ? " failed" : ""}`} disabled={lines.length === 0} onClick={() => void copyWhatsappSummary()} title="Copia un resumen del presupuesto listo para pegar en WhatsApp">
+            <span className="lt-trade-ico has-img" aria-hidden="true">
+              <img src={wspIcon.src} alt="" width={30} height={30} />
+            </span>
+            <span className="lt-pc-copy"><strong>{waCopy === "copied" ? "¡Presupuesto copiado!" : waCopy === "error" ? "No se pudo copiar" : "Copiar para WhatsApp"}</strong><small>{waCopy === "copied" ? "Ya está como texto: pegalo en WhatsApp" : waCopy === "error" ? "El navegador bloqueó el portapapeles" : "Resumen listo para pegar"}</small></span>
           </button>
           </div>
 
@@ -1186,10 +1171,10 @@ export function LiteQuoteCreator() {
               {lines.length ? <small className="lt-total-meta"><span className="lt-cost">Costo {formatArs(cost)}</span> · <span className="lt-gain">Ganancia {formatArs(total - cost)}</span></small> : null}
             </div>
             <span className="lt-spacer" />
-            <button type="button" className="lt-btn tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+            <button type="button" className="lt-textlink tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
               {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
             </button>
-            <button type="button" className="lt-btn tone-yellow" disabled={!ready} onClick={() => void submit("DETALLADO")}>
+            <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={() => void submit("DETALLADO")}>
               {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
             </button>
             <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
@@ -1198,6 +1183,13 @@ export function LiteQuoteCreator() {
           </div>
         </div>
       </section>
+
+      {waCopy !== "idle" ? (
+        <div className={`tgs-toast${waCopy === "error" ? " bad" : ""}`} role="status" aria-live="polite">
+          <span className="tgs-toast-ico" aria-hidden="true">{waCopy === "copied" ? "✓" : "!"}</span>
+          <span>{waCopy === "copied" ? "Presupuesto copiado como texto" : "No se pudo copiar el presupuesto"}</span>
+        </div>
+      ) : null}
 
       <LiteQuoteList
         refreshKey={refreshKey}
