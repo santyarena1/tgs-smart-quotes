@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { chromium, type Browser } from 'playwright';
+import { chromium, type Browser, type Page } from 'playwright';
 
 export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL';
 
@@ -1408,8 +1408,21 @@ let sharedBrowser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (sharedBrowser) return sharedBrowser;
-  sharedBrowser = await chromium.launch({ headless: true });
+  sharedBrowser = await chromium.launch({
+    headless: true,
+    args: ['--disable-dev-shm-usage', '--no-sandbox', '--disable-gpu'],
+  });
   return sharedBrowser;
+}
+
+/** El HTML del presupuesto ya trae logo e imagen embebidos: no hay que esperar red. */
+async function setPdfContent(page: Page, html: string): Promise<void> {
+  await page.route('**/*', (route) => {
+    const url = route.request().url();
+    if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) return route.continue();
+    return route.abort();
+  });
+  await page.setContent(html, {waitUntil: 'domcontentloaded', timeout: 8000});
 }
 
 export async function closePdfBrowser(): Promise<void> {
@@ -1425,14 +1438,14 @@ export function countPdfPages(buffer: Buffer): number {
 }
 
 /** Escalas que se prueban cuando el presupuesto se pasa a una segunda hoja por poco. */
-const FIT_ONE_PAGE_SCALES = [0.93, 0.87, 0.82, 0.78];
+export const FIT_ONE_PAGE_SCALES = [0.93, 0.78];
 
 export async function renderPdfBuffer(input: PdfRenderInput): Promise<Buffer> {
   const html = renderQuoteHtml(input);
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setContent(html, { waitUntil: 'networkidle' });
+    await setPdfContent(page, html);
     const print = async (scale?: number) =>
       Buffer.from(
         await page.pdf({
@@ -1568,8 +1581,7 @@ export async function renderHtmlToPng(html: string, size: { width: number; heigh
   const browser = await getBrowser();
   const page = await browser.newPage({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: 1 });
   try {
-    await page.setContent(html, { waitUntil: 'networkidle' });
-    // Las fuentes web pueden seguir cargando después de networkidle.
+    await setPdfContent(page, html);
     await page.evaluate(() => (document as any).fonts?.ready).catch(() => undefined);
     const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: size.width, height: size.height }, ...(options.transparent ? { omitBackground: true } : {}) });
     return Buffer.from(buffer);
