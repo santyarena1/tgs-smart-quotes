@@ -8,6 +8,8 @@ export type ScriptedTurn = {
   escalate: boolean;
   reason: string | null;
   createRequest: boolean;
+  /** Nombre corto para mostrar en el CRM por qué salió esta respuesta. */
+  name: string;
 };
 
 const GREETING = 'Hola! Soy Fede de The Gamer Shop!';
@@ -115,16 +117,16 @@ function withGreeting(bubbles: string[], alreadyGreeted: boolean): string[] {
   return [GREETING, ...bubbles];
 }
 
-function handoff(bubbles: string[], reason: string, alreadyGreeted: boolean): ScriptedTurn {
-  return {bubbles: withGreeting(bubbles, alreadyGreeted), escalate: true, reason, createRequest: false};
+function handoff(bubbles: string[], reason: string, alreadyGreeted: boolean, name: string): ScriptedTurn {
+  return {bubbles: withGreeting(bubbles, alreadyGreeted), escalate: true, reason, createRequest: false, name};
 }
 
-function answer(bubbles: string[], alreadyGreeted: boolean, createRequest = false): ScriptedTurn {
-  return {bubbles: withGreeting(bubbles, alreadyGreeted), escalate: false, reason: null, createRequest};
+function answer(bubbles: string[], alreadyGreeted: boolean, name: string, createRequest = false): ScriptedTurn {
+  return {bubbles: withGreeting(bubbles, alreadyGreeted), escalate: false, reason: null, createRequest, name};
 }
 
-function silentHandoff(reason: string): ScriptedTurn {
-  return {bubbles: [], escalate: true, reason, createRequest: false};
+function silentHandoff(reason: string, name: string): ScriptedTurn {
+  return {bubbles: [], escalate: true, reason, createRequest: false, name};
 }
 
 /** Audio: aunque haya transcripción, no se contesta el contenido. */
@@ -134,6 +136,7 @@ export function audioTurn(): ScriptedTurn {
     escalate: true,
     reason: 'Mandó un audio: se avisa que hay gente en el local y lo sigue un vendedor.',
     createRequest: false,
+    name: 'audio',
   };
 }
 
@@ -157,68 +160,68 @@ export function scriptedTurn(
   const greeted = context.alreadyGreeted;
 
   if (says(message, INSULTS)) {
-    return silentHandoff('Vocabulario irrespetuoso: lo sigue un vendedor.');
+    return silentHandoff('Vocabulario irrespetuoso: lo sigue un vendedor.', 'insulto');
   }
   if (asksToBreakRole(message)) {
-    return {bubbles: [CONFUSED_REPLY], escalate: false, reason: null, createRequest: false};
+    return {bubbles: [CONFUSED_REPLY], escalate: false, reason: null, createRequest: false, name: 'no entendio'};
   }
   if (says(message, ['referencia', 'referencias', 'resena', 'resenas', 'reseña', 'reseñas', 'opinion', 'opiniones', 'reviews', 'desconfianza', 'desconfio', 'no confio', 'puedo confiar', 'es confiable', 'son confiables', 'estafa', 'estafas', 'es seguro', 'clientes reales', 'otros clientes'])) {
-    return answer([REVIEWS_REPLY, REVIEWS_LINK], greeted);
+    return answer([REVIEWS_REPLY, REVIEWS_LINK], greeted, 'reseñas');
   }
   if (says(message, ['ya esta lista', 'esta lista mi', 'estado del pedido', 'estado de mi pedido', 'mi pedido', 'numero de pedido'])) {
-    return handoff([ORDER_STATUS_REPLY], 'Pregunta por un pedido ya hecho: se pide el nombre y lo ve un vendedor.', greeted);
+    return handoff([ORDER_STATUS_REPLY], 'Pregunta por un pedido ya hecho: se pide el nombre y lo ve un vendedor.', greeted, 'pedido');
   }
   if (says(message, ['no me anda', 'no anda', 'no funciona', 'reclamo', 'les compre', 'le compre', 'compre una pc', 'ya la compre', 'me la vendieron', 'problema con mi pc'])) {
-    return handoff([COMPLAINT_REPLY], 'Reclamo de una PC ya vendida: se pide el nombre y lo ve un vendedor.', greeted);
+    return handoff([COMPLAINT_REPLY], 'Reclamo de una PC ya vendida: se pide el nombre y lo ve un vendedor.', greeted, 'reclamo');
   }
   if (says(message, ['descuento en efectivo', 'en efectivo tengo', 'descuento por efectivo', 'precio en efectivo'])) {
-    return answer([CASH_PRICE_REPLY], greeted);
+    return answer([CASH_PRICE_REPLY], greeted, 'precio en efectivo');
   }
   if (says(message, ['formas de pago', 'medios de pago', 'como se paga', 'como pago', 'tienen cuotas', 'aceptan tarjeta', 'tarjeta de credito', 'tarjeta de debito', 'criptomoneda'])) {
-    return answer([PAYMENT_LIST], greeted);
+    return answer([PAYMENT_LIST], greeted, 'formas de pago');
   }
   if (says(message, ['solo la pc', 'solo la computadora', 'solamente la pc'])) {
-    return answer([QUOTE_REPLY], greeted, true);
+    return answer([QUOTE_REPLY], greeted, 'solo la pc', true);
   }
   if (!context.fromAd && exact(message, ['dale']) && recent.includes('cual te gusta mas')) {
-    return answer([STORE_REPLY], greeted);
+    return answer([STORE_REPLY], greeted, 'direccion del local');
   }
   if (!context.fromAd && exact(message, ['bueno']) && (recent.includes('http') || recent.includes('disponible'))) {
-    return answer([WHICH_ONE], greeted);
+    return answer([WHICH_ONE], greeted, 'cual le gusta');
   }
   if (!context.fromAd && says(message, ['mostrame', 'no mostrame']) && recent.includes('teclado')) {
-    return answer([AULA_INTRO, AULA_LINK], greeted);
+    return answer([AULA_INTRO, AULA_LINK], greeted, 'teclados aula');
   }
   if (says(message, ['disponibilidad', 'hay stock', 'tenes stock', 'tienen stock', 'queda stock', 'en stock']) || (mentionsModel(message) && says(message, ['busco', 'quiero', 'necesito', 'tenes', 'tienen', 'cuanto sale', 'que precio']))) {
-    return handoff([AVAILABILITY_REPLY], 'Pide un modelo o la disponibilidad: lo confirma un vendedor, sin decir el precio.', greeted);
+    return handoff([AVAILABILITY_REPLY], 'Pide un modelo o la disponibilidad: lo confirma un vendedor, sin decir el precio.', greeted, 'disponibilidad');
   }
   if (context.fromAd) return null;
   if (says(message, ['averiguar sobre productos', 'ver productos', 'sobre productos'])) {
-    return answer([WHICH_PRODUCT_QUESTION], greeted);
+    return answer([WHICH_PRODUCT_QUESTION], greeted, 'que producto');
   }
   if (exact(message, ['teclado gamer', 'teclado', 'un teclado', 'teclados'])) {
-    return answer([BRAND_QUESTION], greeted);
+    return answer([BRAND_QUESTION], greeted, 'marca');
   }
   if (says(message, PRODUCT_CATEGORIES) && says(message, ['busco', 'quiero', 'necesito', 'averiguar']) && !mentionsModel(message) && !says(message, ['pc', 'computadora'])) {
-    return answer([WEB_QUESTION], greeted);
+    return answer([WEB_QUESTION], greeted, 'vio la web');
   }
   if (says(message, ['busco una pc', 'quiero una pc', 'necesito una pc', 'pc completa', 'una computadora']) && !says(message, ['juegos', 'jugar', 'diseno', 'trabajo', 'estudio'])) {
-    return answer([PC_USE_QUESTION], greeted);
+    return answer([PC_USE_QUESTION], greeted, 'uso de la pc');
   }
   if (exact(message, ['para juegos', 'para jugar', 'juegos'])) {
-    return answer([GAMES_QUESTION], greeted);
+    return answer([GAMES_QUESTION], greeted, 'juegos');
   }
   if (exact(message, ['para diseno', 'para diseno y juegos', 'diseno y juegos', 'para diseno y juego'])) {
-    return answer([PROGRAMS_QUESTION], greeted);
+    return answer([PROGRAMS_QUESTION], greeted, 'programas');
   }
   if (recent.includes('usas en 3d') && !message.includes('?')) {
-    return answer([FLUENCY_REPLY], greeted, true);
+    return answer([FLUENCY_REPLY], greeted, 'fluidez', true);
   }
   if (recent.includes('programas de diseno') && !message.includes('?')) {
-    return answer([DESIGN_3D_QUESTION], greeted);
+    return answer([DESIGN_3D_QUESTION], greeted, '3d');
   }
   if (recent.includes('cuales juegos') && !message.includes('?')) {
-    return answer([GAMES_EXPLAIN, PERIPHERALS_QUESTION], greeted);
+    return answer([GAMES_EXPLAIN, PERIPHERALS_QUESTION], greeted, 'placa');
   }
   return null;
 }

@@ -30,6 +30,7 @@ function writingRules(input: ChatbotResponseInput): string[] {
   const rules: string[] = [];
   const banned = input.config.bannedWords ?? [];
   if (banned.length) rules.push(`Nunca uses estas palabras o frases, ni como apodo ni de ninguna forma: ${banned.map((word) => `"${word}"`).join(', ')}.`);
+  rules.push('La primera letra de cada burbuja va en mayúscula. Si la burbuja es solo un link, no la modifiques.');
   if (!filters) return rules;
   if (filters.noAccents) rules.push('Escribí como alguien que chatea desde el celular: SIN tildes ("tenes", "aca", "que precio buscas"). La ñ sí va.');
   if (filters.noOpeningMarks) rules.push('Sin signos de apertura ¿ ni ¡ ("Que juegos usas?", "Buenisimo!").');
@@ -150,14 +151,32 @@ ${JSON.stringify(input.config.responseStyle)}
 ${input.config.revisionNote ? `CORRECCIÓN OBLIGATORIA\n${input.config.revisionNote}\n\n` : ""}Devolvé exclusivamente el objeto estructurado solicitado. decisionReason debe ser breve y apto para auditoría operativa.`;
 }
 
+function userPrompt(input: ChatbotResponseInput): string {
+  return JSON.stringify({
+    task: "Analizá la conversación completa provista en orden cronológico. Planificá la respuesta desde ese contexto y respondé al último mensaje del cliente sin ignorar preguntas, compromisos ni datos anteriores.",
+    conversationSummary: input.conversationSummary ?? "",
+    activeRequest: input.activeRequest ?? null,
+    recentConversationMessageCount: input.recentMessages?.length ?? 0,
+    recentConversationOldestToNewest: input.recentMessages ?? [],
+    latestIncomingMessage: input.latestMessage,
+  }, null, 2);
+}
+
+/** El prompt exacto que ve el modelo, para mostrarlo en el CRM junto al mensaje. */
+export function buildChatbotPrompts(input: ChatbotResponseInput): {systemPrompt: string; userPrompt: string} {
+  const parsed = chatbotResponseInputSchema.parse(input);
+  return {systemPrompt: systemPrompt(parsed), userPrompt: userPrompt(parsed)};
+}
+
 export class ChatbotResponseService {
   constructor(private readonly deps: AiServiceDeps) {}
 
   async respond(
     input: ChatbotResponseInput,
     options?: AiRunOptions,
-  ): Promise<AiServiceResult<ChatbotResponseOutput>> {
+  ): Promise<AiServiceResult<ChatbotResponseOutput> & {prompts: {systemPrompt: string; userPrompt: string}}> {
     const parsed = chatbotResponseInputSchema.parse(input);
+    const prompts = buildChatbotPrompts(parsed);
     const run=await runAiTask({
       task: AiTask.CHATBOT_RESPONSE,
       input: parsed,
@@ -165,20 +184,13 @@ export class ChatbotResponseService {
       schema: chatbotResponseOutputSchema,
       schemaName: "chatbot_response",
       temperature: 0.7,
-      systemPrompt: systemPrompt(parsed),
-      buildUserPrompt: (value) => JSON.stringify({
-        task: "Analizá la conversación completa provista en orden cronológico. Planificá la respuesta desde ese contexto y respondé al último mensaje del cliente sin ignorar preguntas, compromisos ni datos anteriores.",
-        conversationSummary: value.conversationSummary ?? "",
-        activeRequest: value.activeRequest ?? null,
-        recentConversationMessageCount: value.recentMessages?.length ?? 0,
-        recentConversationOldestToNewest: value.recentMessages ?? [],
-        latestIncomingMessage: value.latestMessage,
-      }, null, 2),
+      systemPrompt: prompts.systemPrompt,
+      buildUserPrompt: () => prompts.userPrompt,
       fallback,
       deps: this.deps,
       // Una conversación es estado vivo: nunca reutilizar una decisión vieja implícitamente.
       options: {...options, regenerate: true},
     });
-    return {...run,result:{...run.result,messages:run.result.messages??[]}};
+    return {...run,result:{...run.result,messages:run.result.messages??[]},prompts};
   }
 }

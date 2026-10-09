@@ -37,12 +37,20 @@ import {
   resolveRuleAttachments,
   settingsDto,
   casualText,
+  capitalizeBubble,
   bareHelloReply,
   pesosToCents,
   respondWithReview,
 } from './chatbot-core.js';
 import {formatAdContext, matchAdCampaign} from './chatbot-ads.js';
 import {audioTurn, scriptedTurn} from './chatbot-scripts.js';
+
+function clipTrace(value: string | null | undefined, max: number): string | null {
+  if (!value) return null;
+  const text = value.trim();
+  if (!text) return null;
+  return text.length <= max ? text : `${text.slice(0, max)}…`;
+}
 
 /** Mismo texto ignorando mayúsculas, tildes, signos y espacios: "¡Hola!" = "Hola". */
 function sameText(left: string, right: string): boolean {
@@ -458,13 +466,41 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
         messages=messages.filter((text)=>!/\$\s?\d/.test(text));
       }
     }
+    messages=messages.map((text)=>capitalizeBubble(text)).filter(Boolean);
     const sendsHandoff=shouldEscalate&&messages.length>0;
     const reply=messages.join('\n');
     const quoteFollowupMessage=!shouldEscalate
       &&settings.multiMessage.quoteFollowup.enabled
       &&resolvedAttachments.some(attachment=>attachment.quote)
-      ?casualText(settings.multiMessage.quoteFollowup.message.trim(),settings.writingFilters)||null
+      ?capitalizeBubble(casualText(settings.multiMessage.quoteFollowup.message.trim(),settings.writingFilters))||null
       :null;
+    const aiPrompts=(result as {prompts?: {systemPrompt: string; userPrompt: string}}).prompts;
+    const replyTrace={
+      source: helloBubbles ? 'saludo' : scripted ? 'charla' : reusable ? 'reutilizada' : localEscalationReason ? 'escalacion' : 'ia',
+      sourceLabel: helloBubbles
+        ? 'Saludo fijo, sin IA'
+        : scripted
+          ? `Respuesta fija: ${scripted.name}`
+          : reusable
+            ? 'Reutilizó una respuesta anterior parecida'
+            : localEscalationReason
+              ? 'Regla de derivación'
+              : 'Lo armó la IA',
+      scriptName: scripted?.name ?? null,
+      decisionReason: result.result.decisionReason ?? null,
+      customerMessage: clipTrace(body.message, 2000),
+      recentMessages: (body.recentMessages ?? []).slice(-8).map((item) => ({
+        direction: item.direction,
+        text: clipTrace(item.text, 500) ?? '',
+      })),
+      summary: clipTrace(conversation.summary, 2000),
+      adName: campaign ? (campaign.name || campaign.headline || null) : null,
+      systemData: clipTrace(systemData, 8000),
+      prompt: aiPrompts ? clipTrace(aiPrompts.systemPrompt, 60000) : null,
+      userPrompt: aiPrompts ? clipTrace(aiPrompts.userPrompt, 20000) : null,
+      model: result.metadata.model,
+      usedAi: Boolean(result.metadata.usedAi),
+    };
     if (!shouldEscalate && !reply) throw new BadRequestException('La IA no generó una respuesta utilizable');
     if (!shouldEscalate && settings.responseStyle.avoidRepetition && reply === conversation.lastOutboundText?.trim()) {
       throw new ConflictException('La respuesta repite exactamente el último mensaje; se bloqueó por seguridad');
@@ -493,6 +529,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           matchedKnowledgeIds: result.result.matchedKnowledgeIds,
           decisionReason: result.result.decisionReason,
           blockedByKillSwitch: true,
+          replyTrace,
         },
         error: 'Kill-switch apagado mientras se generaba la respuesta.',
       }});
@@ -539,6 +576,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
           outsideBusinessHours: outsideHours,
           settingsUpdatedAt: settings.updatedAt,
           usedAi: result.metadata.usedAi,
+          replyTrace,
           aiSuccess: result.metadata.success,
           aiError: result.metadata.error,
           simulated: body.simulation,

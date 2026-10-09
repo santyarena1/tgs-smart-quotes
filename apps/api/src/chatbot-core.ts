@@ -529,6 +529,19 @@ export function casualText(text: string, filters: WritingFilters = DEFAULT_WRITI
 }
 
 /**
+ * La primera letra de cada burbuja va en mayúscula.
+ * Un mensaje que es un link (o empieza con uno) no se toca.
+ */
+export function capitalizeBubble(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed || /^\s*https?:\/\//i.test(trimmed)) return trimmed;
+  return trimmed.replace(
+    /^([^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]*)([a-záéíóúüñ])/u,
+    (_match, prefix: string, letter: string) => prefix + letter.toLocaleUpperCase('es-AR'),
+  );
+}
+
+/**
  * La IA informa montos en pesos (como los dice el cliente) y el sistema guarda centavos.
  * Un presupuesto de menos de $10.000 no es real: se descarta en vez de guardarlo mal.
  */

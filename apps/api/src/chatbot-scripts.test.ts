@@ -1,5 +1,6 @@
 import {describe, expect,it} from 'vitest';
-import {casualText} from './chatbot-core.js';
+import {capitalizeBubble, casualText} from './chatbot-core.js';
+import {splitChatbotAiMessages} from './chatbot-message-splitter.js';
 import {
   AULA_LINK,
   AUDIO_BUBBLES,
@@ -89,6 +90,7 @@ describe('charlas de ejemplo', () => {
   it('si desconfía o pide referencias, manda las reseñas de Google', () => {
     const turn = scriptedTurn('me da desconfianza comprar por envio, tienen referencias?', later);
     expect(turn?.bubbles).toEqual([REVIEWS_REPLY, REVIEWS_LINK]);
+    expect(turn?.name).toBe('reseñas');
     expect(turn?.escalate).toBe(false);
     expect(scriptedTurn('son una estafa?', later)?.bubbles[0]).toBe(REVIEWS_REPLY);
   });
@@ -109,5 +111,17 @@ describe('charlas de ejemplo', () => {
     const turn = audioTurn();
     expect(turn.bubbles).toEqual([...AUDIO_BUBBLES]);
     expect(turn.escalate).toBe(true);
+  });
+});
+
+describe('mayúscula de cada mensaje', () => {
+  it('pone mayúscula al inicio y deja igual un link', () => {
+    expect(capitalizeBubble('nosotros tenemos +650 reseñas')).toBe('Nosotros tenemos +650 reseñas');
+    expect(capitalizeBubble('  ya te digo')).toBe('Ya te digo');
+    expect(capitalizeBubble(REVIEWS_LINK)).toBe(REVIEWS_LINK);
+    expect(capitalizeBubble(`https://thegamershop.com.ar y listo`)).toBe('https://thegamershop.com.ar y listo');
+    const split = splitChatbotAiMessages([REVIEWS_REPLY], REVIEWS_REPLY, 5).map(capitalizeBubble);
+    expect(split.some((bubble) => bubble.startsWith('Nosotros'))).toBe(true);
+    expect(split[0]?.startsWith('Entiendo')).toBe(true);
   });
 });

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { WhatsappConversation, WhatsappMessage } from "../../../lib/api";
 import { mediaUrl, type CrmNote } from "../../../lib/crm";
 import { clockTime, dayLabel, deliveryLabel } from "../format";
+import { explainsBot, MessageInspect } from "./MessageInspect";
 
 type Item =
   | { kind: "message"; at: string; message: WhatsappMessage }
@@ -200,6 +201,8 @@ export function Thread({
 function MessageBubbles({ message }: { message: WhatsappMessage }) {
   const outbound = message.direction === "OUTBOUND";
   const delivery = deliveryLabel(message);
+  const why = explainsBot(message);
+  const [openBubble, setOpenBubble] = useState<number | null>(null);
   if (!outbound) {
     const showText = message.text && !(message.mediaId && isPlaceholder(message.text));
     return (
@@ -222,6 +225,17 @@ function MessageBubbles({ message }: { message: WhatsappMessage }) {
         const last = index === parts.length - 1;
         return (
           <div key={index} className="cx-bubble-row out">
+            {why ? (
+              <button
+                type="button"
+                className="cx-why-btn"
+                aria-label="Por qué salió este mensaje"
+                title="Por qué salió este mensaje"
+                onClick={() => setOpenBubble(index)}
+              >
+                ⋯
+              </button>
+            ) : null}
             <div className={`cx-bubble out${message.status === "SEND_FAILED" ? " failed" : ""}${message.actor === "BOT" ? " bot" : ""}`}>
               <p className="cx-bubble-text">{part}</p>
               {last ? attachments.map((label) => <p key={label} className="cx-bubble-attach">📎 {label}</p>) : null}
@@ -232,6 +246,9 @@ function MessageBubbles({ message }: { message: WhatsappMessage }) {
                 </span>
               ) : null}
             </div>
+            {openBubble === index ? (
+              <MessageInspect message={message} bubble={part} onClose={() => setOpenBubble(null)} />
+            ) : null}
           </div>
         );
       })}

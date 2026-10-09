@@ -61,7 +61,7 @@ export { CompatibilityFeedbackService } from "./services/compatibility-feedback.
 export { ResponseSuggestionService } from "./services/response-suggestion.js";
 export { IntentClassificationService } from "./services/intent-classification.js";
 export { SemanticSimilarityService } from "./services/semantic-similarity.js";
-export { ChatbotResponseService } from "./services/chatbot-response.js";
+export { ChatbotResponseService, buildChatbotPrompts } from "./services/chatbot-response.js";
 export { BotTrainerService, SellerEditLearningService, botTrainerInputSchema, botTrainerOutputSchema } from "./services/bot-trainer.js";
 export type { BotTrainerInput, BotTrainerOutput, SellerEditOutput } from "./services/bot-trainer.js";
 export { QuoteEnrichmentService, DEFAULT_GAMES_TO_ANALYZE } from "./services/quote-enrichment.js";

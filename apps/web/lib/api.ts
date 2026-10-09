@@ -540,6 +540,14 @@ export function createCrmCustomer(body: {
 }
 
 /** Borra el historial y la memoria del bot. El contacto queda. */
+export function addSalesRule(rule: string): Promise<{ok: true; total: number}> {
+  return api('/chatbot/settings/sales-rules', {method: 'POST', body: {rule}});
+}
+
+export function addStyleExample(example: string): Promise<{ok: true; total: number}> {
+  return api('/chatbot/settings/style-examples', {method: 'POST', body: {example}});
+}
+
 export function resetWhatsappConversation(chatKey: string): Promise<{
   chatKey: string;
   deleted: {messages: number; notifications: number};

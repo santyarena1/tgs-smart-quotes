@@ -279,9 +279,9 @@ const SIM_ACTIONS:Record<string,string>={
   ESCALATED:"Este chat ya quedó derivado: un cliente real no recibiría otra respuesta del bot. Empezar de nuevo abre otro cliente.",
 };
 
-export function Simulator({settings,dirty}:{settings:ChatbotSettings;dirty:boolean}) {
+export function Simulator({settings,dirty,initialDraft=""}:{settings:ChatbotSettings;dirty:boolean;initialDraft?:string}) {
   const [turns,setTurns]=useState<SimTurn[]>([]);
-  const [draft,setDraft]=useState("");
+  const [draft,setDraft]=useState(initialDraft);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const [session,setSession]=useState(()=>`sim:config:${Date.now()}`);

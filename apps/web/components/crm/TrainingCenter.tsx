@@ -39,6 +39,7 @@ export function TrainingCenter() {
   const [settings, setSettings] = useState<ChatbotSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [initialDraft, setInitialDraft] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -60,6 +61,12 @@ export function TrainingCenter() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const probar = new URLSearchParams(window.location.search).get("probar");
+    if (!probar) return;
+    setTab("test");
+    setInitialDraft(probar);
+  }, []);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), 3500);
@@ -157,7 +164,7 @@ export function TrainingCenter() {
       ) : null}
 
       {tab === "test" ? (
-        settings ? <Simulator settings={settings} dirty={false} /> : <p className="cx-hint">Cargando…</p>
+        settings ? <Simulator settings={settings} dirty={false} initialDraft={initialDraft} /> : <p className="cx-hint">Cargando…</p>
       ) : null}
 
       {tab === "trainers" ? (

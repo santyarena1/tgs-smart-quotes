@@ -78,6 +78,62 @@ export class ChatbotController {
     return jsonSafe({...dto, ads: mergeSeenAds(dto.ads ?? [], seen.map((item) => item.origin))});
   }
 
+  /** Suma una regla de venta desde un mensaje del CRM, sin reescribir el resto de la configuración. */
+  @Post('settings/sales-rules')
+  async addSalesRule(
+    @Body(new ZodPipe(z.object({rule: z.string().trim().min(1).max(2000)}).strict())) body: {rule: string},
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const row = await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+    const current = settingsDto(row).salesRules;
+    if (current.some((rule) => rule.trim() === body.rule)) {
+      throw new ConflictException('Esa regla ya está cargada.');
+    }
+    if (current.length >= 80) {
+      throw new BadRequestException('Ya hay 80 reglas. Borrá alguna en Configuración antes de sumar otra.');
+    }
+    const next = await db.chatbotSettings.update({
+      where: {id: 'singleton'},
+      data: {salesRules: [...current, body.rule]},
+    });
+    await db.auditLog.create({data: {
+      userId: actor.id,
+      entityType: 'ChatbotSettings',
+      entityId: 'singleton',
+      action: 'ADD_SALES_RULE',
+      next: {rule: body.rule},
+    }});
+    return {ok: true as const, total: settingsDto(next).salesRules.length};
+  }
+
+  /** Guarda un ejemplo de cómo tendría que haber contestado, desde un mensaje del CRM. */
+  @Post('settings/style-examples')
+  async addStyleExample(
+    @Body(new ZodPipe(z.object({example: z.string().trim().min(1).max(1500)}).strict())) body: {example: string},
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const row = await db.chatbotSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+    const current = settingsDto(row).styleExamples;
+    if (current.some((example) => example.trim() === body.example)) {
+      throw new ConflictException('Ese ejemplo ya está cargado.');
+    }
+    if (current.length >= 40) {
+      throw new BadRequestException('Ya hay 40 ejemplos. Borrá alguno en Configuración antes de sumar otro.');
+    }
+    const next = await db.chatbotSettings.update({
+      where: {id: 'singleton'},
+      data: {styleExamples: [...current, body.example]},
+    });
+    await db.auditLog.create({data: {
+      userId: actor.id,
+      entityType: 'ChatbotSettings',
+      entityId: 'singleton',
+      action: 'ADD_STYLE_EXAMPLE',
+      next: {example: body.example},
+    }});
+    return {ok: true as const, total: settingsDto(next).styleExamples.length};
+  }
+
   /** Reglas de fábrica, para el botón "Restaurar" de Configuración → Reglas de venta. */
   @Get('settings/rule-defaults')
   ruleDefaults() {

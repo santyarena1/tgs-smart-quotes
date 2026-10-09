@@ -127,7 +127,24 @@
 .cx-older { align-self: center; background: var(--paper); color: var(--ink-2); border: 1px solid var(--line-2); font-size: 0.8rem; padding: 0.3rem 0.8rem; margin-bottom: 0.5rem; }
 .cx-day { display: flex; justify-content: center; margin: 0.8rem 0 0.4rem; }
 .cx-day span { padding: 0.15rem 0.7rem; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--muted); font-size: 0.74rem; text-transform: capitalize; }
-.cx-bubble-row { display: flex; }
+.cx-bubble-row { display: flex; align-items: center; }
+.cx-why-btn { flex: none; width: 28px; height: 28px; margin: 0 0.2rem; padding: 0; border-radius: 8px; background: transparent; color: var(--faint); font-size: 1.15rem; line-height: 1; letter-spacing: 0; }
+.cx-why-btn:hover:not(:disabled) { background: var(--canvas-2); color: var(--ink); }
+.cx-why-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, 0.35); display: grid; place-items: center; padding: 1rem; }
+.cx-why { width: min(440px, 100%); max-height: min(86vh, 760px); overflow: auto; background: var(--paper); color: var(--ink); border-radius: 14px; box-shadow: var(--sh-3); padding: 1rem; display: grid; gap: 0.85rem; }
+.cx-why-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.cx-why h2 { margin: 0; font-size: 1rem; }
+.cx-why h3 { margin: 0; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.cx-why section { display: grid; gap: 0.35rem; }
+.cx-why p { margin: 0; font-size: 0.88rem; line-height: 1.4; }
+.cx-why-quote { padding: 0.55rem 0.7rem; border-radius: 10px; background: var(--violet-bg); white-space: pre-wrap; }
+.cx-why-list { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.84rem; }
+.cx-why pre { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 0.74rem; background: var(--canvas); padding: 0.6rem; border-radius: 8px; }
+.cx-why textarea { width: 100%; font: inherit; font-size: 0.85rem; }
+.cx-why-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.cx-why-close { width: 32px; height: 32px; padding: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.cx-why-close:hover:not(:disabled) { background: var(--canvas-2); color: var(--ink); }
+.cx-why details summary { cursor: pointer; font-size: 0.84rem; color: var(--ink-2); }
 .cx-bubble-row.out { justify-content: flex-end; }
 .cx-bubble-group.out { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; margin-top: 0.25rem; }
 .cx-author { font-size: 0.7rem; color: var(--faint); margin-right: 0.3rem; }
