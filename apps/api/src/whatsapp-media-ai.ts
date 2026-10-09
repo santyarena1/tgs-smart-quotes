@@ -1,8 +1,8 @@
 /**
  * Que el bot entienda lo que no es texto.
  *
- * - Audio: se transcribe y el bot lo responde como si fuera un mensaje escrito. Antes
- *   todo audio derivaba a una persona.
+ * - Audio: se transcribe para que el vendedor lo lea. El bot no contesta el contenido:
+ *   avisa que está con gente en el local y deriva.
  * - Imagen: se describe lo que muestra (una PC, una captura con specs, un comprobante)
  *   para que el bot y el vendedor sepan de qué habla el cliente.
  *

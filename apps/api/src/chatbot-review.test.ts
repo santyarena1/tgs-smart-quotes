@@ -20,7 +20,13 @@ describe('revisión de la respuesta del bot', () => {
     expect(replyViolations(['La mas potente sale $1.400.000'], {bannedWords, budgetCents: 65_000_000, customerMessage: 'quiero algo más potente'})).toHaveLength(1);
   });
 
+  it('no abre con perfecto si el cliente no confirmó nada', () => {
+    expect(replyViolations(['Perfecto! Te armo una pc'], {bannedWords, budgetCents: null, customerMessage: 'busco una placa'})).toHaveLength(1);
+    expect(replyViolations(['Asi es! Enviamos a todo el pais'], {bannedWords, budgetCents: null, customerMessage: 'hacen envios?'})).toEqual([]);
+    expect(replyViolations(['Dale! Te espero en el local'], {bannedWords, budgetCents: null, customerMessage: 'dale, voy'})).toEqual([]);
+  });
+
   it('"para tu papá" no cuenta como apodo prohibido solo si no es la palabra suelta', () => {
-    expect(replyViolations(['Dale querido!'], {bannedWords, budgetCents: null, customerMessage: 'hola'})).toHaveLength(1);
+    expect(replyViolations(['Hola querido!'], {bannedWords, budgetCents: null, customerMessage: 'hola'})).toHaveLength(1);
   });
 });

@@ -42,7 +42,7 @@ import {
   respondWithReview,
 } from './chatbot-core.js';
 import {formatAdContext, matchAdCampaign} from './chatbot-ads.js';
-import {scriptedTurn} from './chatbot-scripts.js';
+import {audioTurn, scriptedTurn} from './chatbot-scripts.js';
 
 /** Mismo texto ignorando mayúsculas, tildes, signos y espacios: "¡Hola!" = "Hola". */
 function sameText(left: string, right: string): boolean {
@@ -180,13 +180,9 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
     const recentText = (body.recentMessages ?? []).slice(-6).map((item) => item.text).join(' ');
     // Charlas de ejemplo: pago, stock, reclamo, pedido y el armado de la PC salen tal cual.
     const scripted = body.messageType === 'AUDIO'
-      ? null
+      ? audioTurn()
       : scriptedTurn(body.message, {alreadyGreeted, recentText, fromAd: Boolean(campaign)});
-    const localEscalationReason = body.messageType === 'AUDIO'
-      ? 'Mensaje de audio recibido, requiere atención humana.'
-      : scripted
-        ? null
-        : keywordReason;
+    const localEscalationReason = scripted ? null : keywordReason;
     const helloBubbles = !campaign && !alreadyGreeted && !localEscalationReason && !scripted
       ? bareHelloReply(body.message)
       : null;
@@ -322,9 +318,7 @@ export async function runChatbotResponse(body: ChatbotRespondInput, actorId: str
             escalationReason: localEscalationReason,
             updatedSummary: conversation.summary ?? null,
             matchedKnowledgeIds: [],
-            decisionReason: body.messageType === 'AUDIO'
-              ? 'El mensaje entrante es un audio sin transcripción disponible.'
-              : 'Coincidió una regla explícita de escalación.',
+            decisionReason: 'Coincidió una regla explícita de escalación.',
             shouldCreateRequest: false,
             requestDraft: null,
           },

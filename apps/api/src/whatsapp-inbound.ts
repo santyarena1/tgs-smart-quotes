@@ -102,7 +102,7 @@ function extractContent(message: MetaMessage): ExtractedMessage {
         supported: true,
       };
     case 'audio':
-      // El motor ya escala los audios: no hay transcripción, así que no se responde solo.
+      // El motor avisa que está con gente en el local y lo pasa a un vendedor.
       return {
         ...base,
         text: '[Mensaje de audio sin transcripción]',
@@ -259,7 +259,8 @@ export async function handleInboundMessage(value: MetaValue, message: MetaMessag
     throw error;
   }
 
-  // Audio o imagen: se transcribe o describe antes de responder, así el bot lo entiende.
+  // El audio se transcribe para el vendedor; el bot igual avisa que está en el local y deriva.
+  // La imagen se describe para que el bot entienda qué mandó.
   if (content.mediaId && (message.type === 'audio' || message.type === 'image')) {
     await enrichInboundMedia(inboundLogId);
   }
