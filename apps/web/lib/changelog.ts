@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.11",
+    date: "2026-10-09",
+    title: "Guardar y descargar el presupuesto es más rápido",
+    items: [
+      "Al guardar, el PDF se arma y se descarga primero: ya no espera a recargar todo el listado, el catálogo y el historial",
+      "Si ese PDF ya estaba generado y no cambió nada, se reutiliza en vez de volver a imprimirlo",
+      "El armado del PDF no espera recursos de red ni reimprime cuatro veces para entrar en una hoja",
+    ],
+  },
+  {
     version: "0.19.10",
     date: "2026-10-08",
     title: "Imagen de referencia fiel a la configuración",

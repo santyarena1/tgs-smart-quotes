@@ -236,10 +236,69 @@ function storageKeyFor(family: any, version: any, kind: PdfKind) {
   return `${family.id}/${pdfFileName(family.visibleNumber, version.version, kind)}`;
 }
 
+type PrinterBranch = {id: string; address: string | null; phones: string | null};
+
+/** Chromium no corre adentro de la transacción: si no, el guardado espera todo el render. */
+async function persistGeneratedPdf(opts: {
+  family: {id: string; requestId?: string | null; customerId?: string | null; activeVersion: number};
+  version: {id: string; version: number; state: string};
+  kind: PdfKind;
+  printerBranch: PrinterBranch | null;
+  actor: RequestUser;
+  renderInput: PdfRenderInput;
+  existing: {inputHash: string} | null;
+  metadata?: Record<string, unknown>;
+  action?: 'CREATE' | 'REGENERATE';
+}) {
+  const stored = await generateAndStorePdf({
+    input: opts.renderInput,
+    storage: pdfStorage,
+    storageKey: storageKeyFor(opts.family, opts.version, opts.kind),
+  });
+  return db.$transaction(async (tx) => {
+    const pdf = await tx.quotePdf.upsert({
+      where: {versionId_kind: {versionId: opts.version.id, kind: opts.kind}},
+      create: {
+        versionId: opts.version.id,
+        kind: opts.kind,
+        storageKey: stored.storageKey,
+        sha256: stored.sha256,
+        sizeBytes: stored.sizeBytes,
+        inputHash: stored.inputHash,
+        driver: stored.driver,
+        configJson: opts.renderInput.config as any,
+        branchId: opts.printerBranch?.id ?? null,
+      },
+      update: {
+        storageKey: stored.storageKey,
+        sha256: stored.sha256,
+        sizeBytes: stored.sizeBytes,
+        inputHash: stored.inputHash,
+        driver: stored.driver,
+        configJson: opts.renderInput.config as any,
+        branchId: opts.printerBranch?.id ?? null,
+      },
+    });
+    await statusEvent(tx, {
+      type: 'PDF_GENERADO',
+      familyId: opts.family.id,
+      versionId: opts.version.id,
+      requestId: opts.family.requestId,
+      customerId: opts.family.customerId,
+      userId: opts.actor.id,
+      previous: opts.existing ? {inputHash: opts.existing.inputHash} : null,
+      next: {inputHash: pdf.inputHash, kind: opts.kind, version: opts.version.version},
+      metadata: opts.metadata,
+    });
+    await audit(tx, opts.actor.id, 'QuotePdf', pdf.id, opts.action ?? (opts.existing ? 'REGENERATE' : 'CREATE'), opts.existing ?? null, pdf);
+    return jsonSafe({...pdf, reused: false, immutable: opts.version.state !== 'BORRADOR'});
+  });
+}
+
 @Controller('quotes')
 export class PdfController {
   async generateVersionPdf(id: string, versionNumber: number, kind:PdfKind, actor: RequestUser) {
-    return db.$transaction(async (tx) => {
+    const prepared = await db.$transaction(async (tx) => {
       const family = await loadFamily(tx, id);
       const version = family.versions.find((item: any) => item.version === versionNumber);
       if (!version) throw new NotFoundException('Versión inexistente');
@@ -248,34 +307,24 @@ export class PdfController {
         where: {versionId_kind: {versionId: version.id, kind}},
       });
       if (existing && (existing.branchId ?? null) === (printerBranch?.id ?? null)) {
-        return jsonSafe({...existing, reused: true, immutable: version.state !== 'BORRADOR'});
+        return {reuse: existing as {inputHash: string} & Record<string, unknown>, family, version, printerBranch, renderInput: null};
       }
       const renderInput = await buildRenderInput(tx, family, version, kind, printerBranch);
-      const stored = await generateAndStorePdf({
-        input: renderInput,
-        storage: pdfStorage,
-        storageKey: storageKeyFor(family, version, kind),
-      });
-      const pdf = await tx.quotePdf.upsert({
-        where: {versionId_kind: {versionId: version.id, kind}},
-        create: {
-          versionId: version.id, kind, storageKey: stored.storageKey, sha256: stored.sha256,
-          sizeBytes: stored.sizeBytes, inputHash: stored.inputHash, driver: stored.driver,
-          configJson: renderInput.config as any, branchId: printerBranch?.id ?? null,
-        },
-        update: {
-          storageKey: stored.storageKey, sha256: stored.sha256,
-          sizeBytes: stored.sizeBytes, inputHash: stored.inputHash, driver: stored.driver,
-          configJson: renderInput.config as any, branchId: printerBranch?.id ?? null,
-        },
-      });
-      await statusEvent(tx, {
-        type: 'PDF_GENERADO', familyId: id, versionId: version.id, requestId: family.requestId,
-        customerId: family.customerId, userId: actor.id, next: {kind, version: versionNumber},
-        metadata: {historical: version.version !== family.activeVersion},
-      });
-      await audit(tx, actor.id, 'QuotePdf', pdf.id, 'CREATE', null, pdf);
-      return jsonSafe({...pdf, reused: false, immutable: version.state !== 'BORRADOR'});
+      return {reuse: null, family, version, printerBranch, renderInput, existing};
+    });
+    if (prepared.reuse) {
+      return jsonSafe({...prepared.reuse, reused: true, immutable: prepared.version.state !== 'BORRADOR'});
+    }
+    return persistGeneratedPdf({
+      family: prepared.family,
+      version: prepared.version,
+      kind,
+      printerBranch: prepared.printerBranch,
+      actor,
+      renderInput: prepared.renderInput!,
+      existing: prepared.existing ?? null,
+      metadata: {historical: prepared.version.version !== prepared.family.activeVersion},
+      action: prepared.existing ? 'REGENERATE' : 'CREATE',
     });
   }
 
@@ -329,69 +378,38 @@ export class PdfController {
     @Body(new ZodPipe(pdfGenerateSchema)) body: PdfGenerateInput,
     @CurrentUser() actor: RequestUser,
   ) {
-    return db.$transaction(async (tx) => {
+    const prepared = await db.$transaction(async (tx) => {
       const family = await loadFamily(tx, id);
       const version = activeVersion(family);
       const printerBranch = await resolvePrinterBranch(tx, actor);
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind: body.kind}},
       });
-
       const renderInput = await buildRenderInput(tx, family, version, body.kind, printerBranch);
       const computedHash = pdfInputHash(renderInput);
       const sameBranchAsCached = existing != null && (existing.branchId ?? null) === (printerBranch?.id ?? null);
+      const reuseImmutable = Boolean(existing && version.state !== 'BORRADOR' && sameBranchAsCached);
+      const reuseDraft = Boolean(existing && !body.force && existing.inputHash === computedHash && sameBranchAsCached);
+      return {family, version, printerBranch, existing, renderInput, reuse: reuseImmutable || reuseDraft};
+    });
 
-      if (existing && version.state !== 'BORRADOR' && sameBranchAsCached) {
-        return jsonSafe({...existing, reused: true, immutable: true});
-      }
-      if (existing && !body.force && existing.inputHash === computedHash && sameBranchAsCached) {
-        return jsonSafe({...existing, reused: true, immutable: false});
-      }
-
-      const stored = await generateAndStorePdf({
-        input: renderInput,
-        storage: pdfStorage,
-        storageKey: storageKeyFor(family, version, body.kind),
+    if (prepared.reuse && prepared.existing) {
+      return jsonSafe({
+        ...prepared.existing,
+        reused: true,
+        immutable: prepared.version.state !== 'BORRADOR',
       });
+    }
 
-      const pdf = await tx.quotePdf.upsert({
-        where: {versionId_kind: {versionId: version.id, kind: body.kind}},
-        create: {
-          versionId: version.id,
-          kind: body.kind,
-          storageKey: stored.storageKey,
-          sha256: stored.sha256,
-          sizeBytes: stored.sizeBytes,
-          inputHash: stored.inputHash,
-          driver: stored.driver,
-          configJson: renderInput.config as any,
-          branchId: printerBranch?.id ?? null,
-        },
-        update: {
-          storageKey: stored.storageKey,
-          sha256: stored.sha256,
-          sizeBytes: stored.sizeBytes,
-          inputHash: stored.inputHash,
-          driver: stored.driver,
-          configJson: renderInput.config as any,
-          branchId: printerBranch?.id ?? null,
-        },
-      });
-
-      await statusEvent(tx, {
-        type: 'PDF_GENERADO',
-        familyId: id,
-        versionId: version.id,
-        requestId: family.requestId,
-        customerId: family.customerId,
-        userId: actor.id,
-        previous: existing ? {inputHash: existing.inputHash} : null,
-        next: {inputHash: pdf.inputHash, kind: body.kind},
-        metadata: {force: body.force, reused: false},
-      });
-      await audit(tx, actor.id, 'QuotePdf', pdf.id, existing ? 'REGENERATE' : 'CREATE', existing ?? null, pdf);
-
-      return jsonSafe({...pdf, reused: false, immutable: false});
+    return persistGeneratedPdf({
+      family: prepared.family,
+      version: prepared.version,
+      kind: body.kind,
+      printerBranch: prepared.printerBranch,
+      actor,
+      renderInput: prepared.renderInput,
+      existing: prepared.existing,
+      metadata: {force: body.force, reused: false},
     });
   }
 

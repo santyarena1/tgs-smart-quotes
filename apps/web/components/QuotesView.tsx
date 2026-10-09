@@ -874,7 +874,7 @@ export function QuotesView({
       });
       const hasUnsavedChanges = currentSnapshot !== draftBaselineRef.current;
       if (draftNow && hasUnsavedChanges && items.length) {
-        await api(`/quotes/${selectedId}`, {
+        const saved = await api<Quote>(`/quotes/${selectedId}`, {
           method: "PUT",
           body: {
             internalName: internalName.trim(),
@@ -885,16 +885,17 @@ export function QuotesView({
             items: itemsToPayload(items),
           },
         });
+        applyDetail(saved, false);
+        setList((current) => current.map((row) => (row.id === saved.id ? saved : row)));
       }
-      await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind, force: true } });
+      await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind } });
       const version = getActiveVersion(detail)?.version ?? detail.activeVersion;
       await downloadAuthenticated(
         `/quotes/${selectedId}/pdf/${kind}`,
         `${detail.visibleNumber}-V${version}-${kind}.pdf`,
       );
       setNotice(`PDF ${kind === "SIMPLE" ? "simple" : "detallado"} listo.`);
-      await reloadDetail(selectedId, false);
-      await loadList();
+      void loadSideData(selectedId);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -913,7 +914,7 @@ export function QuotesView({
         `${detail.visibleNumber}-V${version.version}-${kind}.pdf`,
       );
       setNotice(`PDF ${kind === "SIMPLE" ? "simple" : "detallado"} de la versión ${version.version} listo.`);
-      await reloadDetail(selectedId);
+      void loadSideData(selectedId);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -1798,10 +1799,10 @@ export function QuotesView({
             ? `Presupuesto creado y agregado a ${collectionIds.length} colección(es).`
             : "Presupuesto creado.",
       );
-      await loadList();
       if (created.id) {
         applyDetail(created, false);
         setSelectedId(created.id);
+        setList((current) => [created, ...current.filter((row) => row.id !== created.id)]);
         await api(`/quotes/${created.id}/pdf`, {
           method: "POST",
           body: { kind: pdfKind },
@@ -1809,7 +1810,7 @@ export function QuotesView({
         if (opts) await downloadAuthenticated(`/quotes/${created.id}/pdf/${pdfKind}`, `${created.visibleNumber}-${pdfKind}.pdf`);
         else if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
         else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
-        await reloadDetail(created.id);
+        void loadSideData(created.id);
       }
     } catch (err) {
       pdfTab?.close();
@@ -1834,7 +1835,7 @@ export function QuotesView({
     setError(null);
     setNotice(null);
     try {
-      await api(`/quotes/${selectedId}`, {
+      const saved = await api<Quote>(`/quotes/${selectedId}`, {
         method: "PUT",
         body: {
           reason: saveReason.trim() || null,
@@ -1850,27 +1851,27 @@ export function QuotesView({
       const refNote = await persistReferenceImage(selectedId);
       teachIva(filledItems(items).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
       setSaveReason("");
-      setNotice(
-        refNote ? `Cambios guardados.${refNote}` : isDraft
-          ? (requestId ? "Cambios guardados. Solicitud en Lista si seguía en preparación." : "Cambios guardados.")
-          : "Nueva versión guardada; la enviada quedó intacta.",
-      );
       const savedDraftKey = quoteDraftKey(selectedId);
       removeQuoteDraft(savedDraftKey);
       setDraftRecovered(false);
-      await reloadDetail(selectedId, false);
-      await loadList();
-      // Al guardar, generar y abrir el PDF directamente para descargarlo.
+      applyDetail(saved, false);
+      setList((current) => current.map((row) => (row.id === saved.id ? saved : row)));
+      // El PDF sale primero: recargar catálogo/timeline no tiene que frenar la descarga.
       try {
-        await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind: pdfKind, force: true } });
+        await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind: pdfKind } });
         await downloadAuthenticated(
           `/quotes/${selectedId}/pdf/${pdfKind}`,
-          `${detail?.visibleNumber ?? "presupuesto"}-${pdfKind}.pdf`,
+          `${saved.visibleNumber}-${pdfKind}.pdf`,
         );
-        setNotice("Cambios guardados. Descargando PDF…");
+        setNotice(refNote ? `Cambios guardados.${refNote}` : "Cambios guardados. Descargando PDF…");
       } catch {
-        /* el guardado ya fue exitoso; si el PDF falla se puede regenerar desde el botón de PDF */
+        setNotice(
+          refNote ? `Cambios guardados.${refNote}` : isDraft
+            ? (requestId ? "Cambios guardados. Solicitud en Lista si seguía en preparación." : "Cambios guardados.")
+            : "Nueva versión guardada; la enviada quedó intacta.",
+        );
       }
+      void loadSideData(selectedId);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

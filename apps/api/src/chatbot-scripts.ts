@@ -53,6 +53,24 @@ export const STORE_REPLY = 'Cualquier cosa nos mandas un mensaje o podes venir a
 
 export const QUOTE_REPLY = 'Perfecto, ya te paso presupuesto';
 
+export const REVIEWS_REPLY = 'Entiendo la desconfianza ya que hay muchas estafas hoy en dia, nosotros tenemos +650 reseñas en nuestro perfil de google maps y casi en su totalidad de 5 estrellas! Te dejo el link para que puedas ver todas las reseñas!';
+
+export const REVIEWS_LINK = 'https://www.google.com/maps/place/The+Gamer+Shop/@-34.643144,-58.5208303,17z/data=!4m8!3m7!1s0x22e2b325a8db1bdb:0xf40d0877a29431fa!8m2!3d-34.643144!4d-58.5208303!9m1!1b1!16s%2Fg%2F11t396tm__?entry=ttu&g_ep=EgoyMDI2MTAwNi4wIKXMDSoASAFQAw%3D%3D';
+
+export const AUDIO_BUBBLES = [
+  'Ya escucho el audio!',
+  'Justo estoy con gente en el local!',
+];
+
+export const CONFUSED_REPLY = 'Perdon, no te entendi. Me lo podes decir de otra forma?';
+
+const INSULTS = [
+  'boludo', 'boluda', 'pelotudo', 'pelotuda', 'forro', 'forra', 'hijo de puta', 'hdp',
+  'puta', 'puto', 'putos', 'putas', 'mierda', 'la concha', 'concha de', 'trolo', 'trola',
+  'mogolico', 'idiota', 'imbecil', 'estupido', 'tarado', 'sorete', 'pajero', 'pajera',
+  'andate a cagar', 'chupame', 'la puta', 'orto', 'basura', 'estupida',
+];
+
 export const GAMES_EXPLAIN = 'Los juegos livianos, como CS o Valorant, te andan con la grafica integrada. Los pesados, como Red Dead, necesitan una placa de video dedicada';
 
 export const PERIPHERALS_QUESTION = 'Buscas tambien monitor, teclado, mouse, auriculares o parlantes?';
@@ -105,6 +123,32 @@ function answer(bubbles: string[], alreadyGreeted: boolean, createRequest = fals
   return {bubbles: withGreeting(bubbles, alreadyGreeted), escalate: false, reason: null, createRequest};
 }
 
+function silentHandoff(reason: string): ScriptedTurn {
+  return {bubbles: [], escalate: true, reason, createRequest: false};
+}
+
+/** Audio: aunque haya transcripción, no se contesta el contenido. */
+export function audioTurn(): ScriptedTurn {
+  return {
+    bubbles: [...AUDIO_BUBBLES],
+    escalate: true,
+    reason: 'Mandó un audio: se avisa que hay gente en el local y lo sigue un vendedor.',
+    createRequest: false,
+  };
+}
+
+/** Pide JSON, otro formato o que el bot deje de ser Fede. */
+export function asksToBreakRole(message: string): boolean {
+  const text = plain(message);
+  if (/\b(json|xml|html|markdown|jailbreak)\b/.test(text)) return true;
+  if (/\b(ignora|olvida|olvide)\b.*\b(instrucciones|reglas|prompt)\b/.test(text)) return true;
+  if (/\b(system prompt|modo desarrollador|developer mode)\b/.test(text)) return true;
+  if (/\b(actua como|sos un bot|sos una ia|eres un bot|eres una ia)\b/.test(text)) return true;
+  if (/\brespond\w*\b.*\b(json|xml|codigo|markdown|html)\b/.test(text)) return true;
+  if (/\b(nueva instruccion|a partir de ahora sos|tu nuevo rol)\b/.test(text)) return true;
+  return false;
+}
+
 export function scriptedTurn(
   message: string,
   context: {alreadyGreeted: boolean; recentText?: string; fromAd?: boolean},
@@ -112,6 +156,15 @@ export function scriptedTurn(
   const recent = plain(context.recentText ?? '');
   const greeted = context.alreadyGreeted;
 
+  if (says(message, INSULTS)) {
+    return silentHandoff('Vocabulario irrespetuoso: lo sigue un vendedor.');
+  }
+  if (asksToBreakRole(message)) {
+    return {bubbles: [CONFUSED_REPLY], escalate: false, reason: null, createRequest: false};
+  }
+  if (says(message, ['referencia', 'referencias', 'resena', 'resenas', 'reseña', 'reseñas', 'opinion', 'opiniones', 'reviews', 'desconfianza', 'desconfio', 'no confio', 'puedo confiar', 'es confiable', 'son confiables', 'estafa', 'estafas', 'es seguro', 'clientes reales', 'otros clientes'])) {
+    return answer([REVIEWS_REPLY, REVIEWS_LINK], greeted);
+  }
   if (says(message, ['ya esta lista', 'esta lista mi', 'estado del pedido', 'estado de mi pedido', 'mi pedido', 'numero de pedido'])) {
     return handoff([ORDER_STATUS_REPLY], 'Pregunta por un pedido ya hecho: se pide el nombre y lo ve un vendedor.', greeted);
   }

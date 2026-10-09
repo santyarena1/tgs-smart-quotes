@@ -581,6 +581,13 @@ export function replyViolations(
   if (/\$\s?\d/.test(bubbles.join('\n'))) {
     problems.push('no digas precios ni montos: si hace falta un número, pedí el presupuesto al equipo (shouldCreateRequest=true) y no lo inventes');
   }
+  const customer = plainText(context.customerMessage);
+  const agreed = /\b(si|dale|bueno|ok|oka|joya|genial|barbaro|de una|listo|obvio)\b/.test(customer);
+  const askedIfSo = /\b(hacen|tienen|tenes|aceptan|es verdad|se puede|envian|mandan)\b/.test(customer);
+  const opensWithFiller = bubbles.some((bubble) => /^(asi es|perfecto|dale)\b/.test(plainText(bubble).replace(/^[^a-z]+/, '')));
+  if (opensWithFiller && !agreed && !askedIfSo) {
+    problems.push('no abras con "asi es", "perfecto" ni "dale" si no corresponde: usalos solo cuando el cliente confirmó algo o preguntó si es así');
+  }
   return problems;
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   countPdfPages,
+  FIT_ONE_PAGE_SCALES,
   itemDisplayName,
   formatArsFromCents,
   formatDateAr,
@@ -184,6 +185,10 @@ describe('@tgs/pdf', () => {
   it('cuenta las páginas de un PDF sin confundir /Pages con /Page', () => {
     const pdf = Buffer.from('<< /Type /Pages /Count 2 >> << /Type /Page >> << /Type/Page /Parent 1 0 R >>');
     expect(countPdfPages(pdf)).toBe(2);
+  });
+
+  it('para caber en una hoja prueba pocas escalas, no una ronda larga', () => {
+    expect(FIT_ONE_PAGE_SCALES).toEqual([0.93, 0.78]);
   });
 
   it('reescribe los rótulos de plantilla elegidos, en ambas plantillas y escapando HTML', () => {
