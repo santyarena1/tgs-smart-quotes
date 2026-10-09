@@ -1,0 +1,109 @@
+/* ============================================================
+   DarkBlueRed: azul marino y rojo, con un modo claro en azul
+   hielo. Usa el mismo motor visual que TGS (cristal líquido,
+   fondo animado) con otra paleta y tipografía.
+   ============================================================ */
+:root[data-skin="bluered"] {
+  --tgs-red: #3b82f6;
+  --tgs-red-bright: #60a5fa;
+  --tgs-red-deep: #1d4ed8;
+  --tgs-red-rgb: 59, 130, 246;
+  --font: var(--font-inter), "Inter", "Segoe UI", system-ui, sans-serif;
+  --brand: var(--font-space), "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --display: var(--font-space), "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --bar-rgb: 7, 13, 34;
+  --side-a: #0b1630;
+  --side-b: #070d1f;
+}
+:root[data-skin="bluered"][data-theme="light"] {
+  --tgs-red: #2f5bea;
+  --tgs-red-bright: #5b86ff;
+  --tgs-red-deep: #1e40c4;
+  --tgs-red-rgb: 47, 91, 234;
+  --red: #e5383b;
+  --red-deep: #c0262a;
+  --red-soft: rgba(47, 91, 234, 0.09);
+  --red-line: rgba(47, 91, 234, 0.32);
+  --ink: #0b1630; --ink-bg: #0b1630; --ink-2: #2a3a63; --muted: #5a6785; --faint: #8b97b5;
+  --line: #d9e2f2; --line-2: #c6d3ea;
+  --paper: #ffffff; --canvas: #eef3fb; --canvas-2: #f6f9fe;
+  --sh-1: 0 1px 2px rgba(11, 22, 48, 0.06);
+  --sh-2: 0 2px 8px rgba(11, 22, 48, 0.07), 0 14px 34px rgba(11, 22, 48, 0.08);
+  --sh-3: 0 22px 60px rgba(11, 22, 48, 0.22);
+  --tgs-grid: rgba(11, 22, 48, 0.04);
+  --tgs-grid-lite: rgba(11, 22, 48, 0.08);
+}
+:root[data-skin="bluered"][data-theme="dark"] {
+  --tgs-red: #3b82f6;
+  --tgs-red-bright: #60a5fa;
+  --tgs-red-deep: #1d4ed8;
+  --tgs-red-rgb: 59, 130, 246;
+  --red: #ef4444;
+  --red-deep: #dc2626;
+  --red-soft: rgba(59, 130, 246, 0.14);
+  --red-line: rgba(96, 165, 250, 0.4);
+  --ink: #e8eeff; --ink-bg: #16264f; --ink-2: #b9c6ea; --muted: #8b9bc4; --faint: #5f6f9b;
+  --line: rgba(120, 160, 255, 0.14); --line-2: rgba(120, 160, 255, 0.26);
+  --paper: #0e1a38; --canvas: #070d1f; --canvas-2: #0a1330; --panel: #0e1a38;
+  --ok: #34d399; --warn: #fbbf24; --info: #7dd3fc; --violet: #a5b4fc;
+  --sh-1: 0 1px 2px rgba(0, 0, 8, 0.6);
+  --sh-2: 0 2px 8px rgba(0, 0, 8, 0.5), 0 14px 38px rgba(0, 0, 8, 0.45);
+  --sh-3: 0 22px 70px rgba(0, 0, 8, 0.7);
+  --tgs-grid: rgba(150, 180, 255, 0.035);
+  --tgs-grid-lite: rgba(150, 180, 255, 0.07);
+  --dk-card-a: #112046;
+  --dk-card-b: #0c1736;
+  --dk-field: #081230;
+  --dk-chip: #16275a;
+  --dk-chip2: #1b2f6a;
+}
+/* Títulos con Space Grotesk, más sobrios que Anton */
+html:root[data-skin="bluered"] :is(.page-head h1, .login-panel h1, .lite .lt-head h1, .lite .lt-side h2, .lite .lt-modal-card h2, .lite .lt-total strong, .stat .stat-value) {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+html:root[data-skin="bluered"] .page-head h1 { text-transform: none; }
+/* Detalles en rojo: indicador de sección activa, eyebrow, línea de neón de la barra */
+html:root[data-skin="bluered"] .nav-link.active { box-shadow: inset 3px 0 0 #ef4444, 0 0 22px rgba(var(--tgs-red-rgb), 0.14); }
+html:root[data-skin="bluered"] .page-head .eyebrow { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+html:root[data-skin="bluered"] .page-head .eyebrow::before { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+html:root[data-skin="bluered"] .lite .lt-bar::after { background: linear-gradient(90deg, transparent 0%, #3b82f6 25%, #fff 50%, #ef4444 75%, transparent 100%); background-size: 220% 100%; }
+html:root[data-skin="bluered"][data-theme] .lite .lt-bar .lt-tab.active {
+  background: linear-gradient(180deg, #5b86ff, #2f5bea);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 14px -4px rgba(47, 91, 234, 0.75);
+}
+html:root[data-skin="bluered"] .login-panel::before { background: linear-gradient(90deg, transparent, #3b82f6, #ef4444, #3b82f6, transparent); background-size: 200% 100%; }
+html:root[data-skin="bluered"] .brand-badge { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+html:root[data-skin="bluered"] .side-switch[aria-checked="true"] .side-lite-track,
+html:root[data-skin="bluered"] .lite .lt-switch.tgs-red.on .lt-switch-track { background: #3b82f6; }
+
+/* Barra del total y los botones de PDF: azul marino con el estilo del tema (no negro puro) */
+html:root[data-skin="bluered"][data-theme="dark"] .lite .lt-foot {
+  background: linear-gradient(180deg, rgba(20, 36, 82, 0.92), rgba(9, 18, 46, 0.96));
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-top-color: rgba(96, 165, 250, 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 -14px 44px -14px rgba(59, 130, 246, 0.4), 0 18px 40px -18px rgba(0, 0, 8, 0.8);
+}
+html:root[data-skin="bluered"][data-theme="light"] .lite .lt-foot {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(232, 240, 255, 0.96));
+  border: 1px solid rgba(47, 91, 234, 0.25);
+  box-shadow: 0 -12px 36px -14px rgba(47, 91, 234, 0.3);
+}
+html:root[data-skin="bluered"] .lite .lt-foot { position: sticky; overflow: visible; }
+html:root[data-skin="bluered"] .lite .lt-foot::before {
+  content: "";
+  position: absolute;
+  left: 18px; right: 18px; top: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #3b82f6 30%, #fff 50%, #ef4444 70%, transparent);
+  background-size: 220% 100%;
+  animation: tgs-sweep 4s linear infinite;
+  pointer-events: none;
+}
+html:root[data-skin="bluered"] .lite .lt-total strong { text-shadow: 0 0 22px rgba(59, 130, 246, 0.45); }
+html:root[data-skin="bluered"] .lite .lt-total .lt-cost { color: #7dd3fc; }
+html[data-skin="bluered"][data-fx="off"] .lite .lt-foot::before { animation: none; }

@@ -18,6 +18,9 @@ import {applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload} from
 import {DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva} from "../lib/iva";
 import {KINDS, KIND_LABEL, madeKinds, quoteKind, type PdfKind as QuoteKind} from "../lib/quote-kinds";
 import {LiteReferenceBubble, LiteReferenceModal, type ReferenceImage} from "../lite/LiteReferenceImage";
+import {newTradeIn, TradeInModal, tradeInCents, type TradeIn} from "../lite/TradeInModal";
+import swapIcon from "../lite/icons/swap.png";
+import wspIcon from "../lite/icons/wsp.webp";
 import {suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle} from "../lite/useReferenceImageJob";
 import type {
   Collection,
@@ -423,6 +426,10 @@ export function QuotesView({
   // Imagen de referencia de la PC (opcional): la generación corre en segundo plano y un globo avisa el estado.
   const refJob = useReferenceImageJob();
   const [refImage, setRefImage] = useState<ReferenceImage | null>(null);
+  const [tradeIns, setTradeIns] = useState<TradeIn[]>([]);
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradeShowValues, setTradeShowValues] = useState(true);
+  const [waCopy, setWaCopy] = useState<"idle" | "copied" | "error">("idle");
   const [refSavedKey, setRefSavedKey] = useState<string | null>(null);
   const [refOpen, setRefOpen] = useState(false);
   // Si el usuario tocó la imagen (la incluyó o la quitó) y todavía no se guardó, recargar el detalle no la pisa.
@@ -620,6 +627,9 @@ export function QuotesView({
         setRefImage(quote.referenceImageUrl && quote.referenceImageKey ? { url: quote.referenceImageUrl, key: quote.referenceImageKey } : null);
         setRefSavedKey(quote.referenceImageKey ?? null);
       }
+      const savedTrade = getActiveVersion(quote)?.tradeIns;
+      setTradeIns(savedTrade?.items.map((i) => ({ key: crypto.randomUUID(), name: i.name, valueArs: centsToInput(i.valueCents) })) ?? []);
+      setTradeShowValues(savedTrade?.showValues ?? true);
       setCollectionIds(
         (quote.collections ?? [])
           .map((row) => row.collectionId ?? row.collection?.id ?? "")
@@ -1056,6 +1066,8 @@ export function QuotesView({
     refJob.discard();
     setRefImage(null);
     setRefSavedKey(null);
+    setTradeIns([]);
+    setTradeShowValues(true);
     refDirtyRef.current = false;
     refQuoteIdRef.current = null;
     lastDetailIdRef.current = null;
@@ -1764,7 +1776,7 @@ export function QuotesView({
     const effectiveCustomerId = opts?.customerId ?? customerId;
     // El botón de presupuesto formal no pasa por la validación del formulario: sin nombre interno usa el de la empresa.
     const effectiveName = internalName.trim() || opts?.customerName || items[0]?.name?.trim() || "Presupuesto";
-    const invalid = validateItems(items);
+    const invalid = validateItems(items) ?? tradeInError();
     if (invalid) {
       setError(invalid);
       return;
@@ -1784,6 +1796,7 @@ export function QuotesView({
           isBuiltPc,
           kind: isCombo ? "COMBO" : "PC",
           publicObservation: observation.trim() || null,
+          tradeIns: tradeInsPayload(),
           collectionIds,
           items: itemsToPayload(items),
         },
@@ -1826,7 +1839,7 @@ export function QuotesView({
     const effectiveCustomerId = opts?.customerId ?? customerId;
     const effectiveName = internalName.trim() || opts?.customerName || items[0]?.name?.trim() || "Presupuesto";
     if (!selectedId) return;
-    const invalid = validateItems(items);
+    const invalid = validateItems(items) ?? tradeInError();
     if (invalid) {
       setError(invalid);
       return;
@@ -1844,6 +1857,7 @@ export function QuotesView({
           requestId: requestId || null,
           isBuiltPc,
           publicObservation: observation.trim() || null,
+          tradeIns: tradeInsPayload(),
           collectionIds,
           items: itemsToPayload(items),
         },
@@ -2043,6 +2057,55 @@ export function QuotesView({
     }
     return total.toString();
   }, [items]);
+
+  const tradeInTotal = useMemo(() => tradeIns.reduce((sum, t) => sum + tradeInCents(t), 0n), [tradeIns]);
+  const draftNet = (() => { const total = BigInt(draftTotal); return total > tradeInTotal ? total - tradeInTotal : 0n; })();
+
+  const tradeGiven = () => tradeIns.filter((t) => t.name.trim() || t.valueArs.trim());
+  function tradeInError(): string | null {
+    const given = tradeGiven();
+    for (const t of given) {
+      if (!t.name.trim()) return "Poné el nombre del producto que entrega el cliente.";
+      if (tradeInCents(t) <= 0n) return `Poné el valor de “${t.name.trim()}” (producto del cliente).`;
+    }
+    if (given.length && tradeInTotal > BigInt(draftTotal)) return "Lo que entrega el cliente supera el total del presupuesto.";
+    return null;
+  }
+  /** null limpia lo que hubiera guardado una versión anterior. */
+  function tradeInsPayload() {
+    const given = tradeGiven();
+    return given.length
+      ? { showValues: tradeShowValues, items: given.map((t) => ({ name: t.name.trim(), valueCents: tradeInCents(t).toString() })) }
+      : null;
+  }
+  function openTradeIn() {
+    if (!tradeIns.length) setTradeIns([newTradeIn()]);
+    setTradeOpen(true);
+  }
+  /** Al cerrar se descartan las filas vacías. */
+  function closeTradeIn() {
+    setTradeIns((current) => current.filter((t) => t.name.trim() || t.valueArs.trim()));
+    setTradeOpen(false);
+  }
+  /** Resumen del presupuesto en texto, listo para pegar en WhatsApp (negritas con *). */
+  async function copyWhatsappSummary() {
+    const rows = filledItems(items).map((item) => {
+      const qty = Math.max(1, Math.trunc(Number(item.quantity) || 1));
+      return `• ${qty > 1 ? `${qty} x ` : ""}${item.name.trim()} — ${formatArs(lineTotalCents(item.saleArs, item.quantity))}`;
+    });
+    const customerName = customers.find((c) => c.id === customerId)?.name;
+    const closing = tradeInTotal > 0n
+      ? [`Subtotal: ${formatArs(draftTotal)}`, `Productos del cliente: − ${formatArs(tradeInTotal)}`, `*A pagar: ${formatArs(draftNet)}*`]
+      : [`*Total: ${formatArs(draftTotal)}*`];
+    const text = [customerName ? `Presupuesto para ${customerName}` : "Presupuesto", "", ...rows, "", ...closing, "", "The Gamer Shop"].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setWaCopy("copied");
+    } catch {
+      setWaCopy("error");
+    }
+    window.setTimeout(() => setWaCopy("idle"), 2600);
+  }
 
   /** Costo, venta, ganancia y markup efectivo de lo que hay en pantalla (no de lo guardado). */
   const draftTotals = useMemo(() => {
@@ -2420,8 +2483,8 @@ export function QuotesView({
               </>
             ) : null}
             <span className="quote-foot-total">
-              <span className="quote-foot-total-label">Total del presupuesto</span>
-              <strong>{formatArs(draftTotal)}</strong>
+              <span className="quote-foot-total-label">{tradeInTotal > 0n ? "A pagar" : "Total del presupuesto"}</span>
+              <strong>{formatArs(tradeInTotal > 0n ? draftNet : draftTotal)}</strong>
             </span>
             <span className="spacer" />
             <button type="button" className="btn-ghost" onClick={() => setDrawerOpen(false)}>
@@ -2510,6 +2573,22 @@ export function QuotesView({
               </span>
             </button>
             {refImage ? <img className="quote-ref-thumb" src={refImage.url} alt="Imagen de referencia incluida" /> : null}
+          </div>
+          <div className="quote-ref-row quote-extra-row">
+            <button type="button" className={`quote-ref-btn quote-trade-btn${tradeInTotal > 0n ? " on" : ""}`} onClick={openTradeIn} aria-haspopup="dialog" disabled={(Boolean(detail) && !isDraft) || busy}>
+              <span className="quote-ref-ico has-img" aria-hidden="true"><img src={swapIcon.src} alt="" width={28} height={28} /></span>
+              <span className="quote-ref-copy">
+                <strong>Productos del cliente</strong>
+                <small>{tradeInTotal > 0n ? `− ${formatArs(tradeInTotal)} a cuenta` : "Entrega algo como parte de pago"}</small>
+              </span>
+            </button>
+            <button type="button" className={`quote-ref-btn quote-wa-btn${waCopy === "copied" ? " copied" : ""}${waCopy === "error" ? " failed" : ""}`} disabled={filledItems(items).length === 0} onClick={() => void copyWhatsappSummary()} title="Copia un resumen del presupuesto listo para pegar en WhatsApp">
+              <span className="quote-ref-ico has-img" aria-hidden="true"><img src={wspIcon.src} alt="" width={28} height={28} /></span>
+              <span className="quote-ref-copy">
+                <strong>{waCopy === "copied" ? "¡Presupuesto copiado!" : waCopy === "error" ? "No se pudo copiar" : "Copiar para WhatsApp"}</strong>
+                <small>{waCopy === "copied" ? "Ya está como texto: pegalo en WhatsApp" : waCopy === "error" ? "El navegador bloqueó el portapapeles" : "Resumen listo para pegar"}</small>
+              </span>
+            </button>
           </div>
           <details className="quote-more" open={Boolean(requestId || observation || isCombo || collectionIds.length)}>
             <summary>Más opciones <span className="section-note">solicitud, combo, observación y colecciones</span></summary>
@@ -3623,6 +3702,23 @@ export function QuotesView({
       </Modal>
 
       <div className="lite lt-embed">
+        {tradeOpen ? (
+          <TradeInModal
+            items={tradeIns}
+            setItems={setTradeIns}
+            showValues={tradeShowValues}
+            setShowValues={setTradeShowValues}
+            total={BigInt(draftTotal)}
+            onClose={closeTradeIn}
+            onClear={() => { setTradeIns([]); setTradeOpen(false); }}
+          />
+        ) : null}
+        {waCopy !== "idle" ? (
+          <div className={`tgs-toast${waCopy === "error" ? " bad" : ""}`} role="status" aria-live="polite">
+            <span className="tgs-toast-ico" aria-hidden="true">{waCopy === "copied" ? "✓" : "!"}</span>
+            <span>{waCopy === "copied" ? "Presupuesto copiado como texto" : "No se pudo copiar el presupuesto"}</span>
+          </div>
+        ) : null}
         {refOpen ? (
           <LiteReferenceModal
             job={refJob.job}

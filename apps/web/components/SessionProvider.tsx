@@ -1,9 +1,11 @@
 "use client";
 
+import { applySkin, isSkinId, readStoredSkin } from "../lib/skins";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import type { AuthUser } from "../lib/types";
 import { LoginView } from "./LoginView";
+import { SkinWelcomeModal } from "./SkinWelcomeModal";
 import { Alert, Loading } from "./shared";
 
 type SessionContextValue = {
@@ -19,6 +21,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [boot, setBoot] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [skinPrompt, setSkinPrompt] = useState(false);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -32,6 +35,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setBoot(false);
     }
   }, []);
+
+  // El tema visual es por usuario: al iniciar sesión se pide el suyo y se aplica.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void api<{ skin: string; chosen?: boolean }>("/me/ui-skin")
+      .then((res) => {
+        if (cancelled) return;
+        if (isSkinId(res.skin) && res.skin !== readStoredSkin()) applySkin(res.skin);
+        // Primera vez desde que existen los temas: se avisa una sola vez (al cerrar el aviso queda guardado).
+        if (res.chosen === false) setSkinPrompt(true);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     void refreshSession();
@@ -64,7 +82,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={value}>
+      {children}
+      {skinPrompt ? <SkinWelcomeModal onDone={() => setSkinPrompt(false)} /> : null}
+    </SessionContext.Provider>
+  );
 }
 
 export function useSession() {

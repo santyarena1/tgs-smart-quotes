@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "../lib/api";
-import { CHANGELOG, currentAppVersion, type ChangelogEntry } from "../lib/changelog";
+import { CHANGELOG, currentAppVersion } from "../lib/changelog";
+import { ChangelogEntryView } from "./ChangelogView";
 import type { Branding, NavId } from "../lib/types";
 import { PersonalizableSidebarNav, type SidebarNavGroup } from "./PersonalizableSidebarNav";
 import { useSession } from "./SessionProvider";
 import { Modal, initials } from "./shared";
 import { saveUiMode } from "../lite/lite-mode";
+import { FxToggle } from "./FxToggle";
 
 const ADMIN_ROUTES: NavId[] = ["usuarios", "empleados", "gastos", "publicacion-web"];
 
@@ -68,19 +70,13 @@ function ThemeToggle() {
     }
     setTheme(next);
   }
+  const dark = theme === "dark";
   return (
-    <button type="button" className="btn-ghost btn-sm" aria-pressed={theme === "dark"} onClick={toggle}>
-      {theme === "dark" ? "☀ Modo claro" : "☾ Modo oscuro"}
+    <button type="button" className="side-lite-switch side-switch" role="switch" aria-checked={dark} onClick={toggle} title="Cambiar entre modo claro y oscuro">
+      <span className="side-lite-track"><span className="side-lite-knob" /></span>
+      <span className="side-lite-label">MODO OSCURO</span>
     </button>
   );
-}
-
-function ChangelogEntryView({ entry }: { entry: ChangelogEntry }) {
-  return <article className="side-changelog-entry">
-    <header><strong>v{entry.version}</strong><time dateTime={entry.date}>{entry.date}</time></header>
-    <p>{entry.title}</p>
-    <ul>{entry.items.map((item) => <li key={item}>{item}</li>)}</ul>
-  </article>;
 }
 
 export function SuiteShell({ children }: { children: React.ReactNode }) {
@@ -213,7 +209,7 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img className="brand-badge-img" src={branding.logoUrl} alt={branding.name || "Logo"} />
         ) : <span className="brand-badge">TGS</span>}
-        <div className="brand-copy"><strong>{branding?.name?.trim() || "The Gamer Shop"}</strong><small>Suite de presupuestos</small></div>
+        <div className="brand-copy"><strong>{branding?.name?.trim() || "The Gamer Shop"}</strong><small>Suite de presupuestos · <span className="brand-version">v{currentAppVersion()}</span></small></div>
       </div>
       {branch ? (
         <div className="side-local" title={branchLabel(branch)}>
@@ -254,6 +250,7 @@ export function SuiteShell({ children }: { children: React.ReactNode }) {
           <div className="side-user-copy"><p>{user.displayName || user.username}</p><small>@{user.username}</small></div>
         </div>
         <ThemeToggle />
+        <FxToggle variant="side" />
         <button type="button" className="btn-ghost btn-sm" onClick={() => void logout()}>Cerrar sesión</button>
       </div>
     </aside>
