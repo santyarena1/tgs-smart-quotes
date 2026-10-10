@@ -12,7 +12,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-10-10",
     title: "El modo normal vuelve a responder",
     items: [
-      "Abrir un presupuesto ya no espera a comparar todo el historial: la ficha aparece al toque y los similares se buscan después, solo entre los más recientes",
+      "Hacer o abrir un presupuesto ya no recorre el resto del sistema: no compara otros presupuestos ni baja el catálogo, los clientes ni los combos enteros",
+      "Clientes, productos y combos se buscan al escribir. Las líneas de PC y las colecciones se cargan recién cuando se abre el editor",
       "El listado de presupuestos está paginado (25 por página) y la búsqueda filtra en la base, en vez de bajar todos los presupuestos con todas sus versiones",
       "El panel, las colecciones y la publicación web dejan de cargar el archivo completo de cada presupuesto para armar una lista",
     ],

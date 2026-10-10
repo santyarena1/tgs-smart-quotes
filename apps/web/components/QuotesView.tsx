@@ -31,7 +31,6 @@ import type {
   Quote,
   QuoteFromRequestSeed,
   QuotePdfRow,
-  QuoteRequest,
   QuoteState,
   QuoteVersion,
   TimelineEvent,
@@ -400,11 +399,25 @@ export function QuotesView({
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<{ sent: number; accepted: number; acceptedSaleCents: string } | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  /** Productos ya vistos en esta pantalla (búsqueda, alta o combo). No es el catálogo entero. */
   const [products, setProducts] = useState<Product[]>([]);
-  const [combos, setCombos] = useState<Combo[]>([]);
   const [pcLines, setPcLines] = useState<PcLine[]>([]);
-  const [requests, setRequests] = useState<QuoteRequest[]>([]);
+  const pcLinesRef = useRef<PcLine[]>([]);
+  const editorExtrasRef = useRef<"idle" | "loading" | "ready">("idle");
+  const editorExtrasWait = useRef<Promise<void> | null>(null);
+  const [requests, setRequests] = useState<{ id: string; title: string }[]>([]);
+  const requestsLoaded = useRef(false);
+  const [chosenCustomer, setChosenCustomer] = useState<{
+    id: string;
+    name: string;
+    kind?: "PERSONA" | "EMPRESA";
+    cuit?: string | null;
+  } | null>(null);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerHits, setCustomerHits] = useState<Customer[]>([]);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const customerBoxRef = useRef<HTMLDivElement | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -461,19 +474,6 @@ export function QuotesView({
   const listSeq = useRef(0);
   /** Alta de la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
   const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
-  const [sideLoading, setSideLoading] = useState(false);
-  const [similar, setSimilar] = useState<
-    { familyId: string; visibleNumber: string; internalName: string; score: number }[]
-  >([]);
-  const [habitual, setHabitual] = useState<
-    {
-      productId: string | null;
-      name: string;
-      lineId?: string | null;
-      support: number;
-      sampleSize: number;
-    }[]
-  >([]);
   const [openedAsNewVersion, setOpenedAsNewVersion] = useState(false);
   const [versionEditQuote, setVersionEditQuote] = useState<Quote | null>(null);
   const [versionReason, setVersionReason] = useState("");
@@ -486,6 +486,9 @@ export function QuotesView({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [catalogPickerMatches, setCatalogPickerMatches] = useState<CatalogPickerItem[]>([]);
   const [catalogPickerLoading, setCatalogPickerLoading] = useState(false);
+  const [pickerMatches, setPickerMatches] = useState<Product[]>([]);
+  const [pickerComboMatches, setPickerComboMatches] = useState<Combo[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
   /** Fuentes de búsqueda: productos propios (sistema y AcuStock) y los distribuidores de NODO que estén prendidos. */
   const { providers: nodoProviders, error: nodoProvidersError, setEnabled: setNodoProvidersEnabled } = useNodoProviders();
   const sel = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
@@ -554,33 +557,94 @@ export function QuotesView({
     setPage(1);
   }
 
-  // Catálogo, clientes y colecciones se cargan una vez. Antes se pedían de nuevo
-  // en cada tecla del buscador, junto con todos los presupuestos.
+  // El listado solo necesita los locales del filtro. Catálogo, clientes, combos y
+  // solicitudes se piden cuando el editor los usa, y nunca enteros.
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      const [custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
-        api<Customer[]>("/customers").catch(() => [] as Customer[]),
-        api<Product[]>("/products").catch(() => [] as Product[]),
-        api<QuoteRequest[]>("/requests").catch(() => [] as QuoteRequest[]),
-        api<Collection[]>("/collections", { query: { brief: 1 } }).catch(() => [] as Collection[]),
-        api<Combo[]>("/combos").catch(() => [] as Combo[]),
-        api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
-        api<{ items: { id: string; name: string }[] }>("/branches").catch(() => ({ items: [] })),
-      ]);
-      if (cancelled) return;
-      setCustomers(custs);
-      setProducts(prods.filter((p) => p.active));
-      setCombos(comboRows.filter((c) => c.active && c.items.length > 0));
-      setPcLines([...lines].filter((l) => l.active).sort((a, b) => a.sortOrder - b.sortOrder));
-      setRequests(reqs);
-      setCollections(cols.filter((c) => !c.archived));
-      setBranches(branchRows.items ?? []);
-    })();
+    void api<{ items: { id: string; name: string }[] }>("/branches")
+      .then((branchRows) => {
+        if (!cancelled) setBranches(branchRows.items ?? []);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, []);
+
+  function ensureEditorExtras() {
+    if (editorExtrasRef.current === "ready") return Promise.resolve();
+    if (editorExtrasWait.current) return editorExtrasWait.current;
+    editorExtrasRef.current = "loading";
+    const pending = Promise.all([
+      api<Collection[]>("/collections", { query: { brief: 1 } }).catch(() => [] as Collection[]),
+      api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
+    ])
+      .then(([cols, lines]) => {
+        const nextLines = [...lines].filter((line) => line.active).sort((a, b) => a.sortOrder - b.sortOrder);
+        pcLinesRef.current = nextLines;
+        setPcLines(nextLines);
+        setCollections(cols.filter((collection) => !collection.archived));
+        editorExtrasRef.current = "ready";
+      })
+      .catch(() => {
+        editorExtrasRef.current = "idle";
+        editorExtrasWait.current = null;
+      });
+    editorExtrasWait.current = pending;
+    return pending;
+  }
+
+  function ensureRequests() {
+    if (requestsLoaded.current) return;
+    requestsLoaded.current = true;
+    void api<{ id: string; title: string }[]>("/requests", { query: { brief: 1 } })
+      .then((rows) => setRequests(rows))
+      .catch(() => {
+        requestsLoaded.current = false;
+      });
+  }
+
+  function showCustomer(
+    customer: Pick<Customer, "id" | "name" | "kind" | "cuit"> | null | undefined,
+  ) {
+    if (!customer) {
+      setChosenCustomer(null);
+      setCustomerQuery("");
+      setCustomerHits([]);
+      setCustomerOpen(false);
+      return;
+    }
+    setChosenCustomer({
+      id: customer.id,
+      name: customer.name,
+      kind: customer.kind,
+      cuit: customer.cuit ?? null,
+    });
+    setCustomerQuery(customer.name);
+    setCustomerHits([]);
+    setCustomerOpen(false);
+  }
+
+  function loadCustomer(id: string, fallback?: Customer | null) {
+    void api<Customer>(`/customers/${encodeURIComponent(id)}`)
+      .then((customer) => {
+        setCustomerId(customer.id);
+        showCustomer(customer);
+      })
+      .catch(() => {
+        if (fallback?.id) {
+          setCustomerId(fallback.id);
+          showCustomer(fallback);
+          return;
+        }
+        setCustomerId("");
+        showCustomer(null);
+      });
+  }
+
+  useEffect(() => {
+    if (drawerOpen) void ensureEditorExtras();
+  }, [drawerOpen]);
 
   const loadList = useCallback(async () => {
     const mine = ++listSeq.current;
@@ -663,6 +727,51 @@ export function QuotesView({
     return () => window.removeEventListener("mousedown", onClick);
   }, [pickerOpen]);
 
+  useEffect(() => {
+    if (!customerOpen) return;
+    const onClick = (event: MouseEvent) => {
+      if (customerBoxRef.current && !customerBoxRef.current.contains(event.target as Node)) {
+        setCustomerOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [customerOpen]);
+
+  useEffect(() => {
+    const query = customerQuery.trim();
+    const digits = query.replace(/\D/g, "");
+    if (chosenCustomer && query === chosenCustomer.name) {
+      setCustomerHits([]);
+      setCustomerLoading(false);
+      return;
+    }
+    if (query.length < 2 && digits.length < 4) {
+      setCustomerHits([]);
+      setCustomerLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setCustomerLoading(true);
+    const timer = window.setTimeout(() => {
+      void api<Customer[]>("/customers", { query: { q: query, limit: 12 }, signal: controller.signal })
+        .then((rows) => {
+          setCustomerHits(rows);
+          setCustomerOpen(true);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setCustomerHits([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setCustomerLoading(false);
+        });
+    }, 200);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [customerQuery, chosenCustomer]);
+
   const productById = useMemo(
     () => new Map(products.map((p) => [p.id, p])),
     [products],
@@ -717,8 +826,8 @@ export function QuotesView({
         requestId: quote.requestId ?? "",
         isBuiltPc: quote.isBuiltPc,
         observation: version?.publicObservation ?? "",
-        items: quote.isBuiltPc && pcLines.length
-          ? buildPcSlots(pcLines, mapped, productById)
+        items: quote.isBuiltPc && pcLinesRef.current.length
+          ? buildPcSlots(pcLinesRef.current, mapped, productById)
           : mapped.filter((i) => !isSlotEmpty(i)),
       };
       const key = quoteDraftKey(quote.id);
@@ -727,17 +836,15 @@ export function QuotesView({
       const recovered = stored && JSON.stringify(stored) !== baseline ? stored : null;
       if (stored && !recovered) removeQuoteDraft(key);
       const form = recovered ?? fallback;
-      // El borrador local puede traer un cliente borrado desde entonces: la API
-      // lo rechazaría ("error interno" por la clave foránea). Se cae al del servidor.
-      if (recovered && recovered.customerId && !customers.some((customer) => customer.id === recovered.customerId)) {
-        form.customerId = fallback.customerId;
-      }
       draftFallbackRef.current = fallback;
       draftBaselineRef.current = baseline;
       setEditorDraftKey(key);
       setDraftRecovered(Boolean(recovered));
       setInternalName(form.internalName);
       setCustomerId(form.customerId);
+      if (!form.customerId) showCustomer(null);
+      else if (quote.customer?.id === form.customerId) showCustomer(quote.customer);
+      else loadCustomer(form.customerId, quote.customer ?? null);
       setRequestId(form.requestId);
       setIsBuiltPc(form.isBuiltPc);
       setIsCombo(quote.kind === "COMBO");
@@ -748,7 +855,7 @@ export function QuotesView({
       setReplaceItemKey(null);
       setSaveReason("");
     },
-    [pcLines, productById, customers],
+    [productById],
   );
 
   useEffect(() => {
@@ -772,33 +879,20 @@ export function QuotesView({
 
   async function loadSideData(id: string) {
     const mine = ++sideSeq.current;
-    setSideLoading(true);
-    setSimilar([]);
-    setHabitual([]);
     try {
-      const [timelinePayload, pdfPayload, similarPayload, habitualPayload] = await Promise.all([
+      const [timelinePayload, pdfPayload] = await Promise.all([
         api<{ events?: TimelineEvent[]; pdfs?: QuotePdfRow[] }>(`/quotes/${id}/timeline`).catch(
           () => ({ events: [] as TimelineEvent[], pdfs: [] as QuotePdfRow[] }),
         ),
         api<{ items?: QuotePdfRow[] }>(`/quotes/${id}/pdfs`).catch(() => ({ items: [] as QuotePdfRow[] })),
-        api<{ items?: { familyId: string; visibleNumber: string; internalName: string; score: number }[] }>(
-          `/quotes/${id}/similar`,
-          { query: { limit: 5 } },
-        ).catch(() => ({ items: [] })),
-        api<{ items?: { productId: string | null; name: string; lineId?: string | null; support: number; sampleSize: number }[] }>(
-          `/quotes/${id}/habitual-components`,
-          { query: { limit: 8 } },
-        ).catch(() => ({ items: [] })),
       ]);
       if (mine !== sideSeq.current) return;
       setTimeline(timelinePayload.events ?? []);
       const fromList = pdfPayload.items ?? [];
       const fromTimeline = timelinePayload.pdfs ?? [];
       setPdfs(fromList.length ? fromList : fromTimeline);
-      setSimilar(similarPayload.items ?? []);
-      setHabitual(habitualPayload.items ?? []);
-    } finally {
-      if (mine === sideSeq.current) setSideLoading(false);
+    } catch {
+      if (mine !== sideSeq.current) return;
     }
   }
 
@@ -808,7 +902,10 @@ export function QuotesView({
     setBusy(true);
     setOpenedAsNewVersion(false);
     try {
-      const quote = await api<Quote>(`/quotes/${id}`);
+      const [, quote] = await Promise.all([
+        ensureEditorExtras(),
+        api<Quote>(`/quotes/${id}`),
+      ]);
       applyDetail(quote);
       setDrawerOpen(true);
       void loadSideData(id);
@@ -1023,7 +1120,8 @@ export function QuotesView({
   }
 
   async function toggleBuiltPc(next: boolean) {
-    if (next && !pcLines.length) {
+    if (next) await ensureEditorExtras();
+    if (next && !pcLinesRef.current.length) {
       setError("Configurá al menos una línea en Catálogo → Líneas PC antes de armar una PC.");
       return;
     }
@@ -1035,7 +1133,7 @@ export function QuotesView({
     setPickerQuery("");
 
     if (next) {
-      setItems((prev) => buildPcSlots(pcLines, prev, productById));
+      setItems((prev) => buildPcSlots(pcLinesRef.current, prev, productById));
     } else {
       setItems((prev) => prev.filter((item) => !isSlotEmpty(item)));
     }
@@ -1114,11 +1212,17 @@ export function QuotesView({
     setDetail(null);
     setInternalName(form.internalName);
     setCustomerId(form.customerId);
+    if (form.customerId) loadCustomer(form.customerId);
+    else showCustomer(null);
     setRequestId(form.requestId);
     setIsBuiltPc(form.isBuiltPc);
     setCollectionIds([]);
     setObservation(form.observation);
-    setItems(form.items);
+    setItems(
+      form.isBuiltPc && pcLinesRef.current.length
+        ? buildPcSlots(pcLinesRef.current, form.items, productById)
+        : form.items,
+    );
     setEditingKey(null);
     setPickingLineId(null);
     setReplaceItemKey(null);
@@ -1138,6 +1242,11 @@ export function QuotesView({
     refQuoteIdRef.current = null;
     lastDetailIdRef.current = null;
     setDrawerOpen(true);
+    if (form.isBuiltPc && !pcLinesRef.current.length) {
+      void ensureEditorExtras().then(() => {
+        setItems((prev) => buildPcSlots(pcLinesRef.current, prev, productById));
+      });
+    }
   }
 
   function openNewFromRequest(seed: QuoteFromRequestSeed) {
@@ -1163,6 +1272,8 @@ export function QuotesView({
     setDetail(null);
     setInternalName(form.internalName);
     setCustomerId(form.customerId);
+    if (form.customerId) loadCustomer(form.customerId);
+    else showCustomer(null);
     setRequestId(form.requestId);
     setIsBuiltPc(form.isBuiltPc);
     setCollectionIds([]);
@@ -1197,6 +1308,8 @@ export function QuotesView({
     if (!fallback) return;
     setInternalName(fallback.internalName);
     setCustomerId(fallback.customerId);
+    if (fallback.customerId) loadCustomer(fallback.customerId, detail?.customer ?? null);
+    else showCustomer(null);
     setRequestId(fallback.requestId);
     setIsBuiltPc(fallback.isBuiltPc);
     setObservation(fallback.observation);
@@ -1382,25 +1495,41 @@ export function QuotesView({
     setReplaceItemKey(null);
   }
 
+  function cacheProducts(rows: Product[]) {
+    if (!rows.length) return;
+    setProducts((prev) => {
+      const map = new Map(prev.map((product) => [product.id, product]));
+      for (const row of rows) {
+        const current = map.get(row.id);
+        map.set(row.id, current ? { ...current, ...row } : row);
+      }
+      return [...map.values()];
+    });
+  }
+
   function addCombo(combo: Combo) {
     const byId = new Map(products.map((p) => [p.id, p]));
     const expanded: ItemDraft[] = [];
     const missing: string[] = [];
+    const embedded: Product[] = [];
     for (const row of [...combo.items].sort((a, b) => a.position - b.position)) {
-      const product =
-        byId.get(row.productId) ??
-        (row.product?.active
-          ? ({
-              id: row.product.id,
-              name: row.product.name,
-              costCents: row.product.costCents,
-              salePriceCents: row.product.salePriceCents,
-              markupBps: row.product.markupBps,
-              usesGeneralMarkup: true,
-              defaultLineId: row.product.defaultLineId ?? null,
-              active: true,
-            } satisfies Product)
-          : null);
+      const fromRow = row.product?.active
+        ? ({
+            id: row.product.id,
+            name: row.product.name,
+            costCents: row.product.costCents,
+            salePriceCents: row.product.salePriceCents,
+            markupBps: row.product.markupBps,
+            usesGeneralMarkup: true,
+            defaultLineId: row.product.defaultLineId ?? null,
+            active: true,
+          } satisfies Product)
+        : null;
+      if (fromRow) {
+        embedded.push(fromRow);
+        byId.set(fromRow.id, fromRow);
+      }
+      const product = byId.get(row.productId) ?? null;
       if (!product) {
         missing.push(row.product?.name ?? row.productId);
         continue;
@@ -1409,6 +1538,7 @@ export function QuotesView({
         itemFromProduct(product, String(row.quantity || 1), product.defaultLineId ?? ""),
       );
     }
+    cacheProducts(embedded);
     if (!expanded.length) {
       setError(
         missing.length
@@ -1510,32 +1640,52 @@ export function QuotesView({
 
   const activeLineId = pickingLineId ?? "";
 
-  const pickerMatches = useMemo(() => {
-    const q = pickerQuery.trim().toLowerCase();
-    if (pickingLineId) {
-      const preferred = products.filter((p) => p.defaultLineId === pickingLineId);
-      const others = products.filter((p) => p.defaultLineId !== pickingLineId);
-      const rank = (list: Product[]) =>
-        [...list].sort((a, b) => {
-          const ta = a.lastUsedAt ? Date.parse(a.lastUsedAt) : 0;
-          const tb = b.lastUsedAt ? Date.parse(b.lastUsedAt) : 0;
-          return tb - ta || a.name.localeCompare(b.name);
-        });
-      const filterQ = (list: Product[]) =>
-        q ? list.filter((p) => p.name.toLowerCase().includes(q)) : list;
-      if (!q) return rank(preferred).slice(0, 10);
-      return [...rank(filterQ(preferred)), ...rank(filterQ(others))].slice(0, 12);
+  useEffect(() => {
+    const query = pickerQuery.trim();
+    const lineId = pickingLineId;
+    if (!pickerOpen || (!query && !lineId)) {
+      setPickerMatches([]);
+      setPickerComboMatches([]);
+      setPickerLoading(false);
+      return;
     }
-    if (!q) return [];
-    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
-  }, [pickerQuery, products, pickingLineId]);
-
-  const pickerComboMatches = useMemo(() => {
-    if (pickingLineId) return [];
-    const q = pickerQuery.trim().toLowerCase();
-    if (!q) return [];
-    return combos.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 5);
-  }, [pickerQuery, combos, pickingLineId]);
+    const controller = new AbortController();
+    setPickerLoading(true);
+    const timer = window.setTimeout(() => {
+      const productQuery = query ? { q: query, limit: 12 } : { lineId: lineId!, limit: 12 };
+      const jobs: Promise<void>[] = [
+        api<Product[]>("/products", { query: productQuery, signal: controller.signal })
+          .then((rows) => {
+            const active = rows.filter((product) => product.active);
+            cacheProducts(active);
+            setPickerMatches(active);
+          })
+          .catch(() => {
+            if (!controller.signal.aborted) setPickerMatches([]);
+          }),
+      ];
+      if (query && !lineId) {
+        jobs.push(
+          api<Combo[]>("/combos", { query: { q: query, limit: 5 }, signal: controller.signal })
+            .then((rows) => setPickerComboMatches(rows.filter((combo) => combo.active && combo.items.length > 0)))
+            .catch(() => {
+              if (!controller.signal.aborted) setPickerComboMatches([]);
+            }),
+        );
+      } else {
+        setPickerComboMatches([]);
+      }
+      void Promise.all(jobs).finally(() => {
+        if (!controller.signal.aborted) setPickerLoading(false);
+      });
+    }, query ? 200 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+    // cacheProducts solo actualiza el recuerdo local de productos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickerOpen, pickerQuery, pickingLineId]);
 
   useEffect(() => {
     const query = pickerQuery.trim();
@@ -1567,27 +1717,6 @@ export function QuotesView({
     };
   }, [pickerQuery]);
 
-  const lineSuggestions = useMemo(() => {
-    if (!pickingLineId) return [] as Product[];
-    const present = new Set(filledItems(items).map((i) => i.productId).filter(Boolean));
-    const fromHabitual = habitual
-      .filter((h) => h.lineId === pickingLineId && h.productId && !present.has(h.productId))
-      .map((h) => productById.get(h.productId!))
-      .filter((p): p is Product => Boolean(p));
-    const fromMemory = products.filter(
-      (p) => p.defaultLineId === pickingLineId && !present.has(p.id),
-    );
-    const seen = new Set<string>();
-    const out: Product[] = [];
-    for (const p of [...fromHabitual, ...fromMemory]) {
-      if (seen.has(p.id)) continue;
-      seen.add(p.id);
-      out.push(p);
-      if (out.length >= 6) break;
-    }
-    return out;
-  }, [pickingLineId, habitual, items, productById, products]);
-
   type PickerOption =
     | { kind: "combo"; combo: Combo }
     | { kind: "product"; product: Product }
@@ -1614,7 +1743,7 @@ export function QuotesView({
     if (pickingLineId) {
       if (!hasQuery) {
         const seen = new Set<string>();
-        for (const product of [...lineSuggestions, ...pickerMatches]) {
+        for (const product of pickerMatches) {
           if (seen.has(product.id)) continue;
           seen.add(product.id);
           opts.push({ kind: "product", product });
@@ -1660,7 +1789,6 @@ export function QuotesView({
     pickerComboMatches,
     pickerMatches,
     catalogPickerMatches,
-    lineSuggestions,
   ]);
 
   const selectPickerOption = useCallback(
@@ -1744,30 +1872,6 @@ export function QuotesView({
     }
   }
 
-  function applyHabitualSuggestion(row: {
-    productId: string | null;
-    name: string;
-    lineId?: string | null;
-  }) {
-    if (!row.productId) return;
-    const product = productById.get(row.productId);
-    if (!product) {
-      setError(`No encontré “${row.name}” activo en el catálogo.`);
-      return;
-    }
-    const lineId =
-      row.lineId && pcLines.some((l) => l.id === row.lineId)
-        ? row.lineId
-        : product.defaultLineId && pcLines.some((l) => l.id === product.defaultLineId)
-          ? product.defaultLineId
-          : "";
-    if (isBuiltPc && lineId) {
-      assignProductToLine(product, lineId, null);
-      return;
-    }
-    addItem(itemFromProduct(product, "1", lineId));
-  }
-
   /* ————— quote actions ————— */
 
   /** Presupuesto formal: pide una empresa como cliente. Con una empresa ya elegida sigue directo; si no, abre el alta. */
@@ -1779,10 +1883,9 @@ export function QuotesView({
       return;
     }
     setError(null);
-    const chosen = customers.find((c) => c.id === customerId);
-    if (chosen?.kind === "EMPRESA") {
-      if (detail) void saveDraft(null, { kind: "FORMAL", customerId, customerName: chosen.name });
-      else void createQuote(null, { kind: "FORMAL", customerId, customerName: chosen.name });
+    if (chosenCustomer?.id === customerId && chosenCustomer.kind === "EMPRESA") {
+      if (detail) void saveDraft(null, { kind: "FORMAL", customerId, customerName: chosenCustomer.name });
+      else void createQuote(null, { kind: "FORMAL", customerId, customerName: chosenCustomer.name });
       return;
     }
     setFormalCompanyOpen(true);
@@ -1790,7 +1893,7 @@ export function QuotesView({
 
   function onFormalCompanySaved(company: Customer) {
     setFormalCompanyOpen(false);
-    setCustomers((cur) => [...cur, company].sort((a, b) => a.name.localeCompare(b.name)));
+    showCustomer(company);
     setCustomerId(company.id);
     if (detail) void saveDraft(null, { kind: "FORMAL", customerId: company.id, customerName: company.name });
     else void createQuote(null, { kind: "FORMAL", customerId: company.id, customerName: company.name });
@@ -2161,7 +2264,7 @@ export function QuotesView({
       const qty = Math.max(1, Math.trunc(Number(item.quantity) || 1));
       return `• ${qty > 1 ? `${qty} x ` : ""}${item.name.trim()} — ${formatArs(lineTotalCents(item.saleArs, item.quantity))}`;
     });
-    const customerName = customers.find((c) => c.id === customerId)?.name;
+    const customerName = chosenCustomer?.id === customerId ? chosenCustomer.name : undefined;
     const closing = tradeInTotal > 0n
       ? [`Subtotal: ${formatArs(draftTotal)}`, `Productos del cliente: − ${formatArs(tradeInTotal)}`, `*A pagar: ${formatArs(draftNet)}*`]
       : [`*Total: ${formatArs(draftTotal)}*`];
@@ -2374,10 +2477,7 @@ export function QuotesView({
             <tbody>
               {filtered.map((quote) => {
                 const version = getActiveVersion(quote);
-                const cname =
-                  quote.customer?.name ??
-                  customers.find((c) => c.id === quote.customerId)?.name ??
-                  "—";
+                const cname = quote.customer?.name ?? "—";
                 const productsLine = getQuoteItems(quote)
                   .filter((item) => (item.name ?? "").trim())
                   .map((item) =>
@@ -2464,7 +2564,7 @@ export function QuotesView({
         <div className="mobile-card-list" aria-label="Presupuestos">
           {filtered.map((quote) => {
             const version = getActiveVersion(quote);
-            const cname = quote.customer?.name ?? customers.find((c) => c.id === quote.customerId)?.name ?? "—";
+            const cname = quote.customer?.name ?? "—";
             const productsLine = getQuoteItems(quote).filter((item) => (item.name ?? "").trim()).map((item) => item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name).join(" · ");
             const kind = quoteKind(version?.pdfs);
             return <article className={`mobile-list-card qk-card qk-${kind}`} key={quote.id} onClick={() => void openQuote(quote.id)}>
@@ -2600,30 +2700,65 @@ export function QuotesView({
                 disabled={Boolean(detail) && !isDraft}
               />
             </Field>
-            <Field label="Cliente">
-              <select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                disabled={Boolean(detail) && !isDraft}
-              >
-                <option value="">Sin cliente</option>
-                {customers.some((c) => c.kind === "EMPRESA") ? (
-                  <optgroup label="Empresas">
-                    {customers.filter((c) => c.kind === "EMPRESA").map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}{c.cuit ? ` · ${c.cuit}` : ""}
-                      </option>
+            <Field label="Cliente" hint="Se busca por nombre o teléfono. No hace falta cargar todos los clientes.">
+              <div className="picker" ref={customerBoxRef}>
+                <div className="picker-input">
+                  <input
+                    className="search"
+                    value={customerQuery}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setCustomerQuery(value);
+                      setCustomerOpen(true);
+                      if (!chosenCustomer || value !== chosenCustomer.name) {
+                        setCustomerId("");
+                        setChosenCustomer(null);
+                      }
+                    }}
+                    onFocus={() => setCustomerOpen(true)}
+                    placeholder="Buscar por nombre o teléfono"
+                    disabled={Boolean(detail) && !isDraft}
+                    autoComplete="off"
+                  />
+                  {customerId && isDraft ? (
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      onClick={() => {
+                        setCustomerId("");
+                        showCustomer(null);
+                      }}
+                    >
+                      Quitar
+                    </button>
+                  ) : null}
+                </div>
+                {customerOpen && isDraft && (!chosenCustomer || customerQuery !== chosenCustomer.name) && (customerLoading || customerHits.length > 0 || customerQuery.trim().length >= 2) ? (
+                  <div className="picker-results">
+                    {customerLoading ? <p className="picker-empty">Buscando clientes…</p> : null}
+                    {customerHits.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        className="picker-option"
+                        onClick={() => {
+                          setCustomerId(customer.id);
+                          showCustomer(customer);
+                        }}
+                      >
+                        <span className="po-name">
+                          {customer.name}
+                          {customer.kind === "EMPRESA" ? <span className="cell-sub">Empresa{customer.cuit ? ` · ${customer.cuit}` : ""}</span> : null}
+                          {customer.phone ? <span className="cell-sub">{customer.phone}</span> : null}
+                        </span>
+                      </button>
                     ))}
-                  </optgroup>
+                    {!customerLoading && customerHits.length === 0 && (customerQuery.trim().length >= 2 || customerQuery.replace(/\D/g, "").length >= 4) ? (
+                      <p className="picker-empty">Ningún cliente coincide.</p>
+                    ) : null}
+                  </div>
                 ) : null}
-                <optgroup label={customers.some((c) => c.kind === "EMPRESA") ? "Consumidores finales" : "Clientes"}>
-                  {customers.filter((c) => c.kind !== "EMPRESA").map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+              </div>
             </Field>
           </div>
           <div className="quote-general-flags">
@@ -2665,17 +2800,27 @@ export function QuotesView({
               </span>
             </button>
           </div>
-          <details className="quote-more" open={Boolean(requestId || observation || isCombo || collectionIds.length)}>
+          <details
+            className="quote-more"
+            open={Boolean(requestId || observation || isCombo || collectionIds.length)}
+            onToggle={(event) => {
+              if ((event.currentTarget as HTMLDetailsElement).open) ensureRequests();
+            }}
+          >
             <summary>Más opciones <span className="section-note">solicitud, combo, observación y colecciones</span></summary>
           <div className="grid-2">
             <Field label="Solicitud vinculada">
               <select
                 value={requestId}
                 onChange={(e) => setRequestId(e.target.value)}
+                onFocus={() => ensureRequests()}
                 disabled={Boolean(detail) && !isDraft}
               >
                 <option value="">Sin solicitud</option>
-                {requests.map((r) => (
+                {(detail?.request && requestId === detail.request.id && !requests.some((row) => row.id === requestId)
+                  ? [{ id: detail.request.id, title: detail.request.title }, ...requests]
+                  : requests
+                ).map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.title}
                   </option>
@@ -2937,11 +3082,7 @@ export function QuotesView({
                   {pickerOptions.some((o) => o.kind === "product") ? (
                     <div className="picker-section">
                       {pickingLineId && !pickerQuery.trim() ? (
-                        <p className="picker-section-label">
-                          {lineSuggestions.length
-                            ? "Sugeridos / usados en esta línea"
-                            : "Productos de esta línea"}
-                        </p>
+                        <p className="picker-section-label">Productos de esta línea</p>
                       ) : (
                         <p className="picker-section-label">Productos de presupuestos</p>
                       )}
@@ -3030,6 +3171,9 @@ export function QuotesView({
                           );
                         })}
                     </div>
+                  ) : null}
+                  {pickerLoading ? (
+                    <p className="picker-empty">Buscando productos…</p>
                   ) : null}
                   {catalogPickerLoading ? (
                     <p className="picker-empty">Buscando en catálogo…</p>
@@ -3626,65 +3770,6 @@ export function QuotesView({
               </div>
             </div>
 
-            <div className="two-col" style={{ marginTop: "1rem" }}>
-              <div className="card card-pad">
-                <h3 className="panel-title">Presupuestos similares</h3>
-                {sideLoading && !similar.length ? (
-                  <p className="muted">Buscando…</p>
-                ) : !similar.length ? (
-                  <p className="muted">Sin coincidencias relevantes.</p>
-                ) : (
-                  <ul className="similar-list">
-                    {similar.map((row) => (
-                      <li key={row.familyId}>
-                        <button
-                          type="button"
-                          className="btn-ghost btn-sm"
-                          onClick={() => void openQuote(row.familyId)}
-                        >
-                          {row.visibleNumber} · {row.internalName}
-                        </button>
-                        <strong>{row.score}%</strong>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="card card-pad">
-                <h3 className="panel-title">Componentes habituales</h3>
-                {sideLoading && !habitual.length ? (
-                  <p className="muted">Buscando…</p>
-                ) : !habitual.length ? (
-                  <p className="muted">Sin historial suficiente.</p>
-                ) : (
-                  <ul className="habitual-list">
-                    {habitual.map((row) => (
-                      <li key={`${row.productId ?? row.name}`}>
-                        <span>
-                          {row.name}
-                          <span className="cell-sub">
-                            {" "}
-                            soporte {row.support}/{row.sampleSize}
-                            {row.lineId && lineById.get(row.lineId)
-                              ? ` · ${lineById.get(row.lineId)!.name}`
-                              : ""}
-                          </span>
-                        </span>
-                        {isDraft && row.productId ? (
-                          <button
-                            type="button"
-                            className="btn-ghost btn-sm"
-                            onClick={() => applyHabitualSuggestion(row)}
-                          >
-                            Agregar
-                          </button>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
           </>
         ) : null}
       </Drawer>

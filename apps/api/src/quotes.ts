@@ -1624,7 +1624,13 @@ export async function createQuoteRequest(
 @Controller('requests')
 export class RequestsController{
   @Get()
-  async list(){
+  async list(@Query('brief') brief?:string){
+    if(brief==='1'||brief==='true'){
+      return jsonSafe(await db.quoteRequest.findMany({
+        select:{id:true,title:true},
+        orderBy:[{createdAt:'desc'},{id:'asc'}],
+      }));
+    }
     return jsonSafe(await db.quoteRequest.findMany({
       include:{customer:true,families:{select:{id:true,visibleNumber:true}}},
       orderBy:[{createdAt:'desc'},{id:'asc'}],
