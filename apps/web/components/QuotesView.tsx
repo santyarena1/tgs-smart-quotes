@@ -162,7 +162,25 @@ function removeQuoteDraft(key: string): void {
 
 type QuoteSort = "created-desc" | "created-asc" | "price-asc" | "price-desc";
 
+const QUOTE_PAGE_SIZE = 25;
 const QUOTE_FILTERS_KEY = "tgs.quotes.filters.v1";
+
+function quoteSortQuery(sort: QuoteSort): { sort: "createdAt" | "totalSaleCents"; order: "asc" | "desc" } {
+  switch (sort) {
+    case "created-asc":
+      return { sort: "createdAt", order: "asc" };
+    case "price-asc":
+      return { sort: "totalSaleCents", order: "asc" };
+    case "price-desc":
+      return { sort: "totalSaleCents", order: "desc" };
+    default:
+      return { sort: "createdAt", order: "desc" };
+  }
+}
+
+function versionCountOf(quote: Quote): number {
+  return quote.versionCount ?? quote.versions?.length ?? 0;
+}
 const QUOTE_SORTS: { value: QuoteSort; label: string }[] = [
   { value: "created-desc", label: "Más nuevos" },
   { value: "created-asc", label: "Más viejos" },
@@ -379,6 +397,9 @@ export function QuotesView({
 } = {}) {
   const { quoteSeed: seedFromRequest, consumeQuoteSeed: onSeedConsumed } = useSuite();
   const [list, setList] = useState<Quote[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<{ sent: number; accepted: number; acceptedSaleCents: string } | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -436,8 +457,11 @@ export function QuotesView({
   const refDirtyRef = useRef(false);
   const refQuoteIdRef = useRef<string | null>(null);
   const lastDetailIdRef = useRef<string | null>(null);
+  const sideSeq = useRef(0);
+  const listSeq = useRef(0);
   /** Alta de la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
   const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
+  const [sideLoading, setSideLoading] = useState(false);
   const [similar, setSimilar] = useState<
     { familyId: string; visibleNumber: string; internalName: string; score: number }[]
   >([]);
@@ -527,43 +551,24 @@ export function QuotesView({
     setStateFilter("");
     setBranchFilter("");
     setSort("created-desc");
+    setPage(1);
   }
 
-  const loadList = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const familyIds = familyFilterKey ? familyFilterKey.split(",").filter(Boolean) : [];
-      const [quotesPayload, custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
-        embedded || familyFilterKey
-          ? familyIds.length
-            ? Promise.all(familyIds.map((id) => api<Quote>(`/quotes/${id}`).catch(() => null))).then(
-                (rows) => rows.filter((row): row is Quote => Boolean(row)),
-              )
-            : Promise.resolve([] as Quote[])
-          : api<{ items: Quote[] } | Quote[]>("/quotes/search", {
-              query: {
-                q: filter.trim() || undefined,
-                state: stateFilter || undefined,
-                branchId: branchFilter || undefined,
-                page: 1,
-                pageSize: 100,
-                sort: "lastActivityAt",
-                order: "desc",
-              },
-            }),
+  // Catálogo, clientes y colecciones se cargan una vez. Antes se pedían de nuevo
+  // en cada tecla del buscador, junto con todos los presupuestos.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
         api<Customer[]>("/customers").catch(() => [] as Customer[]),
         api<Product[]>("/products").catch(() => [] as Product[]),
         api<QuoteRequest[]>("/requests").catch(() => [] as QuoteRequest[]),
-        api<Collection[]>("/collections").catch(() => [] as Collection[]),
+        api<Collection[]>("/collections", { query: { brief: 1 } }).catch(() => [] as Collection[]),
         api<Combo[]>("/combos").catch(() => [] as Combo[]),
         api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
         api<{ items: { id: string; name: string }[] }>("/branches").catch(() => ({ items: [] })),
       ]);
-      const quotes = Array.isArray(quotesPayload)
-        ? quotesPayload
-        : (quotesPayload.items ?? []);
-      setList(quotes);
+      if (cancelled) return;
       setCustomers(custs);
       setProducts(prods.filter((p) => p.active));
       setCombos(comboRows.filter((c) => c.active && c.items.length > 0));
@@ -571,13 +576,65 @@ export function QuotesView({
       setRequests(reqs);
       setCollections(cols.filter((c) => !c.archived));
       setBranches(branchRows.items ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadList = useCallback(async () => {
+    const mine = ++listSeq.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const familyIds = familyFilterKey ? familyFilterKey.split(",").filter(Boolean) : [];
+      if (embedded || familyFilterKey) {
+        const all = familyIds.length
+          ? await api<Quote[]>("/quotes")
+          : [];
+        if (mine !== listSeq.current) return;
+        const allowed = new Set(familyIds);
+        const quotes = all.filter((row) => allowed.has(row.id));
+        setList(quotes);
+        setTotal(quotes.length);
+        return;
+      }
+      const ordering = quoteSortQuery(sort);
+      const payload = await api<{
+        items: Quote[];
+        total?: number;
+        summary?: { sent: number; accepted: number; acceptedSaleCents: string };
+      } | Quote[]>("/quotes/search", {
+        query: {
+          q: filter.trim() || undefined,
+          state: stateFilter || undefined,
+          branchId: branchFilter || undefined,
+          pdfKind: kindFilter || undefined,
+          page,
+          pageSize: QUOTE_PAGE_SIZE,
+          sort: ordering.sort,
+          order: ordering.order,
+        },
+      });
+      if (mine !== listSeq.current) return;
+      if (Array.isArray(payload)) {
+        setList(payload);
+        setTotal(payload.length);
+        setSummary(null);
+      } else {
+        setList(payload.items ?? []);
+        setTotal(payload.total ?? payload.items?.length ?? 0);
+        setSummary(payload.summary ?? null);
+      }
     } catch (err) {
+      if (mine !== listSeq.current) return;
       setError(errorMessage(err));
       setList([]);
+      setTotal(0);
     } finally {
-      setLoading(false);
+      if (mine === listSeq.current) setLoading(false);
     }
-  }, [embedded, familyFilterKey, familyFilterKey || embedded ? "" : filter, familyFilterKey || embedded ? "" : stateFilter, familyFilterKey || embedded ? "" : branchFilter]);
+  }, [embedded, familyFilterKey, filter, stateFilter, branchFilter, kindFilter, sort, page]);
 
   useEffect(() => {
     if (!filtersReady) return;
@@ -714,26 +771,35 @@ export function QuotesView({
   }, [drawerOpen, editorDraftKey, items, internalName, customerId, requestId, isBuiltPc, observation]);
 
   async function loadSideData(id: string) {
-    const [timelinePayload, pdfPayload, similarPayload, habitualPayload] = await Promise.all([
-      api<{ events?: TimelineEvent[]; pdfs?: QuotePdfRow[] }>(`/quotes/${id}/timeline`).catch(
-        () => ({ events: [] as TimelineEvent[], pdfs: [] as QuotePdfRow[] }),
-      ),
-      api<{ items?: QuotePdfRow[] }>(`/quotes/${id}/pdfs`).catch(() => ({ items: [] as QuotePdfRow[] })),
-      api<{ items?: { familyId: string; visibleNumber: string; internalName: string; score: number }[] }>(
-        `/quotes/${id}/similar`,
-        { query: { limit: 5 } },
-      ).catch(() => ({ items: [] })),
-      api<{ items?: { productId: string | null; name: string; lineId?: string | null; support: number; sampleSize: number }[] }>(
-        `/quotes/${id}/habitual-components`,
-        { query: { limit: 8 } },
-      ).catch(() => ({ items: [] })),
-    ]);
-    setTimeline(timelinePayload.events ?? []);
-    const fromList = pdfPayload.items ?? [];
-    const fromTimeline = timelinePayload.pdfs ?? [];
-    setPdfs(fromList.length ? fromList : fromTimeline);
-    setSimilar(similarPayload.items ?? []);
-    setHabitual(habitualPayload.items ?? []);
+    const mine = ++sideSeq.current;
+    setSideLoading(true);
+    setSimilar([]);
+    setHabitual([]);
+    try {
+      const [timelinePayload, pdfPayload, similarPayload, habitualPayload] = await Promise.all([
+        api<{ events?: TimelineEvent[]; pdfs?: QuotePdfRow[] }>(`/quotes/${id}/timeline`).catch(
+          () => ({ events: [] as TimelineEvent[], pdfs: [] as QuotePdfRow[] }),
+        ),
+        api<{ items?: QuotePdfRow[] }>(`/quotes/${id}/pdfs`).catch(() => ({ items: [] as QuotePdfRow[] })),
+        api<{ items?: { familyId: string; visibleNumber: string; internalName: string; score: number }[] }>(
+          `/quotes/${id}/similar`,
+          { query: { limit: 5 } },
+        ).catch(() => ({ items: [] })),
+        api<{ items?: { productId: string | null; name: string; lineId?: string | null; support: number; sampleSize: number }[] }>(
+          `/quotes/${id}/habitual-components`,
+          { query: { limit: 8 } },
+        ).catch(() => ({ items: [] })),
+      ]);
+      if (mine !== sideSeq.current) return;
+      setTimeline(timelinePayload.events ?? []);
+      const fromList = pdfPayload.items ?? [];
+      const fromTimeline = timelinePayload.pdfs ?? [];
+      setPdfs(fromList.length ? fromList : fromTimeline);
+      setSimilar(similarPayload.items ?? []);
+      setHabitual(habitualPayload.items ?? []);
+    } finally {
+      if (mine === sideSeq.current) setSideLoading(false);
+    }
   }
 
   async function openQuote(id: string) {
@@ -744,8 +810,8 @@ export function QuotesView({
     try {
       const quote = await api<Quote>(`/quotes/${id}`);
       applyDetail(quote);
-      await loadSideData(id);
       setDrawerOpen(true);
+      void loadSideData(id);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -828,8 +894,8 @@ export function QuotesView({
       if (historyQuote?.id === familyId) setHistoryQuote(null);
       if (selectedId === familyId) {
         applyDetail(restored);
-        await loadSideData(familyId);
         setDrawerOpen(true);
+        void loadSideData(familyId);
       }
       await loadList();
       setNotice(`Versión ${version.version} restaurada como activa.`);
@@ -867,7 +933,7 @@ export function QuotesView({
     // el borrador local quedó viejo: se descarta para no pisar el cambio recién hecho.
     if (!restoreLocalDraft) removeQuoteDraft(quoteDraftKey(id));
     applyDetail(await api<Quote>(`/quotes/${id}`), restoreLocalDraft);
-    await loadSideData(id);
+    void loadSideData(id);
   }
 
   async function generatePdf(kind: "SIMPLE" | "DETALLADO") {
@@ -1904,8 +1970,9 @@ export function QuotesView({
       });
       setSelectedId(duplicated.id);
       applyDetail(duplicated);
-      await Promise.all([loadSideData(duplicated.id), loadList()]);
       setDrawerOpen(true);
+      void loadSideData(duplicated.id);
+      await loadList();
       setNotice("Listo: presupuesto nuevo creado a partir de este, con sus productos y precios.");
     } catch (err) {
       setError(errorMessage(err));
@@ -2004,6 +2071,7 @@ export function QuotesView({
       }
     }
 
+    if (!familyFilterKey) return rows;
     return rows.sort((left, right) => {
       const leftVersion = getActiveVersion(left);
       const rightVersion = getActiveVersion(right);
@@ -2192,12 +2260,12 @@ export function QuotesView({
       />
 
       <StatStrip>
-        <Stat label="Total presupuestos" value={list.length} accent="var(--ink)" />
-        <Stat label="Enviados" value={stats.sent} accent="var(--info)" />
-        <Stat label="Aceptados" value={stats.accepted} accent="var(--ok)" />
+        <Stat label="Total presupuestos" value={total} accent="var(--ink)" />
+        <Stat label="Enviados" value={summary?.sent ?? stats.sent} accent="var(--info)" />
+        <Stat label="Aceptados" value={summary?.accepted ?? stats.accepted} accent="var(--ok)" />
         <Stat
           label="Ventas aceptadas"
-          value={<span className="money">{formatArs(stats.amount)}</span>}
+          value={<span className="money">{formatArs(summary?.acceptedSaleCents ?? stats.amount)}</span>}
           accent="var(--red)"
         />
       </StatStrip>
@@ -2211,7 +2279,7 @@ export function QuotesView({
         <div className="filter-search">
           <SearchInput
             value={filter}
-            onChange={setFilter}
+            onChange={(value) => { setFilter(value); setPage(1); }}
             placeholder="Buscar por número, nombre, cliente o producto"
           />
         </div>
@@ -2220,7 +2288,7 @@ export function QuotesView({
           <select
             aria-label="Filtrar por estado"
             value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value as QuoteState | "")}
+            onChange={(e) => { setStateFilter(e.target.value as QuoteState | ""); setPage(1); }}
           >
             <option value="">Todos</option>
             {QUOTE_STATES.map((s) => (
@@ -2235,7 +2303,7 @@ export function QuotesView({
           <select
             aria-label="Filtrar por local"
             value={branchFilter}
-            onChange={(e) => setBranchFilter(e.target.value)}
+            onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }}
           >
             <option value="">Todos</option>
             {branches.map((b) => (
@@ -2250,7 +2318,7 @@ export function QuotesView({
           <select
             aria-label="Ordenar presupuestos"
             value={sort}
-            onChange={(e) => setSort(e.target.value as QuoteSort)}
+            onChange={(e) => { setSort(e.target.value as QuoteSort); setPage(1); }}
           >
             {QUOTE_SORTS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -2260,19 +2328,19 @@ export function QuotesView({
           </select>
         </label>
         <div className="qkind-filter" role="group" aria-label="Filtrar por tipo de presupuesto">
-          <button type="button" className={`qkind all${kindFilter === "" ? " on" : ""}`} aria-pressed={kindFilter === ""} onClick={() => setKindFilter("")}>Todos</button>
+          <button type="button" className={`qkind all${kindFilter === "" ? " on" : ""}`} aria-pressed={kindFilter === ""} onClick={() => { setKindFilter(""); setPage(1); }}>Todos</button>
           {KINDS.map(([k, label]) => (
-            <button key={k} type="button" className={`qkind ${k.toLowerCase()}${kindFilter === k ? " on" : ""}`} aria-pressed={kindFilter === k} title={`Presupuestos con PDF ${label.toLowerCase()} generado`} onClick={() => setKindFilter(kindFilter === k ? "" : k)}>{label}</button>
+            <button key={k} type="button" className={`qkind ${k.toLowerCase()}${kindFilter === k ? " on" : ""}`} aria-pressed={kindFilter === k} title={`Presupuestos con PDF ${label.toLowerCase()} generado`} onClick={() => { setKindFilter(kindFilter === k ? "" : k); setPage(1); }}>{label}</button>
           ))}
         </div>
         {filter || stateFilter || branchFilter || kindFilter || sort !== "created-desc" ? (
-          <button type="button" className="btn-ghost btn-sm filter-clear" onClick={() => { setKindFilter(""); clearFilters(); }}>
+          <button type="button" className="btn-ghost btn-sm filter-clear" onClick={() => { setKindFilter(""); clearFilters(); setPage(1); }}>
             Limpiar filtros
           </button>
         ) : null}
       </div>
       <p className="filter-count">
-        {filtered.length} presupuesto{filtered.length === 1 ? "" : "s"}
+        {(familyFilterKey ? filtered.length : total)} presupuesto{(familyFilterKey ? filtered.length : total) === 1 ? "" : "s"}
         {filter || stateFilter || branchFilter || kindFilter ? " con los filtros actuales" : ""}
       </p>
 
@@ -2362,7 +2430,7 @@ export function QuotesView({
                           <button type="button" onClick={() => void duplicateQuote(quote.id)}>
                             Crear uno similar
                           </button>
-                          {(quote.versions?.length ?? 0) > 1 ? (
+                          {versionCountOf(quote) > 1 ? (
                             <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>
                               Historial
                             </button>
@@ -2420,12 +2488,19 @@ export function QuotesView({
                 <button type="button" onClick={() => void printQuote(quote)}>Imprimir</button>
                 <button type="button" onClick={() => void editQuote(quote)}>Editar</button>
                 <button type="button" onClick={() => void duplicateQuote(quote.id)}>Crear uno similar</button>
-                {(quote.versions?.length ?? 0) > 1 ? <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>Historial</button> : null}
+                {versionCountOf(quote) > 1 ? <button type="button" className="btn-ghost" onClick={() => void showHistory(quote)}>Historial</button> : null}
                 <button type="button" className="btn-danger" onClick={() => void deleteQuote(quote)}>Eliminar</button>
               </div>
             </article>;
           })}
         </div>
+        {familyFilterKey ? null : (
+          <div className="list-pager">
+            <button type="button" className="btn-ghost btn-sm" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>Anterior</button>
+            <span className="filter-count">Página {page} de {Math.max(1, Math.ceil(total / QUOTE_PAGE_SIZE))}</span>
+            <button type="button" className="btn-ghost btn-sm" disabled={loading || page >= Math.max(1, Math.ceil(total / QUOTE_PAGE_SIZE))} onClick={() => setPage((current) => current + 1)}>Siguiente</button>
+          </div>
+        )}
         </>
       )}
 
@@ -3554,7 +3629,9 @@ export function QuotesView({
             <div className="two-col" style={{ marginTop: "1rem" }}>
               <div className="card card-pad">
                 <h3 className="panel-title">Presupuestos similares</h3>
-                {!similar.length ? (
+                {sideLoading && !similar.length ? (
+                  <p className="muted">Buscando…</p>
+                ) : !similar.length ? (
                   <p className="muted">Sin coincidencias relevantes.</p>
                 ) : (
                   <ul className="similar-list">
@@ -3575,7 +3652,9 @@ export function QuotesView({
               </div>
               <div className="card card-pad">
                 <h3 className="panel-title">Componentes habituales</h3>
-                {!habitual.length ? (
+                {sideLoading && !habitual.length ? (
+                  <p className="muted">Buscando…</p>
+                ) : !habitual.length ? (
                   <p className="muted">Sin historial suficiente.</p>
                 ) : (
                   <ul className="habitual-list">

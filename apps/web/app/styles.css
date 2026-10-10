@@ -2442,6 +2442,18 @@ tr.editing {
   color: var(--muted);
 }
 
+.list-pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.85rem 0 0.25rem;
+}
+
+.list-pager .filter-count {
+  margin: 0;
+}
+
 @media (max-width: 720px) {
   .filter-field {
     flex: 1 1 calc(50% - 0.4rem);

@@ -37,32 +37,31 @@ type ActiveItem = {
   line: {concept: string; keyLine: boolean} | null;
 };
 
-/** Resuelve la versión activa (o la más reciente si `activeVersion` no matchea) con ítems + línea. */
+/** Tope de familias recientes que se comparan. Recorrer todo el historial (y todas
+ * sus versiones) bloqueaba el proceso minutos al abrir un presupuesto. */
+const SIMILAR_CANDIDATE_CAP = 400;
+/** Versiones aceptadas recientes que entran en la minería de componentes habituales. */
+const HABITUAL_VERSION_CAP = 500;
+/** Llamadas de IA en la zona ambigua. El resto se queda con el puntaje determinístico. */
+const SIMILAR_AI_CAP = 4;
+
+const activeItemSelect = {
+  productId: true,
+  frozenName: true,
+  line: {select: {concept: true, keyLine: true}},
+} as const;
+
+/** Resuelve solo la versión activa, con ítems y concepto de línea. */
 async function loadActiveVersionItems(familyId: string) {
   const family = await db.quoteFamily.findUnique({
     where: {id: familyId},
-    select: {
-      id: true,
-      visibleNumber: true,
-      internalName: true,
-      activeVersion: true,
-      versions: {
-        select: {
-          version: true,
-          items: {
-            select: {
-              productId: true,
-              frozenName: true,
-              line: {select: {concept: true, keyLine: true}},
-            },
-          },
-        },
-      },
-    },
+    select: {id: true, visibleNumber: true, internalName: true, activeVersion: true},
   });
   if (!family) return null;
-  const version =
-    family.versions.find((item) => item.version === family.activeVersion) ?? family.versions[0] ?? null;
+  const version = await db.quoteVersion.findUnique({
+    where: {familyId_version: {familyId, version: family.activeVersion}},
+    select: {items: {select: activeItemSelect}},
+  });
   const items: ActiveItem[] = version?.items ?? [];
   return {family, items};
 }
@@ -144,27 +143,31 @@ export class SimilarityController {
     });
     if (cached) return cached.resultJson;
 
-    const candidateFamilies = await db.quoteFamily.findMany({
-      where: {id: {not: id}},
-      select: {
-        id: true,
-        visibleNumber: true,
-        internalName: true,
-        activeVersion: true,
-        versions: {
-          select: {
-            version: true,
-            items: {
-              select: {
-                productId: true,
-                frozenName: true,
-                line: {select: {concept: true, keyLine: true}},
-              },
-            },
-          },
-        },
-      },
-    });
+    const candidateRows = await db.$queryRaw<Array<{
+      versionId: string;
+      familyId: string;
+      visibleNumber: string;
+      internalName: string;
+    }>>`
+      SELECT v.id AS "versionId", f.id AS "familyId", f."visibleNumber" AS "visibleNumber", f."internalName" AS "internalName"
+      FROM "QuoteFamily" f
+      JOIN "QuoteVersion" v ON v."familyId" = f.id AND v.version = f."activeVersion"
+      WHERE f.id <> ${id}
+      ORDER BY f."lastActivityAt" DESC NULLS LAST, f."updatedAt" DESC
+      LIMIT ${SIMILAR_CANDIDATE_CAP}
+    `;
+    const candidateItems = candidateRows.length
+      ? await db.quoteItem.findMany({
+          where: {versionId: {in: candidateRows.map((row) => row.versionId)}},
+          select: {versionId: true, ...activeItemSelect},
+        })
+      : [];
+    const itemsByVersion = new Map<string, ActiveItem[]>();
+    for (const item of candidateItems) {
+      const list = itemsByVersion.get(item.versionId) ?? [];
+      list.push(item);
+      itemsByVersion.set(item.versionId, list);
+    }
 
     const key = ambiguousAiEnabled
       ? aiSettings.apiKeyEncrypted
@@ -185,32 +188,13 @@ export class SimilarityController {
     };
     const ranked: Ranked[] = [];
 
-    for (const candidate of candidateFamilies) {
-      const version =
-        candidate.versions.find((item) => item.version === candidate.activeVersion) ??
-        candidate.versions[0] ??
-        null;
-      const items: ActiveItem[] = version?.items ?? [];
+    for (const candidate of candidateRows) {
+      const items = itemsByVersion.get(candidate.versionId) ?? [];
       if (!items.length) continue;
       const candidateConcepts = bucketByConcept(items);
-      const {score: deterministicScore, breakdown} = weightedScore(sourceConcepts, candidateConcepts, weightsBps);
-
-      let score = deterministicScore;
-      if (
-        aiService &&
-        deterministicScore >= operations.similarityAmbiguousMin &&
-        deterministicScore <= operations.similarityAmbiguousMax
-      ) {
-        const {result} = await aiService.compare({
-          candidateA: {label: source.family.internalName},
-          candidateB: {label: candidate.internalName},
-          deterministicScore,
-        });
-        score = result.score;
-      }
-
+      const {score, breakdown} = weightedScore(sourceConcepts, candidateConcepts, weightsBps);
       ranked.push({
-        familyId: candidate.id,
+        familyId: candidate.familyId,
         visibleNumber: candidate.visibleNumber,
         internalName: candidate.internalName,
         score,
@@ -219,6 +203,20 @@ export class SimilarityController {
     }
 
     ranked.sort((a, b) => b.score - a.score || a.visibleNumber.localeCompare(b.visibleNumber));
+    if (aiService) {
+      const ambiguous = ranked
+        .filter((row) => row.score >= operations.similarityAmbiguousMin && row.score <= operations.similarityAmbiguousMax)
+        .slice(0, SIMILAR_AI_CAP);
+      await Promise.all(ambiguous.map(async (row) => {
+        const {result} = await aiService.compare({
+          candidateA: {label: source.family.internalName},
+          candidateB: {label: row.internalName},
+          deterministicScore: row.score,
+        });
+        row.score = result.score;
+      }));
+      ranked.sort((a, b) => b.score - a.score || a.visibleNumber.localeCompare(b.visibleNumber));
+    }
     const result = jsonSafe({
       familyId: id,
       limit: query.limit,
@@ -260,7 +258,9 @@ export class SimilarityController {
     const referenceNames = source.items.filter((item) => item.line?.keyLine).map((item) => item.frozenName);
 
     const acceptedVersions = await db.quoteVersion.findMany({
-      where: {state: 'ACEPTADO'},
+      where: {state: 'ACEPTADO', familyId: {not: id}},
+      orderBy: [{lastActivityAt: 'desc'}, {id: 'desc'}],
+      take: HABITUAL_VERSION_CAP,
       select: {
         familyId: true,
         items: {select: {productId: true, frozenName: true, lineId: true}},
