@@ -426,6 +426,8 @@ export type Quote = {
   /** Combos: visible en la tienda y en la búsqueda. */
   storeVisible?: boolean;
   activeVersion: number;
+  /** Cantidad de versiones. El listado trae solo la activa; el historial se pide al abrir. */
+  versionCount?: number;
   autoRepublish?: boolean;
   thumbnailUrl?: string | null;
   /** Título y bajada con los que se publica en la tienda (independientes del nombre interno). */

@@ -161,13 +161,42 @@ export async function syncProductCostsFromQuoteItems(
   }
 }
 
+function searchLimit(raw:string|undefined,fallback:number,max:number){
+  if(raw==null||raw==='')return fallback;
+  const n=Number(raw);
+  if(!Number.isFinite(n))return fallback;
+  return Math.min(max,Math.max(1,Math.trunc(n)));
+}
+
 @Controller('products')
 export class ProductsController{
   @Get()
-  async list(){
+  async list(
+    @Query('q') q?:string,
+    @Query('lineId') lineId?:string,
+    @Query('limit') limitRaw?:string,
+  ){
+    const query=typeof q==='string'?q:undefined;
+    const line=typeof lineId==='string'?lineId.trim():'';
+    const limited=limitRaw!=null&&limitRaw!=='';
+    // Sin filtros sigue la lista completa (pantalla de productos). El presupuesto busca por nombre o línea.
+    if(query===undefined&&!line&&!limited){
+      return jsonSafe(await db.product.findMany({
+        include:{defaultLine:true},
+        orderBy:[{active:'desc'},{normalizedName:'asc'},{id:'asc'}],
+      }));
+    }
+    const needle=normalizeText(query??'');
+    if(!needle&&!line)return [];
     return jsonSafe(await db.product.findMany({
+      where:{
+        active:true,
+        ...(line?{defaultLineId:line}:{}),
+        ...(needle?{normalizedName:{contains:needle}}:{}),
+      },
       include:{defaultLine:true},
-      orderBy:[{active:'desc'},{normalizedName:'asc'},{id:'asc'}],
+      orderBy:[{lastUsedAt:'desc'},{name:'asc'},{id:'asc'}],
+      take:searchLimit(limitRaw,12,40),
     }));
   }
 
@@ -653,8 +682,31 @@ async function createCustomerRecord(tx:any,body:CustomerCreateInput,userId:strin
 @Controller('customers')
 export class CustomerController{
   @Get()
-  async list(){
-    return db.customer.findMany({orderBy:[{normalizedName:'asc'},{id:'asc'}]});
+  async list(@Query('q') q?:string,@Query('limit') limitRaw?:string){
+    const query=typeof q==='string'?q:undefined;
+    const limited=limitRaw!=null&&limitRaw!=='';
+    if(query===undefined&&!limited){
+      return db.customer.findMany({orderBy:[{normalizedName:'asc'},{id:'asc'}]});
+    }
+    const needle=normalizeText(query??'');
+    const digits=(query??'').replace(/\D/g,'');
+    const or=[
+      ...(needle?[{normalizedName:{contains:needle}}]:[]),
+      ...(digits.length>=4?[{normalizedPhone:{contains:digits}}]:[]),
+    ];
+    if(!or.length)return [];
+    return db.customer.findMany({
+      where:{OR:or},
+      orderBy:[{normalizedName:'asc'},{id:'asc'}],
+      take:searchLimit(limitRaw,12,30),
+    });
+  }
+
+  @Get(':id')
+  async getOne(@Param('id',new ZodPipe(idSchema)) id:string){
+    const customer=await db.customer.findUnique({where:{id}});
+    if(!customer)throw new NotFoundException('Cliente inexistente');
+    return customer;
   }
 
   @Post()

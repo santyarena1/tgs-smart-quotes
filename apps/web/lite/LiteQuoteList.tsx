@@ -51,7 +51,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   const seq = useRef(0);
 
   useEffect(() => {
-    void api<Collection[]>("/collections").then((c) => setCollections(c.filter((x) => !x.archived))).catch(() => setCollections([]));
+    void api<Collection[]>("/collections", { query: { brief: 1 } }).then((c) => setCollections(c.filter((x) => !x.archived))).catch(() => setCollections([]));
   }, []);
 
   const run = useCallback(async () => {

@@ -51,6 +51,7 @@ import {
 import {markupFromPrices,PricingError,retarget as retargetPricing,saleFromCost,totals} from '@tgs/pricing';
 import {normalizePhone,normalizeText,productSimilarity} from '@tgs/validation';
 import {CurrentUser,jsonSafe,type RequestUser,ZodPipe} from './infrastructure.js';
+import {listQuoteCards} from './quote-list.js';
 
 type QuoteItemCreateInput=QuoteCreateInput['items'][number];
 
@@ -266,7 +267,10 @@ export const quoteInclude={
   versions:{
     include:{
       items:{orderBy:{position:'asc' as const}},
-      pdfs:{orderBy:{createdAt:'desc' as const}},
+      pdfs:{
+        select:{id:true,kind:true,storageKey:true,sha256:true,sizeBytes:true,createdAt:true,versionId:true,branchId:true},
+        orderBy:{createdAt:'desc' as const},
+      },
       creator:{select:{id:true,username:true,displayName:true}},
     },
     orderBy:{version:'desc' as const},
@@ -412,11 +416,7 @@ export class QuotesController{
 
   @Get()
   async list(){
-    const rows=await db.quoteFamily.findMany({
-      include:quoteInclude,
-      orderBy:[{updatedAt:'desc'},{id:'asc'}],
-    });
-    return rows.map(activeBundle);
+    return listQuoteCards();
   }
 
   @Get(':id')
@@ -1488,9 +1488,17 @@ async function markRequestListaIfPreparing(tx:any,requestId:string,actorId:strin
 @Controller('collections')
 export class CollectionsController{
   @Get()
-  async list(){
+  async list(@Query('brief') brief?: string){
+    // brief=1: solo la ficha de la colección. El editor de presupuestos no necesita
+    // cada presupuesto anidado (eso recargaba todo el historial en cada búsqueda).
+    if(brief==='1'||brief==='true'){
+      const rows=await db.collection.findMany({
+        orderBy:[{sortOrder:'asc'},{name:'asc'},{id:'asc'}],
+      });
+      return jsonSafe(rows.map((row)=>({...row,familyIds:[],quotes:[]})));
+    }
     const rows=await db.collection.findMany({
-      include:{quotes:{include:{family:{include:{customer:true}}},orderBy:{sortOrder:'asc'}}},
+      include:{quotes:{include:{family:{select:{id:true,visibleNumber:true,internalName:true,customer:{select:{name:true}}}}},orderBy:{sortOrder:'asc'}}},
       orderBy:[{sortOrder:'asc'},{name:'asc'},{id:'asc'}],
     });
     return jsonSafe(rows.map((row:any)=>({
@@ -1616,9 +1624,15 @@ export async function createQuoteRequest(
 @Controller('requests')
 export class RequestsController{
   @Get()
-  async list(){
+  async list(@Query('brief') brief?:string){
+    if(brief==='1'||brief==='true'){
+      return jsonSafe(await db.quoteRequest.findMany({
+        select:{id:true,title:true},
+        orderBy:[{createdAt:'desc'},{id:'asc'}],
+      }));
+    }
     return jsonSafe(await db.quoteRequest.findMany({
-      include:{customer:true,families:true},
+      include:{customer:true,families:{select:{id:true,visibleNumber:true}}},
       orderBy:[{createdAt:'desc'},{id:'asc'}],
     }));
   }

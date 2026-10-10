@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import {db} from '@tgs/database';
 import {
@@ -99,13 +100,32 @@ async function syncComboItems(tx:any,comboId:string,items:ComboItemInput[]){
   }
 }
 
+function searchLimit(raw:string|undefined,fallback:number,max:number){
+  if(raw==null||raw==='')return fallback;
+  const n=Number(raw);
+  if(!Number.isFinite(n))return fallback;
+  return Math.min(max,Math.max(1,Math.trunc(n)));
+}
+
 @Controller('combos')
 export class CombosController{
   @Get()
-  async list(){
+  async list(@Query('q') q?:string,@Query('limit') limitRaw?:string){
+    const query=typeof q==='string'?q:undefined;
+    const limited=limitRaw!=null&&limitRaw!=='';
+    if(query===undefined&&!limited){
+      return jsonSafe(await db.combo.findMany({
+        include:comboInclude,
+        orderBy:[{active:'desc'},{sortOrder:'asc'},{normalizedName:'asc'},{id:'asc'}],
+      }));
+    }
+    const needle=normalizeText(query??'');
+    if(!needle)return [];
     return jsonSafe(await db.combo.findMany({
+      where:{active:true,normalizedName:{contains:needle},items:{some:{}}},
       include:comboInclude,
-      orderBy:[{active:'desc'},{sortOrder:'asc'},{normalizedName:'asc'},{id:'asc'}],
+      orderBy:[{sortOrder:'asc'},{normalizedName:'asc'},{id:'asc'}],
+      take:searchLimit(limitRaw,5,20),
     }));
   }
 
