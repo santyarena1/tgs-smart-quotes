@@ -1182,19 +1182,8 @@ export function LiteQuoteCreator() {
             ) : null}
           </div>
 
-          {recent.length && !isBuiltPc ? (
-            <div className="lt-recents" aria-label="Productos recientes">
-              <span className="lt-muted">Recientes</span>
-              {recent.map((p) => (
-                <button key={p.id} type="button" className="lt-chip" onClick={() => { addProduct(p); searchRef.current?.focus(); }} title={formatArs(p.salePriceCents)}>
-                  + {p.name.length > 28 ? `${p.name.slice(0, 27)}…` : p.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           {lines.length === 0 && !isBuiltPc ? (
-            <div className="lt-empty">Todavía no hay ítems. Buscá arriba, tocá un reciente o apretá <kbd>/</kbd> para empezar.</div>
+            <div className="lt-empty">Todavía no hay ítems. Buscá arriba o apretá <kbd>/</kbd> para empezar.</div>
           ) : (
             <div className="lt-lines">
               <div className="lt-line head">
