@@ -1,0 +1,121 @@
+/* ═════════ LITE limpio ═════════
+   Capa final y solo de aspecto: textos más chicos, menos negritas, sin brillos, sombras ni animaciones.
+   No toca colores ni estructura. El tema «Original» queda como estaba.
+   (Los selectores llevan prefijo reforzado para ganarle a los temas sin usar !important.) */
+
+/* ————— Base: tipografía normal, sin mayúsculas forzadas ni espaciado de letras ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite * { text-transform: none; letter-spacing: 0; font-family: var(--font); }
+html:root:root:root:root:root:not([data-skin="original"]) .lite kbd { font-family: inherit; }
+
+/* ————— Títulos ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-head h1 { font-family: var(--font); font-size: 1.05rem; font-weight: 600; letter-spacing: 0; text-transform: none; padding: 0; margin: 0; text-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-head h1::after { content: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-head p { margin: 0.15rem 0 0; font-size: 0.7rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-head kbd { font-size: 0.62rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-side h2, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-head h2, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-head h2 { font-family: var(--font); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-shadow: none; }
+
+/* ————— Botones y textos de acción ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-btn { height: 34px; padding: 0 0.9rem; font-size: 0.8rem; font-weight: 500; letter-spacing: 0; box-shadow: none; text-shadow: none; background-image: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-btn.sm { height: 28px; padding: 0 0.65rem; font-size: 0.74rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-foot-main .lt-btn { height: 36px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-textlink { font-size: 0.78rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-chip { font-size: 0.74rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-act { font-size: 0.68rem; font-weight: 500; letter-spacing: 0; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-gear { width: 26px; height: 26px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-gear svg { width: 15px; height: 15px; }
+
+/* ————— Sin brillos, saltos ni entradas animadas ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-card, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-card, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-alert, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-note,
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-recent li, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-quote-list li, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-modal-card, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-trade-modal, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-results { animation: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-btn:hover:not(:disabled), html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-tool:hover:not(:disabled), html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-chip:hover:not(:disabled), html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc:hover:not(:disabled),
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-card:hover, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-card:hover, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-recent li:hover, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-quote-list li:hover, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-results > *:hover { transform: none; box-shadow: none; filter: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc.on, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc:hover:not(:disabled), html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-card, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-card { box-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total strong, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total b, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line:hover, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line:focus-within { text-shadow: none; box-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line:hover { background: transparent; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-results > *::before { content: none; }
+
+/* ————— Ítems ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line.head { font-size: 0.66rem; font-weight: 500; letter-spacing: 0.05em; border-bottom-width: 1px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-cell, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-input { font-size: 0.86rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line-total { font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-comp-name { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; opacity: 1; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-res-name { font-size: 0.86rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-res-price { font-size: 0.84rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-prov, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-res-sub { font-size: 0.7rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-x { font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-empty { font-size: 0.82rem; }
+
+/* ————— Interruptores (PC armada, productos del cliente, imagen, WhatsApp) ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles { gap: 0.4rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc { padding: 0.4rem 0.7rem; gap: 0.55rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc-copy strong { font-size: 0.8rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pc-copy small { font-size: 0.66rem; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-trade-ico { width: 30px; height: 18px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-trade-ico img { width: 18px; height: 18px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-colls-title { font-size: 0.7rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-chip, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-colls .lt-chip { font-size: 0.72rem; }
+
+/* ————— Barra del total ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-foot { padding: 0.55rem 0 0.2rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total strong { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total > span:first-child { font-size: 0.66rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-total-meta, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-total-sub { font-size: 0.68rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-cost, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-gain { font-size: 0.66rem; font-weight: 500; letter-spacing: 0.03em; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-tool > span { font-size: 0.62rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-tool .lt-cell { width: 88px; }
+
+/* ————— Financiación ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-cash { padding-bottom: 0.4rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-cash span { font-size: 0.68rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-cash strong { font-size: 1rem; font-weight: 600; text-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-card { grid-template-columns: 32px minmax(0, 1fr); gap: 0.5rem; padding-block: 0.4rem 0.5rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-ico { width: 32px; height: 32px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-n { font-size: 0.72rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-amt { font-size: 0.98rem; font-weight: 600; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-name, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-total { font-size: 0.64rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-total b { font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-tag { font-size: 0.6rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-empty { font-size: 0.72rem; }
+
+/* ————— Lista de presupuestos ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-qname { font-size: 0.84rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-qnum { font-size: 0.72rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-qprice { font-size: 0.88rem; font-weight: 600; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-qdate, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-qmeta { font-size: 0.68rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-state { font-size: 0.62rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-kind, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-pill { font-size: 0.72rem; font-weight: 500; }
+
+/* ————— Barra superior ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-bar .lt-tab { font-size: 0.82rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-store { font-size: 0.74rem; font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-user { font-size: 0.76rem; font-weight: 500; }
+
+/* ————— Avisos ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-alert, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-note { font-size: 0.8rem; font-weight: 400; padding: 0.5rem 0.8rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-alert strong, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-note strong { font-weight: 600; }
+
+/* ————— Etiquetas chicas: las únicas en mayúscula ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line.head, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line.head > *, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-tool > span, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-comp-name, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-side h2, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-head h2, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-head h2,
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total > span:first-child, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-colls-title, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-cost, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-gain { text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ————— Fuentes de búsqueda: contorno suave en lugar de relleno de color ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .src-bar { margin: 0; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .src-scroll { gap: 0.4rem; padding: 2px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .src-pill { height: 24px; padding: 0 0.55rem 0 0.45rem; font-size: 0.7rem; font-weight: 500; box-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .src-pill.on { background: color-mix(in srgb, var(--nc) 10%, transparent); color: var(--ink); border-color: var(--nc); box-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .src-pill.on .src-led { background: var(--nc); border-color: var(--nc); }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .src-all { font-size: 0.7rem; font-weight: 500; }
+
+/* ————— Financiación: filas neutras, el color del banco queda en el logo y en la línea corta ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-card, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-card:hover { background: transparent; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-manual .lt-input { height: 30px; font-size: 0.8rem; background: transparent; color: var(--ink); border-color: var(--line-2); }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-fin-manual .lt-input::placeholder { color: var(--faint); }
+
+/* ————— Campos y barra del total: sin fuente de títulos ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-search-input { font-size: 0.88rem; height: 40px; box-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-search-input:focus { box-shadow: none; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-customer .lt-btn { height: 34px; }
+
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-opt { font-size: 0.78rem; font-weight: 400; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-opt.on { font-weight: 500; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-mark { font-weight: 500; }
