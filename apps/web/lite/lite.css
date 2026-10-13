@@ -315,8 +315,9 @@
 .lite .lt-fin-head { justify-content: flex-end; }
 .lite .lt-eye { cursor: pointer; padding: 0; }
 .lite .lt-eye:hover { transform: none; }
-.lite .lt-head { position: relative; }
-.lite .lt-eye-show { position: absolute; top: 0; right: 0; }
+.lite .lt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.lite .lt-head-main { min-width: 0; }
+.lite .lt-head-actions { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .lite .lt-fin-cash { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 10px; background: var(--ink); color: var(--paper); }
 .lite .lt-fin-cash span { font-size: 0.72rem; opacity: 0.75; }
 .lite .lt-fin-cash strong { font: 650 1.05rem var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
