@@ -1048,6 +1048,7 @@ export function LiteQuoteCreator() {
               <line x1="1" y1="1" x2="23" y2="23" />
             </svg>
           </button>
+          <h2 className="lt-fin-collapsed-title">Financiación</h2>
         </aside>
       ) : <LiteFinancing totalCents={net} plans={finPlans} listInterestBps={listInterestBps} loaded={finLoaded} onHide={() => setHideFinancing(true)} />}
       <section className="lt-col">
