@@ -80,11 +80,11 @@
 .lite .lt-lines { display: grid; gap: 2px; overflow-x: auto; }
 .lite .lt-iva { cursor: pointer; }
 .lite .lt-iva.auto { border-style: dashed; border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
-.lite .lt-line { display: grid; grid-template-columns: minmax(180px, 1fr) 64px 110px 78px 110px 78px 110px 56px; gap: 0.35rem; align-items: center; min-width: 800px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.lite .lt-line { display: grid; grid-template-columns: minmax(170px, 3.2fr) 52px minmax(78px, 1fr) 64px minmax(78px, 1fr) 78px minmax(96px, 1fr) 52px; gap: 0.35rem; align-items: center; min-width: 700px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .lite .lt-line.head { border-bottom: 1px solid var(--line); color: var(--faint); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0 0 0.35rem; }
 .lite .lt-line.head span { padding: 0 0.5rem; }
 .lite .r { text-align: right; }
-.lite .lt-line-total { padding: 0 0.5rem; font-variant-numeric: tabular-nums; }
+.lite .lt-line-total { padding: 0 0.5rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lite .lt-x { width: 26px; height: 26px; padding: 0; border-radius: 50%; background: transparent; color: var(--faint); font-size: 1.1rem; line-height: 1; }
 .lite .lt-x:hover:not(:disabled) { background: var(--red-soft); color: var(--red-deep); }
 .lite .lt-bulk { display: flex; align-items: center; gap: 0.4rem; padding-top: 0.6rem; color: var(--muted); font-size: 0.8rem; flex-wrap: wrap; }
@@ -1108,6 +1108,6 @@
   .lite .lt-grid:has(> .lt-side) > .lt-col > * { flex: none; }
   .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card:not(.lt-modal-card) { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
   .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > * { flex: none; }
-  .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > .lt-lines { flex: 1 1 auto; min-height: 180px; overflow-y: auto; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > .lt-lines { flex: 1 1 auto; min-height: 180px; overflow-y: auto; align-content: start; }
   .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-foot { position: static; margin-top: 0; }
 }

@@ -119,3 +119,9 @@ html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-customer .lt
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-opt { font-size: 0.78rem; font-weight: 400; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-opt.on { font-weight: 500; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-mark { font-weight: 500; }
+
+/* ————— Filas de ítems compactas ————— */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line { padding: 0.1rem 0; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line .lt-cell, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line select { height: 34px; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-name-cell { min-width: 0; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line-total, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line.head > span { white-space: nowrap; }

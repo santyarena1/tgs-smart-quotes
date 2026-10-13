@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-10-13",
+    title: "LITE: vista previa de ítems ajustada",
+    items: [
+      "La tabla de ítems del presupuesto se adapta al ancho del panel: ya no se corta el Total ni quedan escondidos los botones de duplicar y quitar, y los títulos de columna coinciden con los valores",
+      "Las filas quedan compactas (antes se estiraban para llenar el alto del panel) y los importes no se parten en dos renglones",
+    ],
+  },
+  {
     version: "0.20.5",
     date: "2026-10-13",
     title: "Nuevo favicon",
