@@ -8,7 +8,7 @@ import { errorMessage } from "../components/shared";
 import { useLite } from "./LiteContext";
 import { printQuotePdf, type PdfKind } from "./lite-pdf";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 100;
 const STATES: Array<[QuoteState, string]> = [
   ["BORRADOR", "Borrador"], ["ENVIADO", "Enviado"], ["ACEPTADO", "Aceptado"],
   ["RECHAZADO", "Rechazado"], ["REEMPLAZADO", "Reemplazado"], ["NO_CONCRETADO", "No concretado"],
