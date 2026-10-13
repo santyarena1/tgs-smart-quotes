@@ -13,7 +13,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "LITE: pantalla fija con scroll por panel",
     items: [
       "En LITE la pantalla queda fija en escritorio: ya no se desplaza toda la página. La financiación, la lista de ítems del presupuesto y la lista de presupuestos de la derecha tienen cada una su propio scroll, y la barra del total queda siempre a la vista",
-      "Se sacó la fila de productos recientes del armado para ganar espacio",
+      "En la lista de la derecha los filtros quedan fijos y solo scrollean los presupuestos. Se sacó la fila de productos recientes del armado para ganar espacio",
     ],
   },
   {
