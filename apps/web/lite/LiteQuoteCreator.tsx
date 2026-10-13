@@ -1214,7 +1214,9 @@ export function LiteQuoteCreator() {
                   })}
                   {extras.length ? <div className="lt-comp"><div className="lt-comp-name">Extras</div>{extras.map(renderLine)}</div> : null}
                 </>
-              ) : lines.map(renderLine)}
+              ) : (
+                <div className="lt-comp"><div className="lt-comp-name">Productos</div>{lines.map(renderLine)}</div>
+              )}
             </div>
           )}
         </div>

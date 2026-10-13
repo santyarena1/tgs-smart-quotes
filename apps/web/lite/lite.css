@@ -80,7 +80,7 @@
 .lite .lt-lines { display: grid; gap: 2px; overflow-x: auto; }
 .lite .lt-iva { cursor: pointer; }
 .lite .lt-iva.auto { border-style: dashed; border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
-.lite .lt-line { display: grid; grid-template-columns: minmax(170px, 3.2fr) 52px minmax(78px, 1fr) 64px minmax(78px, 1fr) 78px minmax(96px, 1fr) 52px; gap: 0.35rem; align-items: center; min-width: 700px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.lite .lt-line { display: grid; grid-template-columns: minmax(110px, 3.2fr) 48px minmax(66px, 1fr) 56px minmax(66px, 1fr) 74px minmax(88px, 1fr) 48px; gap: 0.3rem; align-items: center; min-width: 560px; padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .lite .lt-line.head { border-bottom: 1px solid var(--line); color: var(--faint); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0 0 0.35rem; }
 .lite .lt-line.head span { padding: 0 0.5rem; }
 .lite .r { text-align: right; }
