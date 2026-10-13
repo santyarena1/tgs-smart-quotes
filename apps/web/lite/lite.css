@@ -1087,3 +1087,27 @@
 .lite .lt-fin.lt-fin-collapsed { height: auto; padding: 0.55rem 0 0.8rem; gap: 0.7rem; justify-items: center; overflow: visible; }
 .lite .lt-fin-collapsed-title { margin: 0; writing-mode: vertical-rl; transform: rotate(180deg); font: 600 0.72rem var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red-deep); white-space: nowrap; }
 @media (max-width: 960px) { .lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 1fr; } .lite .lt-grid:has(.lt-fin-collapsed) > .lt-side { grid-column: 1 / -1; position: static; } .lite .lt-fin.lt-fin-collapsed { justify-items: start; } }
+
+/* ═════════ Pantalla fija (escritorio) ═════════
+   La página no se desplaza: la financiación, el armado (la lista de ítems) y los presupuestos de la
+   derecha tienen cada uno su propio scroll. La barra del total queda siempre visible abajo. */
+@media (min-width: 1100px) {
+  html:has(.lt-grid > .lt-side), html:has(.lt-grid > .lt-side) body { overflow: hidden; height: 100vh; }
+  .lite:has(.lt-grid > .lt-side) { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  .lite .lt-main:has(.lt-grid > .lt-side) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 0.75rem; max-width: 1840px; }
+  .lite .lt-grid:has(> .lt-side) { flex: 1 1 auto; min-height: 0; align-items: stretch; grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(280px, 22vw) minmax(0, 1fr) minmax(300px, 24vw); }
+  .lite .lt-grid:has(> .lt-side):has(> .lt-fin-collapsed) { grid-template-columns: 52px minmax(0, 1fr) minmax(300px, 24vw); }
+  .lite .lt-grid:has(> .lt-side) > .lt-fin { position: static; height: auto; min-height: 0; overflow-y: auto; }
+  .lite .lt-grid:has(> .lt-side) > .lt-fin.lt-fin-collapsed { align-self: start; overflow: visible; }
+  .lite .lt-grid:has(> .lt-side) > .lt-side { grid-column: auto; position: static; height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.6rem; }
+  .lite .lt-grid:has(> .lt-side) > .lt-side > * { flex: none; }
+  .lite .lt-grid:has(> .lt-side) > .lt-side > .lt-recent { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 4px 2px 0; }
+  .lite .lt-grid:has(> .lt-side) > .lt-side > .lt-list-filters { max-height: 40vh; overflow-y: auto; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col { min-height: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col > * { flex: none; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card:not(.lt-modal-card) { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > * { flex: none; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > .lt-lines { flex: 1 1 auto; min-height: 180px; overflow-y: auto; }
+  .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-foot { position: static; margin-top: 0; }
+}
