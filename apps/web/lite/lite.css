@@ -315,8 +315,6 @@
 .lite .lt-fin-head { justify-content: flex-end; }
 .lite .lt-eye { cursor: pointer; padding: 0; }
 .lite .lt-eye:hover { transform: none; }
-.lite .lt-head { position: relative; }
-.lite .lt-eye-show { position: absolute; top: 0; right: 0; }
 .lite .lt-fin-cash { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 10px; background: var(--ink); color: var(--paper); }
 .lite .lt-fin-cash span { font-size: 0.72rem; opacity: 0.75; }
 .lite .lt-fin-cash strong { font: 650 1.05rem var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
@@ -1079,3 +1077,8 @@
 .lite .lt-refm-issues { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); background: color-mix(in srgb, var(--red) 8%, var(--paper)); }
 .lite .lt-refm-issues span { color: var(--red); }
 .lite .lt-refm-ok { margin: 0; font-size: 0.8rem; font-weight: 600; color: #16a34a; animation: lt-refx-fade 0.35s ease-out; }
+
+/* Financiación oculta: queda solo el ojito cerrado, en el mismo lugar de la columna */
+.lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 44px minmax(0, 1fr) 340px; }
+.lite .lt-fin.lt-fin-collapsed { height: auto; padding: 0; border: 0; background: transparent; box-shadow: none; justify-items: center; overflow: visible; animation: none; }
+@media (max-width: 960px) { .lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 1fr; } .lite .lt-fin.lt-fin-collapsed { justify-items: start; } }
