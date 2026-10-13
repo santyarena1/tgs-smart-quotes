@@ -357,7 +357,7 @@ const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate,
 });
 
 export function LiteQuoteCreator() {
-  const { writesElsewhere } = useLite();
+  const { writesElsewhere, hideFinancing, setHideFinancing } = useLite();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [editing, setEditing] = useState<{ id: string; visibleNumber: string; observation: string | null } | null>(null);
@@ -975,10 +975,18 @@ export function LiteQuoteCreator() {
         />
       ) : null}
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
-      <LiteFinancing totalCents={net} plans={finPlans} listInterestBps={listInterestBps} loaded={finLoaded} />
+      {hideFinancing ? null : <LiteFinancing totalCents={net} plans={finPlans} listInterestBps={listInterestBps} loaded={finLoaded} onHide={() => setHideFinancing(true)} />}
       <section className="lt-col">
         <div className="lt-head">
           <h1>{editing ? `Editando ${editing.visibleNumber}` : "Nuevo presupuesto"}</h1>
+          {hideFinancing ? (
+            <button type="button" className="lt-gear lt-eye lt-eye-show" onClick={() => setHideFinancing(false)} title="Mostrar la financiación" aria-label="Mostrar la financiación">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+            <line x1="1" y1="1" x2="23" y2="23" />
+          </svg>
+            </button>
+          ) : null}
           <p><kbd>/</kbd> busca · <kbd>Enter</kbd> agrega y vuelve al buscador · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> crea y descarga el PDF.</p>
         </div>
 

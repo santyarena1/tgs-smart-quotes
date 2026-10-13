@@ -311,6 +311,12 @@
 .lite .lt-fin-head h2 { margin: 0; font: 600 0.72rem var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red-deep); }
 .lite .lt-gear { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: var(--ink-2); border: 1px solid var(--line); background: var(--canvas-2); transition: transform 260ms, background 120ms, color 120ms; }
 .lite .lt-gear:hover { background: var(--red); color: #fff; border-color: var(--red); transform: rotate(60deg); }
+.lite .lt-fin-head h2 { margin-right: auto; }
+.lite .lt-fin-head { justify-content: flex-end; }
+.lite .lt-eye { cursor: pointer; padding: 0; }
+.lite .lt-eye:hover { transform: none; }
+.lite .lt-head { position: relative; }
+.lite .lt-eye-show { position: absolute; top: 0; right: 0; }
 .lite .lt-fin-cash { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0.65rem; border-radius: 10px; background: var(--ink); color: var(--paper); }
 .lite .lt-fin-cash span { font-size: 0.72rem; opacity: 0.75; }
 .lite .lt-fin-cash strong { font: 650 1.05rem var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }

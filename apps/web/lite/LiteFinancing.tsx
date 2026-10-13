@@ -57,8 +57,10 @@ const ORDER: Kind[] = ["bbva", "single", "others", "mp", "go"];
  * Cómo queda financiado lo que se está cargando. Misma cuenta que el PDF:
  * las cuotas salen del precio de lista (efectivo + interés de lista) más el interés de cada plan.
  */
-export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCents, plans, listInterestBps, loaded }: {
+export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCents, plans, listInterestBps, loaded, onHide }: {
   totalCents: bigint;
+  /** Tapa la columna (ojito). Se recuerda por usuario. */
+  onHide: () => void;
   plans: FinancingPlan[];
   listInterestBps: number;
   loaded: boolean;
@@ -89,6 +91,12 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
     <aside className="lt-fin" aria-label="Financiación">
       <div className="lt-fin-head">
         <h2>Financiación</h2>
+        <button type="button" className="lt-gear lt-eye" onClick={onHide} title="Ocultar la financiación" aria-label="Ocultar la financiación">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
         <Link href="/lite/configuracion?tab=financiacion" className="lt-gear" title="Configurar intereses y cuotas" aria-label="Configurar intereses y cuotas">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
