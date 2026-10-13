@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.5",
+    date: "2026-10-13",
+    title: "Nuevo favicon",
+    items: [
+      "La pestaña del navegador muestra un ícono propio (favicon) en toda la web, en el modo normal y en LITE",
+    ],
+  },
+  {
     version: "0.20.3",
     date: "2026-10-13",
     title: "LITE más limpio, con Limpiar y Nuevo presupuesto",
