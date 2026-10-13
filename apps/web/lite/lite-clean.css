@@ -125,3 +125,13 @@ html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line { paddi
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line .lt-cell, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line select { height: 34px; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-name-cell { min-width: 0; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line-total, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line.head > span { white-space: nowrap; }
+
+/* ————— Interruptores en una sola fila en escritorio: más lugar para la lista de ítems ————— */
+@media (min-width: 1100px) {
+  html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem; }
+  html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-pc { padding: 0.35rem 0.5rem; gap: 0.4rem; }
+  html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-pc-copy { min-width: 0; }
+  html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-pc-copy strong { font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-pc:not(.on) .lt-pc-copy small { display: none; }
+  html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-switch-track { transform: scale(0.85); transform-origin: left center; }
+}

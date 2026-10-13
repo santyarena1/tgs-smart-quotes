@@ -14,6 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "La tabla de ítems del presupuesto se adapta al ancho del panel: ya no se corta el Total ni quedan escondidos los botones de duplicar y quitar, y los títulos de columna coinciden con los valores",
       "Las filas quedan compactas (antes se estiraban para llenar el alto del panel) y los importes no se parten en dos renglones",
+      "Sin PC armada, los ítems buscados se muestran con la misma estructura que PC armada (grupo con su título y filas alineadas); los cuatro interruptores van en una sola fila para dejar más lugar a la lista",
     ],
   },
   {
