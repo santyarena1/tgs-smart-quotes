@@ -1079,7 +1079,8 @@
 .lite .lt-refm-ok { margin: 0; font-size: 0.8rem; font-weight: 600; color: #16a34a; animation: lt-refx-fade 0.35s ease-out; }
 
 /* Financiación oculta: queda solo el ojito cerrado, en el mismo lugar de la columna */
-.lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 44px minmax(0, 1fr) 340px; }
+.lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 52px minmax(0, 1fr) 340px; }
 .lite .lt-grid:has(.lt-fin-collapsed) > .lt-side { grid-column: auto; position: sticky; }
-.lite .lt-fin.lt-fin-collapsed { height: auto; padding: 0; border: 0; background: transparent; box-shadow: none; justify-items: center; overflow: visible; animation: none; }
+.lite .lt-fin.lt-fin-collapsed { height: auto; padding: 0.55rem 0 0.8rem; gap: 0.7rem; justify-items: center; overflow: visible; }
+.lite .lt-fin-collapsed-title { margin: 0; writing-mode: vertical-rl; transform: rotate(180deg); font: 600 0.72rem var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red-deep); white-space: nowrap; }
 @media (max-width: 960px) { .lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 1fr; } .lite .lt-grid:has(.lt-fin-collapsed) > .lt-side { grid-column: 1 / -1; position: static; } .lite .lt-fin.lt-fin-collapsed { justify-items: start; } }
