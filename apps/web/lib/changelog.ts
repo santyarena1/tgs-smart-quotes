@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.4",
+    date: "2026-10-13",
+    title: "LITE: pantalla fija con scroll por panel",
+    items: [
+      "En LITE la pantalla queda fija en escritorio: ya no se desplaza toda la página. La financiación, la lista de ítems del presupuesto y la lista de presupuestos de la derecha tienen cada una su propio scroll, y la barra del total queda siempre a la vista",
+      "Se sacó la fila de productos recientes del armado para ganar espacio",
+    ],
+  },
+  {
     version: "0.20.3",
     date: "2026-10-13",
     title: "LITE más limpio, con Limpiar y Nuevo presupuesto",
