@@ -408,6 +408,8 @@ export function LiteQuoteCreator() {
   const [totalEditValue, setTotalEditValue] = useState("");
   const [tradeIns, setTradeIns] = useState<TradeIn[]>([]);
   const [removed, setRemoved] = useState<{ line: Line; index: number } | null>(null);
+  /** Lo último que se borró con LIMPIAR / NUEVO PRESUPUESTO, para poder deshacerlo unos segundos. */
+  const [wiped, setWiped] = useState<{ label: string; undo: () => void } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const linesRef = useRef<Line[]>([]);
   const submitRef = useRef<(kind: PdfKind) => Promise<void>>(async () => {});
@@ -480,6 +482,12 @@ export function LiteQuoteCreator() {
     }, 400);
     return () => window.clearTimeout(timer);
   }, [draftReady, editing, lines, name, customerId, isBuiltPc, collectionIds, tradeIns, tradeShowValues]);
+
+  useEffect(() => {
+    if (!wiped) return;
+    const timer = window.setTimeout(() => setWiped(null), 10000);
+    return () => window.clearTimeout(timer);
+  }, [wiped]);
 
   useEffect(() => {
     if (!removed) return;
@@ -831,6 +839,63 @@ export function LiteQuoteCreator() {
     setNotice("Imagen de referencia incluida: va en el presupuesto y en el PDF.");
   }
 
+  const hasContent = lines.length > 0 || tradeIns.some((t) => t.name.trim() || t.valueArs.trim()) || Boolean(refImage) || collectionIds.length > 0 || Boolean(name.trim());
+
+  /** Foto del formulario para poder volver atrás después de limpiar. */
+  function takeSnapshot() {
+    const snap = { lines, name, customerId, bulkMarkup, collectionIds, isBuiltPc, roundStep, tradeIns, tradeShowValues, refImage, refSavedKey, editing };
+    return () => {
+      setLines(snap.lines);
+      setName(snap.name);
+      setCustomerId(snap.customerId);
+      setBulkMarkup(snap.bulkMarkup);
+      setCollectionIds(snap.collectionIds);
+      setIsBuiltPc(snap.isBuiltPc);
+      setRoundStep(snap.roundStep);
+      setTradeIns(snap.tradeIns);
+      setTradeShowValues(snap.tradeShowValues);
+      setRefImage(snap.refImage);
+      setRefSavedKey(snap.refSavedKey);
+      setEditing(snap.editing);
+      setWiped(null);
+    };
+  }
+
+  /** LIMPIAR: vacía lo que se está armando (ítems, productos del cliente, imagen, colecciones) y deja el cliente elegido. */
+  function clearQuote() {
+    if (busy || !hasContent) return;
+    const undo = takeSnapshot();
+    setLines([]);
+    setName("");
+    setBulkMarkup("");
+    setCollectionIds([]);
+    setIsBuiltPc(false);
+    setRoundStep("");
+    setTradeOpen(false);
+    setTradeIns([]);
+    setTradeShowValues(true);
+    refJob.discard();
+    setRefImage(null);
+    setRefOpen(false);
+    setRemoved(null);
+    setError(null);
+    setNotice(null);
+    setWiped({ label: "Presupuesto limpiado.", undo });
+    searchRef.current?.focus();
+  }
+
+  /** NUEVO PRESUPUESTO: arranca de cero (también sin cliente y fuera del modo edición). */
+  function newQuote() {
+    if (busy) return;
+    const undo = hasContent || editing || customerId ? takeSnapshot() : null;
+    resetForm();
+    setRemoved(null);
+    setError(null);
+    setNotice(null);
+    setWiped(undo ? { label: editing ? `Dejaste de editar ${editing.visibleNumber}.` : "Presupuesto nuevo en blanco.", undo } : null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function resetForm() {
     setLines([]);
     setName("");
@@ -987,8 +1052,14 @@ export function LiteQuoteCreator() {
       ) : <LiteFinancing totalCents={net} plans={finPlans} listInterestBps={listInterestBps} loaded={finLoaded} onHide={() => setHideFinancing(true)} />}
       <section className="lt-col">
         <div className="lt-head">
-          <h1>{editing ? `Editando ${editing.visibleNumber}` : "Nuevo presupuesto"}</h1>
-          <p><kbd>/</kbd> busca · <kbd>Enter</kbd> agrega y vuelve al buscador · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> crea y descarga el PDF.</p>
+          <div className="lt-head-main">
+            <h1>{editing ? `Editando ${editing.visibleNumber}` : "Nuevo presupuesto"}</h1>
+            <p><kbd>/</kbd> busca · <kbd>Enter</kbd> agrega · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> crea y descarga el PDF</p>
+          </div>
+          <div className="lt-head-actions">
+            <button type="button" className="lt-btn ghost sm" onClick={clearQuote} disabled={!hasContent || Boolean(busy)} title="Borra los ítems y todo lo cargado en este presupuesto (queda el cliente)">Limpiar</button>
+            <button type="button" className="lt-btn sm" onClick={newQuote} disabled={Boolean(busy)} title="Empieza un presupuesto en blanco">Nuevo presupuesto</button>
+          </div>
         </div>
 
         {editing ? (
@@ -1000,6 +1071,12 @@ export function LiteQuoteCreator() {
         {writesElsewhere ? <div className="lt-note">Estás viendo otro local: los presupuestos nuevos se guardan en el tuyo.</div> : null}
         {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
         {notice ? <div className="lt-alert ok" role="status">{notice}</div> : null}
+        {wiped ? (
+          <div className="lt-alert undo" role="status">
+            <span>{wiped.label}</span>
+            <button type="button" className="lt-btn ghost sm" onClick={wiped.undo}>Deshacer</button>
+          </div>
+        ) : null}
         {removed ? (
           <div className="lt-alert undo" role="status">
             <span>Quitaste “{removed.line.name || "ítem"}”.</span>

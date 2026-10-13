@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-10-13",
+    title: "LITE más limpio, con Limpiar y Nuevo presupuesto",
+    items: [
+      "Interfaz de LITE más liviana: textos más chicos, bastantes menos negritas, títulos en tipografía común y sin brillos, sombras ni animaciones de salto; todo se conserva y sigue en el mismo lugar",
+      "Interruptores, financiación y barra del total más compactos; los subtítulos de los interruptores se achican en lugar de ocupar dos renglones",
+      "Botón Limpiar: vacía los ítems, productos del cliente, imagen y colecciones del presupuesto en curso y deja elegido el cliente. Se puede deshacer durante unos segundos",
+      "Botón Nuevo presupuesto: arranca en blanco (también sin cliente) y, si estabas editando uno guardado, sale de la edición. También se puede deshacer",
+      "El tema Original conserva el aspecto anterior",
+    ],
+  },
+  {
     version: "0.20.2",
     date: "2026-10-13",
     title: "LITE: ocultar la financiación",
