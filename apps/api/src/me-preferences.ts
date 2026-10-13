@@ -7,6 +7,13 @@ import {CurrentUser, type RequestUser, ZodPipe} from './infrastructure.js';
 const UI_SKINS = ['original', 'tgs', 'minimal', 'bluered', 'darkyellow', 'gamer', 'gotham', 'simplicity'] as const;
 const uiSkinSchema = z.object({skin: z.enum(UI_SKINS)}).strict();
 const DEFAULT_UI_SKIN = 'tgs';
+const litePrefsSchema = z.object({hideFinancing: z.boolean()}).strict().partial();
+type LitePrefs = {hideFinancing: boolean};
+
+function readLitePrefs(raw: unknown): LitePrefs {
+  const parsed = litePrefsSchema.safeParse(raw ?? {});
+  return {hideFinancing: parsed.success ? parsed.data.hideFinancing === true : false};
+}
 
 @Controller('me')
 export class MePreferencesController {
@@ -29,6 +36,21 @@ export class MePreferencesController {
   async putUiSkin(@Body(new ZodPipe(uiSkinSchema)) body: {skin: (typeof UI_SKINS)[number]}, @CurrentUser() user: RequestUser) {
     await db.user.update({where: {id: user.id}, data: {uiSkin: body.skin}});
     return {skin: body.skin};
+  }
+
+  /** Preferencias de la interfaz LITE (por ejemplo, ocultar la columna de financiación). */
+  @Get('lite-preferences')
+  async getLitePreferences(@CurrentUser() user: RequestUser) {
+    const row = await db.user.findUniqueOrThrow({where: {id: user.id}, select: {litePrefsJson: true}});
+    return readLitePrefs(row.litePrefsJson);
+  }
+
+  @Put('lite-preferences')
+  async putLitePreferences(@Body(new ZodPipe(litePrefsSchema)) body: Partial<LitePrefs>, @CurrentUser() user: RequestUser) {
+    const row = await db.user.findUniqueOrThrow({where: {id: user.id}, select: {litePrefsJson: true}});
+    const next = {...readLitePrefs(row.litePrefsJson), ...body};
+    await db.user.update({where: {id: user.id}, data: {litePrefsJson: next as Prisma.InputJsonValue}});
+    return next;
   }
 
   @Put('nav-preferences')

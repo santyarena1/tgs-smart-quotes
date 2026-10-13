@@ -310,6 +310,8 @@ model User {
   themePreference String?
   /// Tema visual elegido (original | tgs | minimal | bluered | gamer | simplicity). Se guarda por usuario; null = el de TGS.
   uiSkin String?
+  /// Preferencias de la interfaz LITE por usuario (hideFinancing, ...). Se guarda en su cuenta, no en el navegador.
+  litePrefsJson Json?
   /// Distribuidores de NODO que este usuario apagó para buscar. Por defecto las dos distribuidoras de demostración quedan apagadas.
   nodoOffProviders String[] @default(["prv_3A2i1P1LB6ERTmAz", "prv_jQVpXcxOxfNdphB5"])
   sessions      Session[]

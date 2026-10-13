@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-10-13",
+    title: "LITE: ocultar la financiación",
+    items: [
+      "En LITE, el ojito de la columna de Financiación la tapa y deja todo el ancho para el presupuesto; al lado del título aparece otro ojito para volver a mostrarla",
+      "La preferencia se guarda en la cuenta de cada usuario (no en el navegador), así que te acompaña en cualquier PC",
+      "Requiere migración de base de datos (columna User.litePrefsJson)",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-10-09",
     title: "Nuevo diseño y temas visuales por usuario",
