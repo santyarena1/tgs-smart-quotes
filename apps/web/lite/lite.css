@@ -1080,3 +1080,9 @@
 .lite .lt-refm-issues { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); background: color-mix(in srgb, var(--red) 8%, var(--paper)); }
 .lite .lt-refm-issues span { color: var(--red); }
 .lite .lt-refm-ok { margin: 0; font-size: 0.8rem; font-weight: 600; color: #16a34a; animation: lt-refx-fade 0.35s ease-out; }
+
+/* Financiación oculta: queda solo el ojito cerrado, en el mismo lugar de la columna */
+.lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 44px minmax(0, 1fr) 340px; }
+.lite .lt-grid:has(.lt-fin-collapsed) > .lt-side { grid-column: auto; position: sticky; }
+.lite .lt-fin.lt-fin-collapsed { height: auto; padding: 0; border: 0; background: transparent; box-shadow: none; justify-items: center; overflow: visible; animation: none; }
+@media (max-width: 960px) { .lite .lt-grid:has(.lt-fin-collapsed) { grid-template-columns: 1fr; } .lite .lt-grid:has(.lt-fin-collapsed) > .lt-side { grid-column: 1 / -1; position: static; } .lite .lt-fin.lt-fin-collapsed { justify-items: start; } }
