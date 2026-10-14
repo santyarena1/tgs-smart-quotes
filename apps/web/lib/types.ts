@@ -455,7 +455,7 @@ export type CollectionQuoteSummary = {
 export type Collection = {
   id: string;
   name: string;
-  /** Local donde se creó; null = sin local (se ve en todos). */
+  /** Local donde se creÃ³; null = sin local (se ve en todos). */
   branchId?: string | null;
   description: string | null;
   sortOrder: number;

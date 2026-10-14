@@ -871,7 +871,7 @@ model QuoteStatusEvent {
 model Collection {
   id                 String            @id @default(uuid())
   name               String
-  /// Local donde se creó: la colección solo se ve/usa ahí (null = sin local, visible en todos).
+  /// Local donde se creÃ³: la colecciÃ³n solo se ve/usa ahÃ­ (null = sin local, visible en todos).
   branchId           String?
   branch             Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   normalizedName     String            @default("")
