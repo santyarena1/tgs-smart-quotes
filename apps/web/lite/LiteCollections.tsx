@@ -50,11 +50,10 @@ export function LiteCollections() {
   const [renameDraft, setRenameDraft] = useState("");
 
   const load = useCallback(async () => {
-    if (branchId === null) return;
     setLoading(true);
     setError(null);
     try {
-      const [cols, local] = await Promise.all([api<Collection[]>("/collections"), fetchBranchQuotes(branchId)]);
+      const [cols, local] = await Promise.all([api<Collection[]>("/collections"), fetchBranchQuotes("")]);
       setCollections([...cols].sort((a, b) => a.sortOrder - b.sortOrder));
       setQuotes(new Map(local.map((q) => [q.id, q])));
     } catch (err) {
@@ -62,10 +61,10 @@ export function LiteCollections() {
     } finally {
       setLoading(false);
     }
-  }, [branchId]);
+  }, []);
   useEffect(() => { void load(); }, [load]);
 
-  /** Cada colección con solo los presupuestos del local; se ocultan las que quedan vacías. */
+  /** Colecciones del local elegido con todos sus presupuestos (igual que en la versión común); se ocultan las vacías. */
   const visible = useMemo(
     () => collections
       .filter((c) => !c.archived && (!branchId || !c.branchId || c.branchId === branchId))
@@ -213,7 +212,7 @@ export function LiteCollections() {
         <div>
         <h1>Colecciones</h1>
         <div className="lt-coll-branch">
-          <span>{branchId === "" ? "Presupuestos de todos los locales." : `Solo presupuestos de ${branchName || "tu local"}.`}</span>
+          <span>{branchId === "" ? "Colecciones de todos los locales." : `Colecciones de ${branchName || "tu local"}.`}</span>
           <select className="lt-input" value={branchId ?? ""} onChange={(e) => { setBranchId(e.target.value); setSelectedId(null); }} aria-label="Filtrar por local">
             {locked ? null : <option value="">Todos los locales</option>}
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}

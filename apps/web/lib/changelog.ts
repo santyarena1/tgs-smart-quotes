@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.10",
+    date: "2026-10-14",
+    title: "LITE y versión común ven lo mismo",
+    items: [
+      "En LITE, cada colección muestra todos sus presupuestos, igual que en la versión común, y solo se acota por el local de la colección",
+      "Los presupuestos viejos sin local quedaron asignados a LISANDRO para que no desaparezcan al filtrar por local",
+    ],
+  },
+  {
     version: "0.20.9",
     date: "2026-10-14",
     title: "Dirección correcta en el PDF",
