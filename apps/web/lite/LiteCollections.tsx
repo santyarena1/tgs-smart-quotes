@@ -68,10 +68,10 @@ export function LiteCollections() {
   /** Cada colección con solo los presupuestos del local; se ocultan las que quedan vacías. */
   const visible = useMemo(
     () => collections
-      .filter((c) => !c.archived)
+      .filter((c) => !c.archived && (!branchId || !c.branchId || c.branchId === branchId))
       .map((c) => ({ collection: c, quotes: (c.familyIds ?? []).map((id) => quotes.get(id)).filter((q): q is Quote => Boolean(q)) }))
       .filter((entry) => entry.quotes.length > 0 || fresh.has(entry.collection.id)),
-    [collections, quotes, fresh],
+    [collections, quotes, fresh, branchId],
   );
 
   const current = visible.find((entry) => entry.collection.id === selectedId) ?? visible[0] ?? null;
@@ -93,6 +93,7 @@ export function LiteCollections() {
         method: "POST",
         body: {
           name: draft.name.trim(),
+          ...(branchId ? { branchId } : {}),
           icon: draft.icon.trim() || null,
           description: draft.description.trim() || null,
           sortOrder: collections.reduce((max, c) => Math.max(max, c.sortOrder), 0) + 1,
@@ -213,7 +214,7 @@ export function LiteCollections() {
         <h1>Colecciones</h1>
         <div className="lt-coll-branch">
           <span>{branchId === "" ? "Presupuestos de todos los locales." : `Solo presupuestos de ${branchName || "tu local"}.`}</span>
-          <select className="lt-input" value={branchId ?? ""} disabled={locked} onChange={(e) => { setBranchId(e.target.value); setSelectedId(null); }} aria-label="Filtrar por local">
+          <select className="lt-input" value={branchId ?? ""} onChange={(e) => { setBranchId(e.target.value); setSelectedId(null); }} aria-label="Filtrar por local">
             {locked ? null : <option value="">Todos los locales</option>}
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>

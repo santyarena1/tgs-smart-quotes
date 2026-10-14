@@ -31,12 +31,14 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   onEdit: (quote: Quote) => void;
   onDeleted: (quote: Quote) => void;
 }) {
-  const { branches, branchId: homeBranchId, locked } = useLite();
+  const { branches, branchId: homeBranchId } = useLite();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [q, setQ] = useState("");
   const [state, setState] = useState("");
   const [pdfKind, setPdfKind] = useState("");
-  const [branchId, setBranchId] = useState("");
+  // Arranca en el local propio, pero se puede cambiar para ver presupuestos de otros locales.
+  const [branchId, setBranchId] = useState(homeBranchId ?? "");
+  useEffect(() => { if (homeBranchId) setBranchId((cur) => cur || homeBranchId); }, [homeBranchId]);
   const [collectionId, setCollectionId] = useState("");
   const [month, setMonth] = useState("");
   const [from, setFrom] = useState("");
@@ -56,20 +58,13 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
 
   const run = useCallback(async () => {
     const mine = ++seq.current;
-    if (locked && !homeBranchId) {
-      setRows([]);
-      setTotal(0);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
       const query: Record<string, string | number> = { page, pageSize: PAGE_SIZE, sort: "lastActivityAt", order: "desc" };
       if (q.trim()) query.q = q.trim();
       if (state) query.state = state;
       if (pdfKind) query.pdfKind = pdfKind;
-      const scopedBranch = locked ? homeBranchId : branchId;
-      if (scopedBranch) query.branchId = scopedBranch;
+      if (branchId) query.branchId = branchId;
       if (collectionId) query.collectionId = collectionId;
       // El mes es el atajo; un rango exacto (Más filtros) tiene prioridad.
       if (from || to) {
@@ -90,7 +85,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [q, state, pdfKind, branchId, collectionId, month, from, to, page, refreshKey, locked, homeBranchId]);
+  }, [q, state, pdfKind, branchId, collectionId, month, from, to, page, refreshKey]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void run(), 250);
@@ -98,14 +93,14 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
   }, [run]);
 
   const moreCount = [month, from, to].filter(Boolean).length;
-  const anyFilter = Boolean(q || branchId || collectionId || state || pdfKind || moreCount);
-  const clearAll = () => { setQ(""); setState(""); setPdfKind(""); setBranchId(""); setCollectionId(""); setMonth(""); setFrom(""); setTo(""); setPage(1); };
+  const anyFilter = Boolean(q || (branchId && branchId !== (homeBranchId ?? "")) || collectionId || state || pdfKind || moreCount);
+  const clearAll = () => { setQ(""); setState(""); setPdfKind(""); setBranchId(homeBranchId ?? ""); setCollectionId(""); setMonth(""); setFrom(""); setTo(""); setPage(1); };
   const branchName = branches.find((b) => b.id === branchId)?.name;
   const collName = collections.find((c) => c.id === collectionId)?.name;
   const monthLabel = month ? new Date(Number(month.slice(0, 4)), Number(month.slice(5)) - 1, 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" }) : "";
   // Etiquetas de los filtros activos, cada una se quita con un toque.
   const active: Array<[string, string, () => void]> = [];
-  if (!locked && branchId) active.push(["local", branchName ?? "Local", () => reset(setBranchId)("")]);
+  if (branchId && branchId !== (homeBranchId ?? "")) active.push(["local", branchName ?? "Local", () => reset(setBranchId)("")]);
   if (collectionId) active.push(["coll", collName ?? "Colección", () => reset(setCollectionId)("")]);
   if (state) active.push(["state", STATE_LABEL[state as QuoteState] ?? state, () => reset(setState)("")]);
   if (from || to) active.push(["range", `${from ? from.split("-").reverse().join("/") : "…"} → ${to ? to.split("-").reverse().join("/") : "…"}`, () => { setFrom(""); setTo(""); setPage(1); }]);
@@ -146,13 +141,13 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
       <h2>Presupuestos</h2>
       <input className="lt-input" value={q} onChange={(e) => reset(setQ)(e.target.value)} placeholder="Buscar número, nombre, cliente, teléfono o producto…" aria-label="Buscar presupuestos" />
       <div className="lt-quick">
-        <select className="lt-input" value={locked ? (homeBranchId ?? "") : branchId} disabled={locked} onChange={(e) => reset(setBranchId)(e.target.value)} aria-label="Local">
-          {locked ? null : <option value="">Todos los locales</option>}
-          {(locked ? branches.filter((b) => b.id === homeBranchId) : branches).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        <select className="lt-input" value={branchId} onChange={(e) => reset(setBranchId)(e.target.value)} aria-label="Local">
+          <option value="">Todos los locales</option>
+          {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
         <select className="lt-input" value={collectionId} onChange={(e) => reset(setCollectionId)(e.target.value)} aria-label="Colección">
           <option value="">Todas las colecciones</option>
-          {collections.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
+          {collections.filter((c) => !branchId || !c.branchId || c.branchId === branchId).map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
         </select>
       </div>
       <div className="lt-kinds" role="group" aria-label="Tipo de presupuesto">

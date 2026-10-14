@@ -357,7 +357,7 @@ const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate,
 });
 
 export function LiteQuoteCreator() {
-  const { writesElsewhere, hideFinancing, setHideFinancing } = useLite();
+  const { writesElsewhere, hideFinancing, setHideFinancing, branches, branchId: liteBranchId } = useLite();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [editing, setEditing] = useState<{ id: string; visibleNumber: string; observation: string | null } | null>(null);
@@ -365,6 +365,9 @@ export function LiteQuoteCreator() {
   const [lines, setLines] = useState<Line[]>([]);
   const [pcLines, setPcLines] = useState<PcLine[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
+  /** Local cuyas colecciones se muestran; por defecto el activo, "" = todos. */
+  const [collBranchOverride, setCollBranchId] = useState<string | null>(null);
+  const collBranchId = collBranchOverride ?? liteBranchId ?? "";
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [isBuiltPc, setIsBuiltPc] = useState(false);
   const [roundStep, setRoundStep] = useState("");
@@ -1128,7 +1131,11 @@ export function LiteQuoteCreator() {
           {collections.length ? (
             <div className="lt-colls lt-colls-flat" role="group" aria-label="Colecciones">
               <span className="lt-colls-title">Colecciones</span>
-              {collections.map((c) => (
+              <select className="lt-input" value={collBranchId} onChange={(e) => setCollBranchId(e.target.value)} aria-label="Colecciones de qué local">
+                <option value="">Todos los locales</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              {collections.filter((c) => !collBranchId || !c.branchId || c.branchId === collBranchId || collectionIds.includes(c.id)).map((c) => (
                 <label key={c.id} className={`lt-coll-opt${collectionIds.includes(c.id) ? " on" : ""}`}>
                   <input type="checkbox" hidden checked={collectionIds.includes(c.id)} onChange={(e) => toggleCollection(c.id, e.target.checked)} />
                   <span className="lt-coll-mark" aria-hidden="true">{collectionIds.includes(c.id) ? "✓" : "+"}</span>
