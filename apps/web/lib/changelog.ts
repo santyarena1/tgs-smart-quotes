@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.9",
+    date: "2026-10-14",
+    title: "Dirección correcta en el PDF",
+    items: [
+      "El PDF del presupuesto muestra la dirección del local de quien imprime; si no tiene local usa el del presupuesto, y ya no cae siempre en Carhue",
+    ],
+  },
+  {
     version: "0.20.7",
     date: "2026-10-14",
     title: "Colecciones por local",

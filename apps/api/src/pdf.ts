@@ -46,12 +46,24 @@ const pdfStorage = createPdfStorageFromEnv(process.env);
  * datos distintos según qué vendedor/local lo imprima. Devuelve `null` si el actor no tiene
  * local asignado (se usan los datos de la empresa como fallback en `buildRenderInput`).
  */
-async function resolvePrinterBranch(tx: any, actor: RequestUser): Promise<{id: string; address: string | null; phones: string | null} | null> {
-  if (!actor.branchId) return null;
-  return tx.branch.findUnique({
-    where: {id: actor.branchId},
-    select: {id: true, address: true, phones: true},
+async function resolvePrinterBranch(tx: any, actor: RequestUser, family?: {branchId?: string | null}): Promise<{id: string; address: string | null; phones: string | null} | null> {
+  // Sin local asignado (ej. admin) se usa el local donde se creó el presupuesto, antes que los datos de la empresa.
+  const branchId = actor.branchId ?? family?.branchId ?? null;
+  if (!branchId) return null;
+  const branch = await tx.branch.findUnique({
+    where: {id: branchId},
+    select: {id: true, name: true, address: true, phones: true},
   });
+  if (!branch) return null;
+  return {id: branch.id, address: branch.address?.trim() || knownBranchAddress(branch.name), phones: branch.phones};
+}
+
+/** Último recurso si el local no tiene dirección cargada: evita que salga la de la empresa (Carhue) en otro local. */
+function knownBranchAddress(name: string | null | undefined): string | null {
+  const n = (name ?? '').toLowerCase();
+  if (n.includes('naon')) return 'Carhue 1409, CABA';
+  if (n.includes('lisandro') || n.includes('torre')) return 'Av. Lisandro de la Torre 373, CABA';
+  return null;
 }
 
 /**
@@ -302,7 +314,7 @@ export class PdfController {
       const family = await loadFamily(tx, id);
       const version = family.versions.find((item: any) => item.version === versionNumber);
       if (!version) throw new NotFoundException('Versión inexistente');
-      const printerBranch = await resolvePrinterBranch(tx, actor);
+      const printerBranch = await resolvePrinterBranch(tx, actor, family);
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind}},
       });
@@ -381,7 +393,7 @@ export class PdfController {
     const prepared = await db.$transaction(async (tx) => {
       const family = await loadFamily(tx, id);
       const version = activeVersion(family);
-      const printerBranch = await resolvePrinterBranch(tx, actor);
+      const printerBranch = await resolvePrinterBranch(tx, actor, family);
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind: body.kind}},
       });
