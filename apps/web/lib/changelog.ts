@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.8",
+    date: "2026-10-14",
+    title: "Colecciones agrupadas por local",
+    items: [
+      "Al crear un presupuesto, las colecciones se muestran en filas por local (Naon: / Lisandro:)",
+      "La colección PUBLICIDAD OCTUBRE TGS NAON pasó al local Naon",
+    ],
+  },
+  {
     version: "0.20.7",
     date: "2026-10-14",
     title: "Colecciones por local",
