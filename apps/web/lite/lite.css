@@ -1111,3 +1111,6 @@
   .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > .lt-lines { flex: 1 1 auto; min-height: 180px; overflow-y: auto; align-content: start; }
   .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-foot { position: static; margin-top: 0; }
 }
+
+.lite .lt-colls-groups { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.7rem; }
+.lite .lt-colls-groups .lt-colls.lt-colls-flat { margin-top: 0; }

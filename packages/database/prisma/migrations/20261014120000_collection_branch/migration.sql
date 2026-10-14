@@ -7,3 +7,8 @@ UPDATE "Collection" SET "branchId" = (
 CREATE UNIQUE INDEX "Collection_branchId_name_key" ON "Collection"("branchId", "name");
 CREATE INDEX "Collection_branchId_idx" ON "Collection"("branchId");
 ALTER TABLE "Collection" ADD CONSTRAINT "Collection_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- La colección de publicidad de octubre de NAON queda en NAON.
+UPDATE "Collection" SET "branchId" = (
+  SELECT "id" FROM "Branch" WHERE "name" ILIKE '%naon%' ORDER BY "createdAt" LIMIT 1
+) WHERE "name" ILIKE '%PUBLICIDAD OCTUBRE TGS NAON%'
+  AND EXISTS (SELECT 1 FROM "Branch" WHERE "name" ILIKE '%naon%');
