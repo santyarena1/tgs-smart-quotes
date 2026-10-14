@@ -356,6 +356,7 @@ model Branch {
   employees Employee[]
   quoteFamilies QuoteFamily[]
   quotePdfs QuotePdf[]
+  collections Collection[]
 }
 
 model Session {
@@ -869,7 +870,10 @@ model QuoteStatusEvent {
 
 model Collection {
   id                 String            @id @default(uuid())
-  name               String            @unique
+  name               String
+  /// Local donde se creó: la colección solo se ve/usa ahí (null = sin local, visible en todos).
+  branchId           String?
+  branch             Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   normalizedName     String            @default("")
   description        String?
   sortOrder          Int               @default(0)
@@ -881,6 +885,8 @@ model Collection {
   updatedAt          DateTime          @default(now()) @updatedAt
   quotes             CollectionQuote[]
 
+  @@unique([branchId, name])
+  @@index([branchId])
   @@index([archived, sortOrder])
   @@index([normalizedName])
 }

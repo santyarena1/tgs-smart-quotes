@@ -1512,7 +1512,7 @@ export class CollectionsController{
   ){
     return db.$transaction(async tx=>{
       const {familyIds,...values}=body;
-      const next=await tx.collection.create({data:values});
+      const next=await tx.collection.create({data:{...values,branchId:values.branchId??actor.branchId??null}});
       await syncCollectionFamilies(tx,next.id,familyIds??[]);
       await statusEvent(tx,{
         type:'COLECCION_MODIFICADA',

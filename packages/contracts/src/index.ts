@@ -1333,6 +1333,7 @@ export const quoteReactivateSchema = z
 export const collectionCreateSchema = z
   .object({
     name: text,
+    branchId: idSchema.nullable().optional(),
     description: z.string().trim().max(1000).nullable().optional(),
     sortOrder: z.number().int().optional().default(0),
     icon: z.string().trim().max(100).nullable().optional(),
