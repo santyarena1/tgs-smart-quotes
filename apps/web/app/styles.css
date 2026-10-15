@@ -4013,3 +4013,15 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 @keyframes pb-rot { to { transform: rotate(360deg); } }
 @media (max-width: 720px) { .pb-overlay { padding: 0; } .pb-modal { height: 100vh; border-radius: 0; } .pb-head { flex-wrap: wrap; } .pb-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .pb-overlay, .pb-modal, .pb-item, .pb-item::after, .pb-ring, .pb-btn.ok, .pb-count { animation: none !important; } .pb-item, .pb-check, .pb-view-thumb { transition: none; } }
+
+/* VER TODOS: nombre y proveedor sobre cristal difuminado, para que se lean aunque la imagen sea blanca o clara */
+.pb-body { position: relative; z-index: 2; isolation: isolate; }
+.pb-name, .pb-meta, .pb-tag { position: relative; backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2); background: color-mix(in srgb, var(--paper) 72%, transparent); border-radius: 8px; padding: 0.2rem 0.5rem; width: fit-content; max-width: 100%; box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent); }
+.pb-name { color: var(--ink); text-shadow: 0 0 10px var(--paper); }
+.pb-meta { color: var(--ink-2, var(--muted)); }
+.pb-tag { color: var(--ink); gap: 0.4rem; background: color-mix(in srgb, var(--nc) 22%, color-mix(in srgb, var(--paper) 70%, transparent)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--nc) 55%, transparent); }
+.pb-tag .pb-dot, .pb-tag img { flex: none; }
+.pb-grid .pb-item { background-clip: padding-box; }
+.pb-grid .pb-body { margin-top: -2.4rem; padding: 0 0.85rem; pointer-events: none; }
+.pb-grid .pb-price-tag { position: relative; z-index: 2; }
+.pb-grid .pb-media { position: relative; }
