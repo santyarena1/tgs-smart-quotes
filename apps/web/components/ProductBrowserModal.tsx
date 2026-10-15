@@ -38,7 +38,7 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 
 function Initial({ item }: { item: BrowserItem }) {
   return (
-    <span className="pb-initial" style={{ background: item.color }} aria-hidden="true">
+    <span className="pb-initial" style={{ "--nc": item.color } as React.CSSProperties} aria-hidden="true">
       {item.name.trim().charAt(0).toUpperCase() || "?"}
     </span>
   );
