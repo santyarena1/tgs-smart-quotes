@@ -2750,6 +2750,7 @@ export function QuotesView({
                   items={browserItems}
                   loading={nodo.loading || web.loading || catalogPickerLoading}
                   query={pickerQuery}
+                  sourceBar={<SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />}
                   single={Boolean(pickingLineId || replaceItemKey)}
                   onConfirm={addBrowserPicks}
                   onClose={() => setBrowserOpen(false)}
