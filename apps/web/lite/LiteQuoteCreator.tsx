@@ -1192,7 +1192,7 @@ export function LiteQuoteCreator() {
 
           <SourceBar providers={providers} sel={sel} error={providersError} />
           {browserOpen ? (
-            <ProductBrowserModal items={browserItems} loading={nodo.loading || web.loading} query={query} onConfirm={addPicked} onClose={() => setBrowserOpen(false)} />
+            <ProductBrowserModal items={browserItems} loading={nodo.loading || web.loading} query={query} sourceBar={<SourceBar providers={providers} sel={sel} error={providersError} />} onConfirm={addPicked} onClose={() => setBrowserOpen(false)} />
           ) : null}
           <div className="lt-search">
             <input
