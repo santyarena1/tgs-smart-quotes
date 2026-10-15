@@ -3937,8 +3937,11 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .pb-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.65rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--nc) 45%, var(--line)); background: var(--paper); color: var(--ink); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: transform 160ms, background 160ms, box-shadow 160ms; }
 .pb-chip:hover { transform: translateY(-1px); }
 .pb-chip b { font-size: 0.7rem; padding: 1px 6px; border-radius: 999px; background: var(--canvas); color: var(--muted); }
-.pb-chip.on { background: var(--nc); border-color: var(--nc); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--nc) 45%, transparent); }
-.pb-chip.on b { background: rgba(255,255,255,.25); color: #fff; }
+.pb-chip.on { background: var(--nc); border-color: var(--nc); color: var(--nt, #fff); box-shadow: 0 4px 14px color-mix(in srgb, var(--nc) 45%, transparent); }
+.pb-chip.on b { background: rgba(255,255,255,.25); color: inherit; }
+.pb-sources { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.pb-sources .src-bar { margin: 0; flex: 1; align-items: center; }
+.pb-sources-label { flex: none; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
 .pb-chip img { border-radius: 4px; object-fit: contain; background: #fff; }
 .pb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nc, var(--red)); display: inline-block; }
 .pb-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem 1.2rem 1.4rem; background: var(--canvas); }

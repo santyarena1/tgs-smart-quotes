@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { formatArs } from "../lib/money";
+import { textOn } from "./SourceBar";
 
 /** Un producto de cualquier fuente (propios, AcuStock, web o distribuidor) en el formato que muestra el modal. */
 export type BrowserItem<T = unknown> = {
@@ -63,12 +64,14 @@ function stockText(item: BrowserItem): string | null {
  * Explorador grande de resultados: tarjetas o lista, filtros por fuente, orden y precio, y selección múltiple
  * con tilde verde. Al confirmar devuelve los elegidos para que se carguen al presupuesto.
  */
-export function ProductBrowserModal<T>({ items, loading, query, single, onConfirm, onClose }: {
+export function ProductBrowserModal<T>({ items, loading, query, single, sourceBar, onConfirm, onClose }: {
   items: BrowserItem<T>[];
   loading: boolean;
   query: string;
   /** Con true solo se puede elegir un producto (ej.: reemplazar el de una línea). */
   single?: boolean;
+  /** Barra para prender o apagar fuentes y distribuidores sin salir del modal (la búsqueda se rehace sola). */
+  sourceBar?: ReactNode;
   onConfirm: (picked: BrowserItem<T>[]) => void;
   onClose: () => void;
 }) {
@@ -186,6 +189,12 @@ export function ProductBrowserModal<T>({ items, loading, query, single, onConfir
         </header>
 
         <div className="pb-filters">
+          {sourceBar ? (
+            <div className="pb-sources">
+              <span className="pb-sources-label">Buscar en</span>
+              {sourceBar}
+            </div>
+          ) : null}
           <div className="pb-row">
             <input className="pb-text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Filtrar por nombre, SKU o marca…" aria-label="Filtrar resultados" />
             <label className="pb-field">
@@ -212,7 +221,7 @@ export function ProductBrowserModal<T>({ items, loading, query, single, onConfir
                   key={s.name}
                   type="button"
                   className={`pb-chip${sources.has(s.name) ? " on" : ""}`}
-                  style={{ "--nc": s.color } as React.CSSProperties}
+                  style={{ "--nc": s.color, "--nt": textOn(s.color) } as React.CSSProperties}
                   onClick={() => toggleSource(s.name)}
                   aria-pressed={sources.has(s.name)}
                 >
