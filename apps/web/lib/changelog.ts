@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.0",
+    date: "2026-10-15",
+    title: "VER TODOS en el buscador de productos",
+    items: [
+      "Arriba de los resultados del buscador hay un botón VER TODOS que abre un modal grande con todos los productos (propios, web y distribuidores) en tarjetas con imagen, o en lista",
+      "El modal tiene filtros por proveedor, solo con stock, rango de precio y búsqueda, y orden por precio, nombre o stock",
+      "Los productos se marcan con tilde y aura verde; Confirmar los carga todos juntos al presupuesto. Funciona en LITE y en la versión común",
+    ],
+  },
+  {
     version: "0.20.10",
     date: "2026-10-14",
     title: "LITE y versión común ven lo mismo",

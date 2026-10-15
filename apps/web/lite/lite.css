@@ -1115,3 +1115,6 @@
 
 .lite .lt-colls-groups { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.7rem; }
 .lite .lt-colls-groups .lt-colls.lt-colls-flat { margin-top: 0; }
+
+.lite .lt-results li.pb-all { padding: 0; display: block; position: sticky; top: -4px; z-index: 1; margin: -4px -4px 4px; }
+.lite .lt-results li.pb-all .pb-viewall { border-radius: var(--lt-r) var(--lt-r) 0 0; padding: 0.65rem; }

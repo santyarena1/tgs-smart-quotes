@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { bpsToPct, centsToInput, formatArs, lineTotalCents, parseArsToCents, roundCentsToPesosStep, saleFromCostAndPct } from "../lib/money";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoProvider, type NodoResult, type SourceSelection, type WebResult } from "../lib/nodo";
 import { SourceBar } from "../components/SourceBar";
+import { ProductBrowserModal, type BrowserItem } from "../components/ProductBrowserModal";
 import { OriginTag, type ItemSource } from "../components/OriginTag";
 import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
 import swapIcon from "./icons/swap.png";
@@ -196,6 +197,8 @@ function NodoNotes({ loading, error, query, hasOther }: { loading: boolean; erro
     </>
   );
 }
+
+type BPick = { kind: "own"; p: Product } | { kind: "web"; w: WebResult } | { kind: "nodo"; r: NodoResult };
 
 function SlotPicker({ products, preferLineId, providers, sel, onPick, onPickNodo, onPickWeb, onCreate }: {
   products: Product[];
@@ -524,13 +527,26 @@ export function LiteQuoteCreator() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const results = useMemo(() => {
+  const allResults = useMemo(() => {
     const tokens = norm(query).split(/\s+/).filter(Boolean);
-    const pool = tokens.length
+    return tokens.length
       ? products.filter((p) => { const n = norm(p.name); return tokens.every((t) => n.includes(t)); })
       : [...products].sort((a, b) => (b.lastUsedAt ?? "").localeCompare(a.lastUsedAt ?? ""));
-    return pool.slice(0, 7);
   }, [products, query]);
+  const results = useMemo(() => allResults.slice(0, 7), [allResults]);
+  const [browserOpen, setBrowserOpen] = useState(false);
+  /** Todo lo que devolvieron las fuentes prendidas, en el formato del modal VER TODOS. */
+  const browserItems = useMemo<BrowserItem<BPick>[]>(() => [
+    ...(sel.own ? allResults.map((p): BrowserItem<BPick> => ({
+      key: `own-${p.id}`, source: "Propios", color: "#64748b", name: p.name, priceCents: p.salePriceCents, priceLabel: "precio de venta", raw: { kind: "own", p },
+    })) : []),
+    ...web.items.map((w): BrowserItem<BPick> => ({
+      key: `web-${w.id}`, source: "Web", color: WEB_COLOR, logo: WEB_LOGO, name: w.name, sku: w.sku, imageUrl: w.imageUrl, inStock: w.inStock, priceCents: w.priceCents, priceLabel: "precio de venta", raw: { kind: "web", w },
+    })),
+    ...nodo.items.map((r): BrowserItem<BPick> => ({
+      key: `nodo-${r.offerId}`, source: r.providerName, color: providerColor(providers, r.providerId), logo: providerLogo(r.providerName), name: r.name, sku: r.sku, brand: r.brand, imageUrl: r.imageUrl, stock: r.stock, inStock: r.inStock, stale: r.stale, priceCents: r.costIvaCents, priceLabel: "costo + IVA", raw: { kind: "nodo", r },
+    })),
+  ], [sel.own, allResults, web.items, nodo.items, providers]);
   useEffect(() => setActive(0), [query]);
   const ownHits = useMemo(() => (sel.own ? results : []), [sel.own, results]);
   const entries = useMemo(
@@ -681,6 +697,20 @@ export function LiteQuoteCreator() {
     setQuery("");
     setSearchOpen(false);
     setNotice(`“${r.name}” agregado desde ${r.providerName}: costo + IVA ${formatArs(r.costIvaCents)}.`);
+  }
+
+  /** Confirmar en VER TODOS: carga al presupuesto todos los productos elegidos, de cualquier fuente. */
+  function addPicked(picked: BrowserItem<BPick>[]) {
+    const fresh: Line[] = picked.map(({ raw }) =>
+      raw.kind === "own" ? lineFromProduct(raw.p, "")
+        : raw.kind === "web" ? lineFromWeb(raw.w)
+        : lineFromNodo(raw.r, "", providerColor(providers, raw.r.providerId)));
+    setLines((current) => [...current, ...fresh]);
+    fresh.forEach(suggestIvaFor);
+    setQuery("");
+    setSearchOpen(false);
+    setBrowserOpen(false);
+    setNotice(fresh.length === 1 ? `“${fresh[0]?.name}” agregado al presupuesto.` : `${fresh.length} productos agregados al presupuesto.`);
   }
 
   function startCreate(name: string, lineId = "") {
@@ -1161,6 +1191,9 @@ export function LiteQuoteCreator() {
           ) : null}
 
           <SourceBar providers={providers} sel={sel} error={providersError} />
+          {browserOpen ? (
+            <ProductBrowserModal items={browserItems} loading={nodo.loading || web.loading} query={query} onConfirm={addPicked} onClose={() => setBrowserOpen(false)} />
+          ) : null}
           <div className="lt-search">
             <input
               ref={searchRef}
@@ -1177,6 +1210,9 @@ export function LiteQuoteCreator() {
             />
             {!isBuiltPc && searchOpen && (query.trim() || ownHits.length) ? (
               <ul className="lt-results" role="listbox">
+                <li className="pb-all" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); setBrowserOpen(true); }}>
+                  <span className="pb-viewall">⊞ VER TODOS</span>
+                </li>
                 {entries.map((en, i) => en.kind === "own" ? (
                   <li
                     key={en.p.id}
