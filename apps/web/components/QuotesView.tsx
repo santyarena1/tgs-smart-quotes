@@ -39,6 +39,7 @@ import type {
 import { useSuite } from "./SuiteContext";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
+import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
 import { OriginTag, type ItemSource } from "./OriginTag";
 import { CustomerEditorModal } from "./CustomerEditorModal";
 import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
@@ -97,6 +98,12 @@ type CatalogPickerItem = {
   productType: string | null;
   imageUrl: string | null;
 };
+
+type BrowserPick =
+  | { kind: "own"; p: Product }
+  | { kind: "catalog"; c: CatalogPickerItem }
+  | { kind: "web"; w: WebResult }
+  | { kind: "nodo"; r: NodoResult };
 
 type CatalogPickerResponse = {
   items: CatalogPickerItem[];
@@ -596,6 +603,7 @@ export function QuotesView({
   useEffect(() => {
     if (!pickerOpen) return;
     const onClick = (e: MouseEvent) => {
+      if ((e.target as Element).closest?.(".pb-overlay")) return;
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setPickerOpen(false);
         setPickingLineId(null);
@@ -1463,6 +1471,42 @@ export function QuotesView({
     if (!q) return [];
     return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
   }, [pickerQuery, products, pickingLineId]);
+
+  const [browserOpen, setBrowserOpen] = useState(false);
+  /** Todo lo que devolvieron las fuentes prendidas, en el formato del modal VER TODOS. */
+  const browserItems = useMemo<BrowserItem<BrowserPick>[]>(() => {
+    const q = pickerQuery.trim().toLowerCase();
+    const own = sel.own ? (q ? products.filter((p) => p.name.toLowerCase().includes(q)) : pickerMatches) : [];
+    return [
+      ...own.map((p): BrowserItem<BrowserPick> => ({
+        key: `own-${p.id}`, source: "Propios", color: "#64748b", name: p.name, priceCents: p.salePriceCents, priceLabel: "precio de venta", raw: { kind: "own", p },
+      })),
+      ...(sel.own ? catalogPickerMatches : []).map((c): BrowserItem<BrowserPick> => ({
+        key: `cat-${c.mpn}`, source: "AcuStock", color: "#0ea5e9", name: c.title, sku: c.mpn, brand: c.brand, imageUrl: c.imageUrl, stock: c.stockQuantity, priceCents: c.priceCents, priceLabel: "costo", raw: { kind: "catalog", c },
+      })),
+      ...(webWanted ? web.items : []).map((w): BrowserItem<BrowserPick> => ({
+        key: `web-${w.id}`, source: "Web", color: WEB_COLOR, logo: WEB_LOGO, name: w.name, sku: w.sku, imageUrl: w.imageUrl, inStock: w.inStock, priceCents: w.priceCents, priceLabel: "precio de venta", raw: { kind: "web", w },
+      })),
+      ...(nodoWanted ? nodo.items : []).map((r): BrowserItem<BrowserPick> => ({
+        key: `nodo-${r.offerId}`, source: r.providerName, color: providerColor(nodoProviders, r.providerId), logo: providerLogo(r.providerName), name: r.name, sku: r.sku, brand: r.brand, imageUrl: r.imageUrl, stock: r.stock, inStock: r.inStock, stale: r.stale, priceCents: r.costIvaCents, priceLabel: "costo + IVA", raw: { kind: "nodo", r },
+      })),
+    ];
+  }, [pickerQuery, products, pickerMatches, sel.own, catalogPickerMatches, webWanted, web.items, nodoWanted, nodo.items, nodoProviders]);
+
+  function addBrowserPicks(picked: BrowserItem<BrowserPick>[]) {
+    setBrowserOpen(false);
+    for (const { raw } of picked) {
+      if (raw.kind === "own") {
+        if (pickingLineId) assignProductToLine(raw.p, pickingLineId, replaceItemKey);
+        else addItem(itemFromProduct(raw.p));
+      } else if (raw.kind === "catalog") addCatalogItem(raw.c);
+      else if (raw.kind === "web") addWebItem(raw.w);
+      else addNodoItem(raw.r);
+    }
+    setPickerQuery("");
+    setPickerOpen(false);
+    setNotice(picked.length === 1 ? `“${picked[0]?.name}” agregado al presupuesto.` : `${picked.length} productos agregados al presupuesto.`);
+  }
 
   const pickerComboMatches = useMemo(() => {
     if (pickingLineId) return [];
@@ -2701,6 +2745,16 @@ export function QuotesView({
             </Alert>
           ) : (
             <div className="picker" ref={pickerRef}>
+              {browserOpen ? (
+                <ProductBrowserModal
+                  items={browserItems}
+                  loading={nodo.loading || web.loading || catalogPickerLoading}
+                  query={pickerQuery}
+                  single={Boolean(pickingLineId || replaceItemKey)}
+                  onConfirm={addBrowserPicks}
+                  onClose={() => setBrowserOpen(false)}
+                />
+              ) : null}
               <SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />
               <div className="picker-input">
                 <div className="search">
@@ -2757,6 +2811,9 @@ export function QuotesView({
 
               {pickerOpen && ((sel.own && (pickerQuery.trim() || pickingLineId)) || nodoWanted || webWanted) ? (
                 <div className="picker-stack">
+                  <button type="button" className="pb-viewall" onMouseDown={(e) => e.preventDefault()} onClick={() => setBrowserOpen(true)}>
+                    ⊞ VER TODOS
+                  </button>
                   {webWanted ? (
                     <div className="picker-results nodo-results" role="listbox">
                       <div className="picker-section">
