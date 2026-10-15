@@ -3949,12 +3949,12 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .pb-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-2, var(--line)); border-top-color: var(--red); animation: pb-rot 700ms linear infinite; }
 .pb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; }
 .pb-list { display: grid; gap: 0.5rem; }
-.pb-item { --nc: var(--red); position: relative; text-align: left; font: inherit; color: var(--ink); cursor: pointer; background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r, 12px); overflow: hidden; transition: transform 220ms cubic-bezier(.2,.9,.3,1.2), box-shadow 220ms, border-color 200ms; animation: pb-rise 420ms cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i) * 28ms); }
+.pb-item { --nc: var(--red); position: relative; text-align: left; font: inherit; color: var(--ink); cursor: pointer; background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r, 12px); overflow: hidden; transition: transform 220ms cubic-bezier(.2,.9,.3,1.2), box-shadow 220ms, border-color 200ms; animation: pb-rise 420ms cubic-bezier(.2,.9,.3,1) backwards; animation-delay: calc(var(--i) * 28ms); }
 .pb-item::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--nc); }
 .pb-item:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,.14); border-color: color-mix(in srgb, var(--nc) 55%, var(--line)); }
 .pb-item:active { transform: scale(.985); }
 .pb-item.nostock { opacity: .62; }
-.pb-item.picked { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, var(--paper)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 32%, transparent), 0 0 28px color-mix(in srgb, var(--ok) 55%, transparent); animation: pb-rise 420ms cubic-bezier(.2,.9,.3,1) both, pb-select 520ms cubic-bezier(.3,1.6,.5,1) both, pb-aura 2.2s ease-in-out 520ms infinite; animation-delay: calc(var(--i) * 28ms), 0s, 0s; }
+.pb-item.picked { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, var(--paper)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 32%, transparent), 0 0 28px color-mix(in srgb, var(--ok) 55%, transparent); animation: pb-rise 420ms cubic-bezier(.2,.9,.3,1) backwards, pb-select 520ms cubic-bezier(.3,1.6,.5,1) backwards, pb-aura 2.2s ease-in-out 520ms infinite; animation-delay: calc(var(--i) * 28ms), 0s, 0s; }
 .pb-item::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--ok) 38%, transparent) 50%, transparent 65%); transform: translateX(-120%); opacity: 0; }
 .pb-item.picked::after { animation: pb-shine 900ms ease-out 80ms both; }
 .pb-check { position: absolute; top: 8px; right: 8px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; color: #fff; transform: scale(0) rotate(-120deg); opacity: 0; transition: transform 420ms cubic-bezier(.3,1.8,.5,1), opacity 150ms; filter: drop-shadow(0 3px 8px color-mix(in srgb, var(--ok) 70%, transparent)); }
@@ -4025,3 +4025,19 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .pb-grid .pb-body { margin-top: -2.4rem; padding: 0 0.85rem; pointer-events: none; }
 .pb-grid .pb-price-tag { position: relative; z-index: 2; }
 .pb-grid .pb-media { position: relative; }
+
+/* VER TODOS: hover — antes la animación de entrada dejaba la tarjeta con transform fijo y el hover casi no se notaba */
+.pb-item { will-change: transform; }
+.pb-item:not(.picked):hover { transform: translateY(-5px) scale(1.015); border-color: var(--nc); box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--nc) 55%, transparent), 0 4px 10px rgba(0,0,0,.10); }
+.pb-item:not(.picked):hover::before { width: 6px; }
+.pb-item::before { transition: width 220ms cubic-bezier(.3,1.4,.5,1); }
+.pb-item:not(.picked):hover::after { animation: pb-sheen 700ms ease-out both; background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.28) 50%, transparent 62%); }
+.pb-item:not(.picked):hover .pb-price-tag { color: var(--nc); }
+.pb-price-tag { transition: color 200ms, transform 240ms cubic-bezier(.3,1.4,.5,1); }
+.pb-item:hover .pb-price-tag { transform: translateX(-2px); }
+.pb-item:not(.picked):hover .pb-check { transform: scale(.55); opacity: .45; }
+.pb-item:not(.picked):hover .pb-check circle { stroke-dashoffset: 0; fill: color-mix(in srgb, var(--ok) 35%, transparent); }
+.pb-list .pb-item:not(.picked):hover { transform: translateX(6px); }
+.pb-grid .pb-item:hover .pb-img { transform: scale(1.06); }
+@keyframes pb-sheen { 0% { transform: translateX(-120%); opacity: 1; } 100% { transform: translateX(120%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pb-item:not(.picked):hover { transform: none; } }
