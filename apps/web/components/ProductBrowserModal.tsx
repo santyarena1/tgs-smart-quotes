@@ -253,7 +253,9 @@ export function ProductBrowserModal<T>({ items, loading, query, single, sourceBa
                   aria-pressed={on}
                 >
                   <span className="pb-check" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                    <i className="pb-ring" />
+                    <i className="pb-ring r2" />
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" /><path d="M9.5 16.5l4.6 4.6L22.5 11.5" /></svg>
                   </span>
                   <span className="pb-media"><Thumb item={it} /></span>
                   <span className="pb-body">
