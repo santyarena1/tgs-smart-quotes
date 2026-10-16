@@ -2,7 +2,7 @@ import {Controller, Get, Query} from '@nestjs/common';
 import {db, Prisma} from '@tgs/database';
 import {quoteSearchSchema, type QuoteSearchInput} from '@tgs/contracts';
 import {normalizePhone, normalizeText} from '@tgs/validation';
-import {activeBundle, quoteInclude} from './quotes.js';
+import {activeBundle, quoteSearchInclude} from './quotes.js';
 import {jsonSafe, ZodPipe} from './infrastructure.js';
 
 /**
@@ -33,7 +33,7 @@ export class QuoteSearchController {
 
     const rows = await db.quoteFamily.findMany({
       where,
-      include: quoteInclude,
+      include: quoteSearchInclude,
       orderBy: [{updatedAt: 'desc'}, {id: 'asc'}],
     });
 

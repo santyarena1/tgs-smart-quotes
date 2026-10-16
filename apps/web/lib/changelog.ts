@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.1",
+    date: "2026-10-16",
+    title: "Presupuestos completos: más rápidos y sin tapar botones",
+    items: [
+      "Al filtrar o recargar la lista ya no se vuelven a pedir todos los catálogos, y abrir un presupuesto muestra el editor al toque (similares y habituales cargan atrás)",
+      "Los botones de Guardar / Formal / Detallado / Cerrar quedaron fijos abajo: el globo de la imagen de referencia y el scroll ya no los tapan",
+      "VER TODOS no pinta las tarjetas de rojo al pasar el mouse, la tabla de ítems entra en el cajón, y en el celular no se duplica el total ni la cinta tapa el local",
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-10-15",
     title: "VER TODOS en el buscador de productos",

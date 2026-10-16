@@ -1476,7 +1476,7 @@ details > * {
   width: min(1480px, 98vw);
   max-height: 100%;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   background: var(--canvas-2);
   box-shadow: var(--sh-3);
   animation: slide-in 240ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
@@ -1489,6 +1489,7 @@ details > * {
 }
 
 .drawer-head {
+  flex: none;
   background: var(--paper);
   padding: 1rem 1.4rem;
 }
@@ -1506,14 +1507,18 @@ details > * {
 }
 
 .drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   padding: 1.2rem 1.6rem;
   display: grid;
   gap: 1rem;
 }
 
 .drawer-foot {
-  position: sticky;
-  bottom: 0;
+  position: static;
+  flex: none;
+  z-index: 2;
   margin-top: auto;
   display: flex;
   gap: 0.55rem;
@@ -1757,8 +1762,8 @@ details > * {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .picker-option .po-price {
@@ -1791,23 +1796,25 @@ details > * {
 
 /* ————— Items table (quotes) ————— */
 .items-table {
-  min-width: 980px;
-  table-layout: auto;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .items-table th.right,
 .items-table td.right {
   text-align: right;
+  width: 7.2rem;
 }
 
 .items-table td.actions {
-  width: 1%;
-  white-space: nowrap;
+  width: 11rem;
+  white-space: normal;
 }
 
 .items-table td.item-name-cell {
-  min-width: 280px;
-  width: 42%;
+  min-width: 0;
+  width: auto;
 }
 
 .items-table .cell-strong {
@@ -1822,21 +1829,21 @@ details > * {
 }
 
 .items-table .name-input {
-  min-width: 260px;
+  min-width: 0;
   width: 100%;
 }
 
-.items-table .qty-input {
-  width: 5.2rem;
+.items-table .qty-input,
+.items-table .money-input,
+.items-table .pct-input,
+.items-table .iva-select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.items-table .money-input {
-  width: 8.2rem;
-  text-align: right;
-}
-
+.items-table .money-input,
 .items-table .pct-input {
-  width: 6.4rem;
   text-align: right;
 }
 
@@ -2052,6 +2059,7 @@ details > * {
 
 .item-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   justify-content: flex-end;
 }
@@ -2760,7 +2768,7 @@ tr.editing {
     grid-template-columns: 1fr 1fr;
   }
   .totals-bar {
-    grid-template-columns: 1fr 1fr;
+    display: none;
   }
 
   .desktop-list,
@@ -2844,7 +2852,6 @@ tr.editing {
     grid-template-columns: 1fr;
   }
   .stat-strip { grid-template-columns: 1fr; }
-  .totals-bar { grid-template-columns: 1fr; }
   .mobile-product-prices { grid-template-columns: 1fr 1fr; }
   .mobile-card-actions button { flex: 1 1 calc(50% - 0.45rem); }
 }
@@ -3824,7 +3831,7 @@ select option { font-weight: 500; }
 /* La ventana y el globo de la imagen de referencia reutilizan los de Lite: este contenedor los aísla del resto de la página. */
 .lite.lt-embed { min-height: 0; background: transparent; display: contents; }
 .lite.lt-embed .lt-modal { z-index: 150; }
-.lite.lt-embed .lt-refb { z-index: 140; bottom: 1.2rem; }
+.lite.lt-embed .lt-refb { z-index: 55; bottom: 5.4rem; }
 
 .iva-select { min-width: 5.2rem; }
 .items-table .iva-auto { border-bottom: 1px dashed color-mix(in srgb, var(--ink) 35%, transparent); cursor: help; }
@@ -3848,7 +3855,7 @@ select option { font-weight: 500; }
 @keyframes qref-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, #16a34a 45%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
 
 /* Tipos de PDF: Normal rojo, Detallado amarillo, Formal azul */
-.qkind-filter { display: inline-flex; gap: 0.3rem; align-items: center; }
+.qkind-filter { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; max-width: 100%; }
 .qkind { --k: #dc2626; padding: 0.3rem 0.7rem; border: 1px solid color-mix(in srgb, var(--k) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--k); font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: background 0.15s, color 0.15s; }
 .qkind.detallado { --k: #b45309; }
 .qkind.formal { --k: #1d4ed8; }
@@ -3870,7 +3877,7 @@ tr.quote-row-main.qk-SIMPLE { --k: #dc2626; }
 tr.quote-row-main.qk-DETALLADO { --k: #eab308; }
 tr.quote-row-main.qk-FORMAL { --k: #1d4ed8; }
 tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transparent); }
-.mobile-list-card.qk-card { --k: #dc2626; position: relative; overflow: hidden; border-left: 3px solid var(--k); }
+.mobile-list-card.qk-card { --k: #dc2626; position: relative; overflow: hidden; border-left: 3px solid var(--k); padding-right: 3.4rem; }
 .mobile-list-card.qk-DETALLADO { --k: #eab308; --k-ink: #422006; }
 .mobile-list-card.qk-FORMAL { --k: #1d4ed8; }
 .qk-ribbon { position: absolute; top: 15px; right: -38px; width: 128px; padding: 2px 0; transform: rotate(45deg); background: var(--k); color: var(--k-ink, #fff); text-align: center; font-size: 0.57rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.3; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22); pointer-events: none; user-select: none; }
@@ -4041,3 +4048,16 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .pb-grid .pb-item:hover .pb-img { transform: scale(1.06); }
 @keyframes pb-sheen { 0% { transform: translateX(-120%); opacity: 1; } 100% { transform: translateX(120%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pb-item:not(.picked):hover { transform: none; } }
+
+/* VER TODOS: el `button:hover` global pinta de rojo; estos selectores ganan por especificidad. */
+.pb-item:hover:not(:disabled) { background: var(--paper); color: var(--ink); }
+.pb-item.picked:hover:not(:disabled) { background: color-mix(in srgb, var(--ok) 9%, var(--paper)); color: var(--ink); }
+.pb-x:hover:not(:disabled) { background: var(--canvas); color: var(--ink-2, var(--ink)); }
+.pb-view button:hover:not(:disabled) { background: transparent; color: var(--muted); }
+.pb-view button.on:hover:not(:disabled) { background: transparent; color: var(--ink); }
+.pb-toggle:hover:not(:disabled) { background: var(--paper); color: var(--ink); }
+.pb-link:hover:not(:disabled) { background: transparent; color: var(--red); }
+.pb-chip:hover:not(:disabled) { background: var(--paper); color: var(--ink); }
+.pb-chip.on:hover:not(:disabled) { background: var(--nc); color: var(--nt, #fff); }
+.pb-btn.ghost:hover:not(:disabled) { background: var(--canvas); color: var(--ink); }
+.pb-viewall:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 16%, var(--paper)); color: var(--red); }

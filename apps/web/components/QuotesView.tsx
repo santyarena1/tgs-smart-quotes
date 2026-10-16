@@ -457,6 +457,7 @@ export function QuotesView({
       sampleSize: number;
     }[]
   >([]);
+  const [sideLoading, setSideLoading] = useState(false);
   const [openedAsNewVersion, setOpenedAsNewVersion] = useState(false);
   const [versionEditQuote, setVersionEditQuote] = useState<Quote | null>(null);
   const [versionReason, setVersionReason] = useState("");
@@ -536,63 +537,83 @@ export function QuotesView({
     setSort("created-desc");
   }
 
+  const catalogsReadyRef = useRef(false);
+  const sideSeqRef = useRef(0);
+
+  const loadCatalogs = useCallback(async () => {
+    const [custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
+      api<Customer[]>("/customers").catch(() => [] as Customer[]),
+      api<Product[]>("/products").catch(() => [] as Product[]),
+      api<QuoteRequest[]>("/requests").catch(() => [] as QuoteRequest[]),
+      api<Collection[]>("/collections").catch(() => [] as Collection[]),
+      api<Combo[]>("/combos").catch(() => [] as Combo[]),
+      api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
+      api<{ items: { id: string; name: string }[] }>("/branches").catch(() => ({ items: [] })),
+    ]);
+    setCustomers(custs);
+    setProducts(prods.filter((p) => p.active));
+    setCombos(comboRows.filter((c) => c.active && c.items.length > 0));
+    setPcLines([...lines].filter((l) => l.active).sort((a, b) => a.sortOrder - b.sortOrder));
+    setRequests(reqs);
+    setCollections(cols.filter((c) => !c.archived));
+    setBranches(branchRows.items ?? []);
+    catalogsReadyRef.current = true;
+  }, []);
+
+  const loadQuotes = useCallback(async () => {
+    const familyIds = familyFilterKey ? familyFilterKey.split(",").filter(Boolean) : [];
+    const quotesPayload = embedded || familyFilterKey
+      ? familyIds.length
+        ? await Promise.all(familyIds.map((id) => api<Quote>(`/quotes/${id}`).catch(() => null))).then(
+            (rows) => rows.filter((row): row is Quote => Boolean(row)),
+          )
+        : ([] as Quote[])
+      : await api<{ items: Quote[] } | Quote[]>("/quotes/search", {
+          query: {
+            q: filter.trim() || undefined,
+            state: stateFilter || undefined,
+            branchId: branchFilter || undefined,
+            pdfKind: kindFilter || undefined,
+            page: 1,
+            pageSize: 100,
+            sort: "lastActivityAt",
+            order: "desc",
+          },
+        });
+    const quotes = Array.isArray(quotesPayload) ? quotesPayload : (quotesPayload.items ?? []);
+    setList(quotes);
+  }, [embedded, familyFilterKey, familyFilterKey || embedded ? "" : filter, familyFilterKey || embedded ? "" : stateFilter, familyFilterKey || embedded ? "" : branchFilter, familyFilterKey || embedded ? "" : kindFilter]);
+
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const familyIds = familyFilterKey ? familyFilterKey.split(",").filter(Boolean) : [];
-      const [quotesPayload, custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
-        embedded || familyFilterKey
-          ? familyIds.length
-            ? Promise.all(familyIds.map((id) => api<Quote>(`/quotes/${id}`).catch(() => null))).then(
-                (rows) => rows.filter((row): row is Quote => Boolean(row)),
-              )
-            : Promise.resolve([] as Quote[])
-          : api<{ items: Quote[] } | Quote[]>("/quotes/search", {
-              query: {
-                q: filter.trim() || undefined,
-                state: stateFilter || undefined,
-                branchId: branchFilter || undefined,
-                page: 1,
-                pageSize: 100,
-                sort: "lastActivityAt",
-                order: "desc",
-              },
-            }),
-        api<Customer[]>("/customers").catch(() => [] as Customer[]),
-        api<Product[]>("/products").catch(() => [] as Product[]),
-        api<QuoteRequest[]>("/requests").catch(() => [] as QuoteRequest[]),
-        api<Collection[]>("/collections").catch(() => [] as Collection[]),
-        api<Combo[]>("/combos").catch(() => [] as Combo[]),
-        api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
-        api<{ items: { id: string; name: string }[] }>("/branches").catch(() => ({ items: [] })),
-      ]);
-      const quotes = Array.isArray(quotesPayload)
-        ? quotesPayload
-        : (quotesPayload.items ?? []);
-      setList(quotes);
-      setCustomers(custs);
-      setProducts(prods.filter((p) => p.active));
-      setCombos(comboRows.filter((c) => c.active && c.items.length > 0));
-      setPcLines([...lines].filter((l) => l.active).sort((a, b) => a.sortOrder - b.sortOrder));
-      setRequests(reqs);
-      setCollections(cols.filter((c) => !c.archived));
-      setBranches(branchRows.items ?? []);
+      await Promise.all([loadCatalogs(), loadQuotes()]);
     } catch (err) {
       setError(errorMessage(err));
       setList([]);
     } finally {
       setLoading(false);
     }
-  }, [embedded, familyFilterKey, familyFilterKey || embedded ? "" : filter, familyFilterKey || embedded ? "" : stateFilter, familyFilterKey || embedded ? "" : branchFilter]);
+  }, [loadCatalogs, loadQuotes]);
+
+  const refreshQuotes = useCallback(async () => {
+    setError(null);
+    try {
+      await loadQuotes();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }, [loadQuotes]);
 
   useEffect(() => {
     if (!filtersReady) return;
     const handle = window.setTimeout(() => {
-      void loadList();
+      if (!catalogsReadyRef.current) void loadList();
+      else void refreshQuotes();
     }, 250);
     return () => window.clearTimeout(handle);
-  }, [loadList, filtersReady]);
+  }, [loadList, refreshQuotes, filtersReady]);
 
   useEffect(() => {
     if (!initialSelectedId || initialOpenRef.current === initialSelectedId) return;
@@ -704,44 +725,54 @@ export function QuotesView({
 
   useEffect(() => {
     if (!drawerOpen || !editorDraftKey) return;
-    const draft: QuoteLocalDraft = {
-      items,
-      internalName,
-      customerId,
-      requestId,
-      isBuiltPc,
-      observation,
-    };
-    try {
-      const serialized = JSON.stringify(draft);
-      if (serialized === draftBaselineRef.current) removeQuoteDraft(editorDraftKey);
-      else window.localStorage.setItem(editorDraftKey, serialized);
-    } catch {
-      // El presupuesto sigue siendo editable aunque el navegador bloquee localStorage.
-    }
+    const timer = window.setTimeout(() => {
+      const draft: QuoteLocalDraft = {
+        items,
+        internalName,
+        customerId,
+        requestId,
+        isBuiltPc,
+        observation,
+      };
+      try {
+        const serialized = JSON.stringify(draft);
+        if (serialized === draftBaselineRef.current) removeQuoteDraft(editorDraftKey);
+        else window.localStorage.setItem(editorDraftKey, serialized);
+      } catch {
+        // El presupuesto sigue siendo editable aunque el navegador bloquee localStorage.
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
   }, [drawerOpen, editorDraftKey, items, internalName, customerId, requestId, isBuiltPc, observation]);
 
   async function loadSideData(id: string) {
-    const [timelinePayload, pdfPayload, similarPayload, habitualPayload] = await Promise.all([
-      api<{ events?: TimelineEvent[]; pdfs?: QuotePdfRow[] }>(`/quotes/${id}/timeline`).catch(
-        () => ({ events: [] as TimelineEvent[], pdfs: [] as QuotePdfRow[] }),
-      ),
-      api<{ items?: QuotePdfRow[] }>(`/quotes/${id}/pdfs`).catch(() => ({ items: [] as QuotePdfRow[] })),
-      api<{ items?: { familyId: string; visibleNumber: string; internalName: string; score: number }[] }>(
-        `/quotes/${id}/similar`,
-        { query: { limit: 5 } },
-      ).catch(() => ({ items: [] })),
-      api<{ items?: { productId: string | null; name: string; lineId?: string | null; support: number; sampleSize: number }[] }>(
-        `/quotes/${id}/habitual-components`,
-        { query: { limit: 8 } },
-      ).catch(() => ({ items: [] })),
-    ]);
-    setTimeline(timelinePayload.events ?? []);
-    const fromList = pdfPayload.items ?? [];
-    const fromTimeline = timelinePayload.pdfs ?? [];
-    setPdfs(fromList.length ? fromList : fromTimeline);
-    setSimilar(similarPayload.items ?? []);
-    setHabitual(habitualPayload.items ?? []);
+    const mine = ++sideSeqRef.current;
+    setSideLoading(true);
+    try {
+      const [timelinePayload, pdfPayload, similarPayload, habitualPayload] = await Promise.all([
+        api<{ events?: TimelineEvent[]; pdfs?: QuotePdfRow[] }>(`/quotes/${id}/timeline`).catch(
+          () => ({ events: [] as TimelineEvent[], pdfs: [] as QuotePdfRow[] }),
+        ),
+        api<{ items?: QuotePdfRow[] }>(`/quotes/${id}/pdfs`).catch(() => ({ items: [] as QuotePdfRow[] })),
+        api<{ items?: { familyId: string; visibleNumber: string; internalName: string; score: number }[] }>(
+          `/quotes/${id}/similar`,
+          { query: { limit: 5 } },
+        ).catch(() => ({ items: [] })),
+        api<{ items?: { productId: string | null; name: string; lineId?: string | null; support: number; sampleSize: number }[] }>(
+          `/quotes/${id}/habitual-components`,
+          { query: { limit: 8 } },
+        ).catch(() => ({ items: [] })),
+      ]);
+      if (mine !== sideSeqRef.current) return;
+      setTimeline(timelinePayload.events ?? []);
+      const fromList = pdfPayload.items ?? [];
+      const fromTimeline = timelinePayload.pdfs ?? [];
+      setPdfs(fromList.length ? fromList : fromTimeline);
+      setSimilar(similarPayload.items ?? []);
+      setHabitual(habitualPayload.items ?? []);
+    } finally {
+      if (mine === sideSeqRef.current) setSideLoading(false);
+    }
   }
 
   async function openQuote(id: string) {
@@ -752,8 +783,11 @@ export function QuotesView({
     try {
       const quote = await api<Quote>(`/quotes/${id}`);
       applyDetail(quote);
-      await loadSideData(id);
+      setSimilar([]);
+      setHabitual([]);
+      setTimeline([]);
       setDrawerOpen(true);
+      void loadSideData(id);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -806,7 +840,7 @@ export function QuotesView({
     try {
       await api(`/quotes/${quote.id}`, { method: "DELETE" });
       setNotice(`${quote.visibleNumber} eliminado.`);
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -839,7 +873,7 @@ export function QuotesView({
         await loadSideData(familyId);
         setDrawerOpen(true);
       }
-      await loadList();
+      await refreshQuotes();
       setNotice(`Versión ${version.version} restaurada como activa.`);
     } catch (err) {
       setError(errorMessage(err));
@@ -862,7 +896,7 @@ export function QuotesView({
         setPreviewFamilyId(null);
       }
       setNotice(`Versión ${version.version} eliminada.`);
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -955,7 +989,7 @@ export function QuotesView({
       await api(`/quotes/${selectedId}`, { method: "PUT", body: { kind: next ? "COMBO" : "PC" } });
       setDetail((prev) => (prev ? { ...prev, kind: next ? "COMBO" : "PC" } : prev));
       setNotice(next ? "Combo para la tienda activado. Cargá los productos y publicalo desde Publicación web." : "Ya no es combo.");
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setIsCombo(!next);
       setError(errorMessage(err));
@@ -1004,7 +1038,7 @@ export function QuotesView({
           ? "PC armada activada. Completá las líneas; las vacías no se incluyen en el PDF."
           : "PC armada desactivada.",
       );
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setIsBuiltPc(!next);
       setError(errorMessage(err));
@@ -1025,7 +1059,7 @@ export function QuotesView({
       });
       setNotice("Precios sincronizados desde el catálogo.");
       await reloadDetail(selectedId, false);
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -1948,7 +1982,7 @@ export function QuotesView({
       });
       setSelectedId(duplicated.id);
       applyDetail(duplicated);
-      await Promise.all([loadSideData(duplicated.id), loadList()]);
+      await Promise.all([loadSideData(duplicated.id), refreshQuotes()]);
       setDrawerOpen(true);
       setNotice("Listo: presupuesto nuevo creado a partir de este, con sus productos y precios.");
     } catch (err) {
@@ -1976,7 +2010,7 @@ export function QuotesView({
       });
       setNotice("Colecciones actualizadas.");
       await reloadDetail(selectedId);
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setCollectionIds(collectionIds);
       setError(errorMessage(err));
@@ -1997,7 +2031,7 @@ export function QuotesView({
       setNotice("Total ajustado.");
       setRetargetArs("");
       await reloadDetail(selectedId, false);
-      await loadList();
+      await refreshQuotes();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -2043,9 +2077,9 @@ export function QuotesView({
       if (branchFilter) {
         rows = rows.filter((quote) => quote.branch?.id === branchFilter);
       }
-      if (kindFilter) {
-        rows = rows.filter((quote) => (getActiveVersion(quote)?.pdfs ?? []).some((pdf) => pdf.kind === kindFilter));
-      }
+    }
+    if (kindFilter) {
+      rows = rows.filter((quote) => (getActiveVersion(quote)?.pdfs ?? []).some((pdf) => pdf.kind === kindFilter));
     }
 
     return rows.sort((left, right) => {
@@ -2320,11 +2354,11 @@ export function QuotesView({
         {filter || stateFilter || branchFilter || kindFilter ? " con los filtros actuales" : ""}
       </p>
 
-      {loading ? (
+      {loading && list.length === 0 ? (
         <Loading />
       ) : filtered.length === 0 ? (
         <EmptyState icon="▤" title="Sin presupuestos">
-          {filter
+          {filter || stateFilter || branchFilter || kindFilter
             ? "No hay coincidencias."
             : embedded
               ? "Esta colección no tiene presupuestos. Editá la colección para asociar uno."
@@ -3612,7 +3646,9 @@ export function QuotesView({
             <div className="two-col" style={{ marginTop: "1rem" }}>
               <div className="card card-pad">
                 <h3 className="panel-title">Presupuestos similares</h3>
-                {!similar.length ? (
+                {sideLoading && !similar.length ? (
+                  <p className="muted">Buscando…</p>
+                ) : !similar.length ? (
                   <p className="muted">Sin coincidencias relevantes.</p>
                 ) : (
                   <ul className="similar-list">
@@ -3633,7 +3669,9 @@ export function QuotesView({
               </div>
               <div className="card card-pad">
                 <h3 className="panel-title">Componentes habituales</h3>
-                {!habitual.length ? (
+                {sideLoading && !habitual.length ? (
+                  <p className="muted">Buscando…</p>
+                ) : !habitual.length ? (
                   <p className="muted">Sin historial suficiente.</p>
                 ) : (
                   <ul className="habitual-list">
