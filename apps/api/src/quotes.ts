@@ -273,6 +273,28 @@ export const quoteInclude={
   },
 };
 
+/** Listado/búsqueda: mismas relaciones que el detalle, pero sin el peso de cada ítem completo. */
+export const quoteSearchInclude={
+  customer:{select:{id:true,name:true,phone:true,normalizedPhone:true}},
+  branch:{select:{id:true,name:true}},
+  versions:{
+    include:{
+      items:{
+        select:{
+          frozenName:true,
+          quantity:true,
+          frozenSalePriceCents:true,
+          position:true,
+        },
+        orderBy:{position:'asc' as const},
+      },
+      pdfs:{select:{kind:true,createdAt:true},orderBy:{createdAt:'desc' as const}},
+      creator:{select:{id:true,username:true,displayName:true}},
+    },
+    orderBy:{version:'desc' as const},
+  },
+};
+
 export function activeBundle(family:any){
   const version=family.versions.find((item:any)=>item.version===family.activeVersion)??family.versions[0]??null;
   return jsonSafe({
