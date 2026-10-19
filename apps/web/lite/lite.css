@@ -686,7 +686,7 @@
 .lite .lt-dot { border-radius: 50% !important; }
 
 /* ————— Paneles planos (sin caja que contenga otras cajas) ————— */
-.lite .lt-card:not(.lt-modal-card), :root[data-theme="dark"] .lite .lt-card:not(.lt-modal-card) { background: transparent; border: 0; padding: 0; box-shadow: none; }
+.lite .lt-card:not(.lt-modal-card) { background: transparent; border: 0; padding: 0; box-shadow: none; }
 .lite .lt-fin, :root[data-theme="dark"] .lite .lt-fin { background: transparent; border: 0; padding: 0 0.25rem 0 0; box-shadow: none; }
 .lite .lt-fin-head { padding-bottom: 0.4rem; border-bottom: 1px solid var(--line); }
 .lite .lt-fin-cash, :root[data-theme="dark"] .lite .lt-fin-cash { padding: 0.3rem 0 0.55rem; }

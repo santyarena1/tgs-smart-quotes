@@ -55,8 +55,13 @@ html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-trade-ico im
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-colls-title { font-size: 0.7rem; font-weight: 500; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-coll-chip, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-colls .lt-chip { font-size: 0.72rem; }
 
+/* ————— Panel del presupuesto: el mismo aire en claro y en oscuro —————
+   En oscuro, una regla más específica dejaba este panel sin relleno y el formulario
+   se pegaba al borde. Acá se fija el mismo margen que en claro. */
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-card:not(.lt-modal-card) { padding: 1.35rem 1.5rem; }
+
 /* ————— Barra del total ————— */
-html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-foot { padding: 0.55rem 0 0.2rem; }
+html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-foot { padding: 0.7rem 1.5rem 0.35rem; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total strong { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total > span:first-child { font-size: 0.66rem; font-weight: 500; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-total-meta, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-total .lt-total-sub { font-size: 0.68rem; font-weight: 400; }

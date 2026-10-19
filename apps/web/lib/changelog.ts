@@ -12,7 +12,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-10-19",
     title: "LITE ya no se desarma al armar o editar",
     items: [
-      "Al crear o editar un presupuesto, la pantalla clara de LITE mantiene las tres columnas: financiación, el presupuesto y la lista",
+      "Al crear o editar un presupuesto, LITE mantiene las tres columnas en claro y en oscuro: financiación, el presupuesto y la lista",
       "Cada columna scrollea sola. El total y los botones de guardar quedan abajo, dentro de la pantalla",
       "Los temas siguen cambiando colores y tipografía, y ya no mueven ni recortan esa estructura",
     ],
