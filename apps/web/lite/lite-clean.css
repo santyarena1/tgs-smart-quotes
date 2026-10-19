@@ -126,6 +126,92 @@ html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line .lt-cel
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-name-cell { min-width: 0; }
 html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line-total, html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line.head > span { white-space: nowrap; }
 
+/* ————— La pantalla de armar/editar no se desarma con los temas —————
+   Financiación, presupuesto y lista quedan en tres columnas. Cada una scrollea sola.
+   El pie (total y botones) queda abajo del editor. Los temas no pueden cambiar esto. */
+@media (min-width: 1100px) {
+  html:root:root:root:root:root .lite:has(.lt-grid > .lt-side) {
+    height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  html:root:root:root:root:root .lite .lt-main:has(.lt-grid > .lt-side) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 0.85rem;
+    padding-bottom: 0.75rem;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 22vw) minmax(0, 1fr) minmax(280px, 24vw);
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side):has(> .lt-fin-collapsed) {
+    grid-template-columns: 52px minmax(0, 1fr) minmax(280px, 24vw);
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-fin,
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-col,
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-side {
+    order: 0;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    align-self: stretch;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-fin {
+    position: static;
+    overflow: auto;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-fin.lt-fin-collapsed {
+    align-self: start;
+    overflow: visible;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-col {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card:not(.lt-modal-card) {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-card > .lt-lines {
+    flex: 1 1 auto;
+    min-height: 120px;
+    overflow: auto;
+    align-content: start;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-col > .lt-foot {
+    position: static;
+    flex: none;
+    margin-top: 0;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-side {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: static;
+    grid-column: auto;
+  }
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-side > .lt-recent,
+  html:root:root:root:root:root .lite .lt-grid:has(> .lt-side) > .lt-side > .lt-quote-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+}
+
 /* ————— Interruptores en una sola fila en escritorio: más lugar para la lista de ítems ————— */
 @media (min-width: 1100px) {
   html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem; }
