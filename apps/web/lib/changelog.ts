@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.2",
+    date: "2026-10-19",
+    title: "LITE ya no se desarma al armar o editar",
+    items: [
+      "Al crear o editar un presupuesto, LITE mantiene las tres columnas en claro y en oscuro: financiación, el presupuesto y la lista",
+      "Cada columna scrollea sola. El total y los botones de guardar quedan abajo, dentro de la pantalla",
+      "Los temas siguen cambiando colores y tipografía, y ya no mueven ni recortan esa estructura",
+    ],
+  },
+  {
     version: "0.21.1",
     date: "2026-10-16",
     title: "Presupuestos completos: más rápidos y sin tapar botones",
