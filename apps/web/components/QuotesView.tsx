@@ -3470,8 +3470,9 @@ export function QuotesView({
         </div>
 
         {detail ? (
-          <>
-            <div className="card card-pad quote-ops" style={{ marginTop: "1rem" }}>
+          <details className="quote-more">
+            <summary>Estado, PDF, historial y sugerencias <span className="section-note">no hace falta para guardar</span></summary>
+            <div className="card card-pad quote-ops">
               <div className="quote-ops-head">
                 <div>
                   <h3 className="panel-title">Estado, PDF e historial</h3>
@@ -3643,7 +3644,7 @@ export function QuotesView({
               </div>
             </div>
 
-            <div className="two-col" style={{ marginTop: "1rem" }}>
+            <div className="two-col">
               <div className="card card-pad">
                 <h3 className="panel-title">Presupuestos similares</h3>
                 {sideLoading && !similar.length ? (
@@ -3702,7 +3703,7 @@ export function QuotesView({
                 )}
               </div>
             </div>
-          </>
+          </details>
         ) : null}
       </Drawer>
 

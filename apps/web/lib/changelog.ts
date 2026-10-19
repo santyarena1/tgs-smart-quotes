@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.2",
+    date: "2026-10-19",
+    title: "Presupuestos: el editor ya no se estira por toda la página",
+    items: [
+      "El cajón del presupuesto medía lo que midiera el contenido y estiraba la página entera: huecos enormes, campos separados y Guardar / Formal / Detallado al final del scroll",
+      "Ahora el overlay queda recortado a la pantalla, el formulario y la tabla no se inflan, se scrollea adentro del cajón y los botones quedan fijos abajo",
+      "Estado, PDF, historial y similares quedan plegados: no hace falta bajar una página vacía para armar o guardar",
+    ],
+  },
+  {
     version: "0.21.1",
     date: "2026-10-16",
     title: "Presupuestos completos: más rápidos y sin tapar botones",
