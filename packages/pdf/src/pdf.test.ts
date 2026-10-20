@@ -477,6 +477,19 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('—');
     expect(html).not.toMatch(/MEMORIA RAM 16GB[\s\S]*\$ 100\.000/);
   });
+  it('MODERNO destaca 3 y 6 cuotas sin interés y separa el descuento exclusivo BBVA', () => {
+    const financing = [
+      { bank: 'BBVA - Banco Francés', installments: 3, interestBps: 0, sortOrder: 1 },
+      { bank: 'Otros bancos', installments: 3, interestBps: 0, sortOrder: 2 },
+      { bank: 'Otros bancos', installments: 6, interestBps: 0, sortOrder: 3 },
+      { bank: 'Otros bancos', installments: 12, interestBps: 9400, sortOrder: 4 },
+    ];
+    const html = renderQuoteHtml({ ...sample(), template: 'MODERNO', financing } as PdfRenderInput);
+    expect(html).toContain('3 y 6 cuotas sin interés');
+    expect(html).toContain('con cualquier banco');
+    expect(html).toContain('Descuento exclusivo para clientes BBVA');
+    expect(html).toContain('Otras opciones de financiación');
+  });
   it('los temas estacionales agregan la franja decorativa arriba y abajo en ambas plantillas', () => {
     for (const template of ['MODERNO', 'CLASICO'] as const) {
       for (const theme of ['halloween', 'navidad'] as const) {
