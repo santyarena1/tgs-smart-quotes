@@ -477,27 +477,31 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('—');
     expect(html).not.toMatch(/MEMORIA RAM 16GB[\s\S]*\$ 100\.000/);
   });
-  it('MODERNO minimalista: 3 y 6 sin interés, BBVA con 1 pago, GoCuotas y Mercado Pago en una fila, sin tabla', () => {
+  it('MODERNO: BBVA solo 3 y 6 con 8 % sobre el efectivo/transferencia, fechas dentro del bloque', () => {
     const financing = [
-      { bank: 'BBVA - Banco Francés', installments: 3, interestBps: 800, sortOrder: 1 },
-      { bank: 'BBVA', installments: 3, interestBps: 800, sortOrder: 2 },
-      { bank: 'BBVA - Banco Francés', installments: 6, interestBps: 800, sortOrder: 3 },
-      { bank: 'Otros bancos', installments: 12, interestBps: 9400, sortOrder: 4 },
-      { bank: 'GoCuotas', installments: 3, interestBps: 3200, sortOrder: 5 },
-      { bank: 'Mercado Pago', installments: 3, interestBps: 0, sortOrder: 6 },
+      { bank: 'BBVA - Banco Francés', installments: 1, interestBps: 800, sortOrder: 1 },
+      { bank: 'BBVA - Banco Francés', installments: 3, interestBps: 800, sortOrder: 2 },
+      { bank: 'BBVA', installments: 3, interestBps: 800, sortOrder: 3 },
+      { bank: 'BBVA - Banco Francés', installments: 6, interestBps: 800, sortOrder: 4 },
+      { bank: 'Otros bancos', installments: 12, interestBps: 9400, sortOrder: 5 },
+      { bank: 'GoCuotas', installments: 3, interestBps: 3200, sortOrder: 6 },
+      { bank: 'Mercado Pago', installments: 3, interestBps: 0, sortOrder: 7 },
     ];
-    const html = renderQuoteHtml({ ...sample(), template: 'MODERNO', financing } as PdfRenderInput);
+    const html = renderQuoteHtml({ ...sample(), template: 'MODERNO', financing, financingBbvaNote: 'Viernes y sábados.' } as PdfRenderInput);
     expect(html).toContain('con cualquier banco');
-    expect(html).toContain('descuento exclusivo para clientes BBVA');
-    expect(html).toContain('<b class="t-n">1</b><span class="t-u">pago</span>');
-    // El 3 de BBVA repetido en la carga sale una sola vez (1 pago + 3 + 6 = 3 chips).
+    expect(html).toContain('Cuotas exclusivas para clientes BBVA');
+    expect(html).not.toContain('Descuento exclusivo para clientes BBVA');
+    expect(html).not.toContain('<span class="t-u">pago</span>');
     const bbvaBlock = html.split('--bc:#1d4ed8')[1]!.split('<div class="fin-row">')[0]!;
-    expect(bbvaBlock.match(/class="tile"/g)).toHaveLength(3);
-    expect(html).toContain('3 o 6 cuotas sin interés - Super precio BBVA');
+    expect(bbvaBlock.match(/class="tile"/g)).toHaveLength(2);
+    // 8 % sobre el efectivo (994.500): 3 cuotas de 358.020 y 6 de 179.010.
+    expect(bbvaBlock).toContain('358.020');
+    expect(bbvaBlock).toContain('179.010');
+    expect(bbvaBlock).toContain('3 o 6 cuotas sin interés - Super precio BBVA');
+    expect(bbvaBlock).toContain('Viernes y sábados.');
     expect(html).toContain('class="fin-row"');
     expect(html).toContain('exclusivo tarjeta MercadoPago');
     expect(html).not.toMatch(/\+\d+(,\d+)?%/);
-    expect(html).not.toContain('Otras opciones de financiación');
     expect(html).not.toContain('12 cuotas');
   });
   it('los temas estacionales agregan la franja decorativa arriba y abajo en ambas plantillas', () => {

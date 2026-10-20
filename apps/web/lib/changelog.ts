@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.14",
+    date: "2026-10-20",
+    title: "Presupuesto: BBVA sobre el efectivo y bloques más claros",
+    items: [
+      "BBVA pasa a llamarse Cuotas exclusivas para clientes BBVA, solo 3 y 6 cuotas, con el 8 % calculado sobre el precio de efectivo/transferencia (antes se sumaba al de lista); las fechas del BBVA van dentro del bloque",
+      "Las 3 y 6 cuotas sin interés con cualquier banco se muestran en grande y en violeta; el resto de los medios de pago, más chicos",
+      "La nota Importante y los textos como Productos OEM tienen un formato más prolijo",
+    ],
+  },
+  {
     version: "0.21.13",
     date: "2026-10-20",
     title: "Presupuesto más minimalista",

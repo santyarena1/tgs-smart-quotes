@@ -240,7 +240,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-20.5';
+export const PDF_RENDER_VERSION = '2026-10-20.6';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -393,7 +393,8 @@ function insertFlowBlocks(html: string, layout?: PdfLayoutConfig): string {
       ...customBlockFontCss(block),
     ].join(';');
     const at = positionFor(block.before!);
-    inserts.set(at, `${inserts.get(at) ?? ''}<div data-pdf-block="custom:${escapeHtml(block.id)}" style="${css}">${escapeHtml(block.text)}</div>`);
+    const text = escapeHtml(block.text).replace(/^([^:\n]{1,40}):/, '<b class="lead">$1:</b>');
+    inserts.set(at, `${inserts.get(at) ?? ''}<div class="flow-note" data-pdf-block="custom:${escapeHtml(block.id)}" style="${css}">${text}</div>`);
   }
   let out = html;
   for (const at of [...inserts.keys()].sort((a, b) => b - a)) {
@@ -1040,7 +1041,7 @@ function uniqueByInstallments(plans: PdfFinancingPlan[]): PdfFinancingPlan[] {
 }
 
 const BRAND_STYLES = {
-  free: '--bc:#1a7d3c;--bs:#f3faf5',
+  free: '--bc:#6d28d9;--bs:#f6f3ff',
   bbva: '--bc:#1d4ed8;--bs:#f4f7ff',
   go: '--bc:#d6247f;--bs:#fff4f9',
   mp: '--bc:#0a8fd1;--bs:#f0f9fe',
@@ -1057,8 +1058,13 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   const money = (plan: PdfFinancingPlan) => formatArsFromCents(installmentAmount(input.listTotalCents, plan));
   const tile = (n: number | string, unit: string, amount: string) =>
     `<span class="tile"><b class="t-n">${n}</b><span class="t-u">${unit}</span><span class="t-amt">${amount}</span></span>`;
-  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string; stack?: boolean } = {}) =>
-    `<div class="fin-brand${opts.stack ? ' stack' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${opts.foot ? `<div class="fb-foot">${escapeHtml(opts.foot)}</div>` : ''}</div>`;
+  /** BBVA: el 8 % (el del plan, o 8 % si no tiene) va sobre el precio de efectivo/transferencia, no sobre el de lista. */
+  const bbvaMoney = (plan: PdfFinancingPlan) => {
+    const total = applyInterest(input.cashTotalCents, plan.interestBps > 0 ? plan.interestBps : 800);
+    return formatArsFromCents((total + BigInt(plan.installments) / 2n) / BigInt(plan.installments));
+  };
+  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string[]; stack?: boolean; big?: boolean; top?: boolean } = {}) =>
+    `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i ? ' note' : ''}">${line}</div>`).join('')}</div>`;
 
   const parts: string[] = [];
   if (input.config.showFinancingNote) {
@@ -1068,12 +1074,14 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   }
   if (input.config.showOtherBanks) {
     // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
-    parts.push(brandBlock('free', 'Sin interés', 'con cualquier banco', [3, 6].map((n) => tile(n, 'cuotas', money(base(n))))));
+    parts.push(brandBlock('free', 'Sin interés', 'con cualquier banco', [3, 6].map((n) => tile(n, 'cuotas', money(base(n)))), { big: true }));
   }
   if (input.config.showBbva && bbva.length) {
-    const tiles = [tile(1, 'pago', formatArsFromCents(input.listTotalCents))];
-    for (const plan of bbva.filter((p) => p.installments > 1)) tiles.push(tile(plan.installments, 'cuotas', money(plan)));
-    parts.push(brandBlock('bbva', 'BBVA', 'descuento exclusivo para clientes BBVA', tiles, { foot: '3 o 6 cuotas sin interés - Super precio BBVA' }));
+    const tiles = bbva.filter((p) => p.installments === 3 || p.installments === 6).map((plan) => tile(plan.installments, 'cuotas', bbvaMoney(plan)));
+    const foot = ['3 o 6 cuotas sin interés - Super precio BBVA'].map(escapeHtml);
+    // Las fechas del BBVA (días y horarios) van dentro del bloque.
+    if (input.financingBbvaNote) foot.push(renderRmaText(input.financingBbvaNote, ''));
+    if (tiles.length) parts.push(brandBlock('bbva', 'Cuotas exclusivas para clientes BBVA', '', tiles, { foot, top: true }));
   }
   // Exclusivo tarjeta Mercado Pago: 3 cuotas sin interés (si no hay planes cargados, se muestra igual).
   const mp = mpAll.filter((p) => p.interestBps === 0);
@@ -1087,11 +1095,7 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     : '';
   if (goBlock || mpBlock) parts.push(`<div class="fin-row">${goBlock}${mpBlock}</div>`);
   if (!parts.length) return '';
-  const bbvaNote =
-    input.config.showBbva && bbva.length && input.financingBbvaNote
-      ? `<p class="fin-note">${renderRmaText(input.financingBbvaNote, '')}</p>`
-      : '';
-  return `${parts.join('')}${bbvaNote}`;
+  return parts.join('');
 }
 
 const TAX_CONDITION_LABELS: Record<string, string> = {
@@ -1221,6 +1225,21 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .tile .t-u { font-size: 8.8px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 0.05em; }
   .tile .t-amt { font-size: 14.5px; font-weight: 800; color: #151515; margin-left: 3px; }
   .fb-foot { flex-basis: 100%; margin-left: 164px; font-size: 9px; font-weight: 700; color: var(--bc); }
+  .fb-foot.note { margin-top: -2px; font-weight: 500; color: #666; }
+  .fin-brand.top .fb-title { flex-basis: 100%; min-width: 0; }
+  .fin-brand.top .fb-foot { margin-left: 0; }
+  .fin-brand.big { padding: 11px 16px; margin: 7px 0; }
+  .fin-brand.big .fb-title { min-width: 175px; font-size: 13px; }
+  .fin-brand.big .fb-title small { font-size: 10px; }
+  .fin-brand.big .tile { padding: 0 26px; gap: 6px; }
+  .fin-brand.big .tile:first-child { padding-left: 0; }
+  .fin-brand.big .tile .t-n { font-size: 32px; }
+  .fin-brand.big .tile .t-u { font-size: 10.5px; }
+  .fin-brand.big .tile .t-amt { font-size: 25px; margin-left: 4px; }
+  .rma-note { border-left: 3px solid ${accent}; background: #fafafa; border-radius: 0 5px 5px 0; padding: 7px 11px; margin: 9px 0; color: #555; font-size: 9.3px; line-height: 1.5; }
+  .rma-note b.imp { color: ${accent}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.8px; margin-right: 3px; }
+  .flow-note { border-left: 3px solid #cfcfcf; background: #fafafa; border-radius: 0 5px 5px 0; padding: 6px 11px; color: #555; line-height: 1.5; }
+  .flow-note b.lead { color: #222; }
   .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
   .fin-row .fin-brand.stack { display: block; margin: 4px 0; }
   .fin-row .fb-title { min-width: 0; }
@@ -1309,7 +1328,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
       : ''
   }
 
-  ${input.config.showRma ? `<div class="box box-red" data-pdf-block="rmaBlock">${renderRmaText(input.config.rmaText, input.company.rmaUrl)}</div>` : ''}
+  ${input.config.showRma ? `<div class="rma-note" data-pdf-block="rmaBlock">${renderRmaText(input.config.rmaText, input.company.rmaUrl).replace(/^Importante:/, '<b class="imp">Importante:</b>')}</div>` : ''}
 
   ${referenceImageHtml(input)}
 
