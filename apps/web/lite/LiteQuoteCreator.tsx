@@ -13,7 +13,7 @@ import { newTradeIn, TradeInModal, tradeInCents, type TradeIn } from "./TradeInM
 import pcImageIcon from "./icons/pcimage.png";
 import wspIcon from "./icons/wsp.webp";
 import { DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva } from "../lib/iva";
-import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
+import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload, retargetSaleLines, sellsBelowCost } from "../lib/quote-item-pricing";
 import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 import { useLite } from "./LiteContext";
@@ -287,35 +287,6 @@ function SlotPicker({ products, preferLineId, providers, sel, onPick, onPickNodo
 }
 
 const DRAFT_KEY = "tgs.lite.draft.v1";
-
-/** Lleva el total de la venta a `targetCents` escalando los precios de venta de forma proporcional.
- *  El residuo de redondeo se absorbe en un ítem de cantidad 1 (el de mayor importe). */
-function retargetLines(lines: Line[], targetCents: bigint): { lines: Line[]; reached: bigint } | null {
-  const priced = lines.map((l) => {
-    let unit = 0n;
-    try { unit = BigInt(parseArsToCents(l.saleArs)); } catch { /* ítem incompleto */ }
-    return { l, unit, qty: BigInt(Math.max(0, Math.trunc(Number(l.quantity) || 0))) };
-  });
-  const current = priced.reduce((sum, x) => sum + x.unit * x.qty, 0n);
-  if (current <= 0n) return null;
-  const next = priced.map((x) => ({ ...x, unit: (x.unit * targetCents + current / 2n) / current }));
-  let residue = targetCents - next.reduce((sum, x) => sum + x.unit * x.qty, 0n);
-  if (residue !== 0n) {
-    const candidates = next.filter((x) => x.qty === 1n && x.unit + residue >= 0n).sort((x, y) => (y.unit > x.unit ? 1 : -1));
-    if (candidates[0]) { candidates[0].unit += residue; residue = 0n; }
-  }
-  const reached = next.reduce((sum, x) => sum + x.unit * x.qty, 0n);
-  return { lines: next.map((x) => applyDraftSale(x.l, centsToInput(x.unit.toString()))), reached };
-}
-
-/** Venta por debajo del costo: se marca en rojo para no mandar un presupuesto con pérdida. */
-function sellsBelowCost(line: Line): boolean {
-  try {
-    return BigInt(parseArsToCents(line.saleArs)) < BigInt(parseArsToCents(line.costArs));
-  } catch {
-    return false;
-  }
-}
 
 const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate, onDone }: {
   line: Line;
@@ -612,7 +583,7 @@ export function LiteQuoteCreator() {
     let target: bigint;
     try { target = BigInt(parseArsToCents(totalEditValue)); } catch { setError("El total que escribiste no es válido."); return; }
     if (target <= 0n) { setError("El total tiene que ser mayor a cero."); return; }
-    const result = retargetLines(lines, target);
+    const result = retargetSaleLines(lines, target);
     if (!result) { setError("Los ítems no tienen precio para ajustar."); return; }
     setLines(result.lines);
     setTotalEditOpen(false);

@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.21",
+    date: "2026-10-20",
+    title: "Presupuestos: IVA, financiación y total como en LITE",
+    items: [
+      "El IVA de cada ítem se puede cambiar sin entrar a Editar (borde punteado = sugerido). Al agregar de catálogo, web, NODO o combo, se sugiere la alícuota de la memoria",
+      "Aparece la financiación en vivo (mismas cuotas que LITE y el PDF), se puede editar el total de la venta sin haber guardado, y si un ítem queda por debajo del costo se marca en rojo",
+      "Columna de subtotal, botón para duplicar una línea y el ajuste de total usa la misma cuenta proporcional que LITE",
+    ],
+  },
+  {
     version: "0.21.19",
     date: "2026-10-20",
     title: "Halloween por defecto y botones seleccionados legibles",
