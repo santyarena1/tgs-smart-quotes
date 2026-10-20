@@ -45,7 +45,7 @@ function kindOf(bank: string | null): Kind {
 }
 
 function nameOf(kind: Kind, plan: FinancingPlan): string {
-  if (kind === "bbva") return plan.interestBps === 0 ? "BBVA - Sin interés" : "BBVA";
+  if (kind === "bbva") return plan.interestBps === 0 ? "BBVA - Descuento exclusivo clientes BBVA" : "BBVA";
   if (kind === "go") return "GoCuotas";
   if (kind === "mp") return "Mercado Pago";
   return /otros/i.test(plan.bank ?? "") || !plan.bank ? "Otros Bancos" : plan.bank;
@@ -106,7 +106,7 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
       </div>
 
       <div className="lt-fin-cash">
-        <span>{manualCents !== null ? "Efectivo / transf. (manual)" : "Efectivo / transferencia"}</span>
+        <span>{manualCents !== null ? "Efectivo / transf. (manual)" : "Efectivo / transferencia · 20% de descuento"}</span>
         <strong>{hasTotal ? formatArs(totalCents) : "—"}</strong>
       </div>
       <div className="lt-fin-manual">
@@ -124,7 +124,7 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
               <div className="lt-fin-body">
                 <div className="lt-fin-top">
                   <span className="lt-fin-n">{b.installments === 1 ? "1 pago" : `${b.installments} cuotas`}</span>
-                  <span className={`lt-fin-tag${b.interestBps === 0 ? " free" : ""}`}>{b.interestBps === 0 ? "Sin interés" : `+${bpsToPct(b.interestBps)}%`}</span>
+                  <span className={`lt-fin-tag${b.interestBps === 0 ? " free" : ""}`}>{b.interestBps === 0 ? (b.kind === "bbva" ? "Dto. clientes BBVA" : "Sin interés") : `+${bpsToPct(b.interestBps)}%`}</span>
                 </div>
                 <strong className="lt-fin-amt">{hasTotal ? formatArs(b.each) : "—"}</strong>
                 <div className="lt-fin-bot">

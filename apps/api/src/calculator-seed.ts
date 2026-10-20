@@ -44,8 +44,8 @@ const DEFAULT_LABELS: Record<string, string> = {
 };
 
 const FALLBACK_OTROS: SeededPlan[] = [
-  {installments: 3, interestBps: 1050, sortOrder: 0},
-  {installments: 6, interestBps: 2150, sortOrder: 1},
+  {installments: 3, interestBps: 0, sortOrder: 0},
+  {installments: 6, interestBps: 0, sortOrder: 1},
   {installments: 12, interestBps: 9400, sortOrder: 2},
 ];
 
@@ -55,7 +55,7 @@ const FALLBACK_BBVA: SeededPlan[] = [
 ];
 
 export const DEFAULT_BBVA_NOTE =
-  '3 cuotas sin interés viernes y sábados. 6 cuotas sin interés 1 día al mes, generalmente a mediados.';
+  'Descuento exclusivo para clientes BBVA: 3 cuotas viernes y sábados, 6 cuotas 1 día al mes, generalmente a mediados.';
 
 const DEFAULT_NOTES: Record<string, string> = {
   bbva: DEFAULT_BBVA_NOTE,
