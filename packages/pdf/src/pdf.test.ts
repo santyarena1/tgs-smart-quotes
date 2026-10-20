@@ -483,7 +483,8 @@ describe('@tgs/pdf', () => {
       { bank: 'BBVA', installments: 3, interestBps: 0, sortOrder: 2 },
       { bank: 'BBVA - Banco Francés', installments: 6, interestBps: 0, sortOrder: 3 },
       { bank: 'Otros bancos', installments: 12, interestBps: 9400, sortOrder: 4 },
-      { bank: 'GoCuotas', installments: 3, interestBps: 0, sortOrder: 5 },
+      { bank: 'GoCuotas', installments: 3, interestBps: 3200, sortOrder: 5 },
+      { bank: 'Mercado Pago', installments: 3, interestBps: 0, sortOrder: 6 },
     ];
     const html = renderQuoteHtml({ ...sample(), template: 'MODERNO', financing } as PdfRenderInput);
     expect(html).toContain('3 y 6 cuotas sin interés');
@@ -496,6 +497,9 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('GoCuotas');
     expect(html).toContain('EXCLUSIVO TARJETA MERCADOPAGO');
     expect(html).not.toContain('Otras opciones de financiación');
+    expect(html).toContain('3 o 6 cuotas sin interés - Super precio BBVA');
+    expect(html).toContain('class="fin-row"');
+    expect(html).not.toMatch(/\+\d+(,\d+)?%/);
     expect(html).not.toContain('12 cuotas');
   });
   it('los temas estacionales agregan la franja decorativa arriba y abajo en ambas plantillas', () => {
