@@ -240,7 +240,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-20.6';
+export const PDF_RENDER_VERSION = '2026-10-20.7';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -1214,28 +1214,29 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .totals .final { border-bottom: none; border-top: 1px solid #ddd; padding-top: 6px; }
   .totals .final .lbl { color: #800020; font-weight: 400; font-size: 11px; }
   .totals .final .val { color: #800020; font-weight: 800; font-size: 14.5px; }
-  .fin-note { margin: 5px 0; font-size: 9.2px; color: #777; }
-  .fin-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 14px; margin: 5px 0; padding: 6px 10px; border-left: 3px solid var(--bc); background: var(--bs); break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .fin-note { margin: 8px 0 6px; font-size: 9.2px; color: #777; }
+  .fin-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 18px; margin: 7px 0; padding: 8px 12px; border-left: 3px solid var(--bc); background: var(--bs); break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .fb-title { min-width: 150px; color: var(--bc); font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-  .fb-title small { display: block; margin-top: 0; font-size: 8.6px; font-weight: 600; color: #777; text-transform: none; letter-spacing: 0; }
+  .fb-title small { display: block; margin-top: 3px; font-size: 8.6px; font-weight: 600; color: #777; text-transform: none; letter-spacing: 0; }
   .tiles { display: flex; flex-wrap: wrap; gap: 4px 0; flex: 1; }
-  .tile { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 14px; border-left: 1px solid #d8d8d8; }
+  .tile { display: inline-flex; align-items: baseline; gap: 6px; padding: 0 18px; border-left: 1px solid #d8d8d8; }
   .tile:first-child { border-left: none; padding-left: 0; }
   .tile .t-n { font-size: 15px; font-weight: 900; color: var(--bc); }
   .tile .t-u { font-size: 8.8px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 0.05em; }
-  .tile .t-amt { font-size: 14.5px; font-weight: 800; color: #151515; margin-left: 3px; }
-  .fb-foot { flex-basis: 100%; margin-left: 164px; font-size: 9px; font-weight: 700; color: var(--bc); }
-  .fb-foot.note { margin-top: -2px; font-weight: 500; color: #666; }
-  .fin-brand.top .fb-title { flex-basis: 100%; min-width: 0; }
+  .tile .t-amt { font-size: 14.5px; font-weight: 800; color: #151515; margin-left: 5px; }
+  .fb-foot { flex-basis: 100%; margin-left: 164px; font-size: 9px; font-weight: 700; color: var(--bc); line-height: 1.5; }
+  .fb-foot.note { margin-top: 0; font-weight: 500; color: #666; }
+  .fin-brand.top .fb-title { flex-basis: 100%; min-width: 0; margin-bottom: 2px; }
   .fin-brand.top .fb-foot { margin-left: 0; }
-  .fin-brand.big { padding: 11px 16px; margin: 7px 0; }
-  .fin-brand.big .fb-title { min-width: 175px; font-size: 13px; }
+  .fin-brand.big { flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; margin: 8px 0; text-align: center; }
+  .fin-brand.big .fb-title { min-width: 0; font-size: 13px; text-align: center; }
   .fin-brand.big .fb-title small { font-size: 10px; }
-  .fin-brand.big .tile { padding: 0 26px; gap: 6px; }
-  .fin-brand.big .tile:first-child { padding-left: 0; }
+  .fin-brand.big .tiles { flex: none; justify-content: center; }
+  .fin-brand.big .tile { padding: 0 40px; gap: 8px; }
+  .fin-brand.big .tile:first-child { padding-left: 40px; }
   .fin-brand.big .tile .t-n { font-size: 32px; }
   .fin-brand.big .tile .t-u { font-size: 10.5px; }
-  .fin-brand.big .tile .t-amt { font-size: 25px; margin-left: 4px; }
+  .fin-brand.big .tile .t-amt { font-size: 25px; margin-left: 6px; }
   .rma-note { border-left: 3px solid ${accent}; background: #fafafa; border-radius: 0 5px 5px 0; padding: 7px 11px; margin: 9px 0; color: #555; font-size: 9.3px; line-height: 1.5; }
   .rma-note b.imp { color: ${accent}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.8px; margin-right: 3px; }
   .flow-note { border-left: 3px solid #cfcfcf; background: #fafafa; border-radius: 0 5px 5px 0; padding: 6px 11px; color: #555; line-height: 1.5; }
