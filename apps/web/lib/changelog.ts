@@ -14,6 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "Los bloques de cuotas se achicaron para que el presupuesto entre en una sola hoja, y GoCuotas y Mercado Pago van en bloques distintos pero en la misma fila",
       "BBVA y GoCuotas ya no muestran el porcentaje de interés; BBVA aclara abajo: 3 o 6 cuotas sin interés - Super precio BBVA",
+      "El presupuesto siempre se achica para entrar en una sola hoja: si se pasa a una 2ª o 3ª hoja, se reduce hasta el 70 % para que entre",
     ],
   },
   {
