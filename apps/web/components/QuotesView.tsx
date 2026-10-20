@@ -1522,7 +1522,7 @@ export function QuotesView({
         key: `web-${w.id}`, source: "Web", color: WEB_COLOR, logo: WEB_LOGO, name: w.name, sku: w.sku, imageUrl: w.imageUrl, inStock: w.inStock, priceCents: w.priceCents, priceLabel: "precio de venta", raw: { kind: "web", w },
       })),
       ...(nodoWanted ? nodo.items : []).map((r): BrowserItem<BrowserPick> => ({
-        key: `nodo-${r.offerId}`, source: r.providerName, color: providerColor(nodoProviders, r.providerId), logo: providerLogo(r.providerName), name: r.name, sku: r.sku, brand: r.brand, imageUrl: r.imageUrl, stock: r.stock, inStock: r.inStock, stale: r.stale, priceCents: r.costIvaCents, priceLabel: "costo + IVA", raw: { kind: "nodo", r },
+        key: `nodo-${r.offerId}`, source: r.providerName, color: providerColor(nodoProviders, r.providerId), logo: providerLogo(r.providerName), name: r.name, brand: r.brand, imageUrl: r.imageUrl, url: r.nodoUrl, stock: r.stock, inStock: r.inStock, stale: r.stale, priceCents: r.costIvaCents, priceLabel: "costo + IVA", raw: { kind: "nodo", r },
       })),
     ];
   }, [pickerQuery, products, pickerMatches, sel.own, catalogPickerMatches, webWanted, web.items, nodoWanted, nodo.items, nodoProviders]);

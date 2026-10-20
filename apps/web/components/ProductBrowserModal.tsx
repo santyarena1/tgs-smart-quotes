@@ -14,6 +14,8 @@ export type BrowserItem<T = unknown> = {
   logo?: string | null;
   name: string;
   sku?: string | null;
+  /** Link a la ficha del producto (en NODO), si la fuente lo tiene. */
+  url?: string | null;
   brand?: string | null;
   imageUrl?: string | null;
   priceCents: string;
@@ -196,7 +198,7 @@ export function ProductBrowserModal<T>({ items, loading, query, single, sourceBa
             </div>
           ) : null}
           <div className="pb-row">
-            <input className="pb-text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Filtrar por nombre, SKU o marca…" aria-label="Filtrar resultados" />
+            <input className="pb-text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Filtrar por nombre o marca…" aria-label="Filtrar resultados" />
             <label className="pb-field">
               <span>Ordenar</span>
               <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
@@ -265,8 +267,20 @@ export function ProductBrowserModal<T>({ items, loading, query, single, sourceBa
                     </span>
                     <span className="pb-name">{it.name}</span>
                     <span className="pb-meta">
-                      {[it.sku ? `SKU ${it.sku}` : "", it.brand ?? "", st ?? "", it.stale ? "precio desactualizado" : ""].filter(Boolean).join(" · ")}
+                      {[it.brand ?? "", st ?? "", it.stale ? "precio desactualizado" : ""].filter(Boolean).join(" · ")}
                     </span>
+                    {it.url ? (
+                      <span
+                        className="pb-open"
+                        role="link"
+                        tabIndex={0}
+                        title="Abrir el producto en NODO"
+                        onClick={(e) => { e.stopPropagation(); window.open(it.url!, "_blank", "noopener,noreferrer"); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); window.open(it.url!, "_blank", "noopener,noreferrer"); } }}
+                      >
+                        Ver en NODO ↗
+                      </span>
+                    ) : null}
                   </span>
                   <span className="pb-price-tag">
                     {formatArs(it.priceCents)}

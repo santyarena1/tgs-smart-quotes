@@ -36,6 +36,12 @@ describe("nodo", () => {
     expect(r.inStock).toBe(true);
   });
 
+  it("arma el link a la ficha del producto en NODO con el distribuidor y el id externo", () => {
+    const r = mapOffer({ ...offer, provider: { ...offer.provider, key: "ELIT" }, externalId: "15769" }, 1545)!;
+    expect(r.nodoUrl).toBe("https://nodohub.app/product/ELIT/15769");
+    expect(mapOffer(offer, 1545)!.nodoUrl).toBeNull();
+  });
+
   it("si la key ya viene en pesos no convierte", () => {
     const ars = { ...offer, price: { ...offer.price, currency: "ARS" as const, cost: { net: 100000, taxes: [{ type: "iva", amount: 10500 }] } } };
     const r = mapOffer(ars, 1545)!;

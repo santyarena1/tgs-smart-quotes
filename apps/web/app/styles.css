@@ -4045,6 +4045,8 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .pb-tag img { border-radius: 3px; object-fit: contain; background: #fff; }
 .pb-name { font-weight: 650; font-size: 0.88rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pb-meta { font-size: 0.74rem; color: var(--faint); }
+.pb-open { font-size: 0.74rem; font-weight: 600; color: var(--red-deep, #b3121a); width: fit-content; cursor: pointer; text-decoration: none; position: relative; }
+.pb-open:hover, .pb-open:focus-visible { text-decoration: underline; }
 .pb-price-tag { display: grid; font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pb-price-tag small { font-weight: 500; font-size: 0.68rem; color: var(--faint); }
 .pb-grid .pb-item { display: grid; grid-template-rows: 140px auto auto; }
