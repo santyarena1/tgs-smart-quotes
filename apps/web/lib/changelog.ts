@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.17",
+    date: "2026-10-20",
+    title: "Presupuesto: sin interés a la izquierda y cuotas más claras",
+    items: [
+      "En el presupuesto, SIN INTERÉS va a la izquierda del rectángulo y las 3 y 6 cuotas a la derecha, con el número grande, el monto y la etiqueta cuotas, separadas por una línea fina",
+    ],
+  },
+  {
     version: "0.21.16",
     date: "2026-10-20",
     title: "Halloween: murciélagos, cursor y fondo violeta",
