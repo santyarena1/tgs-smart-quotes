@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.9",
+    date: "2026-10-20",
+    title: "Presupuesto: bloques por medio de pago",
+    items: [
+      "3 y 6 cuotas sin interés con cualquier banco aparecen siempre las dos; BBVA muestra 1 pago, 3 y 6 cuotas sin repetir planes",
+      "Nuevos bloques de GoCuotas (rosado) y EXCLUSIVO TARJETA MERCADOPAGO (celeste, 3 cuotas sin interés), con el mismo estilo de tarjetas",
+      "Se quitó la tabla de otras opciones de financiación, porque todo se muestra arriba",
+    ],
+  },
+  {
     version: "0.21.7",
     date: "2026-10-20",
     title: "Presupuesto rediseñado y cuotas sin interés destacadas",

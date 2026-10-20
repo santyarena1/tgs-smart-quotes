@@ -477,18 +477,26 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('—');
     expect(html).not.toMatch(/MEMORIA RAM 16GB[\s\S]*\$ 100\.000/);
   });
-  it('MODERNO destaca 3 y 6 cuotas sin interés y separa el descuento exclusivo BBVA', () => {
+  it('MODERNO: 3 y 6 sin interés, BBVA con 1 pago, GoCuotas y Mercado Pago, sin tabla de otras opciones', () => {
     const financing = [
       { bank: 'BBVA - Banco Francés', installments: 3, interestBps: 0, sortOrder: 1 },
-      { bank: 'Otros bancos', installments: 3, interestBps: 0, sortOrder: 2 },
-      { bank: 'Otros bancos', installments: 6, interestBps: 0, sortOrder: 3 },
+      { bank: 'BBVA', installments: 3, interestBps: 0, sortOrder: 2 },
+      { bank: 'BBVA - Banco Francés', installments: 6, interestBps: 0, sortOrder: 3 },
       { bank: 'Otros bancos', installments: 12, interestBps: 9400, sortOrder: 4 },
+      { bank: 'GoCuotas', installments: 3, interestBps: 0, sortOrder: 5 },
     ];
     const html = renderQuoteHtml({ ...sample(), template: 'MODERNO', financing } as PdfRenderInput);
     expect(html).toContain('3 y 6 cuotas sin interés');
     expect(html).toContain('con cualquier banco');
     expect(html).toContain('Descuento exclusivo para clientes BBVA');
-    expect(html).toContain('Otras opciones de financiación');
+    expect(html).toContain('>1<small>pago</small>');
+    // El 3 de BBVA repetido en la carga sale una sola vez (un bloque BBVA = 1 pago + 3 + 6).
+    const bbvaBlock = html.split('--bc:#1d4ed8')[1]!.split('<div class="fin-brand"')[0]!;
+    expect(bbvaBlock.match(/<small>cuotas<\/small>/g)).toHaveLength(2);
+    expect(html).toContain('GoCuotas');
+    expect(html).toContain('EXCLUSIVO TARJETA MERCADOPAGO');
+    expect(html).not.toContain('Otras opciones de financiación');
+    expect(html).not.toContain('12 cuotas');
   });
   it('los temas estacionales agregan la franja decorativa arriba y abajo en ambas plantillas', () => {
     for (const template of ['MODERNO', 'CLASICO'] as const) {
