@@ -1022,22 +1022,38 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
     .join('');
 }
 
+/** Un plan por cantidad de cuotas (si hay repetidos queda el de menor interés), ordenados por cuotas. */
+function uniqueByInstallments(plans: PdfFinancingPlan[]): PdfFinancingPlan[] {
+  const best = new Map<number, PdfFinancingPlan>();
+  for (const plan of plans) {
+    const current = best.get(plan.installments);
+    if (!current || plan.interestBps < current.interestBps) best.set(plan.installments, plan);
+  }
+  return [...best.values()].sort((a, b) => a.installments - b.installments);
+}
+
+const BRAND_STYLES = {
+  bbva: '--bc:#1d4ed8;--bs:#f5f8ff;--bl:#c7d6f5',
+  go: '--bc:#d6247f;--bs:#fff1f8;--bl:#f5c2dc',
+  mp: '--bc:#0a8fd1;--bs:#eaf7fd;--bl:#b9e1f5',
+} as const;
+
 function buildFinancingModerno(input: PdfRenderInput): string {
   if (!input.config.showFinancing || input.financing.length === 0) return '';
   const plans = [...input.financing].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  const bbva = input.config.showBbva ? plans.filter((p) => /bbva/i.test(p.bank ?? '')) : [];
-  const others = input.config.showOtherBanks ? plans.filter((p) => !/bbva/i.test(p.bank ?? '')) : [];
-  const free = others.filter((p) => p.interestBps === 0);
-  const paid = others.filter((p) => p.interestBps !== 0);
-  if (!bbva.length && !others.length) return '';
-
-  const tile = (plan: PdfFinancingPlan, kind: 'free' | 'bbva'): string => {
-    const cuota = formatArsFromCents(installmentAmount(input.listTotalCents, plan));
-    const tag = kind === 'bbva' ? 'BBVA' : plan.interestBps === 0 ? 'SIN INTERÉS' : '';
-    const sub =
-      plan.description ?? (kind === 'bbva' ? 'Tarjetas BBVA' : 'Con cualquier banco');
-    return `<div class="tile ${kind}"><div class="t-n">${plan.installments}<small>cuotas</small></div>${tag ? `<div class="t-tag">${escapeHtml(tag)}</div>` : ''}<div class="t-amt">${cuota}</div><div class="t-sub">${escapeHtml(sub)}</div></div>`;
-  };
+  const bankOf = (p: PdfFinancingPlan) => p.bank ?? '';
+  const bbva = uniqueByInstallments(plans.filter((p) => /bbva/i.test(bankOf(p))));
+  const go = uniqueByInstallments(plans.filter((p) => /go\s*cuotas|gocuotas/i.test(bankOf(p))));
+  const mpAll = uniqueByInstallments(plans.filter((p) => /mercado\s*pago|mercadopago/i.test(bankOf(p))));
+  const base = (n: number): PdfFinancingPlan => ({ installments: n, interestBps: 0 });
+  const money = (plan: PdfFinancingPlan) => formatArsFromCents(installmentAmount(input.listTotalCents, plan));
+  const tag = (plan: PdfFinancingPlan, fallback: string) =>
+    plan.interestBps === 0 ? 'SIN INTERÉS' : plan.interestBps ? `+${String(plan.interestBps / 100).replace('.', ',')}%` : fallback;
+  const tile = (kind: string, n: number | string, unit: string, tagText: string, amount: string, sub: string) =>
+    `<div class="tile ${kind}"><div class="t-n">${n}<small>${unit}</small></div><div class="t-tag">${escapeHtml(tagText)}</div><div class="t-amt">${amount}</div><div class="t-sub">${escapeHtml(sub)}</div></div>`;
+  const grid = (tiles: string[]) => `<div class="tiles n${Math.min(tiles.length, 4)}">${tiles.join('')}</div>`;
+  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, tiles: string[]) =>
+    `<div class="fin-brand" style="${BRAND_STYLES[style]}"><div class="fin-brand-head">${escapeHtml(title)}</div>${grid(tiles)}</div>`;
 
   const parts: string[] = [];
   if (input.config.showFinancingNote) {
@@ -1045,34 +1061,37 @@ function buildFinancingModerno(input: PdfRenderInput): string {
       `<div class="box box-red"><b>Cuotas:</b> los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</div>`,
     );
   }
-  if (free.length) {
-    const counts = free.map((p) => p.installments);
-    const heading =
-      counts.length === 1
-        ? `${counts[0]} cuotas sin interés`
-        : `${counts.slice(0, -1).join(', ')} y ${counts[counts.length - 1]} cuotas sin interés`;
+  if (input.config.showOtherBanks) {
+    // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
     parts.push(
-      `<div class="fin-hero"><div class="fin-hero-head"><span class="fin-star">★</span><span class="fin-hero-title">${escapeHtml(heading)}</span><span class="fin-hero-sub">con cualquier banco</span></div><div class="tiles n${free.length}">${free.map((p) => tile(p, 'free')).join('')}</div></div>`,
+      `<div class="fin-hero"><div class="fin-hero-head"><span class="fin-star">★</span><span class="fin-hero-title">3 y 6 cuotas sin interés</span><span class="fin-hero-sub">con cualquier banco</span></div>${grid(
+        [3, 6].map((n) => tile('free', n, 'cuotas', 'SIN INTERÉS', money(base(n)), 'Con cualquier banco')),
+      )}</div>`,
     );
   }
-  if (bbva.length) {
+  if (input.config.showBbva && bbva.length) {
+    const tiles = [tile('brand', 1, 'pago', 'BBVA', formatArsFromCents(input.listTotalCents), 'Precio de lista')];
+    for (const plan of bbva.filter((p) => p.installments > 1)) {
+      tiles.push(tile('brand', plan.installments, 'cuotas', tag(plan, 'BBVA'), money(plan), 'Clientes BBVA'));
+    }
+    parts.push(brandBlock('bbva', BBVA_PROMO, tiles));
+  }
+  if (go.length) {
     parts.push(
-      `<div class="fin-bbva"><div class="fin-bbva-head">${escapeHtml(BBVA_PROMO)}</div><div class="tiles n${bbva.length}">${bbva.map((p) => tile(p, 'bbva')).join('')}</div></div>`,
+      brandBlock('go', 'GoCuotas', go.map((plan) => tile('brand', plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', tag(plan, 'GOCUOTAS'), money(plan), 'GoCuotas'))),
     );
   }
-  if (paid.length) {
-    const rows = paid
-      .map((plan) => {
-        const cuota = installmentAmount(input.listTotalCents, plan);
-        const bank = escapeHtml(plan.bank ?? 'Otros bancos');
-        const desc = plan.description ? escapeHtml(plan.description) : `${plan.installments} cuotas`;
-        return `<tr><td class="bank">${bank}</td><td class="desc">${desc}</td><td class="amt">${formatArsFromCents(cuota)}</td></tr>`;
-      })
-      .join('');
-    parts.push(`<div class="fin-other-title">Otras opciones de financiación</div><table class="fin"><tbody>${rows}</tbody></table>`);
+  // Exclusivo tarjeta Mercado Pago: 3 cuotas sin interés (si no hay planes cargados, se muestra igual).
+  const mp = mpAll.filter((p) => p.interestBps === 0);
+  const mpPlans = mp.length ? mp : mpAll.length ? [] : [base(3)];
+  if (mpPlans.length) {
+    parts.push(
+      brandBlock('mp', 'EXCLUSIVO TARJETA MERCADOPAGO', mpPlans.map((plan) => tile('brand', plan.installments, 'cuotas', 'SIN INTERÉS', money(plan), 'Tarjeta Mercado Pago'))),
+    );
   }
+  if (!parts.length) return '';
   const bbvaNote =
-    input.config.showBbva && input.financingBbvaNote
+    input.config.showBbva && bbva.length && input.financingBbvaNote
       ? `<div class="box box-blue">${renderRmaText(input.financingBbvaNote, '')}</div>`
       : '';
   return `${parts.join('')}${bbvaNote}`;
@@ -1110,7 +1129,6 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   const blue = '#1d4ed8';
   const greenSoft = '#eef8f1';
   const greenLine = '#bfe3cb';
-  const blueLine = '#c7d6f5';
 
   const includeParts: string[] = [];
   if (input.config.showServicesBlock) {
@@ -1204,7 +1222,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .fin-hero-title { color: ${green}; font-size: 14.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
   .fin-hero-sub { color: #3b3b3b; font-size: 10.6px; font-weight: 700; }
   .tiles { display: grid; gap: 8px; }
-  .tiles.n1 { grid-template-columns: 1fr; }
+  .tiles.n1 { grid-template-columns: calc(50% - 4px); }
   .tiles.n2 { grid-template-columns: 1fr 1fr; }
   .tiles.n3, .tiles.n4 { grid-template-columns: repeat(3, 1fr); }
   .tile { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; border-radius: 8px; padding: 7px 12px; background: #fff; text-align: left; }
@@ -1215,14 +1233,13 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .tile.free .t-tag { background: ${green}; color: #fff; }
   .tile .t-amt { margin-top: 2px; font-size: 18px; font-weight: 900; color: #151515; }
   .tile .t-sub { margin-top: 2px; font-size: 9.2px; color: #666; }
-  .fin-bbva { margin: 8px 0; border: 1px solid ${blueLine}; border-radius: 8px; background: #f5f8ff; padding: 7px 10px 9px; break-inside: avoid; }
-  .fin-bbva-head { color: ${blue}; font-size: 10.6px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
-  .tile.bbva { border: 1px solid ${blueLine}; }
-  .tile.bbva .t-n { font-size: 24px; color: ${blue}; }
-  .tile.bbva .t-tag { background: ${blue}; color: #fff; }
-  .tile.bbva .t-amt { font-size: 15px; color: ${blue}; }
-  .fin-other-title { margin: 9px 0 2px; font-size: 9.6px; font-weight: 800; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
-  .tile, .fin-hero, .fin-bbva, .tile .t-tag, .totals .cash { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .fin-brand { margin: 8px 0; border: 1px solid var(--bl); border-radius: 8px; background: var(--bs); padding: 7px 10px 9px; break-inside: avoid; }
+  .fin-brand-head { color: var(--bc); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .tile.brand { border: 1px solid var(--bl); }
+  .tile.brand .t-n { font-size: 24px; color: var(--bc); }
+  .tile.brand .t-tag { background: var(--bc); color: #fff; }
+  .tile.brand .t-amt { font-size: 15px; color: var(--bc); }
+  .tile, .fin-hero, .fin-brand, .tile .t-tag, .totals .cash { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
   table.fin tr:last-child td { border-bottom: none; }
