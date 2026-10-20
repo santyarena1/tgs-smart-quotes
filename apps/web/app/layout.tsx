@@ -14,6 +14,7 @@ import "./skins/simplicity.css";
 import "./skins/original.css";
 import { FxBackground } from "../components/FxBackground";
 import { GamerShowcase } from "../components/GamerShowcase";
+import { HalloweenDecor } from "../components/HalloweenDecor";
 import { ModalExit } from "../components/ModalExit";
 
 const lexend = Lexend({ subsets: ["latin"], variable: "--font-lexend", display: "swap" });
@@ -40,7 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body><GamerShowcase /><FxBackground /><ModalExit />{children}</body>
+      <body><GamerShowcase /><FxBackground /><HalloweenDecor /><ModalExit />{children}</body>
     </html>
   );
 }
