@@ -179,3 +179,10 @@ html:root[data-skin="halloween"][data-fx="off"] .hw-decor { display: none; }
 html:root[data-skin="halloween"][data-theme="light"] .hw-decor { opacity: 0.55; }
 @media print { .hw-decor { display: none; } }
 @media (prefers-reduced-motion: reduce) { .hw-decor .hw-bat { animation: none; left: 12vw; } .hw-decor .hw-bat.rev { right: 12vw; } .hw-decor *, .hw-decor .hw-i { animation: none !important; } }
+
+/* Botones/filtros seleccionados (Todos, chips, pestañas): naranja con texto blanco en vez de --ink (que era casi negro) */
+html:root[data-skin="halloween"][data-theme] :is(.qkind.all.on, .lite .lt-chip.on, .lite .lt-tool .lt-chip.on, .lite .lt-kind.all.on, .lite .lt-tab.active),
+html:root[data-skin="halloween"][data-theme] :is(.qkind.all.on, .lite .lt-chip.on, .lite .lt-tool .lt-chip.on, .lite .lt-kind.all.on, .lite .lt-tab.active):hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff6a00, #c2410c); border-color: #ff6a00; color: #fff; text-shadow: none;
+}
+html:root[data-skin="halloween"] .lite .lt-pc.on .lt-switch-track { background: #ff6a00; }

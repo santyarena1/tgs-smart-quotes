@@ -6,7 +6,7 @@ import {CurrentUser, type RequestUser, ZodPipe} from './infrastructure.js';
 
 const UI_SKINS = ['original', 'tgs', 'minimal', 'bluered', 'darkyellow', 'halloween', 'gamer', 'gotham', 'simplicity'] as const;
 const uiSkinSchema = z.object({skin: z.enum(UI_SKINS)}).strict();
-const DEFAULT_UI_SKIN = 'tgs';
+const DEFAULT_UI_SKIN = 'halloween';
 const litePrefsSchema = z.object({hideFinancing: z.boolean()}).strict().partial();
 type LitePrefs = {hideFinancing: boolean};
 

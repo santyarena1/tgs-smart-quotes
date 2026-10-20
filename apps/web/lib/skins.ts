@@ -4,7 +4,7 @@
  */
 export type SkinId = "original" | "tgs" | "minimal" | "bluered" | "darkyellow" | "halloween" | "gamer" | "gotham" | "simplicity";
 
-export const DEFAULT_SKIN: SkinId = "tgs";
+export const DEFAULT_SKIN: SkinId = "halloween";
 export const SKIN_STORAGE_KEY = "tgs.skin";
 
 type Palette = { bg: string; card: string; ink: string; muted: string; line: string; side: string; accent: string; accent2: string };

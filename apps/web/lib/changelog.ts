@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.19",
+    date: "2026-10-20",
+    title: "Halloween por defecto y botones seleccionados legibles",
+    items: [
+      "El tema Halloween queda como predeterminado para todos los usuarios; cada uno puede cambiarlo en Configuración → Temas. Requiere migración de base de datos (deja a todos los usuarios con Halloween)",
+      "En el tema Halloween, el botón Todos del filtro de presupuestos y los chips y pestañas seleccionados ya no quedan negros: se ven naranjas con texto blanco",
+    ],
+  },
+  {
     version: "0.21.17",
     date: "2026-10-20",
     title: "Presupuesto: sin interés a la izquierda y cuotas más claras",
