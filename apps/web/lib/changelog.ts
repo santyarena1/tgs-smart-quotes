@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.13",
+    date: "2026-10-20",
+    title: "Presupuesto más minimalista",
+    items: [
+      "Las cuotas pasan de tarjetas grandes a líneas compactas (n.º de cuotas y monto) con un acento de color fino; GoCuotas y Mercado Pago siguen en la misma fila",
+      "Menos bordes, recuadros y fondos en el resto del presupuesto: efectivo/transferencia como una línea, tarjetas de datos sobrias y espacios más ajustados",
+    ],
+  },
+  {
     version: "0.21.12",
     date: "2026-10-20",
     title: "Los presupuestos en borrador toman el diseño nuevo",
