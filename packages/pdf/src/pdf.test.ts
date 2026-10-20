@@ -490,4 +490,15 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('Descuento exclusivo para clientes BBVA');
     expect(html).toContain('Otras opciones de financiación');
   });
+  it('los temas estacionales agregan la franja decorativa arriba y abajo en ambas plantillas', () => {
+    for (const template of ['MODERNO', 'CLASICO'] as const) {
+      for (const theme of ['halloween', 'navidad'] as const) {
+        const html = renderQuoteHtml({ ...sample(), template, layout: { version: 1, blocks: {}, document: { theme } } });
+        expect(html).toContain('body::before');
+        expect(html).toContain('body::after');
+        expect(html).toContain('data:image/svg+xml');
+      }
+      expect(renderQuoteHtml({ ...sample(), template })).not.toContain('body::before');
+    }
+  });
 });

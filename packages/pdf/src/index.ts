@@ -135,6 +135,8 @@ export type PdfLayoutDocument = {
   /** Rótulos de plantilla reescritos desde el editor. Vacío conserva el texto original. */
   labels?: Partial<Record<PdfLabelKey, string>>;
   accentColor?: string;
+  /** Adorno estacional: franja decorativa arriba y abajo del documento. */
+  theme?: 'halloween' | 'navidad';
   textColor?: string;
   fontFamily?: string;
   tableHeaderBg?: string;
@@ -464,11 +466,42 @@ function blockCss(key: PdfLayoutBlockKey, style: PdfLayoutStyle): string {
   return declarations.length ? `[data-pdf-block="${key}"]{${declarations.join(';')}}` : '';
 }
 
+/** Franjas decorativas de los temas estacionales. Trazos oscuros sobre fondo blanco (el acento es un
+ *  solo color) para que se lean igual impresas en blanco y negro o vistas por WhatsApp. */
+const THEME_TILES: Record<NonNullable<PdfLayoutDocument['theme']>, { svg: string; width: number }> = {
+  halloween: {
+    width: 96,
+    svg:
+      '<g fill="#2b1b3d"><path id="b" d="M0 3Q4 0 8 4L10 1.5L12 5L14 1.5L16 4Q20 0 24 3Q22 10 17 9Q14 8 12 14Q10 8 7 9Q2 10 0 3Z" transform="translate(4 1)"/>' +
+      '<use href="#b" transform="translate(60 0)"/></g>' +
+      '<ellipse cx="48" cy="10" rx="7" ry="5.5" fill="#f26a0f" stroke="#b34700" stroke-width="1"/>' +
+      '<path d="M48 4.5V1.5" stroke="#2e7d32" stroke-width="1.8"/>' +
+      '<path d="M45 9l1.5 2L48 9l1.5 2L51 9" stroke="#2b1b3d" stroke-width="1" fill="none"/>',
+  },
+  navidad: {
+    width: 96,
+    svg:
+      '<g stroke="#4a90c2" stroke-width="1.3" stroke-linecap="round"><g id="s"><path d="M15 3v10M10.7 5.5l8.6 5M10.7 10.5l8.6-5" transform="translate(0 0)"/></g>' +
+      '<use href="#s" transform="translate(66 0)"/></g>' +
+      '<path d="M48 1l7 7h-3.5l5 5H39.5l5-5H41z" fill="#1e7a3c" stroke="#145a2b" stroke-width="1" stroke-linejoin="round"/><circle cx="46" cy="9" r="1.1" fill="#d4171e"/><circle cx="50" cy="11" r="1.1" fill="#d4171e"/>' +
+      '<rect x="46.5" y="13" width="3" height="2.5" fill="#6d4c2f"/>',
+  },
+};
+
+function themeCss(theme: PdfLayoutDocument['theme']): string {
+  const tile = theme ? THEME_TILES[theme] : undefined;
+  if (!tile) return '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tile.width}" height="16" viewBox="0 0 ${tile.width} 16">${tile.svg}</svg>`;
+  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+  const band = `content:"";display:block;height:16px;background:${url} repeat-x center/auto 16px;print-color-adjust:exact;-webkit-print-color-adjust:exact`;
+  return `body::before{${band};margin-bottom:8px}body::after{${band};margin-top:10px}`;
+}
+
 /** CSS del estilo global del documento. Selecciona por clases de ambas plantillas; las que no
  *  existan en una plantilla simplemente no aplican. Los colores ya vienen validados (#RRGGBB). */
 function documentCss(doc: PdfLayoutDocument | undefined): string {
   if (!doc) return '';
-  const rules: string[] = [];
+  const rules: string[] = [themeCss(doc.theme)];
   if (doc.fontFamily) rules.push(`body{font-family:"${cssValue(doc.fontFamily)}",sans-serif!important}`);
   if (doc.textColor) rules.push(`body{color:${cssValue(doc.textColor)}!important}`);
   if (doc.accentColor) {

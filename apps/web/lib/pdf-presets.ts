@@ -50,6 +50,26 @@ export const PDF_PRESETS: PdfPreset[] = [
     },
   },
   {
+    id: "halloween",
+    name: "Halloween",
+    description: "Murciélagos y calabaza en una franja; acento naranja, a color.",
+    document: {
+      theme: "halloween", accentColor: "#e8590c", tableHeaderBg: "#e8590c", tableHeaderColor: "#ffffff",
+      tableBorderColor: "#f3d3bd", tableZebra: true, cardRadius: 6, cardBackground: "#fff8f2",
+      cardBorderColor: "#f3d3bd",
+    },
+  },
+  {
+    id: "navidad",
+    name: "Navidad",
+    description: "Copos y arbolito en una franja; acento rojo con detalles verdes, a color.",
+    document: {
+      theme: "navidad", accentColor: "#c8102e", tableHeaderBg: "#c8102e", tableHeaderColor: "#ffffff",
+      tableBorderColor: "#cfe3d4", tableZebra: true, cardRadius: 6, cardBackground: "#f6fbf7",
+      cardBorderColor: "#cfe3d4",
+    },
+  },
+  {
     id: "compacto",
     name: "Compacto",
     description: "Filas ajustadas para presupuestos largos.",
