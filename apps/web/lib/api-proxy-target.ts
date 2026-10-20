@@ -24,11 +24,13 @@ export function isUnusableOnVercel(url: string): boolean {
   return false;
 }
 
-export function resolveApiProxyTarget(env: {
+export type ProxyEnv = {
   API_PROXY_TARGET?: string;
   API_PUBLIC_URL?: string;
   VERCEL?: string;
-}): string {
+};
+
+export function resolveApiProxyTarget(env: ProxyEnv): string {
   const onVercel = Boolean(env.VERCEL);
   const candidates = [
     env.API_PROXY_TARGET,

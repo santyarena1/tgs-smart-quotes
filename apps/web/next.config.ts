@@ -3,7 +3,11 @@ import {fileURLToPath} from 'node:url';
 import type { NextConfig } from 'next';
 import {resolveApiProxyTarget} from './lib/api-proxy-target';
 
-const apiProxyTarget = resolveApiProxyTarget(process.env);
+const apiProxyTarget = resolveApiProxyTarget({
+  API_PROXY_TARGET: process.env.API_PROXY_TARGET,
+  API_PUBLIC_URL: process.env.API_PUBLIC_URL,
+  VERCEL: process.env.VERCEL,
+});
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
