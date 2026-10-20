@@ -488,7 +488,8 @@ describe('@tgs/pdf', () => {
       { bank: 'Mercado Pago', installments: 3, interestBps: 0, sortOrder: 7 },
     ];
     const html = renderQuoteHtml({ ...sample(), template: 'MODERNO', financing, financingBbvaNote: 'Viernes y sábados.' } as PdfRenderInput);
-    expect(html).toContain('con cualquier banco');
+    expect(html).toContain('Cuotas sin interés con cualquier banco');
+    expect(html).toContain('Pagos presenciales o por link de pago/QR');
     expect(html).toContain('Cuotas exclusivas para clientes BBVA');
     expect(html).not.toContain('Descuento exclusivo para clientes BBVA');
     expect(html).not.toContain('<span class="t-u">pago</span>');
