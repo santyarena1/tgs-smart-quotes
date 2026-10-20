@@ -513,4 +513,10 @@ describe('@tgs/pdf', () => {
       expect(renderQuoteHtml({ ...sample(), template })).not.toContain('body::before');
     }
   });
+  it('el hash del PDF cambia con la plantilla, para no reutilizar un PDF de otro diseño', () => {
+    const a = pdfInputHash({ ...sample(), template: 'MODERNO' });
+    const b = pdfInputHash({ ...sample(), template: 'CLASICO' });
+    expect(a).not.toBe(b);
+    expect(pdfInputHash({ ...sample(), template: 'MODERNO' })).toBe(a);
+  });
 });
