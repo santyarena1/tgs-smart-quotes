@@ -2,7 +2,7 @@
  * Temas visuales. Solo cambian el aspecto (colores, fuentes, animaciones, detalles, barras): nunca la estructura.
  * El tema se guarda por usuario (columna User.uiSkin) y se recuerda por navegador para pintar sin parpadeo.
  */
-export type SkinId = "original" | "tgs" | "minimal" | "bluered" | "darkyellow" | "gamer" | "gotham" | "simplicity";
+export type SkinId = "original" | "tgs" | "minimal" | "bluered" | "darkyellow" | "halloween" | "gamer" | "gotham" | "simplicity";
 
 export const DEFAULT_SKIN: SkinId = "tgs";
 export const SKIN_STORAGE_KEY = "tgs.skin";
@@ -77,6 +77,17 @@ export const SKINS: SkinDef[] = [
     bar: "Barra flotante de cristal dorado",
     light: { bg: "#fbf7ea", card: "#fffdf5", ink: "#1c1708", muted: "#766a44", line: "#e8e0c4", side: "#17120a", accent: "#e0a800", accent2: "#b58300" },
     dark: { bg: "#0b0905", card: "#17130a", ink: "#fff7dc", muted: "#aa9e74", line: "#2e2610", side: "#17120a", accent: "#facc15", accent2: "#f59e0b" },
+  },
+  {
+    id: "halloween",
+    name: "Halloween",
+    tagline: "Calabazas y murciélagos",
+    description: "Negro violáceo con naranja calabaza y acento violeta, modo claro en crema durazno. Cristal líquido, partículas naranjas y una franja de murciélagos y calabazas al pie de la pantalla.",
+    fonts: { display: "var(--font-space), 'Space Grotesk', system-ui, sans-serif", body: "var(--font-inter), Inter, system-ui, sans-serif" },
+    effects: "Con efectos",
+    bar: "Barra flotante de cristal anaranjado",
+    light: { bg: "#fdf3e7", card: "#fffaf3", ink: "#1f1208", muted: "#76593a", line: "#ecd9c4", side: "#170f22", accent: "#f26a0f", accent2: "#a855f7" },
+    dark: { bg: "#0d0912", card: "#1a1224", ink: "#fdeedd", muted: "#a898b8", line: "#33244a", side: "#170f22", accent: "#ff7a1a", accent2: "#a855f7" },
   },
   {
     id: "gamer",

@@ -26,6 +26,7 @@ import {
 import {RECOMMENDED_AI_MODELS} from "../lib/ai-models";
 import {ChatbotSettingsSection} from "./ChatbotSettingsSection";
 import {ThemesSection} from "./ThemesSection";
+import {PdfThemePicker} from "./PdfThemePicker";
 import {WhatsappSettingsSection} from "./WhatsappSettingsSection";
 import {ThumbnailAiSettingsSection} from "./ThumbnailAiSettingsSection";
 import {NodoProvidersSettingsSection} from "./NodoProvidersSettingsSection";
@@ -675,6 +676,7 @@ export function SettingsView() {
 
       {!loading && tab === "pdf" && pdf ? (
         <form className="form-grid card card-pad" onSubmit={savePdf}>
+          <PdfThemePicker />
           <h3 className="panel-title">Plantilla y vigencia</h3>
           <div className="grid-2">
             <Field label="Plantilla" htmlFor="pdf-template">
