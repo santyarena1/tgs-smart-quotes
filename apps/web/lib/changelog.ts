@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.16",
+    date: "2026-10-20",
+    title: "Halloween: murciélagos, cursor y fondo violeta",
+    items: [
+      "El tema Halloween suma murciélagos que cruzan la pantalla aleteando, calabazas, calaveras y fantasmas flotando, telarañas en las esquinas y una luna",
+      "Cursor nuevo: calabaza normal y calavera sobre botones y links",
+      "El goteo naranja del borde superior es fijo y constante en todas las pantallas (también en LITE) y sin animación",
+      "Fondo con degradado violeta en modo oscuro con un resplandor naranja; todo se apaga con el interruptor de efectos o con movimiento reducido",
+    ],
+  },
+  {
     version: "0.21.15",
     date: "2026-10-20",
     title: "Presupuesto: sin interés centrado y más aire",
