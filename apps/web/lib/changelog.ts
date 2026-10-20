@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.12",
+    date: "2026-10-20",
+    title: "Los presupuestos en borrador toman el diseño nuevo",
+    items: [
+      "Al volver a generar un presupuesto en borrador se usa el diseño actual del PDF; antes se reutilizaba el PDF viejo si los datos no habían cambiado",
+      "Los presupuestos ya emitidos siguen igual (son inmutables): para ver el diseño nuevo hay que generar uno nuevo o volver a generar el borrador",
+    ],
+  },
+  {
     version: "0.21.11",
     date: "2026-10-20",
     title: "El presupuesto siempre entra en una hoja",
