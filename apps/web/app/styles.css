@@ -3896,8 +3896,26 @@ select option { font-weight: 500; }
 .lite.lt-embed .lt-refb { z-index: 55; bottom: 5.4rem; }
 
 .iva-select { min-width: 5.2rem; }
+.iva-select.iva-auto { border-style: dashed; }
 .items-table .iva-auto { border-bottom: 1px dashed color-mix(in srgb, var(--ink) 35%, transparent); cursor: help; }
 .items-table .iva-set { font-weight: 600; }
+.items-table .neg,
+.items-table .money-input.neg,
+.items-table .pct-input.neg {
+  color: var(--red);
+  font-weight: 650;
+}
+.quote-fin-show { align-self: start; }
+.overlay.right .drawer-body .lt-fin {
+  position: static;
+  top: auto;
+  height: auto;
+  max-height: none;
+  width: 100%;
+}
+.overlay.right .drawer-body .lt-fin-list {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
 
 .quote-ref-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .quote-ref-btn { display: inline-flex; align-items: center; gap: 0.65rem; padding: 0.5rem 0.85rem; border: 1px solid var(--line-2); border-radius: 12px; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; transition: border-color 0.2s, background 0.2s, transform 0.1s; }

@@ -4,6 +4,8 @@ import {
   applyDraftMarkup,
   applyDraftSale,
   itemPricePayload,
+  retargetSaleLines,
+  sellsBelowCost,
 } from "./quote-item-pricing";
 
 const loadedFromSaved = {
@@ -48,5 +50,26 @@ describe("precio de ítem: el margen queda fijo al editar el costo", () => {
     expect(afterCost.markupPct).toBe("50");
     expect(afterCost.saleArs).toBe("300.000");
     expect(afterCost.priceMode).toBe("markup");
+  });
+});
+
+describe("ajuste de total como en LITE", () => {
+  it("escala las ventas en proporción y absorbe el residuo en un ítem de cantidad 1", () => {
+    const result = retargetSaleLines(
+      [
+        {...loadedFromSaved, quantity: "1", saleArs: "100.000"},
+        {...loadedFromSaved, quantity: "2", saleArs: "50.000"},
+      ],
+      30000000n,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.reached).toBe(30000000n);
+    expect(result!.lines[0]!.saleArs).toBe("150.000");
+    expect(result!.lines[1]!.saleArs).toBe("75.000");
+  });
+
+  it("marca venta por debajo del costo", () => {
+    expect(sellsBelowCost({costArs: "100.000", saleArs: "90.000"})).toBe(true);
+    expect(sellsBelowCost({costArs: "100.000", saleArs: "130.000"})).toBe(false);
   });
 });

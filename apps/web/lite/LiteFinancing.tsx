@@ -57,13 +57,15 @@ const ORDER: Kind[] = ["bbva", "single", "others", "mp", "go"];
  * Cómo queda financiado lo que se está cargando. Misma cuenta que el PDF:
  * las cuotas salen del precio de lista (efectivo + interés de lista) más el interés de cada plan.
  */
-export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCents, plans, listInterestBps, loaded, onHide }: {
+export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCents, plans, listInterestBps, loaded, onHide, settingsHref = "/lite/configuracion?tab=financiacion" }: {
   totalCents: bigint;
   /** Tapa la columna (ojito). Se recuerda por usuario. */
   onHide: () => void;
   plans: FinancingPlan[];
   listInterestBps: number;
   loaded: boolean;
+  /** Configuración de intereses: LITE y suite apuntan a su propia pantalla. */
+  settingsHref?: string;
 }) {
   // Monto manual: sirve para ver cómo queda en cuotas un valor cualquiera, sin cargar productos.
   const [manual, setManual] = useState("");
@@ -97,7 +99,7 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
             <circle cx="12" cy="12" r="3" />
           </svg>
         </button>
-        <Link href="/lite/configuracion?tab=financiacion" className="lt-gear" title="Configurar intereses y cuotas" aria-label="Configurar intereses y cuotas">
+        <Link href={settingsHref} className="lt-gear" title="Configurar intereses y cuotas" aria-label="Configurar intereses y cuotas">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.62.8 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09c-.76 0-1.36.41-1.51 1z" />
@@ -136,7 +138,7 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
           ))}
         </ul>
       )}
-      {loaded && !plans.length ? <p className="lt-fin-empty">No hay planes activos. <Link href="/lite/configuracion?tab=financiacion">Configurarlos</Link></p> : null}
+      {loaded && !plans.length ? <p className="lt-fin-empty">No hay planes activos. <Link href={settingsHref}>Configurarlos</Link></p> : null}
       {loaded && !hasTotal ? <p className="lt-fin-empty">Cargá productos o un monto manual y las cuotas se calculan solas.</p> : null}
     </aside>
   );

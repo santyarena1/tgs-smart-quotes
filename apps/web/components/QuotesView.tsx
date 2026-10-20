@@ -14,7 +14,8 @@ import {
   roundCentsToPesosStep,
   saleFromCostAndPct,
 } from "../lib/money";
-import {applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload} from "../lib/quote-item-pricing";
+import {applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload, retargetSaleLines, sellsBelowCost} from "../lib/quote-item-pricing";
+import {LiteFinancing} from "../lite/LiteFinancing";
 import {DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva} from "../lib/iva";
 import {KINDS, KIND_LABEL, madeKinds, quoteKind, type PdfKind as QuoteKind} from "../lib/quote-kinds";
 import {LiteReferenceBubble, LiteReferenceModal, type ReferenceImage} from "../lite/LiteReferenceImage";
@@ -25,7 +26,9 @@ import {suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle} from "
 import type {
   Collection,
   Combo,
+  CompanySettings,
   Customer,
+  FinancingPlan,
   PcLine,
   Product,
   Quote,
@@ -416,6 +419,18 @@ export function QuotesView({
   const draftBaselineRef = useRef("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [retargetArs, setRetargetArs] = useState("");
+  const [totalEditOpen, setTotalEditOpen] = useState(false);
+  const [totalEditValue, setTotalEditValue] = useState("");
+  const [finPlans, setFinPlans] = useState<FinancingPlan[]>([]);
+  const [listInterestBps, setListInterestBps] = useState(0);
+  const [finLoaded, setFinLoaded] = useState(false);
+  const [hideFinancing, setHideFinancing] = useState(() => {
+    try {
+      return window.localStorage.getItem("tgs.suite.hideFinancing") === "1";
+    } catch {
+      return false;
+    }
+  });
   /** Margen general: se aplica a todos los ítems con un click. Se elige del desplegable o se escribe. */
   const [globalMarkupPct, setGlobalMarkupPct] = useState("");
   const [roundStepPesos, setRoundStepPesos] = useState<"" | "100" | "500" | "1000" | "5000">("");
@@ -541,7 +556,7 @@ export function QuotesView({
   const sideSeqRef = useRef(0);
 
   const loadCatalogs = useCallback(async () => {
-    const [custs, prods, reqs, cols, comboRows, lines, branchRows] = await Promise.all([
+    const [custs, prods, reqs, cols, comboRows, lines, branchRows, plans, company] = await Promise.all([
       api<Customer[]>("/customers").catch(() => [] as Customer[]),
       api<Product[]>("/products").catch(() => [] as Product[]),
       api<QuoteRequest[]>("/requests").catch(() => [] as QuoteRequest[]),
@@ -549,6 +564,8 @@ export function QuotesView({
       api<Combo[]>("/combos").catch(() => [] as Combo[]),
       api<PcLine[]>("/pc-lines").catch(() => [] as PcLine[]),
       api<{ items: { id: string; name: string }[] }>("/branches").catch(() => ({ items: [] })),
+      api<FinancingPlan[]>("/financing").catch(() => [] as FinancingPlan[]),
+      api<CompanySettings>("/settings/company").catch(() => null),
     ]);
     setCustomers(custs);
     setProducts(prods.filter((p) => p.active));
@@ -557,6 +574,9 @@ export function QuotesView({
     setRequests(reqs);
     setCollections(cols.filter((c) => !c.archived));
     setBranches(branchRows.items ?? []);
+    setFinPlans(plans.filter((p) => p.active).sort((a, b) => a.sortOrder - b.sortOrder));
+    setListInterestBps(company?.listInterestBps ?? 0);
+    setFinLoaded(true);
     catalogsReadyRef.current = true;
   }, []);
 
@@ -1212,8 +1232,10 @@ export function QuotesView({
   }
 
   function assignProductToLine(product: Product, lineId: string, replaceKey: string | null = null) {
+    const drafted = itemFromProduct(product, "1", lineId);
+    const emptySlot = !replaceKey ? items.find((i) => i.lineId === lineId && isSlotEmpty(i)) : null;
+    const targetKey = replaceKey ?? emptySlot?.key ?? drafted.key;
     setItems((prev) => {
-      const drafted = itemFromProduct(product, "1", lineId);
       let next: ItemDraft[];
       if (replaceKey) {
         next = prev.map((item) =>
@@ -1239,6 +1261,7 @@ export function QuotesView({
     setPickerOpen(false);
     setEditingKey(null);
     void rememberProductLine(product, lineId);
+    suggestIvaFor({ ...drafted, key: targetKey });
     setNotice(
       `“${product.name}” en ${lineById.get(lineId)?.name ?? "línea"}. Quedó recordado para próximos armados.`,
     );
@@ -1275,6 +1298,10 @@ export function QuotesView({
   function addCatalogItem(product: CatalogPickerItem, override?: Partial<ItemDraft>) {
     const lineId = pickingLineId ?? "";
     const drafted: ItemDraft = { ...itemFromCatalog(product, lineId), ...override };
+    const emptySlot = !replaceItemKey && isBuiltPc && lineId
+      ? items.find((item) => item.lineId === lineId && isSlotEmpty(item))
+      : null;
+    const targetKey = replaceItemKey ?? emptySlot?.key ?? drafted.key;
     setItems((prev) => {
       if (replaceItemKey) {
         const next = prev.map((item) =>
@@ -1301,6 +1328,7 @@ export function QuotesView({
     setPickingLineId(null);
     setReplaceItemKey(null);
     setEditingKey(null);
+    suggestIvaFor({ ...drafted, key: targetKey });
   }
 
   function focusPickerInput() {
@@ -1331,7 +1359,8 @@ export function QuotesView({
       item.lineId ||
       (item.productId ? productById.get(item.productId)?.defaultLineId ?? "" : "");
     const draft = lineId ? { ...item, lineId } : item;
-    suggestIvaFor(draft);
+    const emptySlot = isBuiltPc && draft.lineId ? items.find((i) => i.lineId === draft.lineId && isSlotEmpty(i)) : null;
+    suggestIvaFor({ ...draft, key: emptySlot?.key ?? draft.key });
     setItems((prev) => {
       if (isBuiltPc && pcLines.length) {
         if (draft.lineId) {
@@ -1398,6 +1427,7 @@ export function QuotesView({
       return isBuiltPc && pcLines.length ? buildPcSlots(pcLines, next, productById) : next;
     });
     for (const draft of expanded) {
+      suggestIvaFor(draft);
       if (draft.productId && draft.lineId) {
         const product = byId.get(draft.productId);
         if (product) void rememberProductLine(product, draft.lineId);
@@ -1478,8 +1508,66 @@ export function QuotesView({
     if (item.ivaAuto === false || !item.name.trim()) return;
     void fetchIvaSuggestion(item.name).then((s) => {
       if (!s) return;
-      setItems((prev) => prev.map((x) => (x.ivaAuto !== false && x.name === item.name ? { ...x, ivaPct: ivaPctFromBps(s.ivaBps) } : x)));
+      setItems((prev) => prev.map((x) => (x.key === item.key && x.ivaAuto !== false ? { ...x, ivaPct: ivaPctFromBps(s.ivaBps) } : x)));
     });
+  }
+
+  function duplicateItem(key: string) {
+    setItems((prev) => {
+      const index = prev.findIndex((x) => x.key === key);
+      if (index < 0) return prev;
+      const src = prev[index]!;
+      if (isSlotEmpty(src)) return prev;
+      const copy: ItemDraft = { ...src, key: crypto.randomUUID(), lineId: isBuiltPc ? "" : src.lineId };
+      const next = [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)];
+      return isBuiltPc ? buildPcSlots(pcLines, next, productById) : next;
+    });
+  }
+
+  function persistHideFinancing(hidden: boolean) {
+    setHideFinancing(hidden);
+    try {
+      window.localStorage.setItem("tgs.suite.hideFinancing", hidden ? "1" : "0");
+    } catch {
+      /* sin storage */
+    }
+  }
+
+  function applySaleTotal(value: string) {
+    let target: bigint;
+    try {
+      target = BigInt(parseArsToCents(value));
+    } catch {
+      setError("El total que escribiste no es válido.");
+      return;
+    }
+    if (target <= 0n) {
+      setError("El total tiene que ser mayor a cero.");
+      return;
+    }
+    const result = retargetSaleLines(filledItems(items), target);
+    if (!result) {
+      setError("Los ítems no tienen precio para ajustar.");
+      return;
+    }
+    const byKey = new Map(result.lines.map((row) => [row.key, row]));
+    setItems((prev) => prev.map((item) => byKey.get(item.key) ?? item));
+    setError(null);
+    setNotice(
+      result.reached === target
+        ? `Total de la venta ajustado a ${formatArs(target)}.`
+        : `Total ajustado a ${formatArs(result.reached)} (el más cercano posible con las cantidades cargadas).`,
+    );
+  }
+
+  function openTotalEdit() {
+    if (!filledItems(items).length) {
+      setError("Cargá productos antes de editar el total.");
+      return;
+    }
+    setError(null);
+    setTotalEditValue(centsToInput(draftTotal));
+    setTotalEditOpen(true);
   }
 
   /* ————— product picker ————— */
@@ -2019,24 +2107,9 @@ export function QuotesView({
     }
   }
 
-  async function retarget() {
-    if (!selectedId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await api(`/quotes/${selectedId}/retarget`, {
-        method: "POST",
-        body: { targetTotalCents: parseArsToCents(retargetArs) },
-      });
-      setNotice("Total ajustado.");
-      setRetargetArs("");
-      await reloadDetail(selectedId, false);
-      await refreshQuotes();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
+  function retarget() {
+    applySaleTotal(retargetArs);
+    setRetargetArs("");
   }
 
   const activeVersion = detail ? getActiveVersion(detail) : null;
@@ -2563,6 +2636,11 @@ export function QuotesView({
             <span className="quote-foot-total">
               <span className="quote-foot-total-label">{tradeInTotal > 0n ? "A pagar" : "Total del presupuesto"}</span>
               <strong>{formatArs(tradeInTotal > 0n ? draftNet : draftTotal)}</strong>
+              {isDraft ? (
+                <button type="button" className="btn-ghost btn-sm" disabled={busy || filledItems(items).length === 0} onClick={openTotalEdit} title="Ajustar el total de la venta (como en LITE)">
+                  Editar total
+                </button>
+              ) : null}
             </span>
             <span className="spacer" />
             <button type="button" className="btn-ghost" onClick={() => setDrawerOpen(false)}>
@@ -3134,6 +3212,7 @@ export function QuotesView({
                     <th className="right">% Markup</th>
                     <th className="right">Precio de venta</th>
                     <th className="right" title="IVA incluido en el precio. Sugerido por la categoría: se puede cambiar">IVA</th>
+                    <th className="right">Subtotal</th>
                     <th />
                   </tr>
                 </thead>
@@ -3149,6 +3228,7 @@ export function QuotesView({
                       (Boolean(pickingLineId) &&
                         item.lineId === pickingLineId &&
                         empty);
+                    const below = !empty && sellsBelowCost(item);
                     return (
                       <tr
                         key={item.key}
@@ -3156,6 +3236,7 @@ export function QuotesView({
                           editing ? "editing" : "",
                           empty ? "pc-slot-empty" : "",
                           picking ? "pc-slot-active" : "",
+                          below ? "item-below-cost" : "",
                         ]
                           .filter(Boolean)
                           .join(" ") || undefined}
@@ -3226,12 +3307,12 @@ export function QuotesView({
                             displayArs(item.costArs)
                           )}
                         </td>
-                        <td className="right num">
+                        <td className={`right num${below ? " neg" : ""}`}>
                           {empty ? (
                             "—"
                           ) : editing ? (
                             <input
-                              className="pct-input"
+                              className={`pct-input${below ? " neg" : ""}`}
                               list="tgs-markup-presets"
                               value={item.markupPct}
                               onChange={(e) => setMarkupPct(item.key, e.target.value)}
@@ -3242,12 +3323,12 @@ export function QuotesView({
                             `${item.markupPct || "0"} %`
                           )}
                         </td>
-                        <td className="right num">
+                        <td className={`right num${below ? " neg" : ""}`}>
                           {empty ? (
                             "—"
                           ) : editing ? (
                             <MoneyInput
-                              className="money-input"
+                              className={`money-input${below ? " neg" : ""}`}
                               value={item.saleArs}
                               onChange={(v) => setSale(item.key, v)}
                               placeholder="0"
@@ -3259,17 +3340,26 @@ export function QuotesView({
                         <td className="right num">
                           {empty ? (
                             "—"
-                          ) : editing ? (
-                            <select className="iva-select" value={ivaOf(item)} onChange={(e) => setIva(item.key, e.target.value)} aria-label="IVA del ítem">
+                          ) : isDraft ? (
+                            <select
+                              className={`iva-select${item.ivaAuto === false ? " iva-set" : " iva-auto"}`}
+                              value={ivaOf(item)}
+                              onChange={(e) => setIva(item.key, e.target.value)}
+                              aria-label="IVA del ítem"
+                              title={item.ivaAuto === false ? "IVA elegido" : "IVA sugerido según la categoría (podés cambiarlo)"}
+                            >
                               {(IVA_PRESETS.includes(ivaOf(item)) ? IVA_PRESETS : [...IVA_PRESETS, ivaOf(item)]).map((v) => (
                                 <option key={v} value={v}>{v.replace(".", ",")} %</option>
                               ))}
                             </select>
                           ) : (
-                            <span className={item.ivaAuto === false ? "iva-set" : "iva-auto"} title={item.ivaAuto === false ? "IVA elegido" : "IVA sugerido según la categoría (podés cambiarlo al editar)"}>
+                            <span className={item.ivaAuto === false ? "iva-set" : "iva-auto"} title={item.ivaAuto === false ? "IVA elegido" : "IVA sugerido según la categoría"}>
                               {ivaOf(item).replace(".", ",")} %
                             </span>
                           )}
+                        </td>
+                        <td className="right num">
+                          {empty ? "—" : formatArs(lineTotalCents(item.saleArs, item.quantity))}
                         </td>
                         <td className="actions">
                           {isDraft ? (
@@ -3307,6 +3397,16 @@ export function QuotesView({
                                   {editing ? "Listo" : "Editar"}
                                 </button>
                               ) : null}
+                              {!empty && !isBuiltPc ? (
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-sm"
+                                  title="Duplicar ítem"
+                                  onClick={() => duplicateItem(item.key)}
+                                >
+                                  ⧉
+                                </button>
+                              ) : null}
                               {isBuiltPc && item.lineId ? (
                                 <button
                                   type="button"
@@ -3334,7 +3434,7 @@ export function QuotesView({
                 </tbody>
                 <tfoot>
                   <tr className="items-total-row">
-                    <td colSpan={isBuiltPc ? 6 : 5} className="items-total-label">
+                    <td colSpan={isBuiltPc ? 7 : 6} className="items-total-label">
                       Total de venta
                     </td>
                     <td className="right num items-total-value">{formatArs(draftTotal)}</td>
@@ -3382,18 +3482,39 @@ export function QuotesView({
                       <Field label="Markup %"><input list="tgs-markup-presets" value={item.markupPct} onChange={(e) => setMarkupPct(item.key, e.target.value)} /></Field>
                       <Field label="Precio de venta"><MoneyInput value={item.saleArs} onChange={(v) => setSale(item.key, v)} /></Field>
                       <Field label="IVA">
-                        <select value={ivaOf(item)} onChange={(e) => setIva(item.key, e.target.value)}>
+                        <select
+                          className={`iva-select${item.ivaAuto === false ? " iva-set" : " iva-auto"}`}
+                          value={ivaOf(item)}
+                          onChange={(e) => setIva(item.key, e.target.value)}
+                          title={item.ivaAuto === false ? "IVA elegido" : "IVA sugerido según la categoría (podés cambiarlo)"}
+                        >
                           {(IVA_PRESETS.includes(ivaOf(item)) ? IVA_PRESETS : [...IVA_PRESETS, ivaOf(item)]).map((v) => <option key={v} value={v}>{v.replace(".", ",")} %</option>)}
                         </select>
                       </Field>
                     </div>
                   </> : !empty ? <div className="item-fields mobile-item-values">
-                    <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong>{displayArs(item.saleArs)}</strong></div><div><span>IVA</span><strong>{ivaOf(item).replace(".", ",")} %</strong></div>
+                    <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong className={sellsBelowCost(item) ? "neg" : undefined}>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong className={sellsBelowCost(item) ? "neg" : undefined}>{displayArs(item.saleArs)}</strong></div>
+                    <div>
+                      <span>IVA</span>
+                      {isDraft ? (
+                        <select
+                          className={`iva-select${item.ivaAuto === false ? " iva-set" : " iva-auto"}`}
+                          value={ivaOf(item)}
+                          onChange={(e) => setIva(item.key, e.target.value)}
+                          title={item.ivaAuto === false ? "IVA elegido" : "IVA sugerido según la categoría (podés cambiarlo)"}
+                        >
+                          {(IVA_PRESETS.includes(ivaOf(item)) ? IVA_PRESETS : [...IVA_PRESETS, ivaOf(item)]).map((v) => <option key={v} value={v}>{v.replace(".", ",")} %</option>)}
+                        </select>
+                      ) : (
+                        <strong>{ivaOf(item).replace(".", ",")} %</strong>
+                      )}
+                    </div>
                   </div> : null}
                   {!empty ? <div className="item-foot"><span>Subtotal</span><strong className="item-subtotal">{formatArs(lineTotalCents(item.saleArs, item.quantity))}</strong></div> : null}
                   {isDraft ? <div className="mobile-card-actions">
                     {!isBuiltPc ? <><button type="button" className="move-btn" disabled={index === 0} onClick={() => move(item.key, -1)}>↑ Subir</button><button type="button" className="move-btn" disabled={index === items.length - 1} onClick={() => move(item.key, 1)}>↓ Bajar</button></> : null}
                     {!empty ? <button type="button" className="btn-ghost" onClick={() => setEditingKey(editing ? null : item.key)}>{editing ? "Listo" : "Editar"}</button> : null}
+                    {!empty && !isBuiltPc ? <button type="button" className="btn-ghost" onClick={() => duplicateItem(item.key)}>Duplicar</button> : null}
                     {isBuiltPc && item.lineId ? <button type="button" className="btn-ghost" onClick={() => openReplaceOnLine(item.key, item.lineId)}>{empty ? "Elegir" : "Cambiar"}</button> : null}
                     {!empty ? <button type="button" className="btn-danger" onClick={() => removeItem(item.key)}>{isBuiltPc && item.lineId ? "Vaciar" : "Eliminar"}</button> : null}
                   </div> : null}
@@ -3469,6 +3590,23 @@ export function QuotesView({
           ) : null}
         </div>
 
+        {hideFinancing ? (
+          <button type="button" className="btn-ghost quote-fin-show" onClick={() => persistHideFinancing(false)}>
+            Mostrar financiación
+          </button>
+        ) : (
+          <div className="lite lt-embed quote-fin">
+            <LiteFinancing
+              totalCents={draftNet}
+              plans={finPlans}
+              listInterestBps={listInterestBps}
+              loaded={finLoaded}
+              onHide={() => persistHideFinancing(true)}
+              settingsHref="/configuracion?tab=financiacion"
+            />
+          </div>
+        )}
+
         {detail ? (
           <details className="quote-more">
             <summary>Estado, PDF, historial y sugerencias <span className="section-note">no hace falta para guardar</span></summary>
@@ -3534,6 +3672,7 @@ export function QuotesView({
 
                 <section>
                   <h4 className="ops-subtitle">Ajustes del borrador</h4>
+                  <p className="section-note">Ajusta los precios de venta en proporción, igual que en LITE. No hace falta haber guardado.</p>
                   <Field label="Total de venta objetivo (ARS)" htmlFor="retarget">
                     <MoneyInput
                       id="retarget"
@@ -3796,6 +3935,36 @@ export function QuotesView({
             </div>
           ))}
         </div>
+      </Modal>
+
+      <Modal
+        open={totalEditOpen}
+        title="Total de la venta"
+        onClose={() => setTotalEditOpen(false)}
+        footer={
+          <>
+            <button type="button" className="btn-ghost" onClick={() => setTotalEditOpen(false)}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                applySaleTotal(totalEditValue);
+                setTotalEditOpen(false);
+              }}
+            >
+              Aplicar total
+            </button>
+          </>
+        }
+      >
+        <p className="section-note">
+          Escribí el total que querés. Los precios de los ítems se ajustan en proporción para llegar a ese valor
+          {tradeInTotal > 0n ? " (antes de restar lo que entrega el cliente)" : ""}.
+        </p>
+        <Field label="Total" htmlFor="quote-total-edit">
+          <MoneyInput id="quote-total-edit" value={totalEditValue} onChange={setTotalEditValue} placeholder="0" />
+        </Field>
       </Modal>
 
       <div className="lite lt-embed">
