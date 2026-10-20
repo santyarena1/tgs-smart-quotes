@@ -992,30 +992,57 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
 function buildFinancingModerno(input: PdfRenderInput): string {
   if (!input.config.showFinancing || input.financing.length === 0) return '';
   const plans = [...input.financing].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  const bbva = plans.filter((p) => /bbva/i.test(p.bank ?? ''));
-  const others = plans.filter((p) => !bbva.includes(p));
-  const rowHtml = (plan: PdfFinancingPlan, isBbva: boolean): string => {
-    const cuota = installmentAmount(input.listTotalCents, plan);
-    const bank = escapeHtml(plan.bank ?? (isBbva ? 'BBVA' : 'Otros bancos'));
-    const sinInteres =
-      plan.interestBps === 0 ? (isBbva ? ` · ${BBVA_PROMO}` : ' sin interés') : '';
-    const desc = plan.description
-      ? escapeHtml(plan.description)
-      : `${plan.installments} cuotas${sinInteres}`;
-    return `<tr class="${isBbva ? 'bbva' : ''}"><td class="bank">${bank}</td><td class="desc">${desc}</td><td class="amt">${formatArsFromCents(cuota)}</td></tr>`;
+  const bbva = input.config.showBbva ? plans.filter((p) => /bbva/i.test(p.bank ?? '')) : [];
+  const others = input.config.showOtherBanks ? plans.filter((p) => !/bbva/i.test(p.bank ?? '')) : [];
+  const free = others.filter((p) => p.interestBps === 0);
+  const paid = others.filter((p) => p.interestBps !== 0);
+  if (!bbva.length && !others.length) return '';
+
+  const tile = (plan: PdfFinancingPlan, kind: 'free' | 'bbva'): string => {
+    const cuota = formatArsFromCents(installmentAmount(input.listTotalCents, plan));
+    const tag = kind === 'bbva' ? 'BBVA' : plan.interestBps === 0 ? 'SIN INTERÉS' : '';
+    const sub =
+      plan.description ?? (kind === 'bbva' ? 'Tarjetas BBVA' : 'Con cualquier banco');
+    return `<div class="tile ${kind}"><div class="t-n">${plan.installments}<small>cuotas</small></div>${tag ? `<div class="t-tag">${escapeHtml(tag)}</div>` : ''}<div class="t-amt">${cuota}</div><div class="t-sub">${escapeHtml(sub)}</div></div>`;
   };
-  const body: string[] = [];
-  if (input.config.showBbva) body.push(...bbva.map((p) => rowHtml(p, true)));
-  if (input.config.showOtherBanks) body.push(...others.map((p) => rowHtml(p, false)));
-  if (!body.length) return '';
-  const note = input.config.showFinancingNote
-    ? `<div class="box box-red"><b>Cuotas:</b> los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</div>`
-    : '';
+
+  const parts: string[] = [];
+  if (input.config.showFinancingNote) {
+    parts.push(
+      `<div class="box box-red"><b>Cuotas:</b> los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</div>`,
+    );
+  }
+  if (free.length) {
+    const counts = free.map((p) => p.installments);
+    const heading =
+      counts.length === 1
+        ? `${counts[0]} cuotas sin interés`
+        : `${counts.slice(0, -1).join(', ')} y ${counts[counts.length - 1]} cuotas sin interés`;
+    parts.push(
+      `<div class="fin-hero"><div class="fin-hero-head"><span class="fin-star">★</span><span class="fin-hero-title">${escapeHtml(heading)}</span><span class="fin-hero-sub">con cualquier banco</span></div><div class="tiles n${free.length}">${free.map((p) => tile(p, 'free')).join('')}</div></div>`,
+    );
+  }
+  if (bbva.length) {
+    parts.push(
+      `<div class="fin-bbva"><div class="fin-bbva-head">${escapeHtml(BBVA_PROMO)}</div><div class="tiles n${bbva.length}">${bbva.map((p) => tile(p, 'bbva')).join('')}</div></div>`,
+    );
+  }
+  if (paid.length) {
+    const rows = paid
+      .map((plan) => {
+        const cuota = installmentAmount(input.listTotalCents, plan);
+        const bank = escapeHtml(plan.bank ?? 'Otros bancos');
+        const desc = plan.description ? escapeHtml(plan.description) : `${plan.installments} cuotas`;
+        return `<tr><td class="bank">${bank}</td><td class="desc">${desc}</td><td class="amt">${formatArsFromCents(cuota)}</td></tr>`;
+      })
+      .join('');
+    parts.push(`<div class="fin-other-title">Otras opciones de financiación</div><table class="fin"><tbody>${rows}</tbody></table>`);
+  }
   const bbvaNote =
     input.config.showBbva && input.financingBbvaNote
       ? `<div class="box box-blue">${renderRmaText(input.financingBbvaNote, '')}</div>`
       : '';
-  return `${note}<table class="fin"><tbody>${body.join('')}</tbody></table>${bbvaNote}`;
+  return `${parts.join('')}${bbvaNote}`;
 }
 
 const TAX_CONDITION_LABELS: Record<string, string> = {
@@ -1048,6 +1075,9 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   const accent = escapeHtml(input.company.accentColor || '#E31B23');
   const green = '#1a7d3c';
   const blue = '#1d4ed8';
+  const greenSoft = '#eef8f1';
+  const greenLine = '#bfe3cb';
+  const blueLine = '#c7d6f5';
 
   const includeParts: string[] = [];
   if (input.config.showServicesBlock) {
@@ -1090,9 +1120,9 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .title-block { text-align: right; }
   .title-block h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.02em; color: ${primary}; }
   .title-block .meta { margin-top: 3px; color: #666; font-size: 10.2px; }
-  .rule { height: 2px; background: ${primary}; margin: 8px 0 9px; }
+  .rule { height: 3px; border-radius: 3px; background: linear-gradient(90deg, ${accent} 0%, ${accent} 38%, ${primary} 38%, ${primary} 100%); margin: 9px 0 12px; }
   .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 9px; }
-  .card { border: 1px solid #e2e2e2; border-radius: 5px; padding: 8px 9px; margin-bottom: 9px; }
+  .card { border: 1px solid #e6e6e6; border-top: 3px solid ${accent}; border-radius: 6px; padding: 9px 11px; margin-bottom: 9px; background: #fcfcfc; }
   .card h2 { margin: 0 0 4px; font-size: 9.6px; font-weight: 800; letter-spacing: 0.04em; color: ${accent}; text-transform: uppercase; }
   .card dl { margin: 0; display: grid; grid-template-columns: 100px 1fr; gap: 2px 6px; }
   .card dt { color: #666; font-size: 10.2px; }
@@ -1102,7 +1132,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .box p:last-child { margin: 0; }
   .box-red { border-left-color: ${accent}; }
   .box-blue { border-left-color: ${blue}; }
-  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 9px; border: 1px solid #dedede; }
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; border: 1px solid #dedede; }
+  table.items tbody tr:nth-child(even) td { background: #fafafa; }
   table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 6px 8px; font-weight: 700; font-size: 10.8px; border: 1px solid ${primary}; }
   table.items thead th.qty { text-align: center; }
   table.items thead th.amt, table.items thead th.unit, table.items thead th.iva, table.items thead th.gross { text-align: right; color: #fff; }
@@ -1121,12 +1152,12 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items td.iva { color: #555; }
   table.items td.iva small { display: block; font-size: 8.5px; color: #888; }
   table.items td.amt { font-weight: 800; }
-  .price-block { border: 1px solid #d9d9d9; border-radius: 6px; padding: 4px 14px 10px; margin-top: 9px; }
+  .price-block { border: 1px solid #dcdcdc; border-radius: 8px; padding: 4px 14px 12px; margin-top: 12px; }
   .totals { margin-top: 0; }
   .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; border-bottom: 1px solid #eee; }
   .totals .row .lbl { color: #333; font-size: 10.8px; }
   .totals .list .val { color: ${accent}; font-weight: 800; font-size: 12.8px; }
-  .totals .cash { border-bottom: none; padding-top: 8px; }
+  .totals .cash { border-bottom: none; margin-top: 8px; padding: 9px 13px; border-radius: 7px; background: ${greenSoft}; border: 1px solid ${greenLine}; }
   .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 11.3px; }
   .totals .cash .val { color: ${green}; font-weight: 900; font-size: 17px; }
   .totals .trade-list { display: block; padding: 4px 2px; border-bottom: none; }
@@ -1134,6 +1165,31 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .totals .final { border-bottom: none; border-top: 1px solid #ddd; padding-top: 6px; }
   .totals .final .lbl { color: #800020; font-weight: 400; font-size: 11px; }
   .totals .final .val { color: #800020; font-weight: 800; font-size: 14.5px; }
+  .fin-hero { margin: 11px 0 8px; border: 2px solid ${green}; border-radius: 9px; background: ${greenSoft}; padding: 8px 10px 10px; break-inside: avoid; }
+  .fin-hero-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 7px; }
+  .fin-star { color: ${green}; font-size: 13px; }
+  .fin-hero-title { color: ${green}; font-size: 14.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
+  .fin-hero-sub { color: #3b3b3b; font-size: 10.6px; font-weight: 700; }
+  .tiles { display: grid; gap: 8px; }
+  .tiles.n1 { grid-template-columns: 1fr; }
+  .tiles.n2 { grid-template-columns: 1fr 1fr; }
+  .tiles.n3, .tiles.n4 { grid-template-columns: repeat(3, 1fr); }
+  .tile { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; border-radius: 8px; padding: 7px 12px; background: #fff; text-align: left; }
+  .tile.free { border: 1.5px solid ${green}; }
+  .tile .t-n { grid-row: 1 / 4; font-size: 30px; font-weight: 900; line-height: 1; color: #151515; text-align: center; min-width: 52px; }
+  .tile .t-n small { display: block; font-size: 9.5px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  .tile .t-tag { justify-self: start; padding: 1.5px 8px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: 0.06em; }
+  .tile.free .t-tag { background: ${green}; color: #fff; }
+  .tile .t-amt { margin-top: 2px; font-size: 18px; font-weight: 900; color: #151515; }
+  .tile .t-sub { margin-top: 2px; font-size: 9.2px; color: #666; }
+  .fin-bbva { margin: 8px 0; border: 1px solid ${blueLine}; border-radius: 8px; background: #f5f8ff; padding: 7px 10px 9px; break-inside: avoid; }
+  .fin-bbva-head { color: ${blue}; font-size: 10.6px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .tile.bbva { border: 1px solid ${blueLine}; }
+  .tile.bbva .t-n { font-size: 24px; color: ${blue}; }
+  .tile.bbva .t-tag { background: ${blue}; color: #fff; }
+  .tile.bbva .t-amt { font-size: 15px; color: ${blue}; }
+  .fin-other-title { margin: 9px 0 2px; font-size: 9.6px; font-weight: 800; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tile, .fin-hero, .fin-bbva, .tile .t-tag, .totals .cash { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
   table.fin tr:last-child td { border-bottom: none; }

@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.7",
+    date: "2026-10-20",
+    title: "Presupuesto rediseñado y cuotas sin interés destacadas",
+    items: [
+      "El presupuesto estándar (plantilla Moderno) se reestructuró: tarjetas con borde de color, línea de título con acento, filas alternadas y el precio de efectivo/transferencia en un recuadro verde",
+      "3 y 6 cuotas sin interés con cualquier banco aparecen en un bloque verde destacado con tarjetas grandes; el descuento exclusivo BBVA va en su propio bloque azul y el resto de las opciones en una tabla aparte",
+    ],
+  },
+  {
     version: "0.21.5",
     date: "2026-10-20",
     title: "VER TODOS: link a NODO y recientes de vuelta",
