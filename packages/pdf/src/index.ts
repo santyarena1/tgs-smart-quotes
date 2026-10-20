@@ -1551,7 +1551,7 @@ export function countPdfPages(buffer: Buffer): number {
 }
 
 /** Escalas que se prueban cuando el presupuesto se pasa a una segunda hoja por poco. */
-export const FIT_ONE_PAGE_SCALES = [0.93, 0.78];
+export const FIT_ONE_PAGE_SCALES = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7];
 
 export async function renderPdfBuffer(input: PdfRenderInput): Promise<Buffer> {
   const html = renderQuoteHtml(input);
@@ -1569,9 +1569,10 @@ export async function renderPdfBuffer(input: PdfRenderInput): Promise<Buffer> {
         }),
       );
     const buffer = await print();
-    // Un presupuesto que solo se desborda a una 2ª hoja se achica lo justo para que entre en una.
-    // Los que ya entran no se tocan, y los realmente largos (3+ hojas) conservan su tamaño.
-    if (countPdfPages(buffer) !== 2) return buffer;
+    // Un presupuesto que se desborda a una 2ª (o 3ª) hoja se achica lo justo para que entre en una.
+    // Los que ya entran no se tocan, y los realmente largos (que ni a 70 % entran) conservan su tamaño.
+    const pages = countPdfPages(buffer);
+    if (pages < 2 || pages > 3) return buffer;
     for (const scale of FIT_ONE_PAGE_SCALES) {
       const fitted = await print(scale);
       if (countPdfPages(fitted) === 1) return fitted;

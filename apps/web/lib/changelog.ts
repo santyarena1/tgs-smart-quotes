@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.11",
+    date: "2026-10-20",
+    title: "El presupuesto siempre entra en una hoja",
+    items: [
+      "El presupuesto siempre se achica para entrar en una sola hoja: si se pasa a una 2ª o 3ª hoja, se reduce hasta el 70 % para que entre",
+    ],
+  },
+  {
     version: "0.21.10",
     date: "2026-10-20",
     title: "Presupuesto compacto en una hoja",

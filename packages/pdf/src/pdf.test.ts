@@ -188,7 +188,7 @@ describe('@tgs/pdf', () => {
   });
 
   it('para caber en una hoja prueba pocas escalas, no una ronda larga', () => {
-    expect(FIT_ONE_PAGE_SCALES).toEqual([0.93, 0.78]);
+    expect(FIT_ONE_PAGE_SCALES).toEqual([0.95, 0.9, 0.85, 0.8, 0.75, 0.7]);
   });
 
   it('reescribe los rótulos de plantilla elegidos, en ambas plantillas y escapando HTML', () => {
