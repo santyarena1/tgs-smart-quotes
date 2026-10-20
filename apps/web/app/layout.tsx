@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Anton, Barlow, Bebas_Neue, Inter, Lexend, Orbitron, Rajdhani, Space_Grotesk } from "next/font/google";
+import { Anton, Barlow, Bebas_Neue, Creepster, Inter, Lexend, Orbitron, Rajdhani, Space_Grotesk } from "next/font/google";
 import "./styles.css";
 import "./skins/base.css";
 import "./skins/features.css";
@@ -23,6 +23,7 @@ const rajdhani = Rajdhani({ subsets: ["latin"], weight: ["400", "500", "600", "7
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap", preload: false });
 const bebas = Bebas_Neue({ subsets: ["latin"], weight: "400", variable: "--font-bebas", display: "swap", preload: false });
 const barlow = Barlow({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-barlow", display: "swap", preload: false });
+const creepster = Creepster({ subsets: ["latin"], weight: "400", variable: "--font-creepster", display: "swap", preload: false });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space", display: "swap", preload: false });
 
 /** Lee el tema guardado (claro por defecto) y lo fija en <html> antes del primer render. */
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning className={`${lexend.variable} ${anton.variable} ${orbitron.variable} ${rajdhani.variable} ${inter.variable} ${spaceGrotesk.variable} ${bebas.variable} ${barlow.variable}`}>
+    <html lang="es" suppressHydrationWarning className={`${lexend.variable} ${anton.variable} ${orbitron.variable} ${rajdhani.variable} ${inter.variable} ${spaceGrotesk.variable} ${bebas.variable} ${barlow.variable} ${creepster.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
