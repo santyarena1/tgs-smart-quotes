@@ -1,12 +1,9 @@
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import type { NextConfig } from 'next';
+import {resolveApiProxyTarget} from './lib/api-proxy-target';
 
-const apiProxyTarget = (
-  process.env.API_PROXY_TARGET?.trim() ||
-  process.env.API_PUBLIC_URL?.trim() ||
-  'http://127.0.0.1:3001/api'
-).replace(/\/$/, '');
+const apiProxyTarget = resolveApiProxyTarget(process.env);
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
