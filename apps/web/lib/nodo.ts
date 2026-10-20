@@ -25,6 +25,8 @@ export type NodoResult = {
   ivaBps?: number | null;
   /** Foto del producto del distribuidor. */
   imageUrl?: string | null;
+  /** Link a la ficha del producto en NODO. */
+  nodoUrl?: string | null;
 };
 
 /** Producto publicado en la tienda web (precio de venta al público, en centavos). */

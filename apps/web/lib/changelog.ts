@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.5",
+    date: "2026-10-20",
+    title: "VER TODOS: link a NODO y recientes de vuelta",
+    items: [
+      "En VER TODOS se quitó el SKU de cada producto y los de NODO tienen un link Ver en NODO que abre la ficha del producto en nodohub.app",
+      "LITE vuelve a mostrar los productos usados recientemente arriba de la lista de ítems",
+    ],
+  },
+  {
     version: "0.21.3",
     date: "2026-10-20",
     title: "Cuotas sin interés con cualquier banco y descuento BBVA",

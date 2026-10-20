@@ -2,8 +2,9 @@
 export type NodoTax = { type: string; amount?: number; percent?: number };
 export type NodoOffer = {
   id: string;
-  provider: { id: string; name: string };
+  provider: { id: string; name: string; key?: string | null };
   sku?: string | null;
+  externalId?: string | null;
   stock?: { quantity?: number | null; status?: string };
   price?: {
     currency: "USD" | "ARS";
@@ -38,6 +39,8 @@ export type NodoResult = {
   nodoCategory: string | null;
   /** Foto del producto, si el distribuidor la tiene (sirve para la foto del gabinete en la imagen de referencia). */
   imageUrl: string | null;
+  /** Link a la ficha del producto en NODO (nodohub.app/product/{distribuidor}/{id}), si se puede armar. */
+  nodoUrl: string | null;
 };
 
 /** Texto de la categoría de NODO (la ruta completa si la hay), para reconocer el tipo de producto. */
@@ -87,6 +90,7 @@ export function mapOffer(offer: NodoOffer, fxRate: number): NodoResult | null {
     ivaBps: ivaBpsOf(offer.price?.cost),
     nodoCategory: categoryText(offer.product.category),
     imageUrl: offer.product.imageUrl ?? null,
+    nodoUrl: offer.provider.key && offer.externalId ? `https://nodohub.app/product/${encodeURIComponent(offer.provider.key)}/${encodeURIComponent(offer.externalId)}` : null,
   };
 }
 

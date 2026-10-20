@@ -544,7 +544,7 @@ export function LiteQuoteCreator() {
       key: `web-${w.id}`, source: "Web", color: WEB_COLOR, logo: WEB_LOGO, name: w.name, sku: w.sku, imageUrl: w.imageUrl, inStock: w.inStock, priceCents: w.priceCents, priceLabel: "precio de venta", raw: { kind: "web", w },
     })),
     ...nodo.items.map((r): BrowserItem<BPick> => ({
-      key: `nodo-${r.offerId}`, source: r.providerName, color: providerColor(providers, r.providerId), logo: providerLogo(r.providerName), name: r.name, sku: r.sku, brand: r.brand, imageUrl: r.imageUrl, stock: r.stock, inStock: r.inStock, stale: r.stale, priceCents: r.costIvaCents, priceLabel: "costo + IVA", raw: { kind: "nodo", r },
+      key: `nodo-${r.offerId}`, source: r.providerName, color: providerColor(providers, r.providerId), logo: providerLogo(r.providerName), name: r.name, brand: r.brand, imageUrl: r.imageUrl, url: r.nodoUrl, stock: r.stock, inStock: r.inStock, stale: r.stale, priceCents: r.costIvaCents, priceLabel: "costo + IVA", raw: { kind: "nodo", r },
     })),
   ], [sel.own, allResults, web.items, nodo.items, providers]);
   useEffect(() => setActive(0), [query]);
@@ -1240,8 +1240,19 @@ export function LiteQuoteCreator() {
             ) : null}
           </div>
 
+          {recent.length && !isBuiltPc ? (
+            <div className="lt-recents" aria-label="Productos recientes">
+              <span className="lt-muted">Recientes</span>
+              {recent.map((p) => (
+                <button key={p.id} type="button" className="lt-chip" onClick={() => { addProduct(p); searchRef.current?.focus(); }} title={formatArs(p.salePriceCents)}>
+                  + {p.name.length > 28 ? `${p.name.slice(0, 27)}…` : p.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {lines.length === 0 && !isBuiltPc ? (
-            <div className="lt-empty">Todavía no hay ítems. Buscá arriba o apretá <kbd>/</kbd> para empezar.</div>
+            <div className="lt-empty">Todavía no hay ítems. Buscá arriba, tocá un reciente o apretá <kbd>/</kbd> para empezar.</div>
           ) : (
             <div className="lt-lines">
               <div className="lt-line head">
