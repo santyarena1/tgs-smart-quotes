@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.4",
+    date: "2026-10-20",
+    title: "Temas de Halloween y Navidad para el presupuesto",
+    items: [
+      "Dos estilos nuevos en el editor del PDF: Halloween (murciélagos y calabaza, acento naranja) y Navidad (copos y arbolito, rojo con verde)",
+      "Cada uno agrega una franja decorativa arriba y abajo y usa la misma estructura del estilo TGS rojo; funcionan en Simple, Detallado y Formal",
+    ],
+  },
+  {
     version: "0.21.2",
     date: "2026-10-19",
     title: "Presupuestos: el editor ya no se estira por toda la página",
