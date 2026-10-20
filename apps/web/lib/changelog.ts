@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.10",
+    date: "2026-10-20",
+    title: "Presupuesto compacto en una hoja",
+    items: [
+      "Los bloques de cuotas se achicaron para que el presupuesto entre en una sola hoja, y GoCuotas y Mercado Pago van en bloques distintos pero en la misma fila",
+      "BBVA y GoCuotas ya no muestran el porcentaje de interés; BBVA aclara abajo: 3 o 6 cuotas sin interés - Super precio BBVA",
+    ],
+  },
+  {
     version: "0.21.9",
     date: "2026-10-20",
     title: "Presupuesto: bloques por medio de pago",
