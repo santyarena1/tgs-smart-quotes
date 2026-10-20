@@ -18,6 +18,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "0.21.8",
+    date: "2026-10-20",
+    title: "Tema Halloween inspirado en la web",
+    items: [
+      "El tema Halloween toma el estilo de thegamershop.com.ar: naranja #ff6a00 y violeta, fondo casi negro, títulos en Creepster con sombra dura, goteo naranja bajo la barra y tarjetas con sombra desplazada",
+      "Las tarjetas de producto se mueven un poquito al pasar el mouse, como en la web (se apaga con movimiento reducido)",
+    ],
+  },
+  {
     version: "0.21.7",
     date: "2026-10-20",
     title: "Presupuesto rediseñado y cuotas sin interés destacadas",
