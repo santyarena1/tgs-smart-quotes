@@ -240,7 +240,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-20.7';
+export const PDF_RENDER_VERSION = '2026-10-20.8';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -1228,15 +1228,15 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .fb-foot.note { margin-top: 0; font-weight: 500; color: #666; }
   .fin-brand.top .fb-title { flex-basis: 100%; min-width: 0; margin-bottom: 2px; }
   .fin-brand.top .fb-foot { margin-left: 0; }
-  .fin-brand.big { flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; margin: 8px 0; text-align: center; }
-  .fin-brand.big .fb-title { min-width: 0; font-size: 13px; text-align: center; }
-  .fin-brand.big .fb-title small { font-size: 10px; }
-  .fin-brand.big .tiles { flex: none; justify-content: center; }
-  .fin-brand.big .tile { padding: 0 40px; gap: 8px; }
-  .fin-brand.big .tile:first-child { padding-left: 40px; }
-  .fin-brand.big .tile .t-n { font-size: 32px; }
-  .fin-brand.big .tile .t-u { font-size: 10.5px; }
-  .fin-brand.big .tile .t-amt { font-size: 25px; margin-left: 6px; }
+  .fin-brand.big { flex-wrap: nowrap; align-items: stretch; gap: 0; padding: 12px 0; margin: 8px 0; }
+  .fin-brand.big .fb-title { flex: 0 0 168px; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 18px; border-right: 1px solid rgba(109, 40, 217, 0.25); font-size: 17px; line-height: 1.1; letter-spacing: 0.04em; }
+  .fin-brand.big .fb-title small { font-size: 10px; margin-top: 4px; }
+  .fin-brand.big .tiles { flex: 1; flex-wrap: nowrap; gap: 0; align-items: center; }
+  .fin-brand.big .tile { flex: 1; display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 12px; row-gap: 0; padding: 0 12px; border-left: 1px solid rgba(109, 40, 217, 0.18); }
+  .fin-brand.big .tile:first-child { border-left: none; }
+  .fin-brand.big .tile .t-n { grid-area: 1 / 1 / 3 / 2; font-size: 44px; line-height: 1; }
+  .fin-brand.big .tile .t-amt { grid-area: 1 / 2; margin: 0; font-size: 27px; line-height: 1.05; align-self: end; }
+  .fin-brand.big .tile .t-u { grid-area: 2 / 2; font-size: 10px; align-self: start; margin-top: 2px; }
   .rma-note { border-left: 3px solid ${accent}; background: #fafafa; border-radius: 0 5px 5px 0; padding: 7px 11px; margin: 9px 0; color: #555; font-size: 9.3px; line-height: 1.5; }
   .rma-note b.imp { color: ${accent}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.8px; margin-right: 3px; }
   .flow-note { border-left: 3px solid #cfcfcf; background: #fafafa; border-radius: 0 5px 5px 0; padding: 6px 11px; color: #555; line-height: 1.5; }
