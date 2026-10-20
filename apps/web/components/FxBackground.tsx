@@ -33,6 +33,7 @@ const PROFILES: Record<string, Profile> = {
   tgs: { main: "255, 36, 56", second: "255, 36, 56", density: 1, speed: 1, gridAlpha: [0.035, 0.04, 0.065, 0.075], streaks: 3, streakEvery: 3200, rings: true, ripples: true, rain: false, laser: false, nodes: false, glow: 1 },
   bluered: { main: "59, 130, 246", second: "239, 68, 68", density: 1.1, speed: 1, gridAlpha: [0.04, 0.05, 0.07, 0.08], streaks: 3, streakEvery: 2800, rings: true, ripples: true, rain: false, laser: false, nodes: true, glow: 1.1 },
   darkyellow: { main: "250, 204, 21", second: "245, 158, 11", density: 1.1, speed: 1, gridAlpha: [0.04, 0.05, 0.07, 0.085], streaks: 3, streakEvery: 2800, rings: true, ripples: true, rain: false, laser: false, nodes: true, glow: 1.1 },
+  halloween: { main: "255, 122, 26", second: "168, 85, 247", density: 1.1, speed: 1, gridAlpha: [0.04, 0.05, 0.07, 0.085], streaks: 3, streakEvery: 2800, rings: true, ripples: true, rain: false, laser: false, nodes: true, glow: 1.1 },
   gotham: { main: "142, 164, 184", second: "242, 194, 48", density: 1, speed: 1, gridAlpha: [0, 0, 0, 0], streaks: 0, streakEvery: 9999, rings: false, ripples: false, rain: false, laser: false, nodes: false, glow: 1, kind: "gotham" },
   gamer: { main: "255, 31, 61", second: "255, 90, 54", density: 1.9, speed: 1.7, gridAlpha: [0.06, 0.07, 0.09, 0.1], streaks: 6, streakEvery: 900, rings: true, ripples: true, rain: true, laser: true, nodes: true, glow: 1.6 },
 };

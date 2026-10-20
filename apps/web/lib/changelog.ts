@@ -8,12 +8,30 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.6",
+    date: "2026-10-20",
+    title: "Tema Halloween para todo el sistema y temas del presupuesto desde Configuración",
+    items: [
+      "Nuevo tema Halloween para toda la app (Configuración → Temas): negro violáceo con naranja calabaza, modo claro en crema y una franja de murciélagos y calabazas al pie",
+      "En Configuración → PDF se elige el tema del presupuesto (Original, Halloween o Navidad) con un toque, sin entrar al Editor de PDF",
+    ],
+  },
+  {
     version: "0.21.5",
     date: "2026-10-20",
     title: "VER TODOS: link a NODO y recientes de vuelta",
     items: [
       "En VER TODOS se quitó el SKU de cada producto y los de NODO tienen un link Ver en NODO que abre la ficha del producto en nodohub.app",
       "LITE vuelve a mostrar los productos usados recientemente arriba de la lista de ítems",
+    ],
+  },
+  {
+    version: "0.21.4",
+    date: "2026-10-20",
+    title: "Temas de Halloween y Navidad para el presupuesto",
+    items: [
+      "Dos estilos nuevos en el editor del PDF: Halloween (murciélagos y calabaza, acento naranja) y Navidad (copos y arbolito, rojo con verde)",
+      "Cada uno agrega una franja decorativa arriba y abajo y usa la misma estructura del estilo TGS rojo; funcionan en Simple, Detallado y Formal",
     ],
   },
   {

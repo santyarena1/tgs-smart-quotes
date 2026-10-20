@@ -162,6 +162,7 @@ export type PdfLayoutDocument = {
   /** Rótulos de plantilla reescritos desde el editor. */
   labels?: Partial<Record<PdfLabelKey, string>>;
   accentColor?: string; textColor?: string; fontFamily?: string;
+  theme?: "halloween" | "navidad";
   tableHeaderBg?: string; tableHeaderColor?: string; tableBorderColor?: string;
   tableZebra?: boolean; tableDensity?: "compact" | "normal" | "comfortable";
   cardRadius?: number; cardBackground?: string; cardBorderColor?: string;
