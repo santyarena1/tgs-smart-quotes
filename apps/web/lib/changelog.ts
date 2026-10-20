@@ -19,6 +19,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "0.21.15",
+    date: "2026-10-20",
+    title: "Presupuesto: sin interés centrado y más aire",
+    items: [
+      "El bloque de 3 y 6 cuotas sin interés queda centrado en su rectángulo, con título arriba y las cuotas debajo",
+      "Más separación entre los textos de los bloques de cuotas (BBVA, GoCuotas y Mercado Pago)",
+    ],
+  },
+  {
     version: "0.21.14",
     date: "2026-10-20",
     title: "Presupuesto: BBVA sobre el efectivo y bloques más claros",
