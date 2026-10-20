@@ -240,7 +240,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-20.4';
+export const PDF_RENDER_VERSION = '2026-10-20.5';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -1040,9 +1040,10 @@ function uniqueByInstallments(plans: PdfFinancingPlan[]): PdfFinancingPlan[] {
 }
 
 const BRAND_STYLES = {
-  bbva: '--bc:#1d4ed8;--bs:#f5f8ff;--bl:#c7d6f5',
-  go: '--bc:#d6247f;--bs:#fff1f8;--bl:#f5c2dc',
-  mp: '--bc:#0a8fd1;--bs:#eaf7fd;--bl:#b9e1f5',
+  free: '--bc:#1a7d3c;--bs:#f3faf5',
+  bbva: '--bc:#1d4ed8;--bs:#f4f7ff',
+  go: '--bc:#d6247f;--bs:#fff4f9',
+  mp: '--bc:#0a8fd1;--bs:#f0f9fe',
 } as const;
 
 function buildFinancingModerno(input: PdfRenderInput): string {
@@ -1054,49 +1055,41 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   const mpAll = uniqueByInstallments(plans.filter((p) => /mercado\s*pago|mercadopago/i.test(bankOf(p))));
   const base = (n: number): PdfFinancingPlan => ({ installments: n, interestBps: 0 });
   const money = (plan: PdfFinancingPlan) => formatArsFromCents(installmentAmount(input.listTotalCents, plan));
-  const tile = (kind: string, n: number | string, unit: string, tagText: string, amount: string) =>
-    `<div class="tile ${kind}"><div class="t-n">${n}<small>${unit}</small></div><div class="t-tag">${escapeHtml(tagText)}</div><div class="t-amt">${amount}</div></div>`;
-  const grid = (tiles: string[]) => `<div class="tiles n${Math.min(tiles.length, 4)}">${tiles.join('')}</div>`;
-  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, tiles: string[], foot = '') =>
-    `<div class="fin-brand" style="${BRAND_STYLES[style]}"><div class="fin-brand-head">${escapeHtml(title)}</div>${grid(tiles)}${foot ? `<div class="fin-brand-foot">${escapeHtml(foot)}</div>` : ''}</div>`;
+  const tile = (n: number | string, unit: string, amount: string) =>
+    `<span class="tile"><b class="t-n">${n}</b><span class="t-u">${unit}</span><span class="t-amt">${amount}</span></span>`;
+  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string; stack?: boolean } = {}) =>
+    `<div class="fin-brand${opts.stack ? ' stack' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${opts.foot ? `<div class="fb-foot">${escapeHtml(opts.foot)}</div>` : ''}</div>`;
 
   const parts: string[] = [];
   if (input.config.showFinancingNote) {
     parts.push(
-      `<div class="box box-red"><b>Cuotas:</b> los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</div>`,
+      `<p class="fin-note">Cuotas: los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</p>`,
     );
   }
   if (input.config.showOtherBanks) {
     // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
-    parts.push(
-      `<div class="fin-hero"><div class="fin-hero-head"><span class="fin-star">★</span><span class="fin-hero-title">3 y 6 cuotas sin interés</span><span class="fin-hero-sub">con cualquier banco</span></div>${grid(
-        [3, 6].map((n) => tile('free', n, 'cuotas', 'SIN INTERÉS', money(base(n)))),
-      )}</div>`,
-    );
+    parts.push(brandBlock('free', 'Sin interés', 'con cualquier banco', [3, 6].map((n) => tile(n, 'cuotas', money(base(n))))));
   }
   if (input.config.showBbva && bbva.length) {
-    const tiles = [tile('brand', 1, 'pago', 'BBVA', formatArsFromCents(input.listTotalCents))];
-    for (const plan of bbva.filter((p) => p.installments > 1)) {
-      tiles.push(tile('brand', plan.installments, 'cuotas', 'BBVA', money(plan)));
-    }
-    parts.push(brandBlock('bbva', BBVA_PROMO, tiles, '3 o 6 cuotas sin interés - Super precio BBVA'));
+    const tiles = [tile(1, 'pago', formatArsFromCents(input.listTotalCents))];
+    for (const plan of bbva.filter((p) => p.installments > 1)) tiles.push(tile(plan.installments, 'cuotas', money(plan)));
+    parts.push(brandBlock('bbva', 'BBVA', 'descuento exclusivo para clientes BBVA', tiles, { foot: '3 o 6 cuotas sin interés - Super precio BBVA' }));
   }
-  const goBlock = go.length
-    ? brandBlock('go', 'GoCuotas', go.map((plan) => tile('brand', plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', 'GOCUOTAS', money(plan))))
-    : '';
   // Exclusivo tarjeta Mercado Pago: 3 cuotas sin interés (si no hay planes cargados, se muestra igual).
   const mp = mpAll.filter((p) => p.interestBps === 0);
   const mpPlans = mp.length ? mp : mpAll.length ? [] : [base(3)];
-  const mpBlock = mpPlans.length
-    ? brandBlock('mp', 'EXCLUSIVO TARJETA MERCADOPAGO', mpPlans.map((plan) => tile('brand', plan.installments, 'cuotas', 'SIN INTERÉS', money(plan))))
+  // GoCuotas y Mercado Pago: bloques distintos en la misma fila.
+  const goBlock = go.length
+    ? brandBlock('go', 'GoCuotas', '', go.map((plan) => tile(plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', money(plan))), { stack: true })
     : '';
-  // GoCuotas y Mercado Pago van en bloques distintos pero en la misma fila.
-  if (goBlock && mpBlock) parts.push(`<div class="fin-row" style="grid-template-columns:${Math.max(go.length, 1)}fr ${Math.max(mpPlans.length, 1)}fr">${goBlock}${mpBlock}</div>`);
-  else if (goBlock || mpBlock) parts.push(goBlock || mpBlock);
+  const mpBlock = mpPlans.length
+    ? brandBlock('mp', 'Mercado Pago', 'exclusivo tarjeta MercadoPago', mpPlans.map((plan) => tile(plan.installments, 'cuotas sin interés', money(plan))), { stack: true })
+    : '';
+  if (goBlock || mpBlock) parts.push(`<div class="fin-row">${goBlock}${mpBlock}</div>`);
   if (!parts.length) return '';
   const bbvaNote =
     input.config.showBbva && bbva.length && input.financingBbvaNote
-      ? `<div class="box box-blue">${renderRmaText(input.financingBbvaNote, '')}</div>`
+      ? `<p class="fin-note">${renderRmaText(input.financingBbvaNote, '')}</p>`
       : '';
   return `${parts.join('')}${bbvaNote}`;
 }
@@ -1131,8 +1124,6 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   const accent = escapeHtml(input.company.accentColor || '#E31B23');
   const green = '#1a7d3c';
   const blue = '#1d4ed8';
-  const greenSoft = '#eef8f1';
-  const greenLine = '#bfe3cb';
 
   const includeParts: string[] = [];
   if (input.config.showServicesBlock) {
@@ -1175,24 +1166,23 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .title-block { text-align: right; }
   .title-block h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.02em; color: ${primary}; }
   .title-block .meta { margin-top: 3px; color: #666; font-size: 10.2px; }
-  .rule { height: 3px; border-radius: 3px; background: linear-gradient(90deg, ${accent} 0%, ${accent} 38%, ${primary} 38%, ${primary} 100%); margin: 9px 0 12px; }
-  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 9px; }
-  .card { border: 1px solid #e6e6e6; border-top: 3px solid ${accent}; border-radius: 6px; padding: 9px 11px; margin-bottom: 9px; background: #fcfcfc; }
+  .rule { height: 2px; background: linear-gradient(90deg, ${accent} 0%, ${accent} 30%, ${primary} 30%, ${primary} 100%); margin: 6px 0 8px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+  .card { border: 1px solid #ececec; border-radius: 5px; padding: 6px 9px; margin-bottom: 6px; background: #fff; }
   .card h2 { margin: 0 0 4px; font-size: 9.6px; font-weight: 800; letter-spacing: 0.04em; color: ${accent}; text-transform: uppercase; }
   .card dl { margin: 0; display: grid; grid-template-columns: 100px 1fr; gap: 2px 6px; }
   .card dt { color: #666; font-size: 10.2px; }
   .card dd { margin: 0; font-weight: 600; font-size: 10.7px; color: #1a1a1a; }
-  .box { border: 1px solid #e6e6e6; border-left: 3px solid ${accent}; border-radius: 4px; padding: 7px 9px; margin: 9px 0; background: #fafafa; font-size: 10.5px; }
+  .box { border-left: 2px solid ${accent}; padding: 3px 9px; margin: 6px 0; background: transparent; font-size: 10.2px; }
   .box p { margin: 0 0 2px; }
   .box p:last-child { margin: 0; }
   .box-red { border-left-color: ${accent}; }
   .box-blue { border-left-color: ${blue}; }
-  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; border: 1px solid #dedede; }
-  table.items tbody tr:nth-child(even) td { background: #fafafa; }
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 7px; border: 1px solid #e2e2e2; }
   table.items thead th { background: ${primary}; color: #fff; text-align: left; padding: 6px 8px; font-weight: 700; font-size: 10.8px; border: 1px solid ${primary}; }
   table.items thead th.qty { text-align: center; }
   table.items thead th.amt, table.items thead th.unit, table.items thead th.iva, table.items thead th.gross { text-align: right; color: #fff; }
-  table.items td { border-bottom: 1px solid #e8e8e8; padding: 5px 8px; vertical-align: top; font-size: 10.9px; }
+  table.items td { border-bottom: 1px solid #eee; padding: 5px 8px; vertical-align: top; font-size: 10.9px; }
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
@@ -1207,47 +1197,34 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items td.iva { color: #555; }
   table.items td.iva small { display: block; font-size: 8.5px; color: #888; }
   table.items td.amt { font-weight: 800; }
-  .price-block { border: 1px solid #dcdcdc; border-radius: 8px; padding: 4px 14px 12px; margin-top: 12px; }
+  .price-block { border: none; border-top: 1px solid #dcdcdc; padding: 2px 0 4px; margin-top: 8px; }
   .totals { margin-top: 0; }
-  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; border-bottom: 1px solid #eee; }
+  .totals .row { display: flex; justify-content: space-between; align-items: center; padding: 4px 2px; border-bottom: 1px solid #f0f0f0; }
   .totals .row .lbl { color: #333; font-size: 10.8px; }
   .totals .list .val { color: ${accent}; font-weight: 800; font-size: 12.8px; }
-  .totals .cash { border-bottom: none; margin-top: 8px; padding: 9px 13px; border-radius: 7px; background: ${greenSoft}; border: 1px solid ${greenLine}; }
+  .totals .cash { border-bottom: none; padding: 5px 2px; }
   .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 11.3px; }
-  .totals .cash .val { color: ${green}; font-weight: 900; font-size: 17px; }
+  .totals .cash .val { color: ${green}; font-weight: 900; font-size: 16px; }
   .totals .trade-list { display: block; padding: 4px 2px; border-bottom: none; }
   .totals .trade-list .lbl { font-size: 9.6px; color: #555; line-height: 1.35; }
   .totals .final { border-bottom: none; border-top: 1px solid #ddd; padding-top: 6px; }
   .totals .final .lbl { color: #800020; font-weight: 400; font-size: 11px; }
   .totals .final .val { color: #800020; font-weight: 800; font-size: 14.5px; }
-  .fin-hero { margin: 8px 0 6px; border: 2px solid ${green}; border-radius: 9px; background: ${greenSoft}; padding: 6px 9px 8px; break-inside: avoid; }
-  .fin-hero-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 5px; }
-  .fin-star { color: ${green}; font-size: 13px; }
-  .fin-hero-title { color: ${green}; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
-  .fin-hero-sub { color: #3b3b3b; font-size: 10.6px; font-weight: 700; }
-  .tiles { display: grid; gap: 6px; }
-  .tiles.n1 { grid-template-columns: 1fr; }
-  .tiles.n2 { grid-template-columns: 1fr 1fr; }
-  .tiles.n3, .tiles.n4 { grid-template-columns: repeat(3, 1fr); }
-  .tile { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; border-radius: 7px; padding: 4px 10px; background: #fff; text-align: left; }
-  .tile.free { border: 1.5px solid ${green}; }
-  .tile .t-n { grid-row: 1 / 3; font-size: 24px; font-weight: 900; line-height: 1; color: #151515; text-align: center; min-width: 52px; }
-  .tile .t-n small { display: block; font-size: 9.5px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
-  .tile .t-tag { justify-self: start; padding: 1.5px 8px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: 0.06em; }
-  .tile.free .t-tag { background: ${green}; color: #fff; }
-  .tile .t-amt { margin-top: 1px; font-size: 15px; font-weight: 900; color: #151515; }
-  .tile .t-sub { margin-top: 2px; font-size: 9.2px; color: #666; }
-  .fin-brand { margin: 6px 0; border: 1px solid var(--bl); border-radius: 8px; background: var(--bs); padding: 5px 9px 7px; break-inside: avoid; }
-  .fin-brand-head { color: var(--bc); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
-  .tile.brand { border: 1px solid var(--bl); }
-  .tile.brand .t-n { font-size: 20px; color: var(--bc); }
-  .tile.brand .t-tag { background: var(--bc); color: #fff; }
-  .tile.brand .t-amt { font-size: 13px; color: var(--bc); }
-  .fin-brand-foot { margin-top: 5px; text-align: center; font-size: 9.6px; font-weight: 800; color: var(--bc); letter-spacing: 0.02em; }
-  .fin-row { display: grid; gap: 8px; margin: 6px 0; }
-  .fin-row .fin-brand { margin: 0; }
-  .fin-row .tiles { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
-  .tile, .fin-hero, .fin-brand, .tile .t-tag, .totals .cash { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .fin-note { margin: 5px 0; font-size: 9.2px; color: #777; }
+  .fin-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 14px; margin: 5px 0; padding: 6px 10px; border-left: 3px solid var(--bc); background: var(--bs); break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .fb-title { min-width: 150px; color: var(--bc); font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+  .fb-title small { display: block; margin-top: 0; font-size: 8.6px; font-weight: 600; color: #777; text-transform: none; letter-spacing: 0; }
+  .tiles { display: flex; flex-wrap: wrap; gap: 4px 0; flex: 1; }
+  .tile { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 14px; border-left: 1px solid #d8d8d8; }
+  .tile:first-child { border-left: none; padding-left: 0; }
+  .tile .t-n { font-size: 15px; font-weight: 900; color: var(--bc); }
+  .tile .t-u { font-size: 8.8px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tile .t-amt { font-size: 14.5px; font-weight: 800; color: #151515; margin-left: 3px; }
+  .fb-foot { flex-basis: 100%; margin-left: 164px; font-size: 9px; font-weight: 700; color: var(--bc); }
+  .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+  .fin-row .fin-brand.stack { display: block; margin: 4px 0; }
+  .fin-row .fb-title { min-width: 0; }
+  .fin-row .tiles { margin-top: 1px; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
   table.fin tr:last-child td { border-bottom: none; }
