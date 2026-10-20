@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.22",
+    date: "2026-10-20",
+    title: "La web en Vercel vuelve a conectar con la API",
+    items: [
+      "Si entrabas por Vercel, el login y el resto de la app fallaban: el proxy de /api apuntaba a una dirección interna de Railway que Vercel no puede resolver",
+      "Ahora, en Vercel, se usa la URL pública de la API. En Railway no cambia nada",
+    ],
+  },
+  {
     version: "0.21.21",
     date: "2026-10-20",
     title: "Presupuestos: IVA, financiación y total como en LITE",
