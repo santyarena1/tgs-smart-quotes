@@ -538,7 +538,7 @@ function applyLabelOverrides(html: string, labels: NonNullable<PdfLayoutConfig['
     next = swap(next, new RegExp(`(<th[^>]*data-pdf-block="itemsTable\\.${key}"[^>]*>)[^<]*(</th>)`), label);
   }
   next = swap(next, /(<span[^>]*>)Precio de lista(?: \(1 pago tarjeta\))?(<\/span>)/, labels.listPriceLabel);
-  next = swap(next, /(<span[^>]*>)Efectivo \/ Transferencia(<\/span>)/, labels.cashPriceLabel);
+  next = swap(next, /(<span[^>]*>)Efectivo \/ Transferencia(?: · \d+% de descuento)?(<\/span>)/, labels.cashPriceLabel);
   next = swap(next, /(<(?:strong|b)>)Observación:(<\/(?:strong|b)>)/, labels.observationLabel ? `${labels.observationLabel}:` : undefined);
   return next;
 }
@@ -692,6 +692,11 @@ function buildTradeInsTotals(input: PdfRenderInput, variant: 'classic' | 'modern
       : `<div class="row final"><span>${label}</span><span>${formatArsFromCents(toPay)}</span></div>`;
   return list + final;
 }
+
+/** Rótulo por defecto de la fila de efectivo / transferencia (incluye el descuento sobre el precio de lista). */
+const CASH_LABEL = 'Efectivo / Transferencia · 20% de descuento';
+/** Texto de las cuotas BBVA que antes decían "sin interés". */
+const BBVA_PROMO = 'Descuento exclusivo para clientes BBVA';
 
 function buildFinancing(input: PdfRenderInput): string {
   if (!input.config.showFinancing || input.financing.length === 0) return '';
@@ -926,7 +931,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     }
     ${
       input.config.showCashTransfer
-        ? `<div class="row cash"><span>Efectivo / Transferencia</span><span>${formatArsFromCents(input.cashTotalCents)}</span></div>`
+        ? `<div class="row cash"><span>${CASH_LABEL}</span><span>${formatArsFromCents(input.cashTotalCents)}</span></div>`
         : ''
     }
     ${buildTradeInsTotals(input, 'classic')}
@@ -992,7 +997,8 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   const rowHtml = (plan: PdfFinancingPlan, isBbva: boolean): string => {
     const cuota = installmentAmount(input.listTotalCents, plan);
     const bank = escapeHtml(plan.bank ?? (isBbva ? 'BBVA' : 'Otros bancos'));
-    const sinInteres = plan.interestBps === 0 ? ' sin interés' : '';
+    const sinInteres =
+      plan.interestBps === 0 ? (isBbva ? ` · ${BBVA_PROMO}` : ' sin interés') : '';
     const desc = plan.description
       ? escapeHtml(plan.description)
       : `${plan.installments} cuotas${sinInteres}`;
@@ -1200,7 +1206,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   <div class="price-block">
     <section class="totals" data-pdf-block="totalsBlock">
       ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
-      ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
+      ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">${CASH_LABEL}</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
       ${buildTradeInsTotals(input, 'modern')}
     </section>
     ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
@@ -1363,7 +1369,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
 
   <section class="totals">
     <div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>
-    <div class="row cash"><span class="lbl">Efectivo / Transferencia</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>
+    <div class="row cash"><span class="lbl">${CASH_LABEL}</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>
     ${chequeRow}
   </section>
   ${referenceImageHtml(input)}

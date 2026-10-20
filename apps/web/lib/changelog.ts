@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.3",
+    date: "2026-10-20",
+    title: "Cuotas sin interés con cualquier banco y descuento BBVA",
+    items: [
+      "En el presupuesto, 3 y 6 cuotas son sin interés con cualquier banco; las cuotas que decían sin interés BBVA ahora dicen Descuento exclusivo para clientes BBVA",
+      "La fila Efectivo / Transferencia aclara que es un 20% de descuento",
+      "Los valores por defecto de Otros bancos (3 y 6 cuotas) quedan en 0% de interés","    ],
+  },
+  {
     version: "0.21.2",
     date: "2026-10-19",
     title: "Presupuestos: el editor ya no se estira por toda la página",
