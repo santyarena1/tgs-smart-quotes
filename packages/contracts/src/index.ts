@@ -226,6 +226,8 @@ export const pdfLayoutDocumentSchema = z
   .object({
     labels: z.record(pdfLabelKeySchema, z.string().trim().min(1).max(80)).optional(),
     accentColor: color.optional(),
+    /** Adorno estacional (franja decorativa arriba y abajo), pensado para verse bien en blanco y negro. */
+    theme: z.enum(['halloween', 'navidad']).optional(),
     textColor: color.optional(),
     fontFamily: z
       .enum(['Segoe UI', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Verdana'])
