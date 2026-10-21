@@ -52,11 +52,11 @@ export const PDF_PRESETS: PdfPreset[] = [
   {
     id: "halloween",
     name: "Halloween",
-    description: "Murciélagos y calabaza en una franja; acento naranja, a color.",
+    description: "Naranja oscuro y violeta; telaraña en la esquina y una calavera tenue de fondo, a color.",
     document: {
-      theme: "halloween", accentColor: "#e8590c", tableHeaderBg: "#e8590c", tableHeaderColor: "#ffffff",
-      tableBorderColor: "#f3d3bd", tableZebra: true, cardRadius: 6, cardBackground: "#fff8f2",
-      cardBorderColor: "#f3d3bd",
+      theme: "halloween", accentColor: "#b8460a", tableHeaderBg: "#3b1260", tableHeaderColor: "#ffc48a",
+      tableBorderColor: "#d9c6ea", tableZebra: true, cardRadius: 6, cardBackground: "#fbf6ff",
+      cardBorderColor: "#cdb4e6",
     },
   },
   {

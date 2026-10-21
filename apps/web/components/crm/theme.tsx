@@ -28,7 +28,7 @@ function applyTheme(resolved: "light" | "dark") {
 }
 
 export function CrmThemeProvider({ children }: { children: ReactNode }) {
-  const [choice, setChoiceState] = useState<ThemeChoice>("system");
+  const [choice, setChoiceState] = useState<ThemeChoice>("dark");
   const [resolved, setResolved] = useState<"light" | "dark">(() =>
     typeof document !== "undefined" && document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 
