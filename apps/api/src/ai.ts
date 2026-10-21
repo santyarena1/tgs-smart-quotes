@@ -24,6 +24,9 @@ import {
   type AiServiceDeps,
 } from '@tgs/ai';
 import {decryptSecret} from '@tgs/config';
+import {z} from 'zod';
+import {BadGatewayException} from '@nestjs/common';
+import {describeOpenAiError} from '@tgs/ai';
 import {activeVersion, loadFamily, statusEvent} from './quotes.js';
 import {CurrentUser, jsonSafe, type RequestUser, ZodPipe} from './infrastructure.js';
 
@@ -111,8 +114,55 @@ export class RequestAiController {
   }
 }
 
+const quoteChatSchema = z.object({
+  /** Resumen del presupuesto que se está armando: es lo ÚNICO que el asistente conoce. */
+  context: z.string().trim().min(1).max(9000),
+  messages: z.array(z.object({role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(2000)})).min(1).max(24),
+}).strict();
+
+/** El chat del presupuesto va siempre con GPT-4o mini, sin importar el modelo elegido en Ajustes → IA. */
+const QUOTE_CHAT_MODEL = 'gpt-4o-mini';
+
+const QUOTE_CHAT_SYSTEM = [
+  'Sos el asistente de The Gamer Shop (Argentina) y ayudás al vendedor mientras arma un presupuesto de PC.',
+  'Tu ÚNICA fuente de información es el presupuesto que aparece en el bloque PRESUPUESTO. No tenés acceso a nada más del sistema (clientes, costos, otros presupuestos, ventas).',
+  'Respondé preguntas sobre ese presupuesto: rendimiento estimado en juegos y aplicaciones (FPS orientativos por resolución y calidad), compatibilidad entre componentes (socket, chipset, tipo de RAM, consumo y fuente, gabinete, refrigeración), cuellos de botella, mejoras posibles y cómo explicárselo al cliente.',
+  'Si la pregunta no se relaciona con el presupuesto o con PC gamer, decí amablemente que solo podés ayudar con este presupuesto.',
+  'No inventes especificaciones que no conozcas con certeza y aclarás que los FPS son estimaciones orientativas. Si falta un componente clave (CPU, placa, RAM, GPU, fuente), avisalo en vez de suponerlo. Los precios son los del presupuesto; no inventes otros.',
+  'Español rioplatense, tono cercano y profesional, respuestas breves (máximo ~150 palabras), con viñetas cortas cuando ayuden y sin encabezados largos.',
+].join(' ');
+
 @Controller('quotes')
 export class QuoteAiController {
+  /** Chat con el presupuesto en edición como único contexto (no guarda nada). */
+  @Post('ai-chat')
+  async chat(@Body(new ZodPipe(quoteChatSchema)) body: z.infer<typeof quoteChatSchema>) {
+    const settings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
+    if (!settings.enabled) throw new BadRequestException('La IA está desactivada. Activala en Ajustes → IA.');
+    const key = settings.apiKeyEncrypted ? decryptSecret(settings.apiKeyEncrypted) : process.env.OPENAI_API_KEY;
+    const client = createAiClient({apiKey: key});
+    if (!client) throw new BadRequestException('Falta la API key de OpenAI. Cargala en Ajustes → IA.');
+    let completion;
+    try {
+      completion = await client.chat.completions.create({
+        model: QUOTE_CHAT_MODEL,
+        max_tokens: 600,
+        messages: [
+          {role: 'system', content: `${QUOTE_CHAT_SYSTEM}
+
+PRESUPUESTO:
+${body.context}`},
+          ...body.messages,
+        ],
+      });
+    } catch (error) {
+      throw new BadGatewayException(describeOpenAiError(error).message);
+    }
+    const reply = completion.choices[0]?.message?.content?.trim();
+    if (!reply) throw new BadGatewayException('La IA no devolvió una respuesta.');
+    return {reply};
+  }
+
   /** Feedback de compatibilidad orientativa sobre los ítems de la versión activa. */
   @Post(':id/ai/compatibility')
   async compatibility(

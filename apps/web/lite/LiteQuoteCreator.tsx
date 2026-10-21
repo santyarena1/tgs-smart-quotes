@@ -17,6 +17,7 @@ import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload, ret
 import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 import { useLite } from "./LiteContext";
+import { QuoteChatBubble } from "../components/QuoteChatBubble";
 import { LiteFinancing } from "./LiteFinancing";
 import { LiteNewCustomer } from "./LiteNewCustomer";
 import { LiteNewProduct } from "./LiteNewProduct";
@@ -552,6 +553,24 @@ export function LiteQuoteCreator() {
     [tradeIns],
   );
   const net = total > tradeInTotal ? total - tradeInTotal : 0n;
+
+  /** Lo único que ve el chat con IA: los ítems, cantidades y precios de venta de este presupuesto (sin costos ni clientes). */
+  const chatContext = useMemo(() => {
+    const rows = lines.filter((l) => l.name.trim()).map((l) => {
+      const qty = Math.max(1, Math.trunc(Number(l.quantity) || 1));
+      const slot = pcLines.find((p) => p.id === l.lineId)?.name;
+      return `- ${slot ? `[${slot}] ` : ""}${qty > 1 ? `${qty} x ` : ""}${l.name.trim()} — ${formatArs(BigInt(lineTotalCents(l.saleArs, l.quantity)))}`;
+    });
+    if (!rows.length) return "";
+    const given = tradeIns.filter((t) => t.name.trim()).map((t) => `- ${t.name.trim()}`);
+    return [
+      name.trim() ? `Título: ${name.trim()}` : "",
+      isBuiltPc ? "Tipo: PC armada" : "Tipo: productos sueltos",
+      "Ítems:", ...rows,
+      given.length ? `Productos entregados por el cliente como parte de pago:\n${given.join("\n")}` : "",
+      `Total de venta: ${formatArs(total)}${tradeInTotal > 0n ? ` (neto a pagar ${formatArs(net)})` : ""}`,
+    ].filter(Boolean).join("\n");
+  }, [lines, pcLines, tradeIns, name, isBuiltPc, total, tradeInTotal, net]);
 
   /** Resumen del presupuesto en texto, listo para pegar en WhatsApp (negritas con *). */
   async function copyWhatsappSummary() {
@@ -1308,6 +1327,8 @@ export function LiteQuoteCreator() {
           <span>{waCopy === "copied" ? "Presupuesto copiado como texto" : "No se pudo copiar el presupuesto"}</span>
         </div>
       ) : null}
+
+      <QuoteChatBubble context={chatContext} hasItems={chatContext !== ""} />
 
       <LiteQuoteList
         refreshKey={refreshKey}
