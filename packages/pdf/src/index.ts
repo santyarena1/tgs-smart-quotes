@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
+import { HALLOWEEN_WEB_PNG } from './halloween-web.js';
 
 export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL';
 
@@ -487,12 +488,10 @@ const THEME_TILES: Partial<Record<NonNullable<PdfLayoutDocument['theme']>, { svg
   },
 };
 
-/** Halloween: telaraña en la esquina y una calavera enorme y casi invisible encima del contenido (no hay franjas). */
-const HALLOWEEN_WEB =
-  '<g fill="none" stroke="#5b2a86" stroke-width="1.1" stroke-linecap="round"><path d="M0 0L120 0M0 0L110 50M0 0L85 85M0 0L50 110M0 0L0 120"/>' +
-  '<path d="M30 0Q26 26 0 30M60 0Q52 52 0 60M90 0Q78 78 0 90"/></g>';
-const HALLOWEEN_SKULL =
-  '<path fill="#3b1260" fill-rule="evenodd" d="M16 3C9.4 3 5 7.6 5 13.4c0 3.6 1.8 6 4 7.4V25c0 1.1.9 2 2 2h1v2h3v-2h2v2h3v-2h1c1.1 0 2-.9 2-2v-4.2c2.2-1.4 4-3.8 4-7.4C27 7.6 22.6 3 16 3zM8.5 14a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM17.5 14a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM16 17l-1.8 3.5h3.6z"/>';
+/** Halloween: telarañas en tres esquinas (imagen propia, parte de la esquina) y calabazas de fondo casi invisibles. */
+const HALLOWEEN_PUMPKIN =
+  '<path fill="#ff6a00" d="M15 5h2.4l1 4h-4.4z"/><ellipse cx="16" cy="19" rx="12" ry="9.5" fill="#ff6a00"/>' +
+  '<path fill="#fff" d="M9 15l3.4 3.6L9 19zM23 15l-3.4 3.6L23 19zM16 19l-1.6 2.6h3.2zM9.5 23l2 1.6 2.5-1.8 2 1.8 2.5-1.8 2 1.6-1 1.4h-9z"/>';
 
 function svgUrl(width: number, height: number, body: string): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
@@ -501,9 +500,14 @@ function svgUrl(width: number, height: number, body: string): string {
 
 function halloweenCss(): string {
   const exact = 'print-color-adjust:exact;-webkit-print-color-adjust:exact';
+  const web = (pos: string, transform: string) =>
+    `content:"";position:fixed;${pos};width:120px;height:120px;transform:${transform};z-index:5;pointer-events:none;opacity:.6;background:url("${HALLOWEEN_WEB_PNG}") no-repeat top left/100% 100%;${exact}`;
   return (
-    `body::before{content:"";position:fixed;bottom:0;left:0;width:110px;height:110px;transform:scaleY(-1);z-index:5;pointer-events:none;opacity:.55;background:${svgUrl(120, 120, HALLOWEEN_WEB)} no-repeat top left/110px 110px;${exact}}` +
-    `body::after{content:"";position:fixed;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;z-index:5;pointer-events:none;opacity:.02;background:${svgUrl(32, 32, HALLOWEEN_SKULL)} no-repeat center/contain;${exact}}`
+    `body::before{${web('top:0;left:0', 'none')}}` +
+    `body::after{${web('bottom:0;right:0', 'rotate(180deg)')}}` +
+    `html::before{${web('top:0;right:0', 'scaleX(-1)')}}` +
+    `html::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.045;` +
+    `background:${svgUrl(32, 32, HALLOWEEN_PUMPKIN)} no-repeat right 6% top 22%/230px 230px,${svgUrl(32, 32, HALLOWEEN_PUMPKIN)} no-repeat left 5% bottom 12%/150px 150px;${exact}}`
   );
 }
 
