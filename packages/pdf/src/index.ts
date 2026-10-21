@@ -1091,7 +1091,7 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   if (input.config.showOtherBanks) {
     // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
     parts.push(
-      brandBlock('free', 'Cuotas sin interés con cualquier banco', '', [3, 6].map((n) => tile(n, 'cuotas', money(base(n)))), {
+      brandBlock('free', 'Cuotas sin interés con cualquier banco', '', [3, 6].map((n) => tile(n, 'cuotas<small>sin interés</small>', money(base(n)))), {
         big: true,
         top: true,
         foot: [escapeHtml('Pagos presenciales o por link de pago/QR')],
@@ -1245,6 +1245,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .tile:first-child { border-left: none; padding-left: 0; }
   .tile .t-n { font-size: 15px; font-weight: 900; color: var(--bc); }
   .tile .t-u { font-size: 8.8px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tile .t-u small { display: block; margin-top: 1px; font-size: 7.6px; font-weight: 700; color: var(--bc); letter-spacing: 0.04em; }
   .tile .t-amt { font-size: 14.5px; font-weight: 800; color: #151515; margin-left: 5px; }
   .fb-foot { flex-basis: 100%; margin-left: 164px; font-size: 9px; font-weight: 700; color: var(--bc); line-height: 1.5; }
   .fb-foot.note { margin-top: 0; font-weight: 500; color: #666; }
@@ -1257,6 +1258,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .fin-brand.big .tile .t-n { font-size: 30px; }
   .fin-brand.big .tile .t-amt { font-size: 22px; margin-left: 4px; }
   .fin-brand.big .tile .t-u { font-size: 10px; }
+  .fin-brand.big .tile .t-u small { font-size: 8.4px; }
   .rma-note { border-left: 3px solid ${accent}; background: #fafafa; border-radius: 0 5px 5px 0; padding: 7px 11px; margin: 9px 0; color: #555; font-size: 9.3px; line-height: 1.5; }
   .rma-note b.imp { color: ${accent}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.8px; margin-right: 3px; }
   .flow-note { border-left: 3px solid #cfcfcf; background: #fafafa; border-radius: 0 5px 5px 0; padding: 6px 11px; color: #555; line-height: 1.5; }
