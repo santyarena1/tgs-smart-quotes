@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.24",
+    date: "2026-10-21",
+    title: "Chat con IA flotante en el presupuesto",
+    items: [
+      "Globo flotante en LITE: al tocarlo se abre un chat con la IA que conoce SOLO el presupuesto que estás armando (ítems, cantidades y precios; sin costos ni clientes)",
+      "Sirve para preguntar rendimiento en juegos, compatibilidades, fuente, cuellos de botella o pedirle una explicación para el cliente",
+      "Usa el modelo configurado en Ajustes → IA",
+    ],
+  },
+  {
     version: "0.21.23",
     date: "2026-10-21",
     title: "Halloween: mano esqueleto, barra morada y modo oscuro por defecto",
