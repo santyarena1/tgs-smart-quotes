@@ -8,12 +8,40 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "0.21.30",
+    version: "0.21.31",
     date: "2026-10-21",
     title: "Botón Crear y descargar PDF legible en modo oscuro, con hover",
     items: [
       "El botón principal de abajo en LITE ya no se ve negro sobre negro en modo oscuro: tiene el color del tema con texto legible",
       "Ahora reacciona al pasar el mouse (se levanta, se ilumina y cambia de tono) y se hunde un poco al apretarlo",
+    ],
+  },
+  {
+    version: "0.21.30",
+    date: "2026-10-21",
+    title: "Railway deja de marcar la API como caída",
+    items: [
+      "La API responde 200 en / y /health (además de /api/health), que es lo que Railway usa para saber si el servicio está vivo",
+      "Al arrancar ya no aparecen errores falsos de Prisma cuando una migración vieja no estaba fallida",
+      "El worker abre el puerto de Railway y responde ok en / y /health",
+    ],
+  },
+  {
+    version: "0.21.29",
+    date: "2026-10-21",
+    title: "RepeBot: chat con IA más redondo y animado",
+    items: [
+      "El asistente ahora se llama RepeBot",
+      "Bordes todavía más redondeados en el panel, las burbujas y los botones",
+      "Animaciones de apertura y cierre del panel, de entrada de cada sección, de envío (el mensaje sale volando del botón), de respuesta y de error",
+    ],
+  },
+  {
+    version: "0.21.28",
+    date: "2026-10-21",
+    title: "PDF: «sin interés» bajo «cuotas» en 3 y 6 cuotas",
+    items: [
+      "En la primera fila de cuotas sin interés (cualquier banco) cada tile de 3 y 6 cuotas ahora dice «sin interés» debajo de la palabra «cuotas»",
     ],
   },
   {

@@ -7,8 +7,10 @@ cd "$(dirname "$0")/.."
 
 resolve_failed() {
   name="$1"
-  echo "[migrate] resolviendo $name si quedó failed..."
-  if pnpm exec prisma migrate resolve --rolled-back "$name"; then
+  echo "[migrate] chequeando $name..."
+  # Prisma imprime "Error: P3012" si la migración no está failed. Eso no es un
+  # fallo real, pero Railway lo pinta en rojo en cada arranque. Se captura.
+  if out=$(pnpm exec prisma migrate resolve --rolled-back "$name" 2>&1); then
     echo "[migrate] $name marcada rolled-back; se reintenta con el SQL actual"
   else
     echo "[migrate] $name no estaba failed (ok)"

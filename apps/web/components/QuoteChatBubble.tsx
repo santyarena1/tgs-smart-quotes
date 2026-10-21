@@ -51,6 +51,7 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [unread, setUnread] = useState(false);
+  const [sent, setSent] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const contextRef = useRef(context);
@@ -71,6 +72,7 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
     const history = [...msgs.filter((m) => !m.error), { role: "user" as const, content: question }];
     setMsgs((prev) => [...prev, { role: "user", content: question }]);
     setText("");
+    setSent((n) => n + 1);
     setBusy(true);
     try {
       const { reply } = await api<{ reply: string }>("/quotes/ai-chat", {
@@ -92,7 +94,7 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
         <header className="qc-head">
           <span className="qc-avatar" aria-hidden="true"><b>✦</b></span>
           <div className="qc-title">
-            <strong>Tito, tu copiloto TGS</strong>
+            <strong>RepeBot, tu copiloto TGS</strong>
             <span><i className="qc-live" />{busy ? "Pensando…" : "En línea · solo conoce este presupuesto"}</span>
           </div>
           {msgs.length ? <button type="button" className="qc-icon" onClick={() => setMsgs([])} title="Limpiar la conversación" aria-label="Limpiar la conversación">↺</button> : null}
@@ -103,7 +105,7 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
           {!msgs.length ? (
             <div className="qc-welcome">
               <div className="qc-orb" aria-hidden="true"><span>✦</span></div>
-              <h4>{greeting()} Soy Tito 👋</h4>
+              <h4>{greeting()} Soy RepeBot <span className="qc-wave" aria-hidden="true">👋</span></h4>
               <p>{hasItems ? "Preguntame lo que quieras sobre esta PC: rendimiento, compatibilidad, mejoras…" : "Agregá productos al presupuesto y preguntame sobre rendimiento, compatibilidad y más."}</p>
               {hasItems ? (
                 <div className="qc-chips">
@@ -135,7 +137,7 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(text); } }}
           />
-          <button type="submit" disabled={busy || !text.trim() || !hasItems} aria-label="Enviar">➤</button>
+          <button type="submit" key={sent} className={sent ? "qc-sent" : ""} disabled={busy || !text.trim() || !hasItems} aria-label="Enviar"><span aria-hidden="true">➤</span></button>
         </form>
         <p className="qc-foot">Respuestas orientativas de IA: verificá antes de prometer rendimiento.</p>
       </section>

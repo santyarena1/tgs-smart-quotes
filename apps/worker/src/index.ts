@@ -1,3 +1,4 @@
+import {createServer} from "node:http";
 import {generateCaseModelWithTripo} from './handlers/case-model.js';
 import { db } from "@tgs/database";
 import { runAcustockSyncLoop } from "./catalog-sync.js";
@@ -243,11 +244,29 @@ async function runJobsLoop() {
   } while (true);
 }
 
+function startHealthServer() {
+  const raw = process.env.PORT?.trim();
+  if (!raw) return;
+  const port = Number(raw);
+  if (!Number.isFinite(port) || port <= 0) return;
+  createServer((req, res) => {
+    const url = (req.url ?? "/").split("?")[0];
+    if (req.method === "GET" && (url === "/" || url === "/health")) {
+      res.writeHead(200, {"content-type": "application/json"});
+      res.end(JSON.stringify({status: "ok"}));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  }).listen(port, "::");
+}
+
 if (process.env.NODE_ENV !== "test") {
   // Aviso al arrancar, bien visible en los logs del deploy, además del que
   // repite cada vuelta del resync.
   const envProblem = resyncEnvProblem();
   if (envProblem) console.error(JSON.stringify({level: "error", task: "startup", error: `${envProblem}. La republicación automática queda desactivada hasta corregirlo.`}));
+  startHealthServer();
   void Promise.all([runLoop(), runJobsLoop(), runAcustockSyncLoop()]);
 }
 
