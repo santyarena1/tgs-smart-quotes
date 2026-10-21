@@ -142,3 +142,15 @@ html:root:root:root:root:root:root[data-skin="halloween"] .lite :is(.lt-brand-te
 html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-tab { font-size: 1rem; }
 html:root:root:root:root:root:root[data-skin="halloween"] .lite :is(.lt-side h2, .lt-fin-head h2, .lt-coll-head h2) { font-size: 0.95rem; }
 html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-total strong { font-family: var(--font-creepster), var(--display); font-weight: 400; letter-spacing: 0.03em; }
+
+/* ————— Botón principal de abajo (Crear/Guardar PDF): fondo y texto siempre legibles, también en modo oscuro, y con hover ————— */
+html:root:root:root:root:root:root:not([data-skin="original"]):not([data-skin="minimal"]):not([data-skin="simplicity"]) .lite .lt-foot-main .lt-btn:not(.ghost):not(:disabled) { background-color: var(--red); color: #fff; transition: transform 0.16s ease, box-shadow 0.2s ease, background-color 0.16s ease, filter 0.2s ease; }
+html:root:root:root:root:root:root:not([data-skin="original"]):not([data-skin="minimal"]):not([data-skin="simplicity"]) .lite .lt-foot-main .lt-btn:not(.ghost):hover:not(:disabled) { background-color: var(--red-deep); transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 8px 20px -6px rgba(var(--tgs-red-rgb, 220, 38, 38), 0.6); }
+html:root:root:root:root:root:root:not([data-skin="original"]) .lite .lt-foot-main .lt-btn:not(.ghost):active:not(:disabled) { transform: translateY(0) scale(0.98); }
+html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-foot-main .lt-btn:not(.ghost):not(:disabled) { background-color: #f26a0f; border-color: #f26a0f; color: #1a0a00; }
+html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-foot-main .lt-btn:not(.ghost):hover:not(:disabled) { background-color: #ff8a1f; border-color: #ff8a1f; color: #1a0a00; box-shadow: 0 8px 22px -6px rgba(255, 106, 0, 0.75); }
+html:root:root:root:root:root:root[data-skin="darkyellow"] .lite .lt-foot-main .lt-btn:not(.ghost):not(:disabled) { background-color: #e0a800; border-color: #e0a800; color: #1a1400; }
+html:root:root:root:root:root:root[data-skin="darkyellow"] .lite .lt-foot-main .lt-btn:not(.ghost):hover:not(:disabled) { background-color: #fde047; border-color: #fde047; color: #1a1400; box-shadow: 0 8px 22px -6px rgba(250, 204, 21, 0.7); }
+html:root:root:root:root:root:root[data-skin="gotham"] .lite .lt-foot-main .lt-btn:not(.ghost):not(:disabled) { background-color: #2d3a4c; border-color: rgba(255, 255, 255, 0.2); color: #eef2f5; }
+html:root:root:root:root:root:root[data-skin="gotham"] .lite .lt-foot-main .lt-btn:not(.ghost):hover:not(:disabled) { background-color: #44546a; border-color: var(--gt-yellow, #facc15); color: #fff; box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.5), 0 8px 22px -6px rgba(250, 204, 21, 0.4); }
+html:root:root:root:root:root:root[data-skin="gamer"] .lite .lt-foot-main .lt-btn:not(.ghost):not(:disabled) { background-color: #e0102f; color: #fff; }
