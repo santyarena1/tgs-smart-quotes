@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.30",
+    date: "2026-10-21",
+    title: "Botón Crear y descargar PDF legible en modo oscuro, con hover",
+    items: [
+      "El botón principal de abajo en LITE ya no se ve negro sobre negro en modo oscuro: tiene el color del tema con texto legible",
+      "Ahora reacciona al pasar el mouse (se levanta, se ilumina y cambia de tono) y se hunde un poco al apretarlo",
+    ],
+  },
+  {
     version: "0.21.27",
     date: "2026-10-21",
     title: "PDF Halloween con telarañas de esquina y calabazas de fondo",
