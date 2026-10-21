@@ -9,12 +9,28 @@ import "./quote-chat.css";
 type Msg = { role: "user" | "assistant"; content: string; error?: boolean };
 
 const SUGGESTIONS = [
-  "¿Qué rendimiento da en juegos?",
-  "¿Es todo compatible?",
-  "¿Alcanza la fuente?",
-  "¿Hay algún cuello de botella?",
-  "Explicáselo al cliente en 3 líneas",
+  { icon: "🎮", text: "¿Qué rendimiento da en juegos?" },
+  { icon: "🧩", text: "¿Es todo compatible?" },
+  { icon: "⚡", text: "¿Alcanza la fuente?" },
+  { icon: "🔍", text: "¿Hay algún cuello de botella?" },
+  { icon: "💬", text: "Explicáselo al cliente en 3 líneas" },
 ];
+
+function greeting(): string {
+  const h = new Date().getHours();
+  return h < 6 ? "¡Buenas madrugadas!" : h < 13 ? "¡Buen día!" : h < 20 ? "¡Buenas tardes!" : "¡Buenas noches!";
+}
+
+/** Muestra la respuesta como si se escribiera (solo la más nueva; el resto aparece completo). */
+function Typewriter({ text, animate }: { text: string; animate: boolean }) {
+  const [n, setN] = useState(animate ? 0 : text.length);
+  useEffect(() => {
+    if (!animate || n >= text.length) return;
+    const t = window.setTimeout(() => setN((v) => Math.min(text.length, v + Math.max(2, Math.ceil(text.length / 90)))), 16);
+    return () => window.clearTimeout(t);
+  }, [n, animate, text]);
+  return <>{renderText(text.slice(0, n))}{n < text.length ? <span className="qc-caret" aria-hidden="true" /> : null}</>;
+}
 
 /** Negritas (**x**), viñetas y saltos de línea; lo demás se muestra como texto plano. */
 function renderText(text: string): ReactNode {
@@ -74,10 +90,10 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
     <div className="qc-root" data-open={open ? "1" : "0"}>
       <section className="qc-panel" role="dialog" aria-label="Asistente del presupuesto" aria-hidden={!open}>
         <header className="qc-head">
-          <span className="qc-avatar" aria-hidden="true">✦</span>
+          <span className="qc-avatar" aria-hidden="true"><b>✦</b></span>
           <div className="qc-title">
-            <strong>Asistente del presupuesto</strong>
-            <span><i className="qc-live" />Solo conoce este presupuesto</span>
+            <strong>Tito, tu copiloto TGS</strong>
+            <span><i className="qc-live" />{busy ? "Pensando…" : "En línea · solo conoce este presupuesto"}</span>
           </div>
           {msgs.length ? <button type="button" className="qc-icon" onClick={() => setMsgs([])} title="Limpiar la conversación" aria-label="Limpiar la conversación">↺</button> : null}
           <button type="button" className="qc-icon" onClick={() => setOpen(false)} aria-label="Cerrar">✕</button>
@@ -86,12 +102,13 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
         <div className="qc-body">
           {!msgs.length ? (
             <div className="qc-welcome">
-              <div className="qc-orb" aria-hidden="true">✦</div>
+              <div className="qc-orb" aria-hidden="true"><span>✦</span></div>
+              <h4>{greeting()} Soy Tito 👋</h4>
               <p>{hasItems ? "Preguntame lo que quieras sobre esta PC: rendimiento, compatibilidad, mejoras…" : "Agregá productos al presupuesto y preguntame sobre rendimiento, compatibilidad y más."}</p>
               {hasItems ? (
                 <div className="qc-chips">
                   {SUGGESTIONS.map((s, i) => (
-                    <button key={s} type="button" style={{ animationDelay: `${120 + i * 70}ms` }} onClick={() => void send(s)}>{s}</button>
+                    <button key={s.text} type="button" style={{ animationDelay: `${120 + i * 70}ms` }} onClick={() => void send(s.text)}><span aria-hidden="true">{s.icon}</span>{s.text}</button>
                   ))}
                 </div>
               ) : null}
@@ -99,10 +116,11 @@ export function QuoteChatBubble({ context, hasItems }: { context: string; hasIte
           ) : null}
           {msgs.map((m, i) => (
             <div key={i} className={`qc-msg ${m.role}${m.error ? " err" : ""}`}>
-              <div className="qc-bubble">{m.role === "assistant" ? renderText(m.content) : m.content}</div>
+              {m.role === "assistant" ? <span className="qc-mini" aria-hidden="true">✦</span> : null}
+              <div className="qc-bubble">{m.role === "assistant" ? (m.error ? m.content : <Typewriter text={m.content} animate={i === msgs.length - 1} />) : m.content}</div>
             </div>
           ))}
-          {busy ? <div className="qc-msg assistant"><div className="qc-bubble qc-typing" aria-label="Escribiendo"><i /><i /><i /></div></div> : null}
+          {busy ? <div className="qc-msg assistant"><span className="qc-mini" aria-hidden="true">✦</span><div className="qc-bubble qc-typing" aria-label="Escribiendo"><i /><i /><i /></div></div> : null}
           <div ref={endRef} />
         </div>
 

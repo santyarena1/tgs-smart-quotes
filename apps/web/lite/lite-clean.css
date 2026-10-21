@@ -135,3 +135,10 @@ html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-line-total, 
   html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-pc:not(.on) .lt-pc-copy small { display: none; }
   html:root:root:root:root:root:not([data-skin="original"]) .lite .lt-toggles .lt-switch-track { transform: scale(0.85); transform-origin: left center; }
 }
+
+/* ————— Halloween: la tipografía del tema también rige en LITE (Creepster en el título, Pirata One en pestañas y títulos) ————— */
+html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-head h1 { font-family: var(--font-creepster), var(--display); font-size: 1.5rem; font-weight: 400; letter-spacing: 0.03em; }
+html:root:root:root:root:root:root[data-skin="halloween"] .lite :is(.lt-brand-text, .lt-tab, .lt-card h2, .lt-card h3, .lt-side h2, .lt-modal-card h2, .lt-fin-head h2, .lt-coll-head h2) { font-family: var(--font-pirata), var(--display); font-weight: 400; letter-spacing: 0.03em; }
+html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-tab { font-size: 1rem; }
+html:root:root:root:root:root:root[data-skin="halloween"] .lite :is(.lt-side h2, .lt-fin-head h2, .lt-coll-head h2) { font-size: 0.95rem; }
+html:root:root:root:root:root:root[data-skin="halloween"] .lite .lt-total strong { font-family: var(--font-creepster), var(--display); font-weight: 400; letter-spacing: 0.03em; }

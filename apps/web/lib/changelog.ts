@@ -8,6 +8,33 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.27",
+    date: "2026-10-21",
+    title: "PDF Halloween con telarañas de esquina y calabazas de fondo",
+    items: [
+      "Telarañas (imagen propia) como parte de tres esquinas del presupuesto, en violeta",
+      "Un par de calabazas de fondo, muy transparentes, que no molestan la lectura",
+    ],
+  },
+  {
+    version: "0.21.26",
+    date: "2026-10-21",
+    title: "LITE con la tipografía del tema Halloween",
+    items: [
+      "El título, las pestañas, los títulos de paneles y el total de LITE ahora usan la misma tipografía gótica (Creepster y Pirata One) que el modo común; el texto corrido sigue legible",
+    ],
+  },
+  {
+    version: "0.21.25",
+    date: "2026-10-21",
+    title: "Chat con IA más lindo y con personalidad",
+    items: [
+      "El asistente ahora es Tito: saluda según la hora y tiene avatar propio en cada respuesta",
+      "Panel mucho más redondeado y translúcido, con borde de aurora animado, encabezado con brillo y burbujas con cola suave",
+      "Las respuestas se escriben de a poco, con indicador de \"Pensando…\", sugerencias con íconos y entrada tipo píldora",
+    ],
+  },
+  {
     version: "0.21.24",
     date: "2026-10-21",
     title: "Chat con IA flotante en el presupuesto",
