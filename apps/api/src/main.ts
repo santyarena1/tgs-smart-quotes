@@ -51,6 +51,12 @@ async function bootstrap() {
     credentials: true,
   });
   app.setGlobalPrefix('api');
+  // Railway (y el healthcheck del dashboard) pegan a `/` o `/health`, no a `/api/health`.
+  // Sin esto la API devolvía 404 NO_ENCONTRADO y el servicio figuraba caído.
+  const fastify = app.getHttpAdapter().getInstance();
+  const edgeHealth = () => ({status: 'ok', time: new Date().toISOString()});
+  fastify.get('/', async () => edgeHealth());
+  fastify.get('/health', async () => edgeHealth());
   const cfg = new DocumentBuilder()
     .setTitle('The Gamer Shop API')
     .setVersion('1.0')

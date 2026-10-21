@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.30",
+    date: "2026-10-21",
+    title: "Railway deja de marcar la API como caída",
+    items: [
+      "La API responde 200 en / y /health (además de /api/health), que es lo que Railway usa para saber si el servicio está vivo",
+      "Al arrancar ya no aparecen errores falsos de Prisma cuando una migración vieja no estaba fallida",
+      "El worker abre el puerto de Railway y responde ok en / y /health",
+    ],
+  },
+  {
     version: "0.21.29",
     date: "2026-10-21",
     title: "RepeBot: chat con IA más redondo y animado",
