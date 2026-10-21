@@ -14,7 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "Globo flotante en LITE: al tocarlo se abre un chat con la IA que conoce SOLO el presupuesto que estás armando (ítems, cantidades y precios; sin costos ni clientes)",
       "Sirve para preguntar rendimiento en juegos, compatibilidades, fuente, cuellos de botella o pedirle una explicación para el cliente",
-      "Usa el modelo configurado en Ajustes → IA",
+      "Siempre usa GPT-4o mini (la API key sigue siendo la de Ajustes → IA)",
     ],
   },
   {

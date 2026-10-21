@@ -120,6 +120,9 @@ const quoteChatSchema = z.object({
   messages: z.array(z.object({role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(2000)})).min(1).max(24),
 }).strict();
 
+/** El chat del presupuesto va siempre con GPT-4o mini, sin importar el modelo elegido en Ajustes → IA. */
+const QUOTE_CHAT_MODEL = 'gpt-4o-mini';
+
 const QUOTE_CHAT_SYSTEM = [
   'Sos el asistente de The Gamer Shop (Argentina) y ayudás al vendedor mientras arma un presupuesto de PC.',
   'Tu ÚNICA fuente de información es el presupuesto que aparece en el bloque PRESUPUESTO. No tenés acceso a nada más del sistema (clientes, costos, otros presupuestos, ventas).',
@@ -142,8 +145,8 @@ export class QuoteAiController {
     let completion;
     try {
       completion = await client.chat.completions.create({
-        model: settings.model ?? DEFAULT_AI_MODEL,
-        max_completion_tokens: 600,
+        model: QUOTE_CHAT_MODEL,
+        max_tokens: 600,
         messages: [
           {role: 'system', content: `${QUOTE_CHAT_SYSTEM}
 
