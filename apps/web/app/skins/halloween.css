@@ -50,8 +50,8 @@
   --red-soft: rgba(242, 106, 15, 0.13);
   --red-line: rgba(179, 71, 0, 0.4);
   --ink: #1f1208; --ink-bg: #1f1208; --ink-2: #4d3319; --muted: #76593a; --faint: #8c7253;
-  --line: #ecd9c4; --line-2: #dfc4a6;
-  --paper: #fffaf3; --canvas: #fdf3e7; --canvas-2: #fff8ee;
+  --line: #e2c4a6; --line-2: #cfa57d;
+  --paper: #fff4e6; --canvas: #f6dcc0; --canvas-2: #fbe9d4;
   --sh-1: 0 1px 2px rgba(70, 35, 0, 0.07);
   --sh-2: 0 2px 8px rgba(70, 35, 0, 0.08), 0 14px 34px rgba(70, 35, 0, 0.09);
   --sh-3: 0 22px 60px rgba(70, 35, 0, 0.25);
@@ -117,11 +117,15 @@ html:root[data-skin="halloween"][data-theme="light"] :is(.card, .lite .lt-card, 
 html:root[data-skin="halloween"] :is(button:not([class]), .lite .lt-btn:not(.ghost), .page-actions button:not(.btn-ghost)) { box-shadow: 3px 3px 0 #000; }
 html:root[data-skin="halloween"] :is(button:not([class]), .lite .lt-btn:not(.ghost)):active:not(:disabled) { box-shadow: 1px 1px 0 #000; transform: translate(2px, 2px); }
 
-/* Goteo naranja constante en el borde superior de todas las pantallas (LITE incluida): fijo y sin animación */
-html:root[data-skin="halloween"] .lite .lt-bar::after { content: none; }
+/* Goteo naranja oscuro: cuelga de la barra de LITE (debajo de ella) y, en las pantallas sin barra superior, del borde de la ventana. Fijo y sin animación */
+html:root[data-skin="halloween"] .lite .lt-bar::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%; bottom: auto; height: 20px; opacity: 1; z-index: 1; pointer-events: none;
+  background: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%2220%22%20viewBox%3D%220%200%20120%2020%22%3E%3Cpath%20fill%3D%22%23d4550a%22%20d%3D%22M0%200h120v5c-5%200-6%2011-10.500%2011S105%205%2099%205s-5.500%2015-11%2015-5-15-11-15-4%207-9%207-5-7-11-7-6%2013-12%2013S50%205%2044%205s-6%208-11%208-6-8-11-8-5%2014-11%2014S5%205%200%205z%22%2F%3E%3C%2Fsvg%3E") repeat-x left top / 120px 20px; filter: drop-shadow(0 2px 0 #000);
+}
+html:root[data-skin="halloween"] body:has(.lite .lt-bar)::before { display: none; }
 html:root[data-skin="halloween"] body::before {
   content: ""; position: fixed; left: 0; right: 0; top: 0; height: 20px; z-index: 60; pointer-events: none;
-  background: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%2220%22%20viewBox%3D%220%200%20120%2020%22%3E%3Cpath%20fill%3D%22%23ff6a00%22%20d%3D%22M0%200h120v5c-5%200-6%2011-10.500%2011S105%205%2099%205s-5.500%2015-11%2015-5-15-11-15-4%207-9%207-5-7-11-7-6%2013-12%2013S50%205%2044%205s-6%208-11%208-6-8-11-8-5%2014-11%2014S5%205%200%205z%22%2F%3E%3C%2Fsvg%3E") repeat-x left top / 120px 20px; filter: drop-shadow(0 2px 0 #000);
+  background: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%2220%22%20viewBox%3D%220%200%20120%2020%22%3E%3Cpath%20fill%3D%22%23d4550a%22%20d%3D%22M0%200h120v5c-5%200-6%2011-10.500%2011S105%205%2099%205s-5.500%2015-11%2015-5-15-11-15-4%207-9%207-5-7-11-7-6%2013-12%2013S50%205%2044%205s-6%208-11%208-6-8-11-8-5%2014-11%2014S5%205%200%205z%22%2F%3E%3C%2Fsvg%3E") repeat-x left top / 120px 20px; filter: drop-shadow(0 2px 0 #000);
 }
 
 /* Las tarjetas de producto se "arrastran" un poquito al pasar el mouse */
@@ -139,9 +143,9 @@ html:root[data-skin="halloween"] body::after {
 /* Insignia TGS en naranja y violeta, como el degradado del tema de la web */
 html:root[data-skin="halloween"] :is(.brand-mark, .brand-badge) { background: linear-gradient(135deg, #ff6a00, #7a1fa2); color: #fff; box-shadow: 3px 3px 0 #000; }
 
-/* Cursores: calabaza normal y calavera sobre lo que se puede tocar */
-html:root[data-skin="halloween"], html:root[data-skin="halloween"] body { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20d%3D%22M15%203h2.600l1%204h-4.600z%22%20fill%3D%22%232e7d32%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.500%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cellipse%20cx%3D%2216%22%20cy%3D%2218%22%20rx%3D%2212%22%20ry%3D%229.500%22%20fill%3D%22%23ff6a00%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M9%2014l3.400%203.600L9%2018zM23%2014l-3.400%203.600L23%2018zM16%2018l-1.600%202.600h3.200zM10%2022l2%201.600%202-1.600%202%201.600%202-1.600%202%201.600%202-1.600%22%20fill%3D%22%23000%22%20stroke%3D%22%23000%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E") 16 16, auto; }
-html:root[data-skin="halloween"] :is(a, button, [role="button"], [role="link"], select, summary, label[for], input[type="checkbox"], input[type="radio"], .pb-item) { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20d%3D%22M16%203c-6%200-10%204.500-10%2010.500%200%203.500%201.600%205.600%203.400%206.800V25h13.200v-4.700c1.800-1.200%203.400-3.300%203.400-6.800C26%207.500%2022%203%2016%203z%22%20fill%3D%22%23f3efe6%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2214%22%20r%3D%222.800%22%20fill%3D%22%23ff6a00%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2214%22%20r%3D%222.800%22%20fill%3D%22%23ff6a00%22%2F%3E%3Cpath%20d%3D%22M15%2018l1-2%201%202z%22%20fill%3D%22%23000%22%2F%3E%3Cpath%20d%3D%22M12%2025v3M16%2025v3M20%2025v3%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E") 16 16, pointer; }
+/* Cursor: la mano esqueleto (public/cursors) en todo, también sobre lo que se puede tocar */
+html:root[data-skin="halloween"], html:root[data-skin="halloween"] body { cursor: url("/cursors/skeleton-hand.png") 1 1, auto; cursor: image-set(url("/cursors/skeleton-hand.png") 1x, url("/cursors/skeleton-hand@2x.png") 2x) 1 1, auto; }
+html:root[data-skin="halloween"] :is(a, button, [role="button"], [role="link"], select, summary, label[for], input[type="checkbox"], input[type="radio"], .pb-item) { cursor: url("/cursors/skeleton-hand.png") 1 1, pointer; cursor: image-set(url("/cursors/skeleton-hand.png") 1x, url("/cursors/skeleton-hand@2x.png") 2x) 1 1, pointer; }
 html:root[data-skin="halloween"] :is(input[type="text"], input[type="search"], input[type="number"], input[type="email"], input[type="password"], textarea) { cursor: text; }
 
 /* Fondo violeta degradado (modo oscuro) con un resplandor naranja abajo a la derecha. Va en <html> para que
@@ -186,3 +190,44 @@ html:root[data-skin="halloween"][data-theme] :is(.qkind.all.on, .lite .lt-chip.o
   background: linear-gradient(135deg, #ff6a00, #c2410c); border-color: #ff6a00; color: #fff; text-shadow: none;
 }
 html:root[data-skin="halloween"] .lite .lt-pc.on .lt-switch-track { background: #ff6a00; }
+
+/* Modo claro más Halloween: atardecer durazno con resplandor violeta arriba y naranja abajo */
+html:root[data-skin="halloween"][data-theme="light"] {
+  background:
+    radial-gradient(ellipse 70% 55% at 8% 0%, rgba(122, 31, 162, 0.28), transparent 62%),
+    radial-gradient(ellipse 60% 50% at 96% 104%, rgba(212, 85, 10, 0.32), transparent 62%),
+    linear-gradient(165deg, #f3d3ee 0%, #f6dcc0 45%, #f0b985 100%);
+  background-attachment: fixed;
+}
+html:root[data-skin="halloween"][data-theme="light"] body {
+  background:
+    linear-gradient(var(--tgs-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, var(--tgs-grid) 1px, transparent 1px) 0 0 / 44px 44px;
+  background-attachment: fixed;
+}
+html:root[data-skin="halloween"][data-theme="light"] .hw-decor { opacity: 0.9; }
+html:root[data-skin="halloween"][data-theme="light"] .hw-decor .hw-web { color: #5b2a86; opacity: 0.4; }
+html:root[data-skin="halloween"][data-theme="light"] .hw-decor .hw-moon { opacity: 0.3; }
+html:root[data-skin="halloween"][data-theme="light"] :is(.card, .lite .lt-card, .stat) { box-shadow: 4px 4px 0 rgba(74, 10, 107, 0.3); }
+
+/* Barra superior en morado oscuro (con texto claro) en ambos modos */
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar {
+  background: linear-gradient(90deg, #2a0b45 0%, #3b1260 50%, #2a0b45 100%); color: #f3e8ff; border-bottom: 0; backdrop-filter: none;
+  box-shadow: 0 2px 0 #000, 0 6px 22px rgba(42, 11, 69, 0.45);
+}
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar :is(.lt-brand, .lt-brand-text) { color: #fff; }
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar .lt-tab:not(.active) { color: #d8c3ee; }
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar .lt-tab:not(.active):hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar .lt-branch { background: rgba(255, 255, 255, 0.08); border-color: rgba(216, 195, 238, 0.3); color: #f3e8ff; }
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar .lt-branch select { color: #f3e8ff; }
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar .lt-branch select option { color: #1f1208; }
+html:root[data-skin="halloween"][data-theme] .lite .lt-bar :is(.lt-version, .lt-bar-more, .lt-bar-grip) { color: #d8c3ee; }
+html:root[data-skin="halloween"] { --side-a: #2a0b45; --side-b: #170527; }
+
+/* Tipografía: Pirata One (gótica, legible) en títulos secundarios, pestañas y menú; el texto corrido sigue en Inter */
+html:root[data-skin="halloween"] :is(.card h2, .card h3, .lite .lt-card h2, .lite .lt-card h3, .lite .lt-side h2, .lite .lt-modal-card h2, .lite .lt-brand-text, .lite .lt-tab, .nav-link, .brand-text, .side h2, .stat .stat-label) {
+  font-family: var(--font-pirata), var(--display);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+html:root[data-skin="halloween"] :is(.lite .lt-tab, .nav-link) { font-size: 1.02rem; }

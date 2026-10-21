@@ -285,7 +285,7 @@ export class CrmController {
   @Get('me/preferences')
   async preferences(@CurrentUser() user: RequestUser) {
     const row = await db.user.findUniqueOrThrow({where: {id: user.id}, select: {themePreference: true}});
-    return {theme: row.themePreference ?? 'system'};
+    return {theme: row.themePreference ?? 'dark'};
   }
 
   @Put('me/preferences')

@@ -8,6 +8,18 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.23",
+    date: "2026-10-21",
+    title: "Halloween: mano esqueleto, barra morada y modo oscuro por defecto",
+    items: [
+      "Cursor de mano esqueleto en todo el sistema con el tema Halloween",
+      "El goteo ahora cuelga debajo de la barra superior, que pasa a un morado oscuro; el modo claro es más Halloween (atardecer durazno y violeta)",
+      "Tipografía gótica (Pirata One) en títulos, pestañas y menú; el texto corrido sigue igual de legible",
+      "El modo oscuro es el predeterminado para todos los usuarios",
+      "PDF Halloween: sin murciélagos ni calabazas; telaraña en una esquina, calavera enorme casi invisible de fondo y naranja oscuro con violeta",
+    ],
+  },
+  {
     version: "0.21.22",
     date: "2026-10-20",
     title: "La web en Vercel vuelve a conectar con la API",

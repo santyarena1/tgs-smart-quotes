@@ -476,16 +476,7 @@ function blockCss(key: PdfLayoutBlockKey, style: PdfLayoutStyle): string {
 
 /** Franjas decorativas de los temas estacionales. Trazos oscuros sobre fondo blanco (el acento es un
  *  solo color) para que se lean igual impresas en blanco y negro o vistas por WhatsApp. */
-const THEME_TILES: Record<NonNullable<PdfLayoutDocument['theme']>, { svg: string; width: number }> = {
-  halloween: {
-    width: 96,
-    svg:
-      '<g fill="#2b1b3d"><path id="b" d="M0 3Q4 0 8 4L10 1.5L12 5L14 1.5L16 4Q20 0 24 3Q22 10 17 9Q14 8 12 14Q10 8 7 9Q2 10 0 3Z" transform="translate(4 1)"/>' +
-      '<use href="#b" transform="translate(60 0)"/></g>' +
-      '<ellipse cx="48" cy="10" rx="7" ry="5.5" fill="#f26a0f" stroke="#b34700" stroke-width="1"/>' +
-      '<path d="M48 4.5V1.5" stroke="#2e7d32" stroke-width="1.8"/>' +
-      '<path d="M45 9l1.5 2L48 9l1.5 2L51 9" stroke="#2b1b3d" stroke-width="1" fill="none"/>',
-  },
+const THEME_TILES: Partial<Record<NonNullable<PdfLayoutDocument['theme']>, { svg: string; width: number }>> = {
   navidad: {
     width: 96,
     svg:
@@ -496,7 +487,28 @@ const THEME_TILES: Record<NonNullable<PdfLayoutDocument['theme']>, { svg: string
   },
 };
 
+/** Halloween: telaraña en la esquina y una calavera enorme y casi invisible encima del contenido (no hay franjas). */
+const HALLOWEEN_WEB =
+  '<g fill="none" stroke="#5b2a86" stroke-width="1.1" stroke-linecap="round"><path d="M0 0L120 0M0 0L110 50M0 0L85 85M0 0L50 110M0 0L0 120"/>' +
+  '<path d="M30 0Q26 26 0 30M60 0Q52 52 0 60M90 0Q78 78 0 90"/></g>';
+const HALLOWEEN_SKULL =
+  '<path fill="#3b1260" fill-rule="evenodd" d="M16 3C9.4 3 5 7.6 5 13.4c0 3.6 1.8 6 4 7.4V25c0 1.1.9 2 2 2h1v2h3v-2h2v2h3v-2h1c1.1 0 2-.9 2-2v-4.2c2.2-1.4 4-3.8 4-7.4C27 7.6 22.6 3 16 3zM8.5 14a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM17.5 14a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM16 17l-1.8 3.5h3.6z"/>';
+
+function svgUrl(width: number, height: number, body: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}
+
+function halloweenCss(): string {
+  const exact = 'print-color-adjust:exact;-webkit-print-color-adjust:exact';
+  return (
+    `body::before{content:"";position:fixed;bottom:0;left:0;width:110px;height:110px;transform:scaleY(-1);z-index:5;pointer-events:none;opacity:.55;background:${svgUrl(120, 120, HALLOWEEN_WEB)} no-repeat top left/110px 110px;${exact}}` +
+    `body::after{content:"";position:fixed;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;z-index:5;pointer-events:none;opacity:.02;background:${svgUrl(32, 32, HALLOWEEN_SKULL)} no-repeat center/contain;${exact}}`
+  );
+}
+
 function themeCss(theme: PdfLayoutDocument['theme']): string {
+  if (theme === 'halloween') return halloweenCss();
   const tile = theme ? THEME_TILES[theme] : undefined;
   if (!tile) return '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tile.width}" height="16" viewBox="0 0 ${tile.width} 16">${tile.svg}</svg>`;
