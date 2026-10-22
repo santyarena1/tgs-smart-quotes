@@ -14,6 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       "El chat de IA ahora usa la foto de REPE como imagen del bot, tiene bordes más redondos y animaciones nuevas de apertura, cierre y de \"pensando / escribiendo\"",
       "El chat también está en el formulario normal de presupuestos (no solo en LITE), con el mismo contexto y el mismo tope",
+      "La foto del bot es un círculo perfecto con aro y más grande, y el chat cambia de colores y estilo según el tema elegido (Halloween, Gamer, Gotham, Amarillo, Azul, Minimal, Simplicity…)",
       "Límite de 10 consultas por hora en cada chat (se controla en el servidor y se muestra cuántas quedan)",
       "En Halloween (claro y oscuro) los botones principales como Crear presupuesto o Crear y descargar PDF son naranja sólido con texto legible y ahora reaccionan al pasar el mouse",
     ],
