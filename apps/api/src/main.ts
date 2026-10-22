@@ -51,18 +51,24 @@ async function bootstrap() {
     credentials: true,
   });
   app.setGlobalPrefix('api');
-  // Railway (y el healthcheck del dashboard) pegan a `/` o `/health`, no a `/api/health`.
-  // Sin esto la API devolvía 404 NO_ENCONTRADO y el servicio figuraba caído.
-  const fastify = app.getHttpAdapter().getInstance();
-  const edgeHealth = () => ({status: 'ok', time: new Date().toISOString()});
-  fastify.get('/', async () => edgeHealth());
-  fastify.get('/health', async () => edgeHealth());
   const cfg = new DocumentBuilder()
     .setTitle('The Gamer Shop API')
     .setVersion('1.0')
     .addCookieAuth('tgs_session')
     .build();
   SwaggerModule.setup('openapi', app, SwaggerModule.createDocument(app, cfg));
+  // Registrar / y /health DESPUÉS de init: si se hace antes, Nest puede taparlas
+  // con el 404 y Railway sigue viendo NO_ENCONTRADO.
+  await app.init();
+  const fastify = app.getHttpAdapter().getInstance();
+  const edgeHealth = () => ({status: 'ok', time: new Date().toISOString()});
+  for (const path of ['/', '/health'] as const) {
+    try {
+      fastify.get(path, async () => edgeHealth());
+    } catch {
+      // Ya existía la ruta (reintento de registro).
+    }
+  }
   await app.listen(Number(process.env.PORT ?? 3001), '::');
   // El drenador de la cola de WhatsApp vive en este proceso a propósito: la API es
   // la que con seguridad está desplegada (sirve el webhook), y una cola que no drena
