@@ -98,6 +98,24 @@ describe('@tgs/pdf', () => {
     expect(pdfFileName('TGS-1', 2, 'DETALLADO')).toBe('TGS-1-V2-DETALLADO.pdf');
   });
 
+  it('muestra el teléfono de la empresa debajo del domicilio', () => {
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({...sample(), template});
+      const domicilio = html.indexOf('>Domicilio<');
+      const tel = html.indexOf('>Teléfono<');
+      const number = html.indexOf('11 2512 1409');
+      expect(domicilio).toBeGreaterThan(-1);
+      expect(tel).toBeGreaterThan(domicilio);
+      expect(number).toBeGreaterThan(tel);
+    }
+    const without = renderQuoteHtml({
+      ...sample(),
+      company: {...sample().company, phones: '  '},
+    });
+    expect(without).toContain('>Domicilio<');
+    expect(without).not.toContain('>Teléfono<');
+  });
+
   it('no incluye vencimiento en el HTML', () => {
     const html = renderQuoteHtml(sample());
     expect(html.toLowerCase()).not.toContain('válido hasta');
