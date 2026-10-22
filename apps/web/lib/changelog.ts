@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.32",
+    date: "2026-10-22",
+    title: "Reintento de deploy en Railway después del corte",
+    items: [
+      "Se vuelve a disparar el deploy (el 0.21.30 quedó en master pero Railway tenía los builds pausados)",
+      "El health de / y /health se registra después de arrancar Nest, para que Railway no siga viendo 404",
+    ],
+  },
+  {
     version: "0.21.31",
     date: "2026-10-21",
     title: "Botón Crear y descargar PDF legible en modo oscuro, con hover",
