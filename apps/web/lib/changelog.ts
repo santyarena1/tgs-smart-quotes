@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.33",
+    date: "2026-10-22",
+    title: "RepeBot más pulido, con tope por hora y botones legibles en Halloween",
+    items: [
+      "El chat de IA ahora usa la foto de REPE como imagen del bot, tiene bordes más redondos y animaciones nuevas de apertura, cierre y de \"pensando / escribiendo\"",
+      "Límite de 10 consultas por hora en cada chat (se controla en el servidor y se muestra cuántas quedan)",
+      "En Halloween (claro y oscuro) los botones principales como Crear presupuesto o Crear y descargar PDF son naranja sólido con texto legible y ahora reaccionan al pasar el mouse",
+    ],
+  },
+  {
     version: "0.21.32",
     date: "2026-10-22",
     title: "Reintento de deploy en Railway después del corte",

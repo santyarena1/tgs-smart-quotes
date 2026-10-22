@@ -1,4 +1,4 @@
-import {BadRequestException, Body, Controller, NotFoundException, Param, Post} from '@nestjs/common';
+import {BadRequestException, Body, Controller, HttpException, NotFoundException, Param, Post} from '@nestjs/common';
 import {db} from '@tgs/database';
 import {
   aiAnalyzeRequestSchema,
@@ -118,7 +118,27 @@ const quoteChatSchema = z.object({
   /** Resumen del presupuesto que se está armando: es lo ÚNICO que el asistente conoce. */
   context: z.string().trim().min(1).max(9000),
   messages: z.array(z.object({role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(2000)})).min(1).max(24),
+  /** Identifica la conversación abierta en pantalla: el tope de consultas se cuenta por usuario y por chat. */
+  chatId: z.string().trim().min(8).max(64).optional(),
 }).strict();
+
+/** Máximo de consultas por chat y por hora (ventana deslizante, en memoria). */
+const QUOTE_CHAT_LIMIT = 10;
+const QUOTE_CHAT_WINDOW_MS = 60 * 60 * 1000;
+const quoteChatHits = new Map<string, number[]>();
+
+function takeQuoteChatSlot(key: string): void {
+  const now = Date.now();
+  const hits = (quoteChatHits.get(key) ?? []).filter((t) => now - t < QUOTE_CHAT_WINDOW_MS);
+  if (hits.length >= QUOTE_CHAT_LIMIT) {
+    const minutes = Math.max(1, Math.ceil((hits[0]! + QUOTE_CHAT_WINDOW_MS - now) / 60000));
+    quoteChatHits.set(key, hits);
+    throw new HttpException(`Llegaste al límite de ${QUOTE_CHAT_LIMIT} consultas por hora en este chat. Podés volver a preguntar en ${minutes} min.`, 429);
+  }
+  hits.push(now);
+  quoteChatHits.set(key, hits);
+  if (quoteChatHits.size > 2000) for (const [k, v] of quoteChatHits) if (v.every((t) => now - t >= QUOTE_CHAT_WINDOW_MS)) quoteChatHits.delete(k);
+}
 
 /** El chat del presupuesto va siempre con GPT-4o mini, sin importar el modelo elegido en Ajustes → IA. */
 const QUOTE_CHAT_MODEL = 'gpt-4o-mini';
@@ -136,7 +156,8 @@ const QUOTE_CHAT_SYSTEM = [
 export class QuoteAiController {
   /** Chat con el presupuesto en edición como único contexto (no guarda nada). */
   @Post('ai-chat')
-  async chat(@Body(new ZodPipe(quoteChatSchema)) body: z.infer<typeof quoteChatSchema>) {
+  async chat(@Body(new ZodPipe(quoteChatSchema)) body: z.infer<typeof quoteChatSchema>, @CurrentUser() actor: RequestUser) {
+    takeQuoteChatSlot(`${actor.id}:${body.chatId ?? 'default'}`);
     const settings = await db.aiSettings.findUniqueOrThrow({where: {id: 'singleton'}});
     if (!settings.enabled) throw new BadRequestException('La IA está desactivada. Activala en Ajustes → IA.');
     const key = settings.apiKeyEncrypted ? decryptSecret(settings.apiKeyEncrypted) : process.env.OPENAI_API_KEY;
