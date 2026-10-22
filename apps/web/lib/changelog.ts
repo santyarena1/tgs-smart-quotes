@@ -13,6 +13,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "RepeBot más pulido, con tope por hora y botones legibles en Halloween",
     items: [
       "El chat de IA ahora usa la foto de REPE como imagen del bot, tiene bordes más redondos y animaciones nuevas de apertura, cierre y de \"pensando / escribiendo\"",
+      "El chat también está en el formulario normal de presupuestos (no solo en LITE), con el mismo contexto y el mismo tope",
       "Límite de 10 consultas por hora en cada chat (se controla en el servidor y se muestra cuántas quedan)",
       "En Halloween (claro y oscuro) los botones principales como Crear presupuesto o Crear y descargar PDF son naranja sólido con texto legible y ahora reaccionan al pasar el mouse",
     ],

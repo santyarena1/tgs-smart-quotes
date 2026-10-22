@@ -2,6 +2,7 @@
 
 import { Fragment, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, downloadAuthenticated } from "../lib/api";
+import { QuoteChatBubble } from "./QuoteChatBubble";
 import {
   bpsToPct,
   centsToInput,
@@ -2233,6 +2234,23 @@ export function QuotesView({
     if (!tradeIns.length) setTradeIns([newTradeIn()]);
     setTradeOpen(true);
   }
+  /** Lo único que ve el chat con IA: ítems, cantidades y precios de venta (sin costos ni clientes). */
+  const chatContext = useMemo(() => {
+    const rows = filledItems(items).map((item) => {
+      const qty = Math.max(1, Math.trunc(Number(item.quantity) || 1));
+      const slot = lineById.get(item.lineId)?.name;
+      return `- ${slot ? `[${slot}] ` : ""}${qty > 1 ? `${qty} x ` : ""}${item.name.trim()} — ${formatArs(lineTotalCents(item.saleArs, item.quantity))}`;
+    });
+    if (!rows.length) return "";
+    const given = tradeIns.filter((t) => t.name.trim()).map((t) => `- ${t.name.trim()}`);
+    return [
+      isBuiltPc ? "Tipo: PC armada" : "Tipo: productos sueltos",
+      "Ítems:", ...rows,
+      given.length ? `Productos entregados por el cliente como parte de pago:\n${given.join("\n")}` : "",
+      `Total de venta: ${formatArs(draftTotal)}${tradeInTotal > 0n ? ` (neto a pagar ${formatArs(draftNet)})` : ""}`,
+    ].filter(Boolean).join("\n");
+  }, [items, lineById, tradeIns, isBuiltPc, draftTotal, tradeInTotal, draftNet]);
+
   /** Al cerrar se descartan las filas vacías. */
   function closeTradeIn() {
     setTradeIns((current) => current.filter((t) => t.name.trim() || t.valueArs.trim()));
@@ -4104,6 +4122,7 @@ export function QuotesView({
           </div>
         </form>
       </Modal>
+      {drawerOpen ? <QuoteChatBubble context={chatContext} hasItems={chatContext !== ""} /> : null}
     </div>
   );
 }
