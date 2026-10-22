@@ -287,6 +287,14 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
+/** Domicilio de la empresa y, si está cargado, el teléfono justo debajo. */
+function fiscalAddressAndPhoneRows(company: PdfCompany): string {
+  const rows = [`<dt>Domicilio</dt><dd>${escapeHtml(company.address)}</dd>`];
+  const phones = company.phones?.trim();
+  if (phones) rows.push(`<dt>Teléfono</dt><dd>${escapeHtml(phones)}</dd>`);
+  return rows.join('');
+}
+
 function applyInterest(baseCents: bigint, interestBps: number): bigint {
   return (baseCents * BigInt(10000 + interestBps) + 5000n) / 10000n;
 }
@@ -952,7 +960,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
         <dt>Inicio Act.</dt><dd>${escapeHtml(input.company.activityStart)}</dd>
         <dt>Ing. Brutos</dt><dd>${escapeHtml(input.company.grossIncome)}</dd>
         <dt>CUIT</dt><dd>${escapeHtml(input.company.cuit)}</dd>
-        <dt>Domicilio</dt><dd>${escapeHtml(input.company.address)}</dd>
+        ${fiscalAddressAndPhoneRows(input.company)}
       </dl>
     </div>`
         : `<div class="card"><h2>DATOS FISCALES</h2><p>Ocultos por configuración</p></div>`
@@ -1314,7 +1322,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
         <dt>Inicio Act.</dt><dd>${escapeHtml(input.company.activityStart)}</dd>
         <dt>Ing. Brutos</dt><dd>${escapeHtml(input.company.grossIncome)}</dd>
         <dt>CUIT</dt><dd>${escapeHtml(input.company.cuit)}</dd>
-        <dt>Domicilio</dt><dd>${escapeHtml(input.company.address)}</dd>
+        ${fiscalAddressAndPhoneRows(input.company)}
       </dl>
     </div>`
         : `<div class="card" data-pdf-block="companyFiscalData"><h2>Datos fiscales</h2><p>Ocultos por configuración</p></div>`

@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.34",
+    date: "2026-10-22",
+    title: "El teléfono de la empresa va debajo del domicilio en el presupuesto",
+    items: [
+      "En Datos fiscales (plantilla moderna y clásica) aparece Teléfono debajo de Domicilio, con el número de Empresa o del local",
+    ],
+  },
+  {
     version: "0.21.33",
     date: "2026-10-22",
     title: "RepeBot más pulido, con tope por hora y botones legibles en Halloween",
