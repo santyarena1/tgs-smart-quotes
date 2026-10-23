@@ -1069,6 +1069,7 @@ const BRAND_STYLES = {
   bbva: '--bc:#1d4ed8;--bs:#f4f7ff',
   go: '--bc:#d6247f;--bs:#fff4f9',
   mp: '--bc:#0a8fd1;--bs:#f0f9fe',
+  usd: '--bc:#15803d;--bs:#f1faf4',
 } as const;
 
 function buildFinancingModerno(input: PdfRenderInput): string {
@@ -1077,7 +1078,6 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   const bankOf = (p: PdfFinancingPlan) => p.bank ?? '';
   const bbva = uniqueByInstallments(plans.filter((p) => /bbva/i.test(bankOf(p))));
   const go = uniqueByInstallments(plans.filter((p) => /go\s*cuotas|gocuotas/i.test(bankOf(p))));
-  const mpAll = uniqueByInstallments(plans.filter((p) => /mercado\s*pago|mercadopago/i.test(bankOf(p))));
   const base = (n: number): PdfFinancingPlan => ({ installments: n, interestBps: 0 });
   const money = (plan: PdfFinancingPlan) => formatArsFromCents(installmentAmount(input.listTotalCents, plan));
   const tile = (n: number | string, unit: string, amount: string) =>
@@ -1100,7 +1100,6 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
     parts.push(
       brandBlock('free', 'Cuotas sin interés con cualquier banco', '', [3, 6].map((n) => tile(n, 'cuotas<small>sin interés</small>', money(base(n)))), {
-        big: true,
         top: true,
         foot: [escapeHtml('Pagos presenciales o por link de pago/QR')],
       }),
@@ -1113,17 +1112,15 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     if (input.financingBbvaNote) foot.push(renderRmaText(input.financingBbvaNote, ''));
     if (tiles.length) parts.push(brandBlock('bbva', 'Cuotas exclusivas para clientes BBVA', '', tiles, { foot, top: true }));
   }
-  // Exclusivo tarjeta Mercado Pago: 3 cuotas sin interés (si no hay planes cargados, se muestra igual).
-  const mp = mpAll.filter((p) => p.interestBps === 0);
-  const mpPlans = mp.length ? mp : mpAll.length ? [] : [base(3)];
-  // GoCuotas y Mercado Pago: bloques distintos en la misma fila.
+  // GoCuotas y dólares: bloques distintos en la misma fila.
   const goBlock = go.length
     ? brandBlock('go', 'GoCuotas', '', go.map((plan) => tile(plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', money(plan))), { stack: true })
     : '';
-  const mpBlock = mpPlans.length
-    ? brandBlock('mp', 'Mercado Pago', 'exclusivo tarjeta MercadoPago', mpPlans.map((plan) => tile(plan.installments, 'cuotas sin interés', money(plan))), { stack: true })
-    : '';
-  if (goBlock || mpBlock) parts.push(`<div class="fin-row">${goBlock}${mpBlock}</div>`);
+  const usdBlock = brandBlock('usd', 'DOLAR USD', '', [], {
+    stack: true,
+    foot: [escapeHtml('Podes abonar en dolares a la cotizacion del dia, ya sea en efectivo o por transferencia')],
+  });
+  parts.push(`<div class="fin-row">${goBlock}${usdBlock}</div>`);
   if (!parts.length) return '';
   return parts.join('');
 }
@@ -1237,8 +1234,8 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .totals .row .lbl { color: #333; font-size: 10.8px; }
   .totals .list .val { color: ${accent}; font-weight: 800; font-size: 12.8px; }
   .totals .cash { border-bottom: none; padding: 5px 2px; }
-  .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 11.3px; }
-  .totals .cash .val { color: ${green}; font-weight: 900; font-size: 16px; }
+  .totals .cash .lbl { color: ${green}; font-weight: 800; font-size: 12.5px; }
+  .totals .cash .val { color: ${green}; font-weight: 900; font-size: 19px; }
   .totals .trade-list { display: block; padding: 4px 2px; border-bottom: none; }
   .totals .trade-list .lbl { font-size: 9.6px; color: #555; line-height: 1.35; }
   .totals .final { border-bottom: none; border-top: 1px solid #ddd; padding-top: 6px; }
@@ -1274,6 +1271,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
   .fin-row .fin-brand.stack { display: block; margin: 4px 0; }
   .fin-row .fb-title { min-width: 0; }
+  .fin-row .fin-brand.stack .fb-foot { margin-left: 0; }
   .fin-row .tiles { margin-top: 1px; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
