@@ -55,7 +55,7 @@ async function resolvePrinterBranch(tx: any, actor: RequestUser, family?: {branc
     select: {id: true, name: true, address: true, phones: true},
   });
   if (!branch) return null;
-  return {id: branch.id, address: branch.address?.trim() || knownBranchAddress(branch.name), phones: branch.phones};
+  return {id: branch.id, address: branch.address?.trim() || knownBranchAddress(branch.name), phones: branch.phones?.trim() || null};
 }
 
 /** Último recurso si el local no tiene dirección cargada: evita que salga la de la empresa (Carhue) en otro local. */
@@ -215,7 +215,8 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
       grossIncome: company.grossIncome,
       activityStart: company.activityStart,
       address: printerBranch?.address ?? company.address,
-      phones: printerBranch?.phones ?? company.phones,
+      // Vacío en el local = teléfonos de Empresa (el hint de Usuarios lo dice).
+      phones: printerBranch?.phones?.trim() || company.phones,
       footerText: company.footerText,
       rmaUrl: company.rmaUrl,
       primaryColor: company.primaryColor,
@@ -318,10 +319,12 @@ export class PdfController {
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind}},
       });
-      if (existing && (existing.branchId ?? null) === (printerBranch?.id ?? null)) {
+      const renderInput = await buildRenderInput(tx, family, version, kind, printerBranch);
+      const computedHash = pdfInputHash(renderInput);
+      const sameBranch = (existing?.branchId ?? null) === (printerBranch?.id ?? null);
+      if (existing && sameBranch && existing.inputHash === computedHash) {
         return {reuse: existing as {inputHash: string} & Record<string, unknown>, family, version, printerBranch, renderInput: null};
       }
-      const renderInput = await buildRenderInput(tx, family, version, kind, printerBranch);
       return {reuse: null, family, version, printerBranch, renderInput, existing};
     });
     if (prepared.reuse) {
@@ -400,7 +403,7 @@ export class PdfController {
       const renderInput = await buildRenderInput(tx, family, version, body.kind, printerBranch);
       const computedHash = pdfInputHash(renderInput);
       const sameBranchAsCached = existing != null && (existing.branchId ?? null) === (printerBranch?.id ?? null);
-      const reuseImmutable = Boolean(existing && version.state !== 'BORRADOR' && sameBranchAsCached);
+      const reuseImmutable = Boolean(existing && version.state !== 'BORRADOR' && sameBranchAsCached && existing.inputHash === computedHash);
       const reuseDraft = Boolean(existing && !body.force && existing.inputHash === computedHash && sameBranchAsCached);
       return {family, version, printerBranch, existing, renderInput, reuse: reuseImmutable || reuseDraft};
     });
