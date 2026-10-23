@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.36",
+    date: "2026-10-23",
+    title: "PDF: dólares en lugar de Mercado Pago y precios más claros",
+    items: [
+      "En el PDF, el bloque de Mercado Pago (3 cuotas sin interés) se reemplazó por DOLAR USD: se puede abonar en dólares a la cotización del día, en efectivo o por transferencia",
+      "El precio efectivo / transferencia se ve un poco más grande",
+      "Las 3 y 6 cuotas sin interés con cualquier banco tienen el mismo tamaño que el resto de las cuotas",
+    ],
+  },
+  {
     version: "0.21.35",
     date: "2026-10-23",
     title: "El teléfono debajo del domicilio ahora sí sale al bajar el PDF",

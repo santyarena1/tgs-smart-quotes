@@ -519,7 +519,9 @@ describe('@tgs/pdf', () => {
     expect(bbvaBlock).toContain('3 o 6 cuotas sin interés - Super precio BBVA');
     expect(bbvaBlock).toContain('Viernes y sábados.');
     expect(html).toContain('class="fin-row"');
-    expect(html).toContain('exclusivo tarjeta MercadoPago');
+    expect(html).toContain('DOLAR USD');
+    expect(html).toContain('Podes abonar en dolares a la cotizacion del dia, ya sea en efectivo o por transferencia');
+    expect(html).not.toContain('MercadoPago');
     expect(html).not.toMatch(/\+\d+(,\d+)?%/);
     expect(html).not.toContain('12 cuotas');
   });
