@@ -241,7 +241,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-20.9';
+export const PDF_RENDER_VERSION = '2026-10-23.1';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {

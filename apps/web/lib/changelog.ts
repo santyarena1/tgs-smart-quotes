@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.35",
+    date: "2026-10-23",
+    title: "El teléfono debajo del domicilio ahora sí sale al bajar el PDF",
+    items: [
+      "Si el local no tiene teléfono cargado, se usa el de Empresa (como dice Usuarios)",
+      "Al descargar de nuevo se regenera el PDF con el diseño nuevo; el anterior quedaba cacheado y parecía que el cambio no había salido",
+    ],
+  },
+  {
     version: "0.21.34",
     date: "2026-10-22",
     title: "El teléfono de la empresa va debajo del domicilio en el presupuesto",
