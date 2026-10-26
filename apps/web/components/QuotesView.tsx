@@ -44,6 +44,10 @@ import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, use
 import { SourceBar } from "./SourceBar";
 import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
 import { OriginTag, type ItemSource } from "./OriginTag";
+import { ReplaceProductModal, type ReplacePick } from "./ReplaceProductModal";
+import { LiteNewProduct } from "../lite/LiteNewProduct";
+import { copyInsteadNotice } from "../lib/collection-protection";
+import { currentProtectedCollections } from "../lib/collection-protection-api";
 import { CustomerEditorModal } from "./CustomerEditorModal";
 import { providerLogo, WEB_LOGO } from "../lib/nodo-logos";
 import { getActiveVersion, getQuoteItems } from "../lib/types";
@@ -396,6 +400,9 @@ export function QuotesView({
   const [requests, setRequests] = useState<QuoteRequest[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
+  /** Ítem que se está cambiando por otro (botón Cambiar) y producto del catálogo que se edita en la base (botón Editar producto). */
+  const [replaceTarget, setReplaceTarget] = useState<string | null>(null);
+  const [editProductTarget, setEditProductTarget] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -824,6 +831,17 @@ export function QuotesView({
     setBusy(true);
     setError(null);
     try {
+      // En una colección protegida no se toca el original: se trabaja sobre una copia.
+      const guarded = await currentProtectedCollections(versionEditQuote.id, collections);
+      if (guarded.length) {
+        const copy = await api<Quote>(`/quotes/${versionEditQuote.id}/duplicate`, { method: "POST" });
+        const original = versionEditQuote;
+        setVersionEditQuote(null);
+        await refreshQuotes();
+        await openQuote(copy.id);
+        setNotice(copyInsteadNotice(original.visibleNumber, guarded.map((c) => c.name)));
+        return;
+      }
       await api(`/quotes/${versionEditQuote.id}/version`, {
         method: "POST",
         body: { reason: versionReason.trim() || null },
@@ -1352,6 +1370,57 @@ export function QuotesView({
     setPickerOpen(true);
     setEditingKey(null);
     focusPickerInput();
+  }
+
+  /** Editar producto: abre la ficha del catálogo (base de datos), no un ajuste solo de esta venta. */
+  function startEditProduct(key: string) {
+    const item = items.find((i) => i.key === key);
+    const product = item?.productId ? productById.get(item.productId) : undefined;
+    if (!product) { setError("No encuentro ese producto en el catálogo (puede estar desactivado)."); return; }
+    setError(null);
+    setEditProductTarget(product);
+  }
+
+  /** Guardó el producto en la base: el catálogo y los ítems de este presupuesto que lo usan quedan con los datos nuevos. */
+  function onProductEdited(product: Product) {
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, ...product } : p)));
+    setItems((prev) => prev.map((i) => (i.productId === product.id
+      ? { ...itemFromProduct(product, i.quantity, i.lineId), key: i.key, lineId: i.lineId, observation: i.observation }
+      : i)));
+    setEditProductTarget(null);
+    setNotice(`Producto “${product.name}” actualizado en la base de datos.`);
+  }
+
+  /** Cambiar: reemplaza el ítem por el producto elegido en el modal, con la misma cantidad y el mismo lugar. */
+  function replaceItemWith(pick: ReplacePick) {
+    const key = replaceTarget;
+    const old = items.find((i) => i.key === key);
+    setReplaceTarget(null);
+    if (!key || !old) return;
+    let drafted: ItemDraft;
+    if (pick.kind === "own") {
+      drafted = itemFromProduct(pick.p, old.quantity || "1", old.lineId);
+    } else if (pick.kind === "web") {
+      drafted = {
+        ...itemFromCatalog({ mpn: pick.w.sku ?? String(pick.w.id), title: pick.w.name.toLocaleUpperCase("es-AR"), priceCents: "0", salePriceCents: pick.w.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null }, old.lineId),
+        costArs: "0", markupPct: "0", saleArs: centsToInput(pick.w.priceCents), priceMode: "sale", source: { label: "Web", color: WEB_COLOR },
+      };
+    } else {
+      const r = pick.r;
+      drafted = {
+        ...itemFromCatalog({ mpn: r.sku ?? r.offerId, title: r.name.toLocaleUpperCase("es-AR"), priceCents: r.costIvaCents, salePriceCents: null, stockQuantity: r.stock ?? 0, availability: r.inStock ? "in_stock" : "out_of_stock", brand: r.brand, productType: null, imageUrl: r.imageUrl ?? null }, old.lineId),
+        source: { label: r.providerName, color: pick.color },
+        ...(r.ivaBps != null ? { ivaPct: ivaPctFromBps(r.ivaBps), ivaAuto: false } : {}),
+      };
+    }
+    const next: ItemDraft = { ...drafted, key: old.key, quantity: old.quantity || "1", lineId: old.lineId, observation: old.observation };
+    setItems((prev) => {
+      const mapped = prev.map((i) => (i.key === old.key ? next : i));
+      return isBuiltPc ? buildPcSlots(pcLines, mapped, productById) : mapped;
+    });
+    if (pick.kind === "own" && old.lineId) void rememberProductLine(pick.p, old.lineId);
+    suggestIvaFor(next);
+    setNotice(`“${old.name || "El producto"}” cambiado por “${next.name}”.`);
   }
 
   function addItem(item: ItemDraft, startEditing = false) {
@@ -2014,44 +2083,55 @@ export function QuotesView({
     setError(null);
     setNotice(null);
     try {
-      const saved = await api<Quote>(`/quotes/${selectedId}`, {
-        method: "PUT",
+      // Una colección protegida no se modifica: guardar los cambios crea otro presupuesto igual.
+      const guarded = await currentProtectedCollections(selectedId, collections);
+      const asCopy = guarded.length > 0;
+      const saved = await api<Quote>(asCopy ? "/quotes" : `/quotes/${selectedId}`, {
+        method: asCopy ? "POST" : "PUT",
         body: {
-          reason: saveReason.trim() || null,
+          ...(asCopy ? { kind: isCombo ? "COMBO" : "PC" } : { reason: saveReason.trim() || null }),
           internalName: effectiveName,
           customerId: effectiveCustomerId || null,
           requestId: requestId || null,
           isBuiltPc,
           publicObservation: observation.trim() || null,
           tradeIns: tradeInsPayload(),
-          collectionIds,
+          // La copia no entra a las colecciones protegidas (ahí queda el original).
+          collectionIds: asCopy ? collectionIds.filter((id) => !guarded.some((c) => c.id === id)) : collectionIds,
           items: itemsToPayload(items),
         },
       });
-      const refNote = await persistReferenceImage(selectedId);
+      const targetId = asCopy ? saved.id : selectedId;
+      const refNote = await persistReferenceImage(targetId);
       teachIva(filledItems(items).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
       setSaveReason("");
       const savedDraftKey = quoteDraftKey(selectedId);
       removeQuoteDraft(savedDraftKey);
       setDraftRecovered(false);
       applyDetail(saved, false);
-      setList((current) => current.map((row) => (row.id === saved.id ? saved : row)));
+      if (asCopy) {
+        setSelectedId(saved.id);
+        setList((current) => [saved, ...current.filter((row) => row.id !== saved.id)]);
+      } else {
+        setList((current) => current.map((row) => (row.id === saved.id ? saved : row)));
+      }
+      const copyNote = asCopy ? ` ${copyInsteadNotice(detail?.visibleNumber ?? "El presupuesto", guarded.map((c) => c.name))}` : "";
       // El PDF sale primero: recargar catálogo/timeline no tiene que frenar la descarga.
       try {
-        await api(`/quotes/${selectedId}/pdf`, { method: "POST", body: { kind: pdfKind } });
+        await api(`/quotes/${targetId}/pdf`, { method: "POST", body: { kind: pdfKind } });
         await downloadAuthenticated(
-          `/quotes/${selectedId}/pdf/${pdfKind}`,
+          `/quotes/${targetId}/pdf/${pdfKind}`,
           `${saved.visibleNumber}-${pdfKind}.pdf`,
         );
-        setNotice(refNote ? `Cambios guardados.${refNote}` : "Cambios guardados. Descargando PDF…");
+        setNotice(refNote ? `Cambios guardados.${refNote}${copyNote}` : `${asCopy ? "Presupuesto nuevo guardado." : "Cambios guardados."} Descargando PDF…${copyNote}`);
       } catch {
         setNotice(
-          refNote ? `Cambios guardados.${refNote}` : isDraft
+          asCopy ? `Presupuesto nuevo guardado.${copyNote}` : refNote ? `Cambios guardados.${refNote}` : isDraft
             ? (requestId ? "Cambios guardados. Solicitud en Lista si seguía en preparación." : "Cambios guardados.")
             : "Nueva versión guardada; la enviada quedó intacta.",
         );
       }
-      void loadSideData(selectedId);
+      void loadSideData(targetId);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -3394,7 +3474,18 @@ export function QuotesView({
                                   className="btn-ghost btn-sm"
                                   onClick={() => setEditingKey(editing ? null : item.key)}
                                 >
-                                  {editing ? "Listo" : "Editar"}
+                                  {editing ? "Listo" : "Ajustar"}
+                                </button>
+                              ) : null}
+                              {!empty ? (
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-sm"
+                                  disabled={!item.productId}
+                                  title={item.productId ? "Editar el producto en la base de datos (nombre, costo, margen, IVA): cambia el producto para todos los presupuestos" : "Este ítem no es un producto de tu catálogo, no hay nada que editar en la base"}
+                                  onClick={() => startEditProduct(item.key)}
+                                >
+                                  Editar
                                 </button>
                               ) : null}
                               {!empty && !isBuiltPc ? (
@@ -3407,13 +3498,22 @@ export function QuotesView({
                                   ⧉
                                 </button>
                               ) : null}
-                              {isBuiltPc && item.lineId ? (
+                              {!empty ? (
+                                <button
+                                  type="button"
+                                  className="btn-ghost btn-sm"
+                                  title="Cambiar este producto por otro sin volver a armar el presupuesto"
+                                  onClick={() => setReplaceTarget(item.key)}
+                                >
+                                  Cambiar
+                                </button>
+                              ) : isBuiltPc && item.lineId ? (
                                 <button
                                   type="button"
                                   className="btn-ghost btn-sm"
                                   onClick={() => openReplaceOnLine(item.key, item.lineId)}
                                 >
-                                  {empty ? "Elegir" : "Cambiar"}
+                                  Elegir
                                 </button>
                               ) : null}
                               {!empty ? (
@@ -3513,9 +3613,10 @@ export function QuotesView({
                   {!empty ? <div className="item-foot"><span>Subtotal</span><strong className="item-subtotal">{formatArs(lineTotalCents(item.saleArs, item.quantity))}</strong></div> : null}
                   {isDraft ? <div className="mobile-card-actions">
                     {!isBuiltPc ? <><button type="button" className="move-btn" disabled={index === 0} onClick={() => move(item.key, -1)}>↑ Subir</button><button type="button" className="move-btn" disabled={index === items.length - 1} onClick={() => move(item.key, 1)}>↓ Bajar</button></> : null}
-                    {!empty ? <button type="button" className="btn-ghost" onClick={() => setEditingKey(editing ? null : item.key)}>{editing ? "Listo" : "Editar"}</button> : null}
+                    {!empty ? <button type="button" className="btn-ghost" onClick={() => setEditingKey(editing ? null : item.key)}>{editing ? "Listo" : "Ajustar"}</button> : null}
+                    {!empty ? <button type="button" className="btn-ghost" disabled={!item.productId} title={item.productId ? "Editar el producto en la base de datos" : "Este ítem no es un producto de tu catálogo"} onClick={() => startEditProduct(item.key)}>Editar</button> : null}
                     {!empty && !isBuiltPc ? <button type="button" className="btn-ghost" onClick={() => duplicateItem(item.key)}>Duplicar</button> : null}
-                    {isBuiltPc && item.lineId ? <button type="button" className="btn-ghost" onClick={() => openReplaceOnLine(item.key, item.lineId)}>{empty ? "Elegir" : "Cambiar"}</button> : null}
+                    {!empty ? <button type="button" className="btn-ghost" onClick={() => setReplaceTarget(item.key)}>Cambiar</button> : isBuiltPc && item.lineId ? <button type="button" className="btn-ghost" onClick={() => openReplaceOnLine(item.key, item.lineId)}>Elegir</button> : null}
                     {!empty ? <button type="button" className="btn-danger" onClick={() => removeItem(item.key)}>{isBuiltPc && item.lineId ? "Vaciar" : "Eliminar"}</button> : null}
                   </div> : null}
                 </article>;
@@ -3967,7 +4068,10 @@ export function QuotesView({
         </Field>
       </Modal>
 
+      {replaceTarget ? <ReplaceProductModal currentName={items.find((i) => i.key === replaceTarget)?.name ?? ""} products={products} onPick={replaceItemWith} onClose={() => setReplaceTarget(null)} /> : null}
+
       <div className="lite lt-embed">
+        {editProductTarget ? <LiteNewProduct product={editProductTarget} initialName={editProductTarget.name} lineId={editProductTarget.defaultLineId ?? ""} onCreated={onProductEdited} onCancel={() => setEditProductTarget(null)} /> : null}
         {tradeOpen ? (
           <TradeInModal
             items={tradeIns}

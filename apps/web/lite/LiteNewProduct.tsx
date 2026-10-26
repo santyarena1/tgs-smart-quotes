@@ -3,23 +3,30 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { DEFAULT_IVA_PCT, fetchIvaSuggestion, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS } from "../lib/iva";
-import { parseArsToCents, pctToBps } from "../lib/money";
+import { bpsToPct, centsToInput, parseArsToCents, pctToBps } from "../lib/money";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload } from "../lib/quote-item-pricing";
 import type { Product } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 
-/** Alta rápida de un producto del catálogo desde el creador (nombre, costo y margen o precio de venta). */
-export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
+/**
+ * Alta rápida de un producto del catálogo desde el creador (nombre, costo y margen o precio de venta).
+ * Con `product` edita ese producto en la base de datos (no es un ajuste solo para un presupuesto).
+ */
+export function LiteNewProduct({ product, initialName, lineId, onCreated, onCancel }: {
+  /** Si viene, el modal edita este producto en vez de crear uno. */
+  product?: Product;
   initialName: string;
   lineId: string;
   onCreated: (product: Product) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initialName);
-  const [price, setPrice] = useState({ costArs: "", markupPct: "30", saleArs: "", priceMode: "markup" as "markup" | "sale" });
-  const [ivaPct, setIvaPct] = useState(DEFAULT_IVA_PCT);
+  const [price, setPrice] = useState(product
+    ? { costArs: centsToInput(product.costCents), markupPct: bpsToPct(product.markupBps), saleArs: centsToInput(product.salePriceCents), priceMode: "sale" as "markup" | "sale" }
+    : { costArs: "", markupPct: "30", saleArs: "", priceMode: "markup" as "markup" | "sale" });
+  const [ivaPct, setIvaPct] = useState(product?.ivaBps != null ? ivaPctFromBps(product.ivaBps) : DEFAULT_IVA_PCT);
   // Mientras no elijas vos el IVA, se va corrigiendo con lo que la memoria sabe de la categoría del nombre.
-  const [ivaAuto, setIvaAuto] = useState(true);
+  const [ivaAuto, setIvaAuto] = useState(!product || product.ivaBps == null);
   const [ivaHint, setIvaHint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +50,8 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
     setError(null);
     try {
       const pricing = itemPricePayload(price);
-      const created = await api<Product>("/products", {
-        method: "POST",
+      const created = await api<Product>(product ? `/products/${product.id}` : "/products", {
+        method: product ? "PUT" : "POST",
         body: {
           name: name.trim(),
           costCents: parseArsToCents(price.costArs),
@@ -53,7 +60,8 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
           ivaBps: ivaBpsFromPct(ivaPct),
           usesGeneralMarkup: false,
           defaultLineId: lineId || null,
-          active: true,
+          active: product?.active ?? true,
+          ...(product ? { reason: "Edición desde el presupuesto" } : {}),
         },
       });
       onCreated(created);
@@ -64,10 +72,10 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
   }
 
   return (
-    <div className="lt-modal" role="dialog" aria-modal="true" aria-label="Producto nuevo" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+    <div className="lt-modal" role="dialog" aria-modal="true" aria-label={product ? "Editar producto" : "Producto nuevo"} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
       <form className="lt-card lt-modal-card" onSubmit={(e) => void submit(e)} onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}>
-        <h2>Producto nuevo</h2>
-        <p className="lt-muted">Se guarda en el catálogo y se agrega al presupuesto.</p>
+        <h2>{product ? "Editar producto" : "Producto nuevo"}</h2>
+        <p className="lt-muted">{product ? "Se guarda en la base de datos: cambia el producto para todos los presupuestos que armes de ahora en más. Los ya enviados no se tocan." : "Se guarda en el catálogo y se agrega al presupuesto."}</p>
         {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
         <label className="lt-field">Nombre
           <input className="lt-input" autoFocus={!initialName} value={name} onChange={(e) => setName(e.target.value)} />
@@ -91,7 +99,7 @@ export function LiteNewProduct({ initialName, lineId, onCreated, onCancel }: {
         {ivaHint ? <p className="lt-muted lt-hint">Sugerido por la memoria de IVA — {ivaHint}</p> : null}
         <div className="lt-modal-foot">
           <button type="button" className="lt-btn ghost" onClick={onCancel}>Cancelar</button>
-          <button type="submit" className="lt-btn" disabled={busy}>{busy ? "Guardando…" : "Crear y agregar"}</button>
+          <button type="submit" className="lt-btn" disabled={busy}>{busy ? "Guardando…" : product ? "Guardar cambios" : "Crear y agregar"}</button>
         </div>
       </form>
     </div>

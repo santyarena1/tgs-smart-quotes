@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, downloadAuthenticated } from "../lib/api";
+import { isCollectionProtected, protectionNotice } from "../lib/collection-protection";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Collection, type Quote } from "../lib/types";
 import { errorMessage } from "../components/shared";
@@ -26,6 +27,8 @@ async function fetchBranchQuotes(branchId: string): Promise<Quote[]> {
   return all;
 }
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 export function LiteCollections() {
   const { branches, branchId: homeBranchId, locked } = useLite();
   // "" = todos los locales; arranca en el local activo y se puede cambiar sin tocar el selector global.
@@ -46,8 +49,11 @@ export function LiteCollections() {
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
+  /** Aviso corto y flotante (ej.: candado de protección), para que se vea aunque la lista esté scrolleada. */
+  const [toast, setToast] = useState<{ text: string; on: boolean } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [menuId, setMenuId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +69,22 @@ export function LiteCollections() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  // El menú "Más" se cierra al tocar cualquier otro lado o con Escape.
+  useEffect(() => {
+    if (!menuId) return;
+    const close = () => setMenuId(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    document.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("click", close); document.removeEventListener("keydown", onKey); };
+  }, [menuId]);
 
   /** Colecciones del local elegido con todos sus presupuestos (igual que en la versión común); se ocultan las vacías. */
   const visible = useMemo(
@@ -81,6 +103,7 @@ export function LiteCollections() {
     return current.quotes.filter((q) =>
       [q.visibleNumber, q.internalName, q.customer?.name].some((v) => v?.toLowerCase().includes(needle)));
   }, [current, filter]);
+  const currentProtected = current ? isCollectionProtected(current.collection) : true;
 
   async function createCollection(e: React.FormEvent) {
     e.preventDefault();
@@ -110,6 +133,22 @@ export function LiteCollections() {
     }
   }
 
+  /** Candado: prende o apaga la protección de la colección y avisa cómo quedó. */
+  async function toggleProtection(c: Collection) {
+    const next = !isCollectionProtected(c);
+    setBusyId(`lock:${c.id}`);
+    setError(null);
+    try {
+      await api(`/collections/${c.id}`, { method: "PUT", body: { isProtected: next } });
+      setCollections((cur) => cur.map((x) => (x.id === c.id ? { ...x, isProtected: next } : x)));
+      setToast({ text: protectionNotice(c, next), on: next });
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function pdf(q: Quote, kind: PdfKind) {
     setBusyId(`${q.id}:${kind}`);
     setError(null);
@@ -136,7 +175,11 @@ export function LiteCollections() {
     }
   }
 
-  function startRename(q: Quote) {
+  function startRename(q: Quote, collection: Collection) {
+    if (isCollectionProtected(collection)) {
+      setNotice(`“${collection.name}” está protegida: no se puede renombrar un presupuesto de adentro. Apagá el candado de la colección para hacerlo.`);
+      return;
+    }
     setRenamingId(q.id);
     setRenameDraft(q.internalName);
   }
@@ -206,70 +249,99 @@ export function LiteCollections() {
     }
   }
 
+  const busy = busyId !== null;
+
   return (
-    <div className="lt-coll">
-      <div className="lt-head lt-coll-top">
-        <div>
-        <h1>Colecciones</h1>
-        <div className="lt-coll-branch">
-          <span>{branchId === "" ? "Colecciones de todos los locales." : `Colecciones de ${branchName || "tu local"}.`}</span>
-          <select className="lt-input" value={branchId ?? ""} onChange={(e) => { setBranchId(e.target.value); setSelectedId(null); }} aria-label="Filtrar por local">
+    <div className="lt-cv">
+      <header className="lt-cv-top">
+        <div className="lt-cv-title">
+          <h1>Colecciones</h1>
+          <p>{branchId === "" ? "Colecciones de todos los locales" : `Colecciones de ${branchName || "tu local"}`}</p>
+        </div>
+        <label className="lt-cv-branch">
+          <span>Local</span>
+          <select value={branchId ?? ""} onChange={(e) => { setBranchId(e.target.value); setSelectedId(null); }} aria-label="Filtrar por local">
             {locked ? null : <option value="">Todos los locales</option>}
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
-        </div>
-        </div>
-        <button type="button" className={`lt-btn sm ${creating ? "ghost" : "tone-green"}`} onClick={() => setCreating((v) => !v)}>{creating ? "Cancelar" : "+ Nueva colección"}</button>
-      </div>
+        </label>
+        <button type="button" className={`lt-btn ${creating ? "ghost" : "tone-green"}`} onClick={() => setCreating((v) => !v)}>{creating ? "Cancelar" : "+ Nueva colección"}</button>
+      </header>
+
       {creating ? (
-        <form className="lt-card lt-coll-new" onSubmit={(e) => void createCollection(e)}>
-          <div className="lt-coll-new-row">
+        <form className="lt-cv-new" onSubmit={(e) => void createCollection(e)}>
+          <div className="lt-cv-new-row">
             <input className="lt-input lt-icon-in" value={draft.icon} maxLength={4} onChange={(e) => setDraft({ ...draft, icon: e.target.value })} placeholder="🎮" aria-label="Ícono" />
             <input className="lt-input" autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Nombre de la colección" aria-label="Nombre" />
           </div>
           <input className="lt-input" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Descripción (opcional)" aria-label="Descripción" />
-          <div className="lt-coll-new-foot">
-            <span className="lt-muted">Después asignale presupuestos desde “Nuevo” (chips de Colecciones).</span>
-            <button type="submit" className="lt-btn sm tone-green" disabled={!draft.name.trim() || saving}>{saving ? "Guardando…" : "Crear colección"}</button>
+          <div className="lt-cv-new-foot">
+            <span>Nace protegida 🔒. Después asignale presupuestos desde “Nuevo” (chips de Colecciones).</span>
+            <button type="submit" className="lt-btn tone-green" disabled={!draft.name.trim() || saving}>{saving ? "Guardando…" : "Crear colección"}</button>
           </div>
         </form>
       ) : null}
+
       {error ? <div className="lt-alert err" role="alert">{error}</div> : null}
       {notice ? <div className="lt-alert ok" role="status">{notice}</div> : null}
+
       {loading ? <div className="lt-empty">Cargando…</div> : visible.length === 0 ? (
         <div className="lt-empty">No hay presupuestos en colecciones para este filtro.</div>
       ) : (
-        <div className="lt-coll-grid">
-          <ul className="lt-coll-list">
-            {visible.map(({ collection, quotes: list }) => (
-              <li key={collection.id}>
-                <button
-                  type="button"
-                  className={current?.collection.id === collection.id ? "active" : ""}
-                  onClick={() => { setSelectedId(collection.id); setFilter(""); }}
-                >
-                  <span className="lt-coll-icon">{collection.icon || "◆"}</span>
-                  <span className="lt-coll-name">{collection.name}</span>
-                  {collection.favorite ? <span className="lt-fav" aria-label="Favorita">★</span> : null}
-                  <span className="lt-count">{list.length}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <section className="lt-card lt-coll-detail">
-            <div className="lt-coll-head">
-              <div>
-                <h2>{current?.collection.name}</h2>
-                {current?.quotes.length === 0 ? <p className="lt-muted">Vacía: asignale presupuestos al crearlos.</p> : null}
-                {current?.collection.description ? <p className="lt-muted">{current.collection.description}</p> : null}
+        <div className="lt-cv-grid">
+          <nav className="lt-cv-list" aria-label="Colecciones">
+            {visible.map(({ collection, quotes: list }) => {
+              const prot = isCollectionProtected(collection);
+              return (
+                <div key={collection.id} className={`lt-cv-item${current?.collection.id === collection.id ? " active" : ""}`}>
+                  <button type="button" className="lt-cv-pick" onClick={() => { setSelectedId(collection.id); setFilter(""); }}>
+                    <span className="lt-cv-icon">{collection.icon || "◆"}</span>
+                    <span className="lt-cv-info">
+                      <span className="lt-cv-name">{collection.name}{collection.favorite ? <span className="lt-fav" aria-label="Favorita"> ★</span> : null}</span>
+                      <span className="lt-cv-sub">{plural(list.length, "presupuesto", "presupuestos")}</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`lt-lock${prot ? " on" : ""}`}
+                    disabled={busyId === `lock:${collection.id}`}
+                    aria-pressed={prot}
+                    aria-label={prot ? `Protección activada en ${collection.name}` : `Protección desactivada en ${collection.name}`}
+                    title={prot ? "Protegida: editar un presupuesto crea otro, no modifica el de la colección. Tocá para desactivar" : "Sin protección: editar modifica el presupuesto de la colección. Tocá para activar"}
+                    onClick={() => void toggleProtection(collection)}
+                  >{prot ? "🔒" : "🔓"}</button>
+                </div>
+              );
+            })}
+          </nav>
+
+          <section className="lt-cv-detail">
+            <div className="lt-cv-head">
+              <span className="lt-cv-icon big">{current?.collection.icon || "◆"}</span>
+              <div className="lt-cv-head-main">
+                <h2>
+                  {current?.collection.name}
+                  {current ? (
+                    <button
+                      type="button"
+                      className={`lt-lock big${currentProtected ? " on" : ""}`}
+                      disabled={busyId === `lock:${current.collection.id}`}
+                      aria-pressed={currentProtected}
+                      title={currentProtected ? "Protegida: editar un presupuesto crea otro. Tocá para desactivar" : "Sin protección: editar modifica el presupuesto. Tocá para activar"}
+                      onClick={() => void toggleProtection(current.collection)}
+                    >{currentProtected ? "🔒 Protegida" : "🔓 Sin protección"}</button>
+                  ) : null}
+                </h2>
+                {current?.collection.description ? <p>{current.collection.description}</p> : null}
+                {current?.quotes.length === 0 ? <p>Vacía: asignale presupuestos al crearlos.</p> : <p>{plural(current?.quotes.length ?? 0, "presupuesto", "presupuestos")}</p>}
               </div>
-              <div className="lt-coll-tools">
-                <input className="lt-input lt-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrar…" aria-label="Filtrar presupuestos" />
+              <div className="lt-cv-tools">
+                <input className="lt-input lt-cv-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar por número, nombre o cliente…" aria-label="Filtrar presupuestos" />
                 {current ? (
                   <button
                     type="button"
-                    className="lt-btn sm tone-indigo"
-                    disabled={busyId !== null || current.quotes.length === 0}
+                    className="lt-btn tone-indigo"
+                    disabled={busy || current.quotes.length === 0}
                     title="Descarga un .zip con los PDF de todos los presupuestos de la colección"
                     onClick={() => void downloadCollection(current.collection)}
                   >
@@ -278,16 +350,18 @@ export function LiteCollections() {
                 ) : null}
               </div>
             </div>
+
             {rows.length === 0 ? <div className="lt-empty">Sin resultados.</div> : (
-              <ul className="lt-quote-list">
+              <ul className="lt-cv-quotes">
                 {rows.map((q) => {
                   const v = getActiveVersion(q);
+                  const collection = current!.collection;
                   return (
-                    <li key={q.id}>
-                      <div className="lt-recent-main">
-                        <strong>{q.visibleNumber}</strong>
+                    <li key={q.id} className="lt-cv-quote">
+                      <div className="lt-cv-q-main">
+                        <span className="lt-cv-num">{q.visibleNumber}</span>
                         {renamingId === q.id ? (
-                          <form className="lt-rename" onSubmit={(e) => { e.preventDefault(); void saveRename(q); }}>
+                          <form className="lt-cv-rename" onSubmit={(e) => { e.preventDefault(); void saveRename(q); }}>
                             <input
                               className="lt-input"
                               autoFocus
@@ -296,32 +370,45 @@ export function LiteCollections() {
                               onKeyDown={(e) => { if (e.key === "Escape") setRenamingId(null); }}
                               aria-label="Nombre del presupuesto"
                             />
-                            <button type="submit" className="lt-act print" disabled={busyId !== null || !renameDraft.trim()}>{busyId === `${q.id}:rename` ? "…" : "Guardar"}</button>
-                            <button type="button" className="lt-act" onClick={() => setRenamingId(null)}>Cancelar</button>
+                            <button type="submit" className="lt-cv-btn primary" disabled={busy || !renameDraft.trim()}>{busyId === `${q.id}:rename` ? "…" : "Guardar"}</button>
+                            <button type="button" className="lt-cv-btn" onClick={() => setRenamingId(null)}>Cancelar</button>
                           </form>
-                        ) : <span className="lt-recent-name">{q.internalName}</span>}
-                        <span className="lt-muted">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
+                        ) : <strong className="lt-cv-q-name">{q.internalName}</strong>}
+                        <span className="lt-cv-q-sub">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
                       </div>
-                      <strong className="lt-quote-total">{formatArs(v?.totalSaleCents)}</strong>
-                      <span className="lt-coll-actions">
-                        <button type="button" className="lt-act edit" disabled={busyId !== null} title="Abrir en Presupuestos para modificarlo" onClick={() => router.push(`/lite?edit=${q.id}`)}>Editar</button>
-                        <button type="button" className="lt-act rename" disabled={busyId !== null} title="Cambiar el nombre" onClick={() => startRename(q)}>Renombrar</button>
-                        <button type="button" className="lt-act print" disabled={busyId !== null} onClick={() => void pdf(q, "SIMPLE")}>
-                          {busyId === `${q.id}:SIMPLE` ? "…" : "PDF"}
-                        </button>
-                        <button type="button" className="lt-act detail" disabled={busyId !== null} onClick={() => void pdf(q, "DETALLADO")}>
-                          {busyId === `${q.id}:DETALLADO` ? "…" : "Detallado"}
-                        </button>
-                        <button type="button" className="lt-act dup" disabled={busyId !== null} title="Crea una copia fuera de la colección" onClick={() => void duplicate(q, current?.collection.name ?? "")}>
-                          {busyId === `${q.id}:dup` ? "…" : "Duplicar"}
-                        </button>
-                        <button type="button" className="lt-act unlink" disabled={busyId !== null} title="Sacarlo de esta colección sin borrarlo" onClick={() => current && void unlink(q, current.collection)}>
-                          {busyId === `${q.id}:unlink` ? "…" : "Sacar"}
-                        </button>
-                        <button type="button" className="lt-act del" disabled={busyId !== null} title="Borrarlo del sistema" onClick={() => void remove(q)}>
-                          {busyId === `${q.id}:del` ? "…" : "Eliminar"}
-                        </button>
-                      </span>
+                      <strong className="lt-cv-total">{formatArs(v?.totalSaleCents)}</strong>
+                      <div className="lt-cv-actions">
+                        <button
+                          type="button"
+                          className="lt-cv-btn primary"
+                          disabled={busy}
+                          title={currentProtected ? "Abre el presupuesto para modificarlo. La colección está protegida: al guardar se crea uno nuevo" : "Abrir en Presupuestos para modificarlo"}
+                          onClick={() => router.push(`/lite?edit=${q.id}`)}
+                        >Editar</button>
+                        <button type="button" className="lt-cv-btn" disabled={busy} onClick={() => void pdf(q, "SIMPLE")}>{busyId === `${q.id}:SIMPLE` ? "…" : "PDF"}</button>
+                        <button type="button" className="lt-cv-btn" disabled={busy} onClick={() => void pdf(q, "DETALLADO")}>{busyId === `${q.id}:DETALLADO` ? "…" : "Detallado"}</button>
+                        <div className="lt-cv-more">
+                          <button
+                            type="button"
+                            className="lt-cv-btn icon"
+                            aria-haspopup="menu"
+                            aria-expanded={menuId === q.id}
+                            aria-label="Más acciones"
+                            disabled={busy}
+                            onClick={(e) => { e.stopPropagation(); setMenuId((cur) => (cur === q.id ? null : q.id)); }}
+                          >⋯</button>
+                          {menuId === q.id ? (
+                            <div className="lt-cv-menu" role="menu">
+                              <button type="button" role="menuitem" onClick={() => startRename(q, collection)}>Renombrar</button>
+                              <button type="button" role="menuitem" title="Crea una copia fuera de la colección" onClick={() => void duplicate(q, collection.name)}>
+                                {busyId === `${q.id}:dup` ? "…" : "Duplicar"}
+                              </button>
+                              <button type="button" role="menuitem" title="Sacarlo de esta colección sin borrarlo" onClick={() => void unlink(q, collection)}>Sacar de la colección</button>
+                              <button type="button" role="menuitem" className="danger" title="Borrarlo del sistema" onClick={() => void remove(q)}>Eliminar</button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </li>
                   );
                 })}
@@ -330,6 +417,8 @@ export function LiteCollections() {
           </section>
         </div>
       )}
+
+      {toast ? <div className={`lt-cv-toast${toast.on ? " on" : ""}`} role="status">{toast.on ? "🔒" : "🔓"} {toast.text}</div> : null}
     </div>
   );
 }

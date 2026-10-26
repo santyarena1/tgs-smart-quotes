@@ -9,6 +9,7 @@ import {
   quotesMatchingQuery,
   type CollectionQuoteRef,
 } from "../lib/collection-quotes";
+import { isCollectionProtected, protectionNotice } from "../lib/collection-protection";
 import type { Collection, Quote } from "../lib/types";
 import { QuotesView } from "./QuotesView";
 import {
@@ -34,6 +35,7 @@ type Draft = {
   archived: boolean;
   favorite: boolean;
   visibleInExtension: boolean;
+  isProtected: boolean;
   familyIds: string[];
 };
 
@@ -45,6 +47,7 @@ const empty = (): Draft => ({
   archived: false,
   favorite: false,
   visibleInExtension: true,
+  isProtected: true,
   familyIds: [],
 });
 
@@ -148,6 +151,7 @@ export function CollectionsView() {
       archived: c.archived,
       favorite: c.favorite,
       visibleInExtension: c.visibleInExtension,
+      isProtected: isCollectionProtected(c),
       familyIds:
         c.familyIds ??
         associatedQuotesOf(c, quotes).map((quote) => quote.id),
@@ -191,6 +195,7 @@ export function CollectionsView() {
         archived: draft.archived,
         favorite: draft.favorite,
         visibleInExtension: draft.visibleInExtension,
+        isProtected: draft.isProtected,
         familyIds: draft.familyIds,
       };
       if (draft.id) {
@@ -206,6 +211,21 @@ export function CollectionsView() {
       setError(errorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** Candado: prende o apaga la protección de la colección y avisa cómo quedó. */
+  async function toggleProtection(c: Collection) {
+    const next = !isCollectionProtected(c);
+    setError(null);
+    try {
+      await api(`/collections/${c.id}`, { method: "PUT", body: { isProtected: next } });
+      setItems((prev) => prev.map((row) => (row.id === c.id ? { ...row, isProtected: next } : row)));
+      setViewing((cur) => (cur?.id === c.id ? { ...cur, isProtected: next } : cur));
+      setPreview((cur) => (cur?.id === c.id ? { ...cur, isProtected: next } : cur));
+      setNotice(protectionNotice(c, next));
+    } catch (err) {
+      setError(errorMessage(err));
     }
   }
 
@@ -250,6 +270,15 @@ export function CollectionsView() {
             <>
               <button type="button" className="btn-ghost" onClick={() => setViewing(null)}>
                 ← Colecciones
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                aria-pressed={isCollectionProtected(viewing)}
+                title={isCollectionProtected(viewing) ? "Protegida: editar un presupuesto crea otro. Tocá para desactivar" : "Sin protección: editar modifica el presupuesto. Tocá para activar"}
+                onClick={() => void toggleProtection(viewing)}
+              >
+                {isCollectionProtected(viewing) ? "🔒 Protegida" : "🔓 Sin protección"}
               </button>
               <button type="button" onClick={() => openEdit(viewing)}>
                 Editar colección
@@ -325,7 +354,20 @@ export function CollectionsView() {
                   {c.favorite ? <span aria-label="Favorita">★</span> : null}
                 </div>
                 <div className="gal-body">
-                  <h3>{c.name}</h3>
+                  <h3>
+                    {c.name}
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      style={{ marginLeft: "0.4rem" }}
+                      aria-pressed={isCollectionProtected(c)}
+                      aria-label={isCollectionProtected(c) ? `Protección activada en ${c.name}` : `Protección desactivada en ${c.name}`}
+                      title={isCollectionProtected(c) ? "Protegida: editar un presupuesto crea otro. Tocá para desactivar" : "Sin protección: editar modifica el presupuesto. Tocá para activar"}
+                      onClick={(e) => { e.stopPropagation(); void toggleProtection(c); }}
+                    >
+                      {isCollectionProtected(c) ? "🔒" : "🔓"}
+                    </button>
+                  </h3>
                   {c.description ? <p className="cell-sub">{c.description}</p> : null}
                   <div className="gal-meta">
                     <Pill tone="neutral">
@@ -499,6 +541,11 @@ export function CollectionsView() {
               label="Favorita"
               checked={draft.favorite}
               onChange={(favorite) => setDraft({ ...draft, favorite })}
+            />
+            <Checkbox
+              label="Protegida (editar crea una copia)"
+              checked={draft.isProtected}
+              onChange={(isProtected) => setDraft({ ...draft, isProtected })}
             />
             <Checkbox
               label="Archivada"

@@ -66,12 +66,16 @@ function stockText(item: BrowserItem): string | null {
  * Explorador grande de resultados: tarjetas o lista, filtros por fuente, orden y precio, y selección múltiple
  * con tilde verde. Al confirmar devuelve los elegidos para que se carguen al presupuesto.
  */
-export function ProductBrowserModal<T>({ items, loading, query, single, sourceBar, onConfirm, onClose }: {
+export function ProductBrowserModal<T>({ items, loading, query, single, title = "Todos los productos", onQueryChange, sourceBar, onConfirm, onClose }: {
   items: BrowserItem<T>[];
   loading: boolean;
   query: string;
   /** Con true solo se puede elegir un producto (ej.: reemplazar el de una línea). */
   single?: boolean;
+  /** Título del modal (ej.: "Cambiar X por"). */
+  title?: string;
+  /** Si se pasa, el modal muestra su propio buscador y avisa cada vez que se escribe (para rehacer la búsqueda). */
+  onQueryChange?: (query: string) => void;
   /** Barra para prender o apagar fuentes y distribuidores sin salir del modal (la búsqueda se rehace sola). */
   sourceBar?: ReactNode;
   onConfirm: (picked: BrowserItem<T>[]) => void;
@@ -173,13 +177,13 @@ export function ProductBrowserModal<T>({ items, loading, query, single, sourceBa
 
   return createPortal(
     <div className={`pb-overlay${closing ? " closing" : ""}`} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className="pb-modal" role="dialog" aria-modal="true" aria-label="Todos los productos">
+      <div className="pb-modal" role="dialog" aria-modal="true" aria-label={title}>
         <header className="pb-head">
           <div className="pb-title">
-            <h2>Todos los productos</h2>
+            <h2>{title}</h2>
             <p>
               {loading ? "Buscando en todas las fuentes…" : `${visible.length} de ${items.length} resultados`}
-              {query.trim() ? <> para <b>“{query.trim()}”</b></> : null}
+              {query.trim() && !onQueryChange ? <> para <b>“{query.trim()}”</b></> : null}
             </p>
           </div>
           <div className="pb-view" role="group" aria-label="Modo de vista">
@@ -195,6 +199,11 @@ export function ProductBrowserModal<T>({ items, loading, query, single, sourceBa
             <div className="pb-sources">
               <span className="pb-sources-label">Buscar en</span>
               {sourceBar}
+            </div>
+          ) : null}
+          {onQueryChange ? (
+            <div className="pb-row">
+              <input className="pb-text pb-search" autoFocus value={query} onChange={(e) => onQueryChange(e.target.value)} placeholder="Buscar el producto nuevo…" aria-label="Buscar producto" />
             </div>
           ) : null}
           <div className="pb-row">

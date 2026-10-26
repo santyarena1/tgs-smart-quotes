@@ -1342,6 +1342,7 @@ export const collectionCreateSchema = z
     archived: z.boolean().optional().default(false),
     favorite: z.boolean().optional().default(false),
     visibleInExtension: z.boolean().optional().default(true),
+    isProtected: z.boolean().optional().default(true),
     familyIds: z.array(idSchema).optional().default([]),
   })
   .strict();

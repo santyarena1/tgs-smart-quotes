@@ -106,6 +106,7 @@ describe("contratos del dominio", () => {
     );
     expect(quoteStateSchema.parse({ state: "ENVIADO" }).state).toBe("ENVIADO");
     expect(collectionCreateSchema.parse({ name: "PC GAMER" }).visibleInExtension).toBe(true);
+    expect(collectionCreateSchema.parse({ name: "PC GAMER" }).isProtected).toBe(true);
     expect(
       requestCreateSchema.parse({
         title: "PC para arquitectura",

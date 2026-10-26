@@ -21,6 +21,9 @@ import { QuoteChatBubble } from "../components/QuoteChatBubble";
 import { LiteFinancing } from "./LiteFinancing";
 import { LiteNewCustomer } from "./LiteNewCustomer";
 import { LiteNewProduct } from "./LiteNewProduct";
+import { ReplaceProductModal, type ReplacePick } from "../components/ReplaceProductModal";
+import { copyInsteadNotice, protectedCollectionsOf } from "../lib/collection-protection";
+import { currentProtectedCollections } from "../lib/collection-protection-api";
 import { LiteReferenceBubble, LiteReferenceModal, type ReferenceImage } from "./LiteReferenceImage";
 import { suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle } from "./useReferenceImageJob";
 import { LiteQuoteList } from "./LiteQuoteList";
@@ -289,11 +292,15 @@ function SlotPicker({ products, preferLineId, providers, sel, onPick, onPickNodo
 
 const DRAFT_KEY = "tgs.lite.draft.v1";
 
-const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate, onDone }: {
+const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate, onEditProduct, onReplace, onDone }: {
   line: Line;
   onPatch: (key: string, fn: (line: Line) => Line) => void;
   onRemove: (key: string) => void;
   onDuplicate: (key: string) => void;
+  /** Abre la ficha del producto en la base (no es un ajuste solo para esta venta). */
+  onEditProduct: (key: string) => void;
+  /** Abre el buscador para cambiar este producto por otro sin salir del presupuesto. */
+  onReplace: (key: string) => void;
   /** Enter en cualquier celda: vuelve al buscador para cargar el siguiente producto. */
   onDone: () => void;
 }) {
@@ -308,6 +315,16 @@ const LineRow = memo(function LineRow({ line: l, onPatch, onRemove, onDuplicate,
       <div className="lt-name-cell">
         <input className="lt-cell" value={l.name} onChange={(e) => onPatch(l.key, (x) => ({ ...x, name: e.target.value }))} aria-label="Nombre" />
         {l.source ? <OriginTag source={l.source} /> : null}
+        <span className="lt-line-tools">
+          <button
+            type="button"
+            className="lt-line-btn edit"
+            disabled={!l.productId}
+            onClick={() => onEditProduct(l.key)}
+            title={l.productId ? "Editar el producto en la base de datos (nombre, costo, margen, IVA). Cambia el producto para todos los presupuestos futuros" : "Este ítem no es un producto de tu catálogo (viene de un distribuidor, la web o está escrito a mano), no hay nada que editar en la base"}
+          >✎ Editar</button>
+          <button type="button" className="lt-line-btn swap" onClick={() => onReplace(l.key)} title="Cambiar este producto por otro sin volver a armar el presupuesto">⇄ Cambiar</button>
+        </span>
       </div>
       <input className="lt-cell num" type="number" min={1} value={l.quantity} onChange={(e) => onPatch(l.key, (x) => ({ ...x, quantity: e.target.value }))} aria-label="Cantidad" />
       <MoneyInput className="lt-cell num" value={l.costArs} onChange={(v) => onPatch(l.key, (x) => applyDraftCost(x, v))} aria-label="Costo" placeholder="0" />
@@ -382,6 +399,10 @@ export function LiteQuoteCreator() {
   const [listInterestBps, setListInterestBps] = useState(0);
   const [finLoaded, setFinLoaded] = useState(false);
   const [newProd, setNewProd] = useState<{ name: string; lineId: string } | null>(null);
+  /** Producto del catálogo que se está editando en la base (desde el botón Editar de un ítem). */
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  /** Ítem que se está cambiando por otro (desde el botón Cambiar). */
+  const [replaceKey, setReplaceKey] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [tradeOpen, setTradeOpen] = useState(false);
   // Imagen de referencia: opcional. `refImage` es la que queda incluida; `refSavedKey` la que ya tiene el presupuesto que se edita.
@@ -642,6 +663,38 @@ export function LiteQuoteCreator() {
       return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)];
     });
   }, []);
+  const startEditProduct = useCallback((key: string) => {
+    const line = linesRef.current.find((l) => l.key === key);
+    const product = line ? products.find((p) => p.id === line.productId) : undefined;
+    if (!product) { setError("No encuentro ese producto en el catálogo (puede estar desactivado)."); return; }
+    setError(null);
+    setEditProduct(product);
+  }, [products]);
+  const startReplace = useCallback((key: string) => { setError(null); setReplaceKey(key); }, []);
+
+  /** Guardó el producto en la base: el catálogo y todos los ítems de este presupuesto que lo usan quedan con los datos nuevos. */
+  function onProductEdited(product: Product) {
+    setProducts((current) => current.map((p) => (p.id === product.id ? { ...p, ...product } : p)));
+    setLines((current) => current.map((l) => (l.productId === product.id
+      ? { ...lineFromProduct(product, l.lineId), key: l.key, quantity: l.quantity }
+      : l)));
+    setEditProduct(null);
+    setNotice(`Producto “${product.name}” actualizado en la base de datos.`);
+  }
+
+  function replaceLine(pick: ReplacePick) {
+    const key = replaceKey;
+    const old = lines.find((l) => l.key === key);
+    setReplaceKey(null);
+    if (!key || !old) return;
+    const fresh = pick.kind === "own" ? lineFromProduct(pick.p, old.lineId)
+      : pick.kind === "web" ? lineFromWeb(pick.w, old.lineId)
+      : lineFromNodo(pick.r, old.lineId, pick.color);
+    setLines((current) => current.map((l) => (l.key === key ? { ...fresh, key, quantity: l.quantity } : l)));
+    suggestIvaFor({ ...fresh, key });
+    setNotice(`“${old.name}” cambiado por “${fresh.name}”.`);
+  }
+
   function undoRemove() {
     if (!removed) return;
     setLines((current) => {
@@ -765,20 +818,24 @@ export function LiteQuoteCreator() {
       const ordered = isBuiltPc
         ? [...lines].sort((a, b) => (lineOrder.get(a.lineId) ?? 999) - (lineOrder.get(b.lineId) ?? 999))
         : lines;
-      const created = await api<Quote>(editing ? `/quotes/${editing.id}` : "/quotes", {
-        method: editing ? "PUT" : "POST",
+      // Una colección protegida no se modifica: guardar los cambios crea otro presupuesto igual.
+      const guarded = editing ? await currentProtectedCollections(editing.id, collections) : [];
+      const asCopy = !editing || guarded.length > 0;
+      const created = await api<Quote>(asCopy ? "/quotes" : `/quotes/${editing!.id}`, {
+        method: asCopy ? "POST" : "PUT",
         body: {
           internalName,
           customerId: effectiveCustomerId || null,
           requestId: null,
           isBuiltPc,
-          ...(editing ? { reason: null } : { kind: "PC" }),
+          ...(asCopy ? { kind: "PC" } : { reason: null }),
           publicObservation: editing?.observation ?? null,
           // null limpia lo que hubiera guardado una versión anterior.
           tradeIns: given.length
             ? { showValues: tradeShowValues, items: given.map((t) => ({ name: t.name.trim(), valueCents: tradeInCents(t).toString() })) }
             : null,
-          collectionIds,
+          // La copia no entra a las colecciones protegidas (ahí queda el original).
+          collectionIds: guarded.length ? collectionIds.filter((id) => !guarded.some((c) => c.id === id)) : collectionIds,
           items: ordered.map((l, position) => ({
             productId: l.productId || null,
             name: l.name.trim(),
@@ -803,12 +860,14 @@ export function LiteQuoteCreator() {
       }
       // Lo que se eligió a mano también enseña a la memoria de IVA por categoría.
       teachIva(ordered.filter((l) => !l.ivaAuto).map((l) => ({ name: l.name.trim(), ivaBps: ivaBpsFromPct(l.ivaPct) })));
+      const verb = editing && !asCopy ? "actualizado" : "creado";
+      const copyNote = guarded.length ? ` ${copyInsteadNotice(editing!.visibleNumber, guarded.map((c) => c.name))}` : "";
       resetForm();
       try {
         await downloadQuotePdf(created.id, created.visibleNumber, kind);
-        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"} · ${kind === "FORMAL" ? "Presupuesto formal" : `PDF ${kind === "SIMPLE" ? "simple" : "detallado"}`} descargado.${refNote}`);
+        setNotice(`${created.visibleNumber} ${verb} · ${kind === "FORMAL" ? "Presupuesto formal" : `PDF ${kind === "SIMPLE" ? "simple" : "detallado"}`} descargado.${refNote}${copyNote}`);
       } catch (err) {
-        setNotice(`${created.visibleNumber} ${editing ? "actualizado" : "creado"}, pero el PDF falló: ${errorMessage(err)}`);
+        setNotice(`${created.visibleNumber} ${verb}, pero el PDF falló: ${errorMessage(err)}${copyNote}`);
       }
       setRefreshKey((k) => k + 1);
     } catch (err) {
@@ -990,7 +1049,7 @@ export function LiteQuoteCreator() {
     }
   }
 
-  const renderLine = (l: Line) => <LineRow key={l.key} line={l} onPatch={patch} onRemove={removeLine} onDuplicate={duplicateLine} onDone={focusSearch} />;
+  const renderLine = (l: Line) => <LineRow key={l.key} line={l} onPatch={patch} onRemove={removeLine} onDuplicate={duplicateLine} onEditProduct={startEditProduct} onReplace={startReplace} onDone={focusSearch} />;
 
   const extras = lines.filter((l) => !l.lineId || !pcLines.some((pc) => pc.id === l.lineId));
 
@@ -1077,6 +1136,8 @@ export function LiteQuoteCreator() {
         />
       ) : null}
       {newProd ? <LiteNewProduct initialName={newProd.name} lineId={newProd.lineId} onCreated={onProductCreated} onCancel={() => setNewProd(null)} /> : null}
+      {editProduct ? <LiteNewProduct product={editProduct} initialName={editProduct.name} lineId={editProduct.defaultLineId ?? ""} onCreated={onProductEdited} onCancel={() => setEditProduct(null)} /> : null}
+      {replaceKey ? <ReplaceProductModal currentName={lines.find((l) => l.key === replaceKey)?.name ?? ""} products={products} onPick={replaceLine} onClose={() => setReplaceKey(null)} /> : null}
       {hideFinancing ? (
         <aside className="lt-fin lt-fin-collapsed" aria-label="Financiación oculta">
           <button type="button" className="lt-gear lt-eye" onClick={() => setHideFinancing(false)} title="Mostrar la financiación" aria-label="Mostrar la financiación">
@@ -1102,7 +1163,11 @@ export function LiteQuoteCreator() {
 
         {editing ? (
           <div className="lt-note lt-editing">
-            <span>Modificás {editing.visibleNumber}: al guardar se registra como versión nueva (si ya fue enviado, el original queda intacto).</span>
+            <span>
+              {protectedCollectionsOf(collections, editing.id).length
+                ? <>🔒 {editing.visibleNumber} está en una colección protegida ({protectedCollectionsOf(collections, editing.id).map((c) => c.name).join(", ")}): al guardar se crea un presupuesto nuevo y el original no se toca.</>
+                : <>Modificás {editing.visibleNumber}: al guardar se registra como versión nueva (si ya fue enviado, el original queda intacto).</>}
+            </span>
             <button type="button" className="lt-btn ghost sm" onClick={resetForm}>Cancelar edición</button>
           </div>
         ) : null}
