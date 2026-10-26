@@ -464,6 +464,8 @@ export type Collection = {
   archived: boolean;
   favorite: boolean;
   visibleInExtension: boolean;
+  /** Protegida (por defecto): editar un presupuesto de la colección crea otro en vez de modificarlo. */
+  isProtected?: boolean;
   familyIds?: string[];
   quotes?: CollectionQuoteSummary[];
 };

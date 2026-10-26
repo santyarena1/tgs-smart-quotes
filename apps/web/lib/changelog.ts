@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    date: "2026-10-26",
+    title: "Editar y cambiar productos del presupuesto, y colecciones protegidas",
+    items: [
+      "Cada producto del presupuesto tiene un botón Editar (modifica el producto en la base de datos: nombre, costo, margen e IVA) y un botón Cambiar (abre un buscador \"Cambiar X por…\" y lo reemplaza sin cancelar el presupuesto). En la versión común, el ajuste rápido solo para esa venta pasó a llamarse Ajustar",
+      "Las colecciones nacen protegidas 🔒: si editás un presupuesto que está en una, se crea otro igual con tus cambios y el original no se toca. El candado junto al nombre de la colección la protege o desprotege y avisa cómo quedó",
+      "Colecciones de LITE rediseñadas: letra más grande, tarjetas con más aire, acciones principales a la vista y el resto en un menú Más",
+    ],
+  },
+  {
     version: "0.21.36",
     date: "2026-10-23",
     title: "PDF: dólares en lugar de Mercado Pago y precios más claros",

@@ -881,6 +881,8 @@ model Collection {
   archived           Boolean           @default(false)
   favorite           Boolean           @default(false)
   visibleInExtension Boolean           @default(true)
+  /// Protegida: editar un presupuesto de la colección crea otro igual en vez de modificarlo.
+  isProtected        Boolean           @default(true)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @default(now()) @updatedAt
   quotes             CollectionQuote[]
