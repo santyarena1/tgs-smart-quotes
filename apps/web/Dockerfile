@@ -5,6 +5,8 @@ FROM node:22-bookworm-slim AS build
 RUN corepack enable
 WORKDIR /app
 ENV CI=true
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS=--max-old-space-size=4096
 ARG API_PROXY_TARGET
 ENV API_PROXY_TARGET=$API_PROXY_TARGET
 
@@ -43,5 +45,5 @@ ENV NODE_ENV=production
 ENV PORT=3000
 COPY --from=build /app /app
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=8 CMD wget -qO- http://127.0.0.1:3000 || exit 1
+HEALTHCHECK --interval=30s --timeout=8s --start-period=90s --retries=8 CMD wget -qO- http://127.0.0.1:3000 || exit 1
 CMD ["pnpm", "--filter", "@tgs/web", "start"]
