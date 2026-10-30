@@ -251,6 +251,16 @@ export function LiteCollections() {
 
   const busy = busyId !== null;
 
+  /** Suma de las ventas de la colección (versión activa de cada presupuesto); null si no se puede calcular. */
+  const collectionTotal = useMemo(() => {
+    if (!current || current.quotes.length === 0) return null;
+    try {
+      return current.quotes.reduce((sum, q) => sum + BigInt(getActiveVersion(q)?.totalSaleCents ?? 0), 0n).toString();
+    } catch {
+      return null;
+    }
+  }, [current]);
+
   return (
     <div className="lt-cv">
       <header className="lt-cv-top">
@@ -300,6 +310,7 @@ export function LiteCollections() {
                       <span className="lt-cv-name">{collection.name}{collection.favorite ? <span className="lt-fav" aria-label="Favorita"> ★</span> : null}</span>
                       <span className="lt-cv-sub">{plural(list.length, "presupuesto", "presupuestos")}</span>
                     </span>
+                    <span className="lt-cv-count" aria-hidden="true">{list.length}</span>
                   </button>
                   <button
                     type="button"
@@ -333,7 +344,12 @@ export function LiteCollections() {
                   ) : null}
                 </h2>
                 {current?.collection.description ? <p>{current.collection.description}</p> : null}
-                {current?.quotes.length === 0 ? <p>Vacía: asignale presupuestos al crearlos.</p> : <p>{plural(current?.quotes.length ?? 0, "presupuesto", "presupuestos")}</p>}
+                {current?.quotes.length === 0 ? <p>Vacía: asignale presupuestos al crearlos.</p> : (
+                  <p className="lt-cv-stats">
+                    <span>{plural(current?.quotes.length ?? 0, "presupuesto", "presupuestos")}</span>
+                    {collectionTotal !== null ? <><span className="lt-cv-dot" aria-hidden="true">·</span><span>Suma total <strong>{formatArs(collectionTotal)}</strong></span></> : null}
+                  </p>
+                )}
               </div>
               <div className="lt-cv-tools">
                 <input className="lt-input lt-cv-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar por número, nombre o cliente…" aria-label="Filtrar presupuestos" />
@@ -359,7 +375,10 @@ export function LiteCollections() {
                   return (
                     <li key={q.id} className="lt-cv-quote">
                       <div className="lt-cv-q-main">
-                        <span className="lt-cv-num">{q.visibleNumber}</span>
+                        <div className="lt-cv-q-meta">
+                          <span className="lt-cv-num">{q.visibleNumber}</span>
+                          <span className="lt-cv-q-sub">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
+                        </div>
                         {renamingId === q.id ? (
                           <form className="lt-cv-rename" onSubmit={(e) => { e.preventDefault(); void saveRename(q); }}>
                             <input
@@ -374,9 +393,11 @@ export function LiteCollections() {
                             <button type="button" className="lt-cv-btn" onClick={() => setRenamingId(null)}>Cancelar</button>
                           </form>
                         ) : <strong className="lt-cv-q-name">{q.internalName}</strong>}
-                        <span className="lt-cv-q-sub">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
                       </div>
-                      <strong className="lt-cv-total">{formatArs(v?.totalSaleCents)}</strong>
+                      <div className="lt-cv-total-wrap">
+                        <span className="lt-cv-total-label">Total</span>
+                        <strong className="lt-cv-total">{formatArs(v?.totalSaleCents)}</strong>
+                      </div>
                       <div className="lt-cv-actions">
                         <button
                           type="button"
