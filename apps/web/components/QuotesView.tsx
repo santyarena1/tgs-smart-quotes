@@ -425,6 +425,8 @@ export function QuotesView({
   const draftFallbackRef = useRef<QuoteLocalDraft | null>(null);
   const draftBaselineRef = useRef("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  /** Campo de la fila en edición que recibe el foco (el que se clickeó). */
+  const [editField, setEditField] = useState<"name" | "quantity" | "cost" | "markup" | "sale" | null>(null);
   const [retargetArs, setRetargetArs] = useState("");
   const [totalEditOpen, setTotalEditOpen] = useState(false);
   const [totalEditValue, setTotalEditValue] = useState("");
@@ -1307,10 +1309,10 @@ export function QuotesView({
   /** Producto de la tienda web: entra con su precio de venta publicado; el costo queda en 0 para completarlo. */
   function addWebItem(r: WebResult) {
     addCatalogItem(
-      { mpn: r.sku ?? String(r.id), title: r.name.toLocaleUpperCase("es-AR"), priceCents: "0", salePriceCents: r.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null },
-      { costArs: "0", markupPct: "0", saleArs: centsToInput(r.priceCents), priceMode: "sale", source: { label: "Web", color: WEB_COLOR } },
+      { mpn: r.sku ?? String(r.id), title: r.name.toLocaleUpperCase("es-AR"), priceCents: r.priceCents, salePriceCents: r.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null },
+      { costArs: centsToInput(r.priceCents), markupPct: "0", saleArs: centsToInput(r.priceCents), priceMode: "markup", source: { label: "Web", color: WEB_COLOR } },
     );
-    setNotice(`“${r.name}” agregado desde la web con su precio de venta. Falta cargar el costo.`);
+    setNotice(`“${r.name}” agregado desde la web con costo = venta y margen 0 %.`);
   }
 
   function addCatalogItem(product: CatalogPickerItem, override?: Partial<ItemDraft>) {
@@ -1363,6 +1365,22 @@ export function QuotesView({
     focusPickerInput();
   }
 
+  /** Cambiar: abre el buscador normal de productos (no VER TODOS) para reemplazar ese ítem. */
+  function openReplace(itemKey: string) {
+    const item = items.find((i) => i.key === itemKey);
+    if (isBuiltPc && item?.lineId) {
+      openReplaceOnLine(itemKey, item.lineId);
+    } else {
+      setPickingLineId(null);
+      setReplaceItemKey(itemKey);
+      setPickerQuery("");
+      setPickerOpen(true);
+      setEditingKey(null);
+      focusPickerInput();
+    }
+    pickerRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
   function openReplaceOnLine(itemKey: string, lineId: string) {
     setPickingLineId(lineId);
     setReplaceItemKey(itemKey);
@@ -1402,8 +1420,8 @@ export function QuotesView({
       drafted = itemFromProduct(pick.p, old.quantity || "1", old.lineId);
     } else if (pick.kind === "web") {
       drafted = {
-        ...itemFromCatalog({ mpn: pick.w.sku ?? String(pick.w.id), title: pick.w.name.toLocaleUpperCase("es-AR"), priceCents: "0", salePriceCents: pick.w.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null }, old.lineId),
-        costArs: "0", markupPct: "0", saleArs: centsToInput(pick.w.priceCents), priceMode: "sale", source: { label: "Web", color: WEB_COLOR },
+        ...itemFromCatalog({ mpn: pick.w.sku ?? String(pick.w.id), title: pick.w.name.toLocaleUpperCase("es-AR"), priceCents: pick.w.priceCents, salePriceCents: pick.w.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null }, old.lineId),
+        costArs: centsToInput(pick.w.priceCents), markupPct: "0", saleArs: centsToInput(pick.w.priceCents), priceMode: "markup", source: { label: "Web", color: WEB_COLOR },
       };
     } else {
       const r = pick.r;
@@ -1429,8 +1447,16 @@ export function QuotesView({
       (item.productId ? productById.get(item.productId)?.defaultLineId ?? "" : "");
     const draft = lineId ? { ...item, lineId } : item;
     const emptySlot = isBuiltPc && draft.lineId ? items.find((i) => i.lineId === draft.lineId && isSlotEmpty(i)) : null;
-    suggestIvaFor({ ...draft, key: emptySlot?.key ?? draft.key });
+    const replaceKey = !emptySlot && !(isBuiltPc && draft.lineId) ? replaceItemKey : null;
+    suggestIvaFor({ ...draft, key: replaceKey ?? emptySlot?.key ?? draft.key });
     setItems((prev) => {
+      if (replaceKey && prev.some((i) => i.key === replaceKey)) {
+        return prev.map((row) =>
+          row.key === replaceKey
+            ? { ...draft, key: row.key, quantity: row.quantity || "1", observation: row.observation }
+            : row,
+        );
+      }
       if (isBuiltPc && pcLines.length) {
         if (draft.lineId) {
           const emptyIdx = prev.findIndex((i) => i.lineId === draft.lineId && isSlotEmpty(i));
@@ -1449,7 +1475,10 @@ export function QuotesView({
       const product = productById.get(draft.productId);
       if (product) void rememberProductLine(product, draft.lineId);
     }
-    if (startEditing) setEditingKey(draft.key);
+    if (startEditing) {
+      setEditField(null);
+      setEditingKey(replaceKey ?? draft.key);
+    }
     setPickerQuery("");
     setPickerOpen(false);
     setPickingLineId(null);
@@ -2978,7 +3007,7 @@ export function QuotesView({
                     autoComplete="off"
                   />
                 </div>
-                {pickingLineId ? (
+                {pickingLineId || replaceItemKey ? (
                   <button
                     type="button"
                     className="btn-ghost"
@@ -2989,7 +3018,7 @@ export function QuotesView({
                       setPickerOpen(false);
                     }}
                   >
-                    Cancelar línea
+                    {pickingLineId ? "Cancelar línea" : "Cancelar cambio"}
                   </button>
                 ) : !isBuiltPc ? (
                   <button
@@ -3309,9 +3338,23 @@ export function QuotesView({
                         item.lineId === pickingLineId &&
                         empty);
                     const below = !empty && sellsBelowCost(item);
+                    /** Click en un valor: la fila pasa a inputs y el clickeado toma el foco. */
+                    const startEdit = (field: NonNullable<typeof editField>) => {
+                      if (!isDraft || empty) return;
+                      setEditField(field);
+                      setEditingKey(item.key);
+                    };
+                    const clickable = isDraft && !empty;
+                    const cellProps = (field: NonNullable<typeof editField>) =>
+                      clickable
+                        ? { className: "cell-click", title: "Click para editar", onClick: () => startEdit(field) }
+                        : {};
                     return (
                       <tr
                         key={item.key}
+                        onBlur={(e) => {
+                          if (editing && !e.currentTarget.contains(e.relatedTarget as Node | null)) setEditingKey(null);
+                        }}
                         className={[
                           editing ? "editing" : "",
                           empty ? "pc-slot-empty" : "",
@@ -3345,11 +3388,11 @@ export function QuotesView({
                               value={item.name}
                               onChange={(e) => setName(item.key, e.target.value)}
                               placeholder="Nombre del ítem"
-                              autoFocus
+                              autoFocus={editField === "name" || editField === null}
                             />
                           ) : (
                             <>
-                              <span className="cell-strong">{item.name || "(sin nombre)"}</span>
+                              <span className="cell-strong" {...cellProps("name")}>{item.name || "(sin nombre)"}</span>
                               {item.source ? (
                                 <OriginTag source={item.source} />
                               ) : item.productId ? null : (
@@ -3368,9 +3411,10 @@ export function QuotesView({
                               min={1}
                               value={item.quantity}
                               onChange={(e) => setQuantity(item.key, e.target.value)}
+                              autoFocus={editField === "quantity"}
                             />
                           ) : (
-                            item.quantity
+                            <span {...cellProps("quantity")}>{item.quantity}</span>
                           )}
                         </td>
                         <td className="right num">
@@ -3382,9 +3426,10 @@ export function QuotesView({
                               value={item.costArs}
                               onChange={(v) => setCost(item.key, v)}
                               placeholder="0"
+                              autoFocus={editField === "cost"}
                             />
                           ) : (
-                            displayArs(item.costArs)
+                            <span {...cellProps("cost")}>{displayArs(item.costArs)}</span>
                           )}
                         </td>
                         <td className={`right num${below ? " neg" : ""}`}>
@@ -3398,9 +3443,10 @@ export function QuotesView({
                               onChange={(e) => setMarkupPct(item.key, e.target.value)}
                               placeholder="30"
                               title="Elegí un % del desplegable o escribilo"
+                              autoFocus={editField === "markup"}
                             />
                           ) : (
-                            `${item.markupPct || "0"} %`
+                            <span {...cellProps("markup")}>{`${item.markupPct || "0"} %`}</span>
                           )}
                         </td>
                         <td className={`right num${below ? " neg" : ""}`}>
@@ -3412,9 +3458,10 @@ export function QuotesView({
                               value={item.saleArs}
                               onChange={(v) => setSale(item.key, v)}
                               placeholder="0"
+                              autoFocus={editField === "sale"}
                             />
                           ) : (
-                            displayArs(item.saleArs)
+                            <span {...cellProps("sale")}>{displayArs(item.saleArs)}</span>
                           )}
                         </td>
                         <td className="right num">
@@ -3444,66 +3491,12 @@ export function QuotesView({
                         <td className="actions">
                           {isDraft ? (
                             <div className="item-actions">
-                              {!isBuiltPc ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="move-btn"
-                                    title="Mover arriba"
-                                    aria-label="Mover arriba"
-                                    disabled={index === 0}
-                                    onClick={() => move(item.key, -1)}
-                                  >
-                                    ↑
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="move-btn"
-                                    title="Mover abajo"
-                                    aria-label="Mover abajo"
-                                    disabled={index === items.length - 1}
-                                    onClick={() => move(item.key, 1)}
-                                  >
-                                    ↓
-                                  </button>
-                                </>
-                              ) : null}
-                              {!empty ? (
-                                <button
-                                  type="button"
-                                  className="btn-ghost btn-sm"
-                                  onClick={() => setEditingKey(editing ? null : item.key)}
-                                >
-                                  {editing ? "Listo" : "Ajustar"}
-                                </button>
-                              ) : null}
-                              {!empty ? (
-                                <button
-                                  type="button"
-                                  className="btn-ghost btn-sm"
-                                  disabled={!item.productId}
-                                  title={item.productId ? "Editar el producto en la base de datos (nombre, costo, margen, IVA): cambia el producto para todos los presupuestos" : "Este ítem no es un producto de tu catálogo, no hay nada que editar en la base"}
-                                  onClick={() => startEditProduct(item.key)}
-                                >
-                                  Editar
-                                </button>
-                              ) : null}
-                              {!empty && !isBuiltPc ? (
-                                <button
-                                  type="button"
-                                  className="btn-ghost btn-sm"
-                                  title="Duplicar ítem"
-                                  onClick={() => duplicateItem(item.key)}
-                                >
-                                  ⧉
-                                </button>
-                              ) : null}
                               {!empty ? (
                                 <button
                                   type="button"
                                   className="btn-ghost btn-sm"
                                   title="Cambiar este producto por otro sin volver a armar el presupuesto"
-                                  onClick={() => setReplaceTarget(item.key)}
+                                  onClick={() => openReplace(item.key)}
                                 >
                                   Cambiar
                                 </button>
@@ -3568,7 +3561,7 @@ export function QuotesView({
                 const empty = isSlotEmpty(item);
                 const lineName = item.lineId ? lineById.get(item.lineId)?.name : null;
                 const picking = replaceItemKey === item.key || (Boolean(pickingLineId) && item.lineId === pickingLineId && empty);
-                return <article className={`item-card${empty ? " pc-slot-empty" : ""}`} key={item.key}>
+                return <article className={`item-card${empty ? " pc-slot-empty" : ""}`} key={item.key} onBlur={(e) => { if (editing && !e.currentTarget.contains(e.relatedTarget as Node | null)) setEditingKey(null); }}>
                   <div className="item-card-top">
                     <span className="item-index">{index + 1}</span>
                     <div>{isBuiltPc ? <span className="cell-sub">{lineName ?? "Extra"}</span> : null}<strong>{empty ? "Componente sin elegir" : item.name || "(sin nombre)"}</strong>{!empty && item.source ? <OriginTag source={item.source} /> : null}</div>
@@ -3592,7 +3585,7 @@ export function QuotesView({
                         </select>
                       </Field>
                     </div>
-                  </> : !empty ? <div className="item-fields mobile-item-values">
+                  </> : !empty ? <div className="item-fields mobile-item-values cell-click" title={isDraft ? "Tocá para editar" : undefined} onClick={() => { if (isDraft) { setEditField("name"); setEditingKey(item.key); } }}>
                     <div><span>Cantidad</span><strong>{item.quantity}</strong></div><div><span>Costo</span><strong>{displayArs(item.costArs)}</strong></div><div><span>Markup</span><strong className={sellsBelowCost(item) ? "neg" : undefined}>{item.markupPct || "0"} %</strong></div><div><span>Venta</span><strong className={sellsBelowCost(item) ? "neg" : undefined}>{displayArs(item.saleArs)}</strong></div>
                     <div>
                       <span>IVA</span>
@@ -3612,11 +3605,7 @@ export function QuotesView({
                   </div> : null}
                   {!empty ? <div className="item-foot"><span>Subtotal</span><strong className="item-subtotal">{formatArs(lineTotalCents(item.saleArs, item.quantity))}</strong></div> : null}
                   {isDraft ? <div className="mobile-card-actions">
-                    {!isBuiltPc ? <><button type="button" className="move-btn" disabled={index === 0} onClick={() => move(item.key, -1)}>↑ Subir</button><button type="button" className="move-btn" disabled={index === items.length - 1} onClick={() => move(item.key, 1)}>↓ Bajar</button></> : null}
-                    {!empty ? <button type="button" className="btn-ghost" onClick={() => setEditingKey(editing ? null : item.key)}>{editing ? "Listo" : "Ajustar"}</button> : null}
-                    {!empty ? <button type="button" className="btn-ghost" disabled={!item.productId} title={item.productId ? "Editar el producto en la base de datos" : "Este ítem no es un producto de tu catálogo"} onClick={() => startEditProduct(item.key)}>Editar</button> : null}
-                    {!empty && !isBuiltPc ? <button type="button" className="btn-ghost" onClick={() => duplicateItem(item.key)}>Duplicar</button> : null}
-                    {!empty ? <button type="button" className="btn-ghost" onClick={() => setReplaceTarget(item.key)}>Cambiar</button> : isBuiltPc && item.lineId ? <button type="button" className="btn-ghost" onClick={() => openReplaceOnLine(item.key, item.lineId)}>Elegir</button> : null}
+                    {!empty ? <button type="button" className="btn-ghost" onClick={() => openReplace(item.key)}>Cambiar</button> : isBuiltPc && item.lineId ? <button type="button" className="btn-ghost" onClick={() => openReplaceOnLine(item.key, item.lineId)}>Elegir</button> : null}
                     {!empty ? <button type="button" className="btn-danger" onClick={() => removeItem(item.key)}>{isBuiltPc && item.lineId ? "Vaciar" : "Eliminar"}</button> : null}
                   </div> : null}
                 </article>;
