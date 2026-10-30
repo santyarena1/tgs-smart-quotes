@@ -4143,3 +4143,7 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .pb-chip.on:hover:not(:disabled) { background: var(--nc); color: var(--nt, #fff); }
 .pb-btn.ghost:hover:not(:disabled) { background: var(--canvas); color: var(--ink); }
 .pb-viewall:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 16%, var(--paper)); color: var(--red); }
+
+/* Valores del ítem editables con un click (fila de presupuesto) */
+.cell-click { cursor: text; border-radius: 4px; }
+.cell-click:hover { background: rgba(100, 116, 139, 0.14); box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.14); }
