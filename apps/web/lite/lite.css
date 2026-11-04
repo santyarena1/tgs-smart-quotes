@@ -1219,3 +1219,20 @@
   .lite .lt-cv-list { position: static; max-height: none; grid-auto-flow: column; grid-auto-columns: minmax(250px, 80%); overflow-x: auto; padding-bottom: 6px; }
 }
 .lite .lt-cv-new-row .lt-icon-in { flex: none; width: 72px; text-align: center; }
+
+/* Ajustes rápidos del PDF detallado / formal */
+.lite .lt-po-modal { width: min(520px, 100%); }
+.lite .lt-po-list { display: grid; gap: 0.15rem; }
+.lite .lt-po-row { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.2rem; border-bottom: 1px solid var(--line, rgba(128, 128, 128, 0.18)); cursor: pointer; }
+.lite .lt-po-row:last-child { border-bottom: 0; }
+.lite .lt-po-row input { width: 16px; height: 16px; margin-top: 0.15rem; accent-color: #f59e0b; flex: none; }
+.lite .lt-po-row span, .lite .lt-po-label { display: grid; gap: 0.1rem; font-size: 0.88rem; color: var(--ink-2); }
+.lite .lt-po-row b, .lite .lt-po-label b { font-weight: 600; color: var(--ink); }
+.lite .lt-po-row small, .lite .lt-po-label small { font-size: 0.78rem; color: var(--muted); }
+.lite .lt-po-row.off { cursor: default; opacity: 0.55; }
+.lite .lt-po-block { display: grid; gap: 0.45rem; padding: 0.5rem 0.2rem 0.6rem; border-bottom: 1px solid var(--line, rgba(128, 128, 128, 0.18)); }
+.lite .lt-po-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.lite .lt-po-chip { border: 1px solid var(--line, rgba(128, 128, 128, 0.35)); background: transparent; color: var(--ink-2); border-radius: 999px; padding: 0.3rem 0.75rem; font: 500 0.82rem var(--font); cursor: pointer; }
+.lite .lt-po-chip:hover { border-color: #f59e0b; }
+.lite .lt-po-chip.on { background: #f59e0b; border-color: #f59e0b; color: #1a1a1a; font-weight: 650; }
+.lite .lt-po-modal .lt-modal-foot { align-items: center; justify-content: space-between; padding-top: 0.2rem; }

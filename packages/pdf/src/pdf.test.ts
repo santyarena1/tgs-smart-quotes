@@ -408,6 +408,44 @@ describe('@tgs/pdf', () => {
     }
   });
 
+  it('ajustes rápidos: cuotas por ítem ocultan el total, y se pueden ocultar cuotas, efectivo e IVA', () => {
+    const items = [{ name: 'Procesador Ryzen', quantity: 1, unitCents: 150000n, subtotalCents: 150000n }];
+    const financing = [{ installments: 3, interestBps: 0 }, { installments: 6, interestBps: 1000, bank: 'Otros bancos' }];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const base = { ...sample(), kind: 'DETALLADO' as const, template, isBuiltPc: false, items, financing };
+      const plain = renderPdfHtml(base);
+      expect(plain).toContain('Precio de lista');
+      expect(plain).not.toContain('class="inst"');
+
+      const perItem = renderPdfHtml({ ...base, options: { itemInstallments: [3, 6] } });
+      expect(perItem).toContain('3 cuotas de');
+      expect(perItem).toContain('6 cuotas de');
+      expect(perItem).not.toContain('Precio de lista');
+
+      const hidden = renderPdfHtml({ ...base, options: { showTotal: false, showCashTransfer: false, showFinancing: false, showIvaBreakdown: false } });
+      expect(hidden).not.toContain('Precio de lista');
+      expect(hidden).not.toContain('Efectivo / Transferencia');
+      expect(hidden).not.toContain('Precio sin IVA');
+      expect(hidden).toContain('Precio unitario');
+      expect(hidden).not.toContain('cuotas');
+    }
+  });
+
+  it('ajustes rápidos en el FORMAL y sin efecto en el SIMPLE; el hash cambia solo si hay ajustes', () => {
+    const items = [{ name: 'Procesador Ryzen', quantity: 1, unitCents: 150000n, subtotalCents: 150000n }];
+    const formal = { ...sample(), kind: 'FORMAL' as const, isBuiltPc: false, items, chequeTotalCents: 110000000n, financing: [{ installments: 3, interestBps: 0 }] };
+    expect(renderPdfHtml(formal)).toContain('Cheque a 30 días');
+    const trimmed = renderPdfHtml({ ...formal, options: { showTotal: false, showCashTransfer: false } });
+    expect(trimmed).not.toContain('class="totals"');
+    expect(trimmed).not.toContain('Cheque a 30 días');
+    expect(renderPdfHtml({ ...formal, options: { itemInstallments: [3] } })).toContain('3 cuotas de');
+
+    const simple = { ...sample(), isBuiltPc: false, items };
+    expect(renderPdfHtml({ ...simple, options: { showTotal: false } })).toBe(renderPdfHtml(simple));
+    expect(pdfInputHash({ ...formal, options: {} })).toBe(pdfInputHash(formal));
+    expect(pdfInputHash({ ...formal, options: { showTotal: false } })).not.toBe(pdfInputHash(formal));
+  });
+
   it('cada ítem usa su propio IVA y el encabezado IVA queda en blanco', () => {
     const items = [
       { name: 'Motherboard B550', quantity: 1, unitCents: 110500n, subtotalCents: 110500n, ivaBps: 1050 },

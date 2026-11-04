@@ -27,7 +27,8 @@ import { currentProtectedCollections } from "../lib/collection-protection-api";
 import { LiteReferenceBubble, LiteReferenceModal, type ReferenceImage } from "./LiteReferenceImage";
 import { suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle } from "./useReferenceImageJob";
 import { LiteQuoteList } from "./LiteQuoteList";
-import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
+import { downloadQuotePdf, type PdfKind, type PdfQuickOptions } from "./lite-pdf";
+import { PdfOptionsModal } from "./PdfOptionsModal";
 
 type Line = {
   key: string;
@@ -389,6 +390,10 @@ export function LiteQuoteCreator() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   /** Modal para crear la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
   const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
+  /** Modal de ajustes rápidos del PDF detallado / formal. */
+  const [pdfOptionsFor, setPdfOptionsFor] = useState<"DETALLADO" | "FORMAL" | null>(null);
+  /** Ajustes ya elegidos de un formal que espera a que se cree la empresa cliente. */
+  const pendingFormalOptions = useRef<PdfQuickOptions | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
   const { providers, error: providersError, setEnabled: setProvidersEnabled } = useNodoProviders();
@@ -796,7 +801,7 @@ export function LiteQuoteCreator() {
     setIsBuiltPc(next);
   }
 
-  async function submit(kind: PdfKind, customerOverride?: Customer) {
+  async function submit(kind: PdfKind, customerOverride?: Customer, pdfOptions?: PdfQuickOptions | null) {
     if (busy) return;
     const invalid = validate(lines);
     if (invalid) { setError(invalid); return; }
@@ -864,7 +869,7 @@ export function LiteQuoteCreator() {
       const copyNote = guarded.length ? ` ${copyInsteadNotice(editing!.visibleNumber, guarded.map((c) => c.name))}` : "";
       resetForm();
       try {
-        await downloadQuotePdf(created.id, created.visibleNumber, kind);
+        await downloadQuotePdf(created.id, created.visibleNumber, kind, pdfOptions);
         setNotice(`${created.visibleNumber} ${verb} · ${kind === "FORMAL" ? "Presupuesto formal" : `PDF ${kind === "SIMPLE" ? "simple" : "detallado"}`} descargado.${refNote}${copyNote}`);
       } catch (err) {
         setNotice(`${created.visibleNumber} ${verb}, pero el PDF falló: ${errorMessage(err)}${copyNote}`);
@@ -883,8 +888,24 @@ export function LiteQuoteCreator() {
     const invalid = validate(lines);
     if (invalid) { setError(invalid); return; }
     setError(null);
-    if (customers.find((c) => c.id === customerId)?.kind === "EMPRESA") { void submit("FORMAL"); return; }
+    pendingFormalOptions.current = null;
+    setPdfOptionsFor("FORMAL");
+  }
+
+  /** Ya elegidos los ajustes del formal: sigue directo si hay empresa elegida; si no, pide crearla. */
+  function continueFormal(options: PdfQuickOptions) {
+    if (customers.find((c) => c.id === customerId)?.kind === "EMPRESA") { void submit("FORMAL", undefined, options); return; }
+    pendingFormalOptions.current = options;
     setFormalCompanyOpen(true);
+  }
+
+  /** PDF detallado: primero los ajustes rápidos, después se crea. */
+  function startDetailed() {
+    if (busy) return;
+    const invalid = validate(lines);
+    if (invalid) { setError(invalid); return; }
+    setError(null);
+    setPdfOptionsFor("DETALLADO");
   }
 
   submitRef.current = submit;
@@ -1057,6 +1078,19 @@ export function LiteQuoteCreator() {
 
   return (
     <div className="lt-grid">
+      {pdfOptionsFor ? (
+        <PdfOptionsModal
+          kind={pdfOptionsFor}
+          plans={finPlans}
+          onCancel={() => setPdfOptionsFor(null)}
+          onConfirm={(options) => {
+            const kind = pdfOptionsFor;
+            setPdfOptionsFor(null);
+            if (kind === "FORMAL") continueFormal(options);
+            else void submit("DETALLADO", undefined, options);
+          }}
+        />
+      ) : null}
       {formalCompanyOpen ? (
         <LiteNewCustomer
           initialKind="EMPRESA"
@@ -1069,7 +1103,8 @@ export function LiteQuoteCreator() {
             setCustomers((current) => [...current, customer].sort((x, y) => x.name.localeCompare(y.name)));
             setCustomerId(customer.id);
             setFormalCompanyOpen(false);
-            void submit("FORMAL", customer);
+            void submit("FORMAL", customer, pendingFormalOptions.current);
+            pendingFormalOptions.current = null;
           }}
         />
       ) : null}
@@ -1376,7 +1411,7 @@ export function LiteQuoteCreator() {
             <button type="button" className="lt-textlink tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
               {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
             </button>
-            <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={() => void submit("DETALLADO")}>
+            <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={startDetailed}>
               {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
             </button>
             <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
