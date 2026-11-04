@@ -330,19 +330,7 @@ export function LiteCollections() {
             <div className="lt-cv-head">
               <span className="lt-cv-icon big">{current?.collection.icon || "◆"}</span>
               <div className="lt-cv-head-main">
-                <h2>
-                  {current?.collection.name}
-                  {current ? (
-                    <button
-                      type="button"
-                      className={`lt-lock big${currentProtected ? " on" : ""}`}
-                      disabled={busyId === `lock:${current.collection.id}`}
-                      aria-pressed={currentProtected}
-                      title={currentProtected ? "Protegida: editar un presupuesto crea otro. Tocá para desactivar" : "Sin protección: editar modifica el presupuesto. Tocá para activar"}
-                      onClick={() => void toggleProtection(current.collection)}
-                    >{currentProtected ? "🔒 Protegida" : "🔓 Sin protección"}</button>
-                  ) : null}
-                </h2>
+                <h2>{current?.collection.name}</h2>
                 {current?.collection.description ? <p>{current.collection.description}</p> : null}
                 {current?.quotes.length === 0 ? <p>Vacía: asignale presupuestos al crearlos.</p> : (
                   <p className="lt-cv-stats">
@@ -351,20 +339,31 @@ export function LiteCollections() {
                   </p>
                 )}
               </div>
-              <div className="lt-cv-tools">
-                <input className="lt-input lt-cv-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar por número, nombre o cliente…" aria-label="Filtrar presupuestos" />
-                {current ? (
-                  <button
-                    type="button"
-                    className="lt-btn tone-indigo"
-                    disabled={busy || current.quotes.length === 0}
-                    title="Descarga un .zip con los PDF de todos los presupuestos de la colección"
-                    onClick={() => void downloadCollection(current.collection)}
-                  >
-                    {busyId === `col:${current.collection.id}` ? "Descargando…" : "⬇ Descargar colección"}
-                  </button>
-                ) : null}
-              </div>
+              {current ? (
+                <button
+                  type="button"
+                  className="lt-cv-btn primary lt-cv-download"
+                  disabled={busy || current.quotes.length === 0}
+                  title="Descarga un .zip con los PDF de todos los presupuestos de la colección"
+                  onClick={() => void downloadCollection(current.collection)}
+                >
+                  {busyId === `col:${current.collection.id}` ? "Descargando…" : "⬇ Descargar colección"}
+                </button>
+              ) : null}
+            </div>
+
+            <div className="lt-cv-bar">
+              <input className="lt-input lt-cv-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar por número, nombre o cliente…" aria-label="Filtrar presupuestos" />
+              {current ? (
+                <button
+                  type="button"
+                  className={`lt-lock big${currentProtected ? " on" : ""}`}
+                  disabled={busyId === `lock:${current.collection.id}`}
+                  aria-pressed={currentProtected}
+                  title={currentProtected ? "Protegida: editar un presupuesto crea otro. Tocá para desactivar" : "Sin protección: editar modifica el presupuesto. Tocá para activar"}
+                  onClick={() => void toggleProtection(current.collection)}
+                >{currentProtected ? "🔒 Protegida" : "🔓 Sin protección"}</button>
+              ) : null}
             </div>
 
             {rows.length === 0 ? <div className="lt-empty">Sin resultados.</div> : (
@@ -374,11 +373,8 @@ export function LiteCollections() {
                   const collection = current!.collection;
                   return (
                     <li key={q.id} className="lt-cv-quote">
+                      <span className="lt-cv-num">{q.visibleNumber}</span>
                       <div className="lt-cv-q-main">
-                        <div className="lt-cv-q-meta">
-                          <span className="lt-cv-num">{q.visibleNumber}</span>
-                          <span className="lt-cv-q-sub">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
-                        </div>
                         {renamingId === q.id ? (
                           <form className="lt-cv-rename" onSubmit={(e) => { e.preventDefault(); void saveRename(q); }}>
                             <input
@@ -393,6 +389,7 @@ export function LiteCollections() {
                             <button type="button" className="lt-cv-btn" onClick={() => setRenamingId(null)}>Cancelar</button>
                           </form>
                         ) : <strong className="lt-cv-q-name">{q.internalName}</strong>}
+                        <span className="lt-cv-q-sub">{q.customer?.name ?? "Sin cliente"}{branchId === "" && q.branch ? ` · ${q.branch.name}` : ""}</span>
                       </div>
                       <div className="lt-cv-total-wrap">
                         <span className="lt-cv-total-label">Total</span>

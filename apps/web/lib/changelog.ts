@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.23.1",
+    date: "2026-11-04",
+    title: "Colecciones: nueva distribución y diseño según el tema",
+    items: [
+      "Colecciones de LITE reubicada para usarla más cómoda: lista de colecciones más angosta a la izquierda, y en el detalle el título con el botón Descargar colección arriba, una barra propia con el buscador y el candado, y una sola línea por presupuesto (número, nombre y cliente, total y acciones)",
+      "Cada tema le da su propio aspecto: acento, esquinas y tipografía de los títulos (Anton en TGS, Pirata One en Halloween, Orbitron con esquinas en ángulo en Gamer, Bebas y amarillo en Gotham), sin cajas y con líneas finas en SuperMinimalist, tarjetas suaves en Simplicity",
+    ],
+  },
+  {
     version: "0.23.0",
     date: "2026-11-04",
     title: "Ajustes rápidos al crear un PDF detallado o formal",
