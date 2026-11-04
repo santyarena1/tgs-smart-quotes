@@ -93,7 +93,7 @@ async function loadReferenceImage(url: string | null | undefined): Promise<{url:
   }
 }
 
-async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind, printerBranch: {address: string | null; phones: string | null} | null): Promise<PdfRenderInput> {
+async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKind, printerBranch: {address: string | null; phones: string | null} | null, options?: PdfRenderInput['options']): Promise<PdfRenderInput> {
   const [company, pdfSettings, financingPlans] = await Promise.all([
     tx.companySettings.findUniqueOrThrow({where: {id: 'singleton'}}),
     tx.pdfSettings.findUniqueOrThrow({where: {id: 'singleton'}}),
@@ -200,6 +200,8 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
       ? new Date(version.createdAt.getTime() + pdfSettings.validityDays * 86400000)
       : null,
     financingBbvaNote: pdfSettings.financingBbvaNote ?? null,
+    // Los ajustes rápidos solo existen en el detallado y el formal.
+    options: kind === 'SIMPLE' ? null : options ?? null,
     isBuiltPc: family.isBuiltPc,
     observation: version.publicObservation,
     ...(tradeIns ? { tradeIns } : {}),
@@ -400,7 +402,7 @@ export class PdfController {
       const existing = await tx.quotePdf.findUnique({
         where: {versionId_kind: {versionId: version.id, kind: body.kind}},
       });
-      const renderInput = await buildRenderInput(tx, family, version, body.kind, printerBranch);
+      const renderInput = await buildRenderInput(tx, family, version, body.kind, printerBranch, body.options);
       const computedHash = pdfInputHash(renderInput);
       const sameBranchAsCached = existing != null && (existing.branchId ?? null) === (printerBranch?.id ?? null);
       const reuseImmutable = Boolean(existing && version.state !== 'BORRADOR' && sameBranchAsCached && existing.inputHash === computedHash);

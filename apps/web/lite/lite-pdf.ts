@@ -2,9 +2,19 @@ import { api, downloadAuthenticated } from "../lib/api";
 
 export type PdfKind = "SIMPLE" | "DETALLADO" | "FORMAL";
 
+/** Ajustes rápidos de un PDF detallado o formal (qué se muestra). Mismo contrato que el API. */
+export type PdfQuickOptions = {
+  showTotal?: boolean;
+  itemInstallments?: number[];
+  showFinancing?: boolean;
+  showCashTransfer?: boolean;
+  showIvaBreakdown?: boolean;
+  showObservation?: boolean;
+};
+
 /** Genera (si hace falta) y descarga el PDF de la versión activa de un presupuesto. */
-export async function downloadQuotePdf(quoteId: string, visibleNumber: string, kind: PdfKind): Promise<void> {
-  await api(`/quotes/${quoteId}/pdf`, { method: "POST", body: { kind } });
+export async function downloadQuotePdf(quoteId: string, visibleNumber: string, kind: PdfKind, options?: PdfQuickOptions | null): Promise<void> {
+  await api(`/quotes/${quoteId}/pdf`, { method: "POST", body: options ? { kind, options } : { kind } });
   await downloadAuthenticated(`/quotes/${quoteId}/pdf/${kind}`, `${visibleNumber}-${kind}.pdf`);
 }
 

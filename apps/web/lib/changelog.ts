@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.23.0",
+    date: "2026-11-04",
+    title: "Ajustes rápidos al crear un PDF detallado o formal",
+    items: [
+      "Al tocar PDF detallado o Presupuesto formal en LITE se abre un modal con ajustes rápidos para ese presupuesto: mostrar o no el precio total, mostrar las cuotas elegidas debajo del precio de cada producto (y entonces se oculta el total), ocultar la información de cuotas y bancos, ocultar efectivo / transferencia y cheque, desglosar o no el IVA y mostrar o no la observación",
+      "Lo último que elegiste para cada tipo queda recordado en ese navegador; los ajustes solo afectan al PDF que se está creando",
+    ],
+  },
+  {
     version: "0.22.1",
     date: "2026-10-28",
     title: "Reintento del web en Railway",

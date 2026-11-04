@@ -1388,10 +1388,23 @@ export const requestAssociateQuoteSchema = z
   })
   .strict();
 
+/** Ajustes rápidos de un PDF detallado o formal (ver PdfQuickOptions en @tgs/pdf). */
+export const pdfQuickOptionsSchema = z
+  .object({
+    showTotal: z.boolean().optional(),
+    itemInstallments: z.array(z.number().int().min(1).max(60)).max(12).optional(),
+    showFinancing: z.boolean().optional(),
+    showCashTransfer: z.boolean().optional(),
+    showIvaBreakdown: z.boolean().optional(),
+    showObservation: z.boolean().optional(),
+  })
+  .strict();
+
 export const pdfGenerateSchema = z
   .object({
     kind: pdfKindSchema,
     force: z.boolean().optional().default(false),
+    options: pdfQuickOptionsSchema.nullable().optional(),
   })
   .strict();
 

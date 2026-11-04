@@ -175,6 +175,58 @@ export type PdfLayoutConfig = {
 
 export type PdfTemplate = 'CLASICO' | 'MODERNO';
 
+/** Ajustes rápidos de un PDF DETALLADO o FORMAL (se eligen al crearlo). Sin valor = como siempre. */
+export type PdfQuickOptions = {
+  /** Mostrar el precio total (de lista). Default true. Con cuotas por ítem se oculta igual. */
+  showTotal?: boolean;
+  /** Cantidades de cuotas que se muestran debajo del precio de cada ítem (ej. [3, 6]). Vacío = ninguna. */
+  itemInstallments?: number[];
+  /** Mostrar el bloque de cuotas / bancos (solo DETALLADO). Default true. */
+  showFinancing?: boolean;
+  /** Mostrar efectivo / transferencia (y el cheque a 30 días en el FORMAL). Default true. */
+  showCashTransfer?: boolean;
+  /** Mostrar precio sin IVA | IVA | precio con IVA. Apagado queda solo el precio unitario. Default true. */
+  showIvaBreakdown?: boolean;
+  /** Mostrar la observación (solo DETALLADO). Default true. */
+  showObservation?: boolean;
+};
+
+export type PdfQuickResolved = Required<PdfQuickOptions> & { active: boolean; isDefault: boolean };
+
+/** Ajustes rápidos ya con sus defaults. Solo aplican al DETALLADO y al FORMAL. */
+export function resolveQuickOptions(input: Pick<PdfRenderInput, 'kind' | 'options'>): PdfQuickResolved {
+  const o = input.options ?? {};
+  const itemInstallments = [...new Set((o.itemInstallments ?? []).filter((n) => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+  const active = input.kind !== 'SIMPLE' && Boolean(input.options);
+  const resolved = {
+    showTotal: o.showTotal !== false && itemInstallments.length === 0,
+    itemInstallments,
+    showFinancing: o.showFinancing !== false,
+    showCashTransfer: o.showCashTransfer !== false,
+    showIvaBreakdown: o.showIvaBreakdown !== false,
+    showObservation: o.showObservation !== false,
+  };
+  const isDefault = resolved.showTotal && itemInstallments.length === 0 && resolved.showFinancing && resolved.showCashTransfer && resolved.showIvaBreakdown && resolved.showObservation;
+  if (!active) return { showTotal: true, itemInstallments: [], showFinancing: true, showCashTransfer: true, showIvaBreakdown: true, showObservation: true, active: false, isDefault: true };
+  return { ...resolved, active, isDefault };
+}
+
+/** La config del PDF con los ajustes rápidos aplicados (solo pueden ocultar, nunca mostrar de más). */
+function withQuickConfig(input: PdfRenderInput): PdfRenderInput {
+  const q = resolveQuickOptions(input);
+  if (!q.active || q.isDefault) return input;
+  return {
+    ...input,
+    config: {
+      ...input.config,
+      showListPrice: input.config.showListPrice && q.showTotal,
+      showCashTransfer: input.config.showCashTransfer && q.showCashTransfer,
+      showFinancing: input.config.showFinancing && q.showFinancing,
+      showExtraObservation: input.config.showExtraObservation && q.showObservation,
+    },
+  };
+}
+
 export type PdfRenderInput = {
   kind: PdfKind;
   number: string;
@@ -203,6 +255,8 @@ export type PdfRenderInput = {
   validUntil?: Date | null;
   /** Nota aclaratoria de BBVA (caja azul) en la plantilla MODERNO. Opcional/editable. */
   financingBbvaNote?: string | null;
+  /** Ajustes rápidos elegidos al crear un PDF detallado o formal. */
+  options?: PdfQuickOptions | null;
 };
 
 export const historicalPdfIsImmutable = true;
@@ -241,7 +295,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-23.1';
+export const PDF_RENDER_VERSION = '2026-11-04.1';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -274,6 +328,10 @@ export function pdfInputHash(input: PdfRenderInput): string {
       ? { tradeIns: { showValues: input.tradeIns.showValues, items: input.tradeIns.items.map((i) => ({ name: i.name, valueCents: i.valueCents.toString() })) } }
       : {}),
     ...(hasLayoutOverrides(input.layout) ? { layout: input.layout } : {}),
+    ...(() => {
+      const q = resolveQuickOptions(input);
+      return q.active && !q.isDefault ? { quick: { showTotal: q.showTotal, itemInstallments: q.itemInstallments, showFinancing: q.showFinancing, showCashTransfer: q.showCashTransfer, showIvaBreakdown: q.showIvaBreakdown, showObservation: q.showObservation } } : {};
+    })(),
   };
   return sha256Hex(JSON.stringify(canonical));
 }
@@ -674,6 +732,7 @@ function netOfIva(withIvaCents: bigint, ivaBps: number): bigint {
 
 /** Desglose de un ítem: precio sin IVA, IVA, precio con IVA (los cargados ya lo incluyen) e importe total. */
 function ivaCells(item: PdfItem, input: PdfRenderInput): string {
+  if (!resolveQuickOptions(input).showIvaBreakdown) return `<td class="gross">${formatArsFromCents(item.unitCents)}</td>`;
   const bps = item.ivaBps ?? input.ivaBps ?? 2100;
   const net = netOfIva(item.unitCents, bps);
   return (
@@ -683,7 +742,8 @@ function ivaCells(item: PdfItem, input: PdfRenderInput): string {
   );
 }
 
-function ivaHeadCells(): string {
+function ivaHeadCells(input: PdfRenderInput): string {
+  if (!resolveQuickOptions(input).showIvaBreakdown) return '<th class="gross">Precio unitario</th>';
   return '<th class="unit">Precio sin IVA</th><th class="iva">IVA</th><th class="gross">Precio con IVA</th>';
 }
 
@@ -701,6 +761,20 @@ function referenceImageHtml(input: PdfRenderInput): string {
     .refimg img { display: block; margin: 0 auto; max-width: 100%; max-height: 250px; width: auto; height: auto; object-fit: contain; border-radius: 6px; }
     .refimg-note { margin-top: 3px; font-size: 8.5px; color: #9ca3af; }
   </style>`;
+}
+
+/** Cuotas elegidas debajo del precio de un ítem: "3 cuotas de $ X", calculadas sobre el precio de lista de ese ítem. */
+function itemInstallmentsHtml(item: PdfItem, input: PdfRenderInput): string {
+  const q = resolveQuickOptions(input);
+  if (!q.active || q.itemInstallments.length === 0 || input.financing.length === 0) return '';
+  const plans = uniqueByInstallments(input.financing);
+  const itemList = input.cashTotalCents > 0n ? (item.subtotalCents * input.listTotalCents + input.cashTotalCents / 2n) / input.cashTotalCents : item.subtotalCents;
+  const lines = q.itemInstallments
+    .map((n) => plans.find((p) => p.installments === n))
+    .filter((p): p is PdfFinancingPlan => Boolean(p))
+    .map((p) => `${p.installments} cuotas de ${formatArsFromCents(installmentAmount(itemList, p))}`);
+  if (!lines.length) return '';
+  return `<small class="inst" style="display:block;margin-top:2px;font-size:8.5px;font-weight:500;line-height:1.35;color:#6b7280;white-space:normal;">${lines.join('<br />')}</small>`;
 }
 
 function ivaLabelOf(ivaBps: number): string {
@@ -729,7 +803,7 @@ function buildItemsRows(input: PdfRenderInput): string {
           : formatArsFromCents(0n);
       const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
-        return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}</td></tr>`;
+        return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}${itemInstallmentsHtml(item, input)}</td></tr>`;
       }
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name">${name}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
@@ -794,7 +868,8 @@ function buildFinancing(input: PdfRenderInput): string {
   return parts.join('');
 }
 
-export function renderQuoteHtml(input: PdfRenderInput): string {
+export function renderQuoteHtml(rawInput: PdfRenderInput): string {
+  const input = withQuickConfig(rawInput);
   if (input.kind === 'FORMAL') return renderQuoteFormalHtml(input);
   if (input.template === 'MODERNO') return renderQuoteModernoHtml(input);
   const date = formatDateAr(input.date);
@@ -979,7 +1054,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     <thead>
       ${
         input.kind === 'DETALLADO'
-          ? `<tr><th>Producto</th><th>Cant.</th>${ivaHeadCells()}<th class="amt">Importe total</th></tr>`
+          ? `<tr><th>Producto</th><th>Cant.</th>${ivaHeadCells(input)}<th class="amt">Importe total</th></tr>`
           : '<tr><th>Cód.</th><th>Artículo</th><th>Cant.</th><th>Importe</th></tr>'
       }
     </thead>
@@ -1047,7 +1122,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
           : '';
       const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
-        return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}</td></tr>`;
+        return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}${itemInstallmentsHtml(item, input)}</td></tr>`;
       }
       return `<tr class="${cls}"><td class="code">${code}</td><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td><td class="amt">${amount}</td></tr>`;
     })
@@ -1149,7 +1224,8 @@ function buildCustomerCardModerno(customer?: PdfCustomer | null): string {
 
 /** Rediseño "MODERNO": réplica del modelo de presupuesto TGS (header con regla, cards con labels en color,
  *  caja Incluye, totales lista/efectivo, tabla de financiación por banco y cajas de notas). */
-export function renderQuoteModernoHtml(input: PdfRenderInput): string {
+export function renderQuoteModernoHtml(rawInput: PdfRenderInput): string {
+  const input = withQuickConfig(rawInput);
   const date = formatDateAr(input.date);
   const primary = escapeHtml(input.company.primaryColor || '#111111');
   const accent = escapeHtml(input.company.accentColor || '#E31B23');
@@ -1335,7 +1411,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     <thead>
       ${
         input.kind === 'DETALLADO'
-          ? `<tr><th class="name" data-pdf-block="itemsTable.colName">Producto</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th>${ivaHeadCells()}<th class="amt" data-pdf-block="itemsTable.colAmount">Importe total</th></tr>`
+          ? `<tr><th class="name" data-pdf-block="itemsTable.colName">Producto</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th>${ivaHeadCells(input)}<th class="amt" data-pdf-block="itemsTable.colAmount">Importe total</th></tr>`
           : '<tr><th class="code" data-pdf-block="itemsTable.colCode">Cód.</th><th class="name" data-pdf-block="itemsTable.colName">Artículo</th><th class="qty" data-pdf-block="itemsTable.colQty">Cant.</th><th class="amt" data-pdf-block="itemsTable.colAmount">Importe</th></tr>'
       }
     </thead>
@@ -1382,6 +1458,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
  * No lleva armado, demora, línea de PC armada, financiación, observaciones, RMA ni textos de la tienda.
  */
 export function renderQuoteFormalHtml(input: PdfRenderInput): string {
+  const quick = resolveQuickOptions(input);
   const date = formatDateAr(input.date);
   const navy = '#14284b';
   const blue = '#1d4ed8';
@@ -1419,11 +1496,11 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
     .filter((item) => !item.isMainLine)
     .map(
       (item) =>
-        `<tr><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td>${ivaCells(item, input)}<td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`,
+        `<tr><td class="name">${escapeHtml(itemDisplayName(item.name))}</td><td class="qty">${item.quantity}</td>${ivaCells(item, input)}<td class="amt">${formatArsFromCents(item.subtotalCents)}${itemInstallmentsHtml(item, input)}</td></tr>`,
     )
     .join('');
   const chequeRow =
-    input.chequeTotalCents != null
+    input.chequeTotalCents != null && quick.showCashTransfer
       ? `<div class="row cheque"><span class="lbl">Cheque a 30 días</span><span class="val">${formatArsFromCents(input.chequeTotalCents)}</span></div>`
       : '';
 
@@ -1501,16 +1578,20 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
 
   <table class="items">
     <thead>
-      <tr><th class="name">Producto</th><th class="qty">Cant.</th>${ivaHeadCells()}<th class="amt">Importe total</th></tr>
+      <tr><th class="name">Producto</th><th class="qty">Cant.</th>${ivaHeadCells(input)}<th class="amt">Importe total</th></tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
 
-  <section class="totals">
-    <div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>
-    <div class="row cash"><span class="lbl">${CASH_LABEL}</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>
+  ${
+    quick.showTotal || quick.showCashTransfer
+      ? `<section class="totals">
+    ${quick.showTotal ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
+    ${quick.showCashTransfer ? `<div class="row cash"><span class="lbl">${CASH_LABEL}</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
     ${chequeRow}
-  </section>
+  </section>`
+      : ''
+  }
   ${referenceImageHtml(input)}
 </body>
 </html>`;
