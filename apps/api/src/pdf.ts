@@ -131,36 +131,18 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
   let items: PdfItem[];
 
   if (family.isBuiltPc) {
-    // PC armada: una línea principal con el total + componentes debajo.
-    // No dependemos de isPcMainLine en DB (casi nunca se setea desde el editor).
-    const totalSale = version.totalSaleCents as bigint;
-    const mainName = [
-      config.builtPcTitle || 'Presupuesto de PC Armada',
-      config.builtPcDescription || null,
-    ]
-      .filter(Boolean)
-      .join(' — ');
-    items = [
-      {
-        code: '001',
-        name: mainName,
-        quantity: 1,
-        unitCents: totalSale,
-        subtotalCents: totalSale,
-        isMainLine: true,
-        isComponent: false,
-      },
-      ...rawItems.map((item: any, index: number) => ({
-        code: String(index + 2).padStart(3, '0'),
-        name: item.frozenName,
-        quantity: item.quantity,
-        unitCents: item.frozenSalePriceCents,
-        subtotalCents: item.subtotalCents,
-        ivaBps: item.ivaBps ?? null,
-        isMainLine: false,
-        isComponent: true,
-      })),
-    ];
+    // PC armada: solo los componentes, cada uno con su precio; el total sale en los totales del PDF.
+    // Ya no se arma la línea "Presupuesto Armado TheGamerShop…".
+    items = rawItems.map((item: any, index: number) => ({
+      code: String(index + 1).padStart(3, '0'),
+      name: item.frozenName,
+      quantity: item.quantity,
+      unitCents: item.frozenSalePriceCents,
+      subtotalCents: item.subtotalCents,
+      ivaBps: item.ivaBps ?? null,
+      isMainLine: false,
+      isComponent: true,
+    }));
   } else {
     items = rawItems.map((item: any, index: number) => ({
       code: String(index + 1).padStart(3, '0'),

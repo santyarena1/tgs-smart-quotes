@@ -709,15 +709,17 @@ function ivaLabelOf(ivaBps: number): string {
 
 function buildItemsRows(input: PdfRenderInput): string {
   // DETALLADO: siempre precios por ítem.
-  // SIMPLE: solo la línea principal de PC armada lleva importe; el resto va sin precio
-  // individual (componentes o ítems de presupuesto normal).
+  // SIMPLE: en una PC armada cada componente lleva su importe; en un presupuesto normal
+  // los ítems van sin precio individual.
   const showRowPrice = (item: PdfItem): boolean => {
     if (input.kind === 'DETALLADO') return true;
-    if (input.isBuiltPc) return Boolean(item.isMainLine);
+    // PC armada: cada componente lleva su precio (la línea "Presupuesto de PC Armada…" ya no se muestra).
+    if (input.isBuiltPc) return true;
     return false;
   };
 
   return input.items
+    .filter((item) => !(input.isBuiltPc && item.isMainLine))
     .map((item, index) => {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(itemDisplayName(item.name));
@@ -1030,10 +1032,12 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
 function buildItemsRowsModerno(input: PdfRenderInput): string {
   const showRowPrice = (item: PdfItem): boolean => {
     if (input.kind === 'DETALLADO') return true;
-    if (input.isBuiltPc) return Boolean(item.isMainLine);
+    // PC armada: cada componente lleva su precio (la línea "Presupuesto de PC Armada…" ya no se muestra).
+    if (input.isBuiltPc) return true;
     return false;
   };
   return input.items
+    .filter((item) => !(input.isBuiltPc && item.isMainLine))
     .map((item, index) => {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(itemDisplayName(item.name));
