@@ -1144,15 +1144,11 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string[]; stack?: boolean; big?: boolean; top?: boolean } = {}) =>
     `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i ? ' note' : ''}">${line}</div>`).join('')}</div>`;
 
-  const parts: string[] = [];
-  if (input.config.showFinancingNote) {
-    parts.push(
-      `<p class="fin-note">Cuotas: los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</p>`,
-    );
-  }
+  // Cuotas compactas: las tarjetas van lado a lado en una sola fila y el dólar + la aclaración en una línea al pie.
+  const cards: string[] = [];
   if (input.config.showOtherBanks) {
     // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
-    parts.push(
+    cards.push(
       brandBlock('free', 'Cuotas sin interés con cualquier banco', '', [3, 6].map((n) => tile(n, 'cuotas<small>sin interés</small>', money(base(n)))), {
         top: true,
         foot: [escapeHtml('Pagos presenciales o por link de pago/QR')],
@@ -1164,18 +1160,18 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     const foot = ['3 o 6 cuotas sin interés - Super precio BBVA'].map(escapeHtml);
     // Las fechas del BBVA (días y horarios) van dentro del bloque.
     if (input.financingBbvaNote) foot.push(renderRmaText(input.financingBbvaNote, ''));
-    if (tiles.length) parts.push(brandBlock('bbva', 'Cuotas exclusivas para clientes BBVA', '', tiles, { foot, top: true }));
+    if (tiles.length) cards.push(brandBlock('bbva', 'Cuotas exclusivas para clientes BBVA', '', tiles, { foot, top: true }));
   }
-  // GoCuotas y dólares: bloques distintos en la misma fila.
-  const goBlock = go.length
-    ? brandBlock('go', 'GoCuotas', '', go.map((plan) => tile(plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', money(plan))), { stack: true })
-    : '';
-  const usdBlock = brandBlock('usd', 'DOLAR USD', '', [], {
-    stack: true,
-    foot: [escapeHtml('Podes abonar en dolares a la cotizacion del dia, ya sea en efectivo o por transferencia')],
-  });
-  parts.push(`<div class="fin-row">${goBlock}${usdBlock}</div>`);
-  if (!parts.length) return '';
+  if (go.length) {
+    cards.push(brandBlock('go', 'GoCuotas', '', go.map((plan) => tile(plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', money(plan))), { top: true }));
+  }
+  const parts: string[] = [];
+  if (cards.length) parts.push(`<div class="fin-row cols-${cards.length}">${cards.join('')}</div>`);
+  const footNotes = [
+    `<span class="fin-usd"><b>DOLAR USD</b> · ${escapeHtml('Podes abonar en dolares a la cotizacion del dia, ya sea en efectivo o por transferencia')}</span>`,
+    input.config.showFinancingNote ? '<span>Cuotas: los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el de efectivo/transferencia.</span>' : '',
+  ].filter(Boolean);
+  parts.push(`<div class="fin-foot">${footNotes.join('')}</div>`);
   return parts.join('');
 }
 
@@ -1323,11 +1319,22 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .rma-note b.imp { color: ${accent}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.8px; margin-right: 3px; }
   .flow-note { border-left: 3px solid #cfcfcf; background: #fafafa; border-radius: 0 5px 5px 0; padding: 6px 11px; color: #555; line-height: 1.5; }
   .flow-note b.lead { color: #222; }
-  .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
-  .fin-row .fin-brand.stack { display: block; margin: 4px 0; }
-  .fin-row .fb-title { min-width: 0; }
-  .fin-row .fin-brand.stack .fb-foot { margin-left: 0; }
-  .fin-row .tiles { margin-top: 1px; }
+  .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; margin: 6px 0 0; }
+  .fin-row.cols-1 { grid-template-columns: 1fr; }
+  .fin-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .fin-row .fin-brand { margin: 0; padding: 6px 10px; display: block; }
+  .fin-row .fb-title { font-size: 9.2px; margin-bottom: 3px; min-width: 0; }
+  .fin-row .tiles { flex-wrap: nowrap; }
+  .fin-row .tile { padding: 0 12px; gap: 4px; }
+  .fin-row .tile:first-child { padding-left: 0; }
+  .fin-row .tile .t-n { font-size: 14px; }
+  .fin-row .tile .t-amt { font-size: 13px; margin-left: 3px; }
+  .fin-row .tile .t-u { font-size: 7.8px; }
+  .fin-row .tile .t-u small { font-size: 6.8px; }
+  .fin-row .fb-foot { margin-left: 0; font-size: 8.2px; line-height: 1.35; margin-top: 3px; }
+  .fin-foot { display: grid; gap: 2px; margin: 6px 0 4px; font-size: 8.6px; color: #777; }
+  .fin-foot .fin-usd { color: #15803d; font-weight: 600; }
+  .fin-foot .fin-usd b { font-weight: 800; letter-spacing: 0.04em; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
   table.fin td { padding: 5px 8px; border-bottom: 1px solid #eeeeee; vertical-align: middle; font-size: 10.7px; }
   table.fin tr:last-child td { border-bottom: none; }

@@ -535,14 +535,14 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('Cuotas exclusivas para clientes BBVA');
     expect(html).not.toContain('Descuento exclusivo para clientes BBVA');
     expect(html).not.toContain('<span class="t-u">pago</span>');
-    const bbvaBlock = html.split('--bc:#1d4ed8')[1]!.split('<div class="fin-row">')[0]!;
+    const bbvaBlock = html.split('--bc:#1d4ed8')[1]!.split('--bc:#d6247f')[0]!;
     expect(bbvaBlock.match(/class="tile"/g)).toHaveLength(2);
     // 8 % sobre el efectivo (994.500): 3 cuotas de 358.020 y 6 de 179.010.
     expect(bbvaBlock).toContain('358.020');
     expect(bbvaBlock).toContain('179.010');
     expect(bbvaBlock).toContain('3 o 6 cuotas sin interés - Super precio BBVA');
     expect(bbvaBlock).toContain('Viernes y sábados.');
-    expect(html).toContain('class="fin-row"');
+    expect(html).toContain('class="fin-row cols-3"');
     expect(html).toContain('DOLAR USD');
     expect(html).toContain('Podes abonar en dolares a la cotizacion del dia, ya sea en efectivo o por transferencia');
     expect(html).not.toContain('MercadoPago');
