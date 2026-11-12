@@ -149,3 +149,7 @@ export function pickNodoMatch<T extends NodoCandidate>(web: { name: string; sku:
   best.sort((a, b) => Number(b.inStock) - Number(a.inStock) || Number(BigInt(a.costIvaCents) - BigInt(b.costIvaCents)));
   return best[0] ?? null;
 }
+
+const WIFI_RE = /wi-?fi|wlan|wireless|inal[aá]mbric|\bax\d{3}\b|\bbe\d{3}\b/i;
+/** La PC ya trae WiFi (placa madre con WiFi, placa WiFi, adaptador): no se ofrece el agregado. */
+export const hasWifi = (items: ComponentLike[]) => items.some((i) => WIFI_RE.test(i.name) && !/^\s*placa wifi pcie/i.test(i.name));

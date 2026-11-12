@@ -41,7 +41,7 @@ import type {
   TimelineEvent,
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
-import { isExtraLine, pickNodoMatch, pickWebMatch, searchQueries, webQuoteExtras, wifiCents, WIFI_NAME, type FixedLines } from "../lib/web-quote";
+import { isExtraLine, pickNodoMatch, pickWebMatch, hasWifi, searchQueries, webQuoteExtras, wifiCents, WIFI_NAME, type FixedLines } from "../lib/web-quote";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
 import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
@@ -2147,12 +2147,11 @@ export function QuotesView({
       ];
       const webItems = [...priced, ...extraItems];
       // La placa WiFi PCIe es un agregado: no suma al total, se informa en las observaciones del PDF.
-      const wifiNote = webFixed.wifi
+      const wifiNote = webFixed.wifi && !hasWifi(priced)
         ? `Agregado opcional (no incluido en el total): ${WIFI_NAME} - ${formatArs(wifiCents(priced).toString())}.`
         : "";
       const keepObservation = source ? "" : observation.trim();
       const webObservation = [keepObservation, wifiNote].filter(Boolean).join("\n");
-      const webItems = [...priced, ...extraItems];
       const suffix =
         (noWeb.length ? ` No encontré en la web (se dejó el precio cargado): ${noWeb.join("; ")}.` : "") +
         (noNodo.length ? ` Sin costo en NODO (costo = precio web): ${noNodo.join("; ")}.` : "");
