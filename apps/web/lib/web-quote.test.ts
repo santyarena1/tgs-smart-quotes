@@ -6,6 +6,7 @@ import {
   assemblyCents,
   isExtraLine,
   wifiCents,
+  hasWifi,
   WIFI_BASIC_CENTS,
   WIFI_OTHER_CENTS,
   matchScore,
@@ -106,5 +107,15 @@ describe('costos de líneas fijas y placa WiFi',()=>{
   it('WiFi: $18.200 en la básica, $47.400 en las demás',()=>{
     expect(wifiCents(names('Ryzen 5 5600G'))).toBe(WIFI_BASIC_CENTS);
     expect(wifiCents(names('Ryzen 5 5600','RTX 4060'))).toBe(WIFI_OTHER_CENTS);
+  });
+});
+
+describe('WiFi ya incluido',()=>{
+  it('detecta una placa madre con WiFi u otro adaptador',()=>{
+    expect(hasWifi(names('Mother ASUS B650M-A WIFI','Ryzen 5 7600'))).toBe(true);
+    expect(hasWifi(names('Placa de red inalámbrica TP-Link AX3000'))).toBe(true);
+  });
+  it('sin WiFi en los componentes no lo detecta',()=>{
+    expect(hasWifi(names('Mother ASUS A520M','Ryzen 5 5600G'))).toBe(false);
   });
 });
