@@ -2905,6 +2905,11 @@ export function QuotesView({
               ) : null}
             </span>
             <span className="spacer" />
+            {detail ? (
+              <button type="button" className="btn-ghost" disabled={busy || webBusy} onClick={() => void duplicateQuote()} title="Crea un presupuesto nuevo con los mismos productos y precios">
+                Duplicar
+              </button>
+            ) : null}
             <button type="button" className="btn-ghost" onClick={() => setDrawerOpen(false)}>
               Cerrar
             </button>
