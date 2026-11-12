@@ -12,7 +12,7 @@ export const WINDOWS_LICENSE_CENTS = 6_500_000n;
 /** Garantía extendida TGS: 7 % del total de los componentes (sin armado ni licencias). */
 export const EXTENDED_WARRANTY_BPS = 700n;
 
-export const ASSEMBLY_NAME = "ARMADO Y TESTEO DE PC";
+export const ASSEMBLY_NAME = "ARMADO DE PC, CONFIGURACION Y PRUEBAS DE RENDIMIENTO";
 export const WARRANTY_NAME = "GARANTÍA EXTENDIDA TGS";
 export const WINDOWS_NAME = "LICENCIA WINDOWS 11 PRO";
 
@@ -126,28 +126,6 @@ export function pickWebMatch<T extends WebCandidate>(itemName: string, candidate
     if (!best || score > best.score || (score === best.score && BigInt(c.priceCents) < BigInt(best.c.priceCents))) best = { c, score };
   }
   return best?.c ?? null;
-}
-
-/* ————— costo desde NODO ————— */
-
-export type NodoCandidate = { name: string; sku: string | null; costIvaCents: string; inStock: boolean };
-
-const skuKey = (sku: string | null | undefined) => normalize(sku ?? "").replace(/ /g, "");
-
-/**
- * La oferta de NODO que corresponde a un producto de la tienda: mismo SKU, o el mismo modelo por nombre.
- * Entre las que coinciden (mejor puntaje) prefiere las que tienen stock y, a igualdad, la de menor costo.
- */
-export function pickNodoMatch<T extends NodoCandidate>(web: { name: string; sku: string | null }, candidates: T[]): T | null {
-  const webSku = skuKey(web.sku);
-  const scored = candidates
-    .map((c) => ({ c, score: webSku && skuKey(c.sku) === webSku ? 1 : matchScore(web.name, c) }))
-    .filter((x) => x.score >= MIN_SCORE);
-  if (scored.length === 0) return null;
-  const top = Math.max(...scored.map((x) => x.score));
-  const best = scored.filter((x) => x.score >= top - 0.001).map((x) => x.c);
-  best.sort((a, b) => Number(b.inStock) - Number(a.inStock) || Number(BigInt(a.costIvaCents) - BigInt(b.costIvaCents)));
-  return best[0] ?? null;
 }
 
 const WIFI_RE = /wi-?fi|wlan|wireless|inal[aá]mbric|\bax\d{3}\b|\bbe\d{3}\b/i;

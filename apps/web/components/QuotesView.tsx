@@ -41,7 +41,7 @@ import type {
   TimelineEvent,
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
-import { isExtraLine, pickNodoMatch, pickWebMatch, hasWifi, searchQueries, webQuoteExtras, wifiCents, WIFI_NAME, type FixedLines } from "../lib/web-quote";
+import { isExtraLine, pickWebMatch, hasWifi, searchQueries, webQuoteExtras, wifiCents, WIFI_NAME, type FixedLines } from "../lib/web-quote";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
 import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
@@ -2059,8 +2059,9 @@ export function QuotesView({
 
   /**
    * Presupuesto Web: cada componente pasa al precio final de thegamershop.com.ar (si el producto está en la tienda)
-   * con su costo de NODO, y se suman las líneas FIJAS tildadas (armado según complejidad, garantía extendida TGS
-   * 7 % de los componentes, Windows 11 Pro) y los ítems libres. Lo que no se encuentra conserva el precio cargado y se avisa.
+   * y se suman las líneas FIJAS tildadas (armado según complejidad, garantía extendida TGS 7 % de los componentes,
+   * Windows 11 Pro) y los ítems libres. La búsqueda en la web va en paralelo para que sea rápida; lo que no se
+   * encuentra conserva el precio cargado y se avisa.
    */
   async function createWebQuote() {
     if (busy || webBusy) return;
@@ -2086,10 +2087,7 @@ export function QuotesView({
         }
       }
       const noWeb: string[] = [];
-      const noNodo: string[] = [];
-      const priced: ItemDraft[] = [];
-      // De a uno: son pocos productos y así no se dispara el límite de pedidos.
-      for (const item of components) {
+      const priced = await Promise.all(components.map(async (item): Promise<ItemDraft> => {
         let match: WebResult | null = null;
         for (const q of searchQueries(item.name)) {
           const found = await api<{ items: WebResult[] }>("/web-products/search", { query: { q } }).catch(() => ({ items: [] as WebResult[] }));
@@ -2098,41 +2096,22 @@ export function QuotesView({
         }
         if (!match) {
           noWeb.push(item.name.trim());
-          priced.push(item);
-          continue;
+          return item;
         }
-        // Costo: el de NODO para ese mismo producto (por SKU o por modelo).
-        let offer: NodoResult | null = null;
-        for (const q of [match.sku, ...searchQueries(match.name)]) {
-          if (!q) continue;
-          const found = await api<{ items: NodoResult[] }>("/nodo/search", { query: { q } }).catch(() => ({ items: [] as NodoResult[] }));
-          offer = pickNodoMatch(match, found.items);
-          if (offer) break;
-        }
-        const salePrice = centsToInput(match.priceCents);
+        const price = centsToInput(match.priceCents);
         // Sin productId: el precio de la tienda no debe pisar el costo del producto en la base.
-        const drafted: ItemDraft = {
+        return {
           ...item,
           productId: "",
           name: match.name.toLocaleUpperCase("es-AR"),
+          costArs: price,
+          saleArs: price,
+          markupPct: "0",
+          priceMode: "markup",
           source: { label: "Web", color: WEB_COLOR },
           imageUrl: match.imageUrl ?? item.imageUrl ?? null,
         };
-        if (offer) {
-          const costArs = centsToInput(offer.costIvaCents);
-          priced.push({
-            ...drafted,
-            costArs,
-            saleArs: salePrice,
-            markupPct: pctFromCostAndSale(costArs, salePrice),
-            priceMode: "sale",
-            ...(offer.ivaBps != null ? { ivaPct: ivaPctFromBps(offer.ivaBps), ivaAuto: false } : {}),
-          });
-        } else {
-          noNodo.push(match.name);
-          priced.push({ ...drafted, costArs: salePrice, saleArs: salePrice, markupPct: "0", priceMode: "markup" });
-        }
-      }
+      }));
       const extras = webQuoteExtras(priced.map((i) => ({
         name: i.name,
         totalCents: BigInt(parseArsToCents(i.saleArs)) * BigInt(Number(i.quantity) || 1),
@@ -2146,23 +2125,17 @@ export function QuotesView({
         ...freeRows.map((f) => lineItem(f.name.trim().toLocaleUpperCase("es-AR"), f.priceArs)),
       ];
       const webItems = [...priced, ...extraItems];
-      // La placa WiFi PCIe es un agregado: no suma al total, se informa en las observaciones del PDF.
-      const wifiNote = webFixed.wifi && !hasWifi(priced)
-        ? `Agregado opcional (no incluido en el total): ${WIFI_NAME} - ${formatArs(wifiCents(priced).toString())}.`
-        : "";
-      const keepObservation = source ? "" : observation.trim();
-      const webObservation = [keepObservation, wifiNote].filter(Boolean).join("\n");
-      const suffix =
-        (noWeb.length ? ` No encontré en la web (se dejó el precio cargado): ${noWeb.join("; ")}.` : "") +
-        (noNodo.length ? ` Sin costo en NODO (costo = precio web): ${noNodo.join("; ")}.` : "");
+      // La placa WiFi PCIe es un agregado: no suma al total, el PDF la muestra chica bajo el total efectivo / transferencia.
+      const wifiAddon = webFixed.wifi && !hasWifi(priced)
+        ? { name: WIFI_NAME, priceCents: wifiCents(priced).toString() }
+        : null;
+      const suffix = noWeb.length ? ` No encontré en la web (se dejó el precio cargado): ${noWeb.join("; ")}.` : "";
       setWebOpen(false);
       if (source) {
         // Desde la vista previa de otro presupuesto: queda como uno nuevo, sin heredar solicitud ni colecciones.
-        await createQuote(null, { kind: "SIMPLE", items: webItems, isBuiltPc: true, noticeSuffix: suffix, observation: webObservation, customerId: source.customerId, customerName: source.name, requestId: "", collectionIds: [], detached: true });
+        await createQuote(null, { kind: "SIMPLE", items: webItems, isBuiltPc: true, noticeSuffix: suffix, wifiAddon, customerId: source.customerId, customerName: source.name, requestId: "", collectionIds: [], detached: true, keepEditor: true });
       } else {
-        setItems(webItems);
-        setIsBuiltPc(true);
-        await createQuote(null, { kind: "SIMPLE", items: webItems, isBuiltPc: true, noticeSuffix: suffix, observation: webObservation, ...(detail ? { requestId: "", collectionIds: [] } : {}) });
+        await createQuote(null, { kind: "SIMPLE", items: webItems, isBuiltPc: true, noticeSuffix: suffix, wifiAddon, keepEditor: true, ...(detail ? { requestId: "", collectionIds: [] } : {}) });
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -2171,7 +2144,7 @@ export function QuotesView({
     }
   }
 
-  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }) {
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; keepEditor?: boolean; wifiAddon?: { name: string; priceCents: string } | null }) {
     e?.preventDefault();
     const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
     const effectiveCustomerId = opts?.customerId ?? customerId;
@@ -2201,7 +2174,8 @@ export function QuotesView({
           requestId: quoteRequestId || null,
           isBuiltPc: quoteIsBuiltPc,
           kind: opts?.detached ? "PC" : isCombo ? "COMBO" : "PC",
-          publicObservation: (opts?.observation ?? (opts?.detached ? "" : observation.trim())) || null,
+          publicObservation: (opts?.detached ? "" : observation.trim()) || null,
+          resolvedPdfConfig: opts?.wifiAddon ? { wifiAddon: opts.wifiAddon } : {},
           tradeIns: opts?.detached ? null : tradeInsPayload(),
           collectionIds: quoteCollectionIds,
           items: itemsToPayload(quoteItems),
@@ -2209,8 +2183,9 @@ export function QuotesView({
       });
       const refNote = created.id && !opts?.detached ? await persistReferenceImage(created.id) : "";
       teachIva(filledItems(quoteItems).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
-      if (editorDraftKey) removeQuoteDraft(editorDraftKey);
-      setDraftRecovered(false);
+      // Presupuesto Web: el editor queda como estaba (los extras no se cargan como ítems ahí).
+      if (editorDraftKey && !opts?.keepEditor) removeQuoteDraft(editorDraftKey);
+      if (!opts?.keepEditor) setDraftRecovered(false);
       setNotice(
         (refNote ? `Presupuesto creado.${refNote}` : quoteRequestId
           ? "Presupuesto creado y solicitud marcada como Lista."
@@ -2219,8 +2194,10 @@ export function QuotesView({
             : "Presupuesto creado.") + (opts?.noticeSuffix ?? ""),
       );
       if (created.id) {
-        applyDetail(created, false);
-        setSelectedId(created.id);
+        if (!opts?.keepEditor) {
+          applyDetail(created, false);
+          setSelectedId(created.id);
+        }
         setList((current) => [created, ...current.filter((row) => row.id !== created.id)]);
         await api(`/quotes/${created.id}/pdf`, {
           method: "POST",
@@ -2229,7 +2206,7 @@ export function QuotesView({
         if (opts) await downloadAuthenticated(`/quotes/${created.id}/pdf/${pdfKind}`, `${created.visibleNumber}-${pdfKind}.pdf`);
         else if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
         else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
-        void loadSideData(created.id);
+        if (!opts?.keepEditor) void loadSideData(created.id);
       }
     } catch (err) {
       pdfTab?.close();
@@ -4337,33 +4314,44 @@ export function QuotesView({
           </>
         }
       >
-        <p>
-          Cada componente pasa al precio final de thegamershop.com.ar con su costo de NODO. Tildá las líneas fijas que querés sumar:
+        <p className="web-intro">
+          Cada componente se actualiza al precio final de thegamershop.com.ar. Elegí qué se suma al presupuesto:
         </p>
-        <div className="form-grid">
-          <label className="check-row">
+        <div className="web-opts">
+          <label className="web-opt">
             <input type="checkbox" checked={webFixed.assembly} onChange={(e) => setWebFixed((f) => ({ ...f, assembly: e.target.checked }))} />
-            <span>Armado ($ 45.000 básico · $ 75.000 con placa de video · $ 90.000 con placa de video + refrigeración líquida)</span>
+            <span className="web-opt-body">
+              <strong>Armado de PC, configuración y pruebas de rendimiento</strong>
+              <small>$ 45.000 básica · $ 75.000 con placa de video · $ 90.000 con placa de video y refrigeración líquida</small>
+            </span>
           </label>
-          <label className="check-row">
-            <input type="checkbox" checked={webFixed.warranty} onChange={(e) => setWebFixed((f) => ({ ...f, warranty: e.target.checked }))} />
-            <span>Garantía extendida TGS (7 % del total de los componentes, sin armado ni licencias)</span>
-          </label>
-          <label className="check-row">
+          <label className="web-opt">
             <input type="checkbox" checked={webFixed.windows} onChange={(e) => setWebFixed((f) => ({ ...f, windows: e.target.checked }))} />
-            <span>Licencia Windows 11 Pro ($ 65.000, costo $ 8.500)</span>
+            <span className="web-opt-body">
+              <strong>Licencia Windows 11 Pro</strong>
+              <small>$ 65.000 · suma al total</small>
+            </span>
           </label>
-          <label className="check-row">
+          <label className="web-opt">
+            <input type="checkbox" checked={webFixed.warranty} onChange={(e) => setWebFixed((f) => ({ ...f, warranty: e.target.checked }))} />
+            <span className="web-opt-body">
+              <strong>Garantía extendida TGS</strong>
+              <small>7 % del total de los componentes (sin armado ni licencia) · suma al total</small>
+            </span>
+          </label>
+          <label className="web-opt">
             <input type="checkbox" checked={webFixed.wifi} onChange={(e) => setWebFixed((f) => ({ ...f, wifi: e.target.checked }))} />
-            <span>Agregar placa WiFi PCIe como opcional ($ 18.200 en la PC básica, $ 47.400 en las demás). No suma al total: sale en las observaciones del PDF</span>
+            <span className="web-opt-body">
+              <strong>Placa WiFi PCIe (opcional)</strong>
+              <small>$ 18.200 en la PC básica · $ 47.400 en las demás · no suma al total, sale chica debajo del precio. Se omite si la PC ya trae WiFi</small>
+            </span>
           </label>
         </div>
-        <h4 style={{ margin: "1rem 0 0.4rem" }}>Ítems libres</h4>
+        <h4 className="web-sub">Ítems libres</h4>
         {webFree.map((f) => (
-          <div key={f.key} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+          <div key={f.key} className="web-free">
             <input
-              style={{ flex: 1 }}
-              placeholder="Descripción (ej. Cable HDMI, Mouse pad)"
+              placeholder="Descripción (ej. Cable HDMI)"
               value={f.name}
               onChange={(e) => setWebFree((cur) => cur.map((x) => (x.key === f.key ? { ...x, name: e.target.value } : x)))}
             />

@@ -10,7 +10,6 @@ import {
   WIFI_BASIC_CENTS,
   WIFI_OTHER_CENTS,
   matchScore,
-  pickNodoMatch,
   pickWebMatch,
   searchQueries,
   warrantyCents,
@@ -37,7 +36,7 @@ describe('armado según complejidad',()=>{
 describe('garantía extendida y extras',()=>{
   it('7 % del total de componentes, sin armado ni licencias',()=>{
     const extras=webQuoteExtras([{name:'Ryzen 5 5600G',totalCents:20_000_000n},{name:'Mother A520M',totalCents:10_000_000n}]);
-    expect(extras.map((e)=>e.name)).toEqual(['ARMADO Y TESTEO DE PC','GARANTÍA EXTENDIDA TGS','LICENCIA WINDOWS 11 PRO']);
+    expect(extras.map((e)=>e.name)).toEqual(['ARMADO DE PC, CONFIGURACION Y PRUEBAS DE RENDIMIENTO','GARANTÍA EXTENDIDA TGS','LICENCIA WINDOWS 11 PRO']);
     expect(extras[0]!.priceCents).toBe(4_500_000n);
     expect(extras[1]!.priceCents).toBe(2_100_000n);
     expect(extras[2]!.priceCents).toBe(6_500_000n);
@@ -73,24 +72,6 @@ describe('matching con la tienda',()=>{
   });
 });
 
-describe('costo desde NODO',()=>{
-  const web={name:'Procesador AMD Ryzen 5 5600X 4.6GHz AM4',sku:'100-100000065BOX'};
-  const offers=[
-    {name:'AMD Ryzen 5 5600X AM4 Box',sku:'100-100000065BOX',costIvaCents:'20000000',inStock:false},
-    {name:'CPU AMD Ryzen 5 5600X AM4',sku:null,costIvaCents:'21000000',inStock:true},
-    {name:'CPU AMD Ryzen 5 5600X AM4 Tray',sku:null,costIvaCents:'19000000',inStock:true},
-    {name:'AMD Ryzen 5 5600 AM4',sku:null,costIvaCents:'15000000',inStock:true},
-  ];
-  it('el mismo SKU manda, aunque no tenga stock',()=>{
-    expect(pickNodoMatch(web,offers)?.costIvaCents).toBe('20000000');
-  });
-  it('sin SKU: con stock y más barata, y nunca otro modelo',()=>{
-    expect(pickNodoMatch({name:web.name,sku:null},offers.slice(1))?.costIvaCents).toBe('19000000');
-  });
-  it('sin coincidencia devuelve null',()=>{
-    expect(pickNodoMatch({name:'Gabinete Corsair 4000D',sku:null},offers)).toBeNull();
-  });
-});
 
 describe('líneas fijas destildables',()=>{
   it('solo agrega las tildadas y la garantía sigue siendo el 7 % de los componentes',()=>{

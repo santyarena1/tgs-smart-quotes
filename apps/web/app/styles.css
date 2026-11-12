@@ -4154,3 +4154,13 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .btn-web:focus-visible { outline-color: #dc2626; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .check-row input { margin-top: 3px; }
+.web-intro { margin: 0 0 12px; color: var(--ink-2, #334155); }
+.web-opts { display: grid; gap: 8px; }
+.web-opt { display: grid; grid-template-columns: 22px 1fr; column-gap: 12px; align-items: start; padding: 10px 12px; border: 1px solid var(--line, #e2e8f0); border-radius: 10px; cursor: pointer; }
+.web-opt:hover { border-color: #dc2626; background: color-mix(in srgb, #dc2626 4%, transparent); }
+.web-opt input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; accent-color: #dc2626; }
+.web-opt-body { display: grid; gap: 3px; }
+.web-opt-body strong { font-size: 0.95rem; line-height: 1.3; }
+.web-opt-body small { color: var(--muted, #64748b); font-size: 0.82rem; line-height: 1.4; }
+.web-sub { margin: 18px 0 8px; font-size: 0.95rem; }
+.web-free { display: grid; grid-template-columns: 1fr 150px auto; gap: 8px; margin-bottom: 8px; align-items: center; }

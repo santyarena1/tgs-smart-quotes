@@ -477,6 +477,30 @@ describe('@tgs/pdf', () => {
     }
   });
 
+  it('armado primero y destacado; Windows y garantía como añadidos chicos; WiFi bajo el total y antes de las cuotas', () => {
+    const items = [
+      { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
+      { name: 'GARANTÍA EXTENDIDA TGS', quantity: 1, unitCents: 1750000n, subtotalCents: 1750000n, isComponent: true },
+      { name: 'LICENCIA WINDOWS 11 PRO', quantity: 1, unitCents: 6500000n, subtotalCents: 6500000n, isComponent: true },
+      { name: 'ARMADO DE PC, CONFIGURACION Y PRUEBAS DE RENDIMIENTO', quantity: 1, unitCents: 4500000n, subtotalCents: 4500000n, isComponent: true },
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, template, kind: 'SIMPLE', items, wifiAddon: { name: 'PLACA WIFI PCIE', priceCents: 1820000n } });
+      expect(html.indexOf('ARMADO DE PC, CONFIGURACION')).toBeLessThan(html.indexOf('PROCESADOR AMD RYZEN 5'));
+      expect(html).toContain('class="assembly"');
+      // Windows y garantía ya no son filas de la tabla: salen como añadidos, la garantía al final.
+      expect(html).not.toMatch(/<td class="name">(?:<span class="pname">)?(?:GARANTÍA|LICENCIA)/);
+      expect(html.indexOf('+ Licencia Windows 11 Pro')).toBeLessThan(html.indexOf('+ Garantía Extendida TGS'));
+      expect(html).toContain('$ 17.500');
+      expect(html).toContain('$ 65.000');
+      // WiFi: después del total efectivo/transferencia y antes de las cuotas.
+      expect(html).toContain('Agregado opcional (no incluido en el total)');
+      expect(html.indexOf('Agregado opcional')).toBeGreaterThan(html.indexOf('Efectivo / Transferencia'));
+      expect(html.indexOf('Agregado opcional')).toBeLessThan(html.indexOf('BBVA'));
+    }
+    expect(renderQuoteHtml({ ...sample(), isBuiltPc: true, kind: 'SIMPLE', items })).not.toContain('Agregado opcional');
+  });
+
   it('SIMPLE sin PC armada no muestra importes por fila', () => {
     const html = renderQuoteHtml({
       ...sample(),

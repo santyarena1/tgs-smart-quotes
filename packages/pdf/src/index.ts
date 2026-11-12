@@ -203,9 +203,57 @@ export type PdfRenderInput = {
   validUntil?: Date | null;
   /** Nota aclaratoria de BBVA (caja azul) en la plantilla MODERNO. Opcional/editable. */
   financingBbvaNote?: string | null;
+  /** Agregado opcional que NO suma al total (placa WiFi): sale chico debajo del total efectivo / transferencia. */
+  wifiAddon?: { name: string; priceCents: bigint } | null;
 };
 
 export const historicalPdfIsImmutable = true;
+
+const ASSEMBLY_ROW_RE = /^\s*armado\b/i;
+const WARRANTY_ROW_RE = /^\s*garant[ií]a extendida/i;
+const WINDOWS_ROW_RE = /^\s*(licencia\b.*windows|windows\s?11)/i;
+
+/**
+ * Ordena los renglones del presupuesto: el armado va primero y destacado; la licencia de Windows y la garantía
+ * extendida salen de la tabla como añadidos chicos (siguen sumando al total), la garantía al final.
+ */
+function splitItemRows(input: PdfRenderInput): { rows: PdfItem[]; addons: Array<{ label: string; cents: bigint; cls: string }> } {
+  const items = input.items.filter((item) => !(input.isBuiltPc && item.isMainLine));
+  const windows = items.filter((i) => WINDOWS_ROW_RE.test(i.name));
+  const warranty = items.filter((i) => WARRANTY_ROW_RE.test(i.name));
+  const assembly = items.filter((i) => ASSEMBLY_ROW_RE.test(i.name));
+  const rest = items.filter((i) => !windows.includes(i) && !warranty.includes(i) && !assembly.includes(i));
+  return {
+    rows: [...assembly, ...rest],
+    addons: [
+      ...windows.map((i) => ({ label: '+ Licencia Windows 11 Pro', cents: i.subtotalCents, cls: 'windows' })),
+      ...warranty.map((i) => ({ label: '+ Garantía Extendida TGS', cents: i.subtotalCents, cls: 'warranty' })),
+    ],
+  };
+}
+
+const ADDON_CSS = `
+  .addons { margin-top: 5px; }
+  .addons .addon { display: flex; justify-content: space-between; padding: 2px 8px; font-size: 9.6px; color: #8a8a8a; }
+  .addons .addon.windows { color: #0078d4; }
+  .wifi-addon { margin-top: 6px; padding: 3px 8px; font-size: 9.4px; color: #6b7280; border-top: 1px dashed #d1d5db; }
+  .wifi-addon b { color: #374151; }
+  table.items tr.assembly td { font-weight: 800; background: #fdf2f4; border-bottom: 2px solid #800020; }
+  table.items tr.assembly td.name, table.items tr.assembly .pname { font-size: 11.6px; color: #800020; letter-spacing: 0.01em; }
+`;
+
+function buildAddons(input: PdfRenderInput): string {
+  const { addons } = splitItemRows(input);
+  if (addons.length === 0) return '';
+  return `<div class="addons">${addons
+    .map((a) => `<div class="addon ${a.cls}"><span>${escapeHtml(a.label)}</span><span>${formatArsFromCents(a.cents)}</span></div>`)
+    .join('')}</div>`;
+}
+
+function buildWifiAddon(input: PdfRenderInput): string {
+  if (!input.wifiAddon) return '';
+  return `<div class="wifi-addon">Agregado opcional (no incluido en el total): <b>${escapeHtml(input.wifiAddon.name)}</b> · ${formatArsFromCents(input.wifiAddon.priceCents)}</div>`;
+}
 
 export const pdfFileName = (number: string, version: number, kind: PdfKind) =>
   `${number}-V${version}-${kind}.pdf`;
@@ -241,7 +289,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-10-23.1';
+export const PDF_RENDER_VERSION = '2026-11-12.1';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -270,6 +318,7 @@ export function pdfInputHash(input: PdfRenderInput): string {
       subtotalCents: i.subtotalCents.toString(),
     })),
     financing: input.financing,
+    ...(input.wifiAddon ? { wifiAddon: { name: input.wifiAddon.name, priceCents: input.wifiAddon.priceCents.toString() } } : {}),
     ...(input.tradeIns?.items.length
       ? { tradeIns: { showValues: input.tradeIns.showValues, items: input.tradeIns.items.map((i) => ({ name: i.name, valueCents: i.valueCents.toString() })) } }
       : {}),
@@ -718,10 +767,9 @@ function buildItemsRows(input: PdfRenderInput): string {
     return false;
   };
 
-  return input.items
-    .filter((item) => !(input.isBuiltPc && item.isMainLine))
+  return splitItemRows(input).rows
     .map((item, index) => {
-      const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
+      const code = String(index + 1).padStart(3, '0');
       const name = escapeHtml(itemDisplayName(item.name));
       const qty = String(item.quantity);
       const amount = showRowPrice(item)
@@ -729,7 +777,7 @@ function buildItemsRows(input: PdfRenderInput): string {
         : input.kind === 'SIMPLE'
           ? '—'
           : formatArsFromCents(0n);
-      const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      const cls = ASSEMBLY_ROW_RE.test(item.name) ? 'assembly' : item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
         return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}</td></tr>`;
       }
@@ -886,6 +934,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     vertical-align: top;
   }
   table.items tr.main td { font-weight: 700; }
+  ${ADDON_CSS}
   table.items tr.component td.name { padding-left: 18px; color: #333; }
   table.items .code { width: 48px; }
   table.items .qty { width: 48px; text-align: center; }
@@ -989,6 +1038,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
       ${buildItemsRows(input)}
     </tbody>
   </table>
+  ${buildAddons(input)}
 
   <section class="totals">
     ${
@@ -1004,6 +1054,7 @@ export function renderQuoteHtml(input: PdfRenderInput): string {
     ${buildTradeInsTotals(input, 'classic')}
   </section>
 
+  ${buildWifiAddon(input)}
   ${buildFinancing(input)}
 
   ${
@@ -1036,10 +1087,9 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
     if (input.isBuiltPc) return true;
     return false;
   };
-  return input.items
-    .filter((item) => !(input.isBuiltPc && item.isMainLine))
+  return splitItemRows(input).rows
     .map((item, index) => {
-      const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
+      const code = String(index + 1).padStart(3, '0');
       const name = escapeHtml(itemDisplayName(item.name));
       const qty = String(item.quantity);
       // Solo se muestra importe en las filas que corresponde (línea principal en SIMPLE,
@@ -1049,7 +1099,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
         item.isMainLine && input.config.builtPcDescription
           ? `<div class="sub">${escapeHtml(input.config.builtPcDescription)}</div>`
           : '';
-      const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      const cls = ASSEMBLY_ROW_RE.test(item.name) ? 'assembly' : item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
         return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}</td></tr>`;
       }
@@ -1221,6 +1271,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
+  ${ADDON_CSS}
   table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
   table.items .code { width: 50px; }
   table.items td.code { color: #555; }
@@ -1345,6 +1396,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
     </thead>
     <tbody>${buildItemsRowsModerno(input)}</tbody>
   </table>
+  ${buildAddons(input)}
 
   <div class="price-block">
     <section class="totals" data-pdf-block="totalsBlock">
@@ -1352,6 +1404,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
       ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">${CASH_LABEL}</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
       ${buildTradeInsTotals(input, 'modern')}
     </section>
+    ${buildWifiAddon(input)}
     ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
   </div>
 

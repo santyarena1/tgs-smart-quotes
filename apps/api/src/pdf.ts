@@ -71,6 +71,13 @@ function knownBranchAddress(name: string | null | undefined): string | null {
  * `version.createdAt` (no "hoy"): así el hash del PDF es estable mientras el borrador no cambie de
  * contenido, y el número de presupuesto siempre queda fechado según cuándo se creó esa versión.
  */
+/** Placa WiFi opcional del presupuesto web: no es un ítem (no suma); viaja en `resolvedPdfConfig.wifiAddon`. */
+function wifiAddonOf(config: unknown): {name: string; priceCents: bigint} | null {
+  const raw = (config as {wifiAddon?: {name?: unknown; priceCents?: unknown}} | null)?.wifiAddon;
+  if (!raw || typeof raw.name !== "string" || typeof raw.priceCents !== "string" || !/^\d+$/.test(raw.priceCents)) return null;
+  return {name: raw.name, priceCents: BigInt(raw.priceCents)};
+}
+
 /** Hay layout personalizado si tiene overrides por bloque o estilo global del documento. */
 function hasLayoutStyles(value: unknown): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -182,6 +189,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
       ? new Date(version.createdAt.getTime() + pdfSettings.validityDays * 86400000)
       : null,
     financingBbvaNote: pdfSettings.financingBbvaNote ?? null,
+    wifiAddon: wifiAddonOf(version.resolvedPdfConfig),
     isBuiltPc: family.isBuiltPc,
     observation: version.publicObservation,
     ...(tradeIns ? { tradeIns } : {}),
