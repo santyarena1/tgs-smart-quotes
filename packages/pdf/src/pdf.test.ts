@@ -494,11 +494,11 @@ describe('@tgs/pdf', () => {
       expect(html).toContain('$ 17.500');
       expect(html).toContain('$ 65.000');
       // WiFi: después del total efectivo/transferencia y antes de las cuotas.
-      expect(html).toContain('Agregado opcional (no incluido en el total)');
-      expect(html.indexOf('Agregado opcional')).toBeGreaterThan(html.indexOf('Efectivo / Transferencia'));
-      expect(html.indexOf('Agregado opcional')).toBeLessThan(html.indexOf('BBVA'));
+      expect(html).toContain('Agregá una Placa de Wifi PCIe por');
+      expect(html.indexOf('Agregá una Placa de Wifi')).toBeGreaterThan(html.indexOf('Efectivo / Transferencia'));
+      expect(html.indexOf('Agregá una Placa de Wifi')).toBeLessThan(html.indexOf('BBVA'));
     }
-    expect(renderQuoteHtml({ ...sample(), isBuiltPc: true, kind: 'SIMPLE', items })).not.toContain('Agregado opcional');
+    expect(renderQuoteHtml({ ...sample(), isBuiltPc: true, kind: 'SIMPLE', items })).not.toContain('Agregá una Placa de Wifi');
   });
 
   it('SIMPLE sin PC armada no muestra importes por fila', () => {
