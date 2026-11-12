@@ -1319,20 +1319,20 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .rma-note b.imp { color: ${accent}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.8px; margin-right: 3px; }
   .flow-note { border-left: 3px solid #cfcfcf; background: #fafafa; border-radius: 0 5px 5px 0; padding: 6px 11px; color: #555; line-height: 1.5; }
   .flow-note b.lead { color: #222; }
-  .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; margin: 6px 0 0; }
+  .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; margin: 10px 0 0; }
   .fin-row.cols-1 { grid-template-columns: 1fr; }
   .fin-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-  .fin-row .fin-brand { margin: 0; padding: 6px 10px; display: block; }
-  .fin-row .fb-title { font-size: 9.2px; margin-bottom: 3px; min-width: 0; }
-  .fin-row .tiles { flex-wrap: nowrap; }
-  .fin-row .tile { padding: 0 12px; gap: 4px; }
+  .fin-row .fin-brand { margin: 0; padding: 11px 14px; display: block; border-radius: 0 6px 6px 0; }
+  .fin-row .fb-title { font-size: 9.6px; margin-bottom: 8px; min-width: 0; }
+  .fin-row .tiles { flex-wrap: nowrap; gap: 0; }
+  .fin-row .tile { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "n u" "a a"; column-gap: 6px; row-gap: 2px; align-items: baseline; padding: 0 20px; }
   .fin-row .tile:first-child { padding-left: 0; }
-  .fin-row .tile .t-n { font-size: 14px; }
-  .fin-row .tile .t-amt { font-size: 13px; margin-left: 3px; }
-  .fin-row .tile .t-u { font-size: 7.8px; }
-  .fin-row .tile .t-u small { font-size: 6.8px; }
-  .fin-row .fb-foot { margin-left: 0; font-size: 8.2px; line-height: 1.35; margin-top: 3px; }
-  .fin-foot { display: grid; gap: 2px; margin: 6px 0 4px; font-size: 8.6px; color: #777; }
+  .fin-row .tile .t-n { grid-area: n; font-size: 17px; }
+  .fin-row .tile .t-u { grid-area: u; font-size: 8.4px; }
+  .fin-row .tile .t-u small { display: inline; margin: 0 0 0 4px; font-size: 7.4px; }
+  .fin-row .tile .t-amt { grid-area: a; margin: 0; font-size: 17px; }
+  .fin-row .fb-foot { margin-left: 0; font-size: 8.6px; line-height: 1.4; margin-top: 8px; }
+  .fin-foot { display: grid; gap: 4px; margin: 10px 0 6px; font-size: 8.8px; color: #777; }
   .fin-foot .fin-usd { color: #15803d; font-weight: 600; }
   .fin-foot .fin-usd b { font-weight: 800; letter-spacing: 0.04em; }
   table.fin { width: 100%; border-collapse: collapse; margin: 7px 0; border: 1px solid #dedede; }
