@@ -29,6 +29,8 @@ import { suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle } from
 import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind, type PdfQuickOptions } from "./lite-pdf";
 import { PdfOptionsModal } from "./PdfOptionsModal";
+import { isExtraLine } from "../lib/web-quote";
+import { WebQuoteModal, type WebLinePrice, type WebQuoteApply } from "../components/WebQuoteModal";
 
 type Line = {
   key: string;
@@ -384,6 +386,8 @@ export function LiteQuoteCreator() {
   const [active, setActive] = useState(0);
   const [bulkMarkup, setBulkMarkup] = useState("");
   const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
+  const [webOpen, setWebOpen] = useState(false);
+  const [webBusy, setWebBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [waCopy, setWaCopy] = useState<"idle" | "copied" | "error">("idle");
@@ -1074,7 +1078,119 @@ export function LiteQuoteCreator() {
 
   const extras = lines.filter((l) => !l.lineId || !pcLines.some((pc) => pc.id === l.lineId));
 
-  const ready = lines.length > 0 && !busy;
+  const ready = lines.length > 0 && !busy && !webBusy;
+
+  function openWebQuote() {
+    if (busy || webBusy) return;
+    const components = lines.filter((line) => !isExtraLine(line.name));
+    if (components.length === 0) {
+      setError("Agregá al menos un componente al presupuesto.");
+      return;
+    }
+    const invalid = validate(components);
+    if (invalid) { setError(invalid); return; }
+    setError(null);
+    setWebOpen(true);
+  }
+
+  function lineFromPrice(price: WebLinePrice, base?: Line): Line {
+    return {
+      ...(base ?? {
+        key: crypto.randomUUID(),
+        productId: "",
+        lineId: "",
+        name: "",
+        quantity: "1",
+        costArs: "",
+        markupPct: "0",
+        saleArs: "",
+        priceMode: "sale" as const,
+        ivaPct: DEFAULT_IVA_PCT,
+        ivaAuto: true,
+      }),
+      productId: "",
+      name: price.name,
+      costArs: price.costArs,
+      saleArs: price.saleArs,
+      markupPct: price.markupPct,
+      priceMode: "sale",
+      imageUrl: price.imageUrl ?? base?.imageUrl ?? null,
+      source: { label: "Web", color: WEB_COLOR },
+      ...(price.ivaBps != null ? { ivaPct: ivaPctFromBps(price.ivaBps), ivaAuto: false } : {}),
+    };
+  }
+
+  /** Presupuesto nuevo con precios de la tienda. El PDF de este presupuesto muestra el precio de cada componente. */
+  async function applyWebQuote(result: WebQuoteApply): Promise<string | null> {
+    const components = lines.filter((line) => !isExtraLine(line.name));
+    const next = components.map((line, index) => {
+      const price = result.components[index];
+      return price ? lineFromPrice(price, line) : line;
+    });
+    const extras = result.extras.map((price) => lineFromPrice(price));
+    const webLines = [...next, ...extras];
+    const invalid = validate(webLines);
+    if (invalid) return invalid;
+    setWebBusy(true);
+    setError(null);
+    try {
+      const customerName = customers.find((customer) => customer.id === customerId)?.name;
+      const internalName = name.trim() || customerName || webLines[0]!.name;
+      const given = tradeIns.filter((row) => row.name.trim() || row.valueArs.trim());
+      const observation = [editing?.observation?.trim() ?? "", result.wifiNote].filter(Boolean).join("\n") || null;
+      const lineOrder = new Map(pcLines.map((line, index) => [line.id, index]));
+      const ordered = [...webLines].sort((a, b) => (lineOrder.get(a.lineId) ?? 999) - (lineOrder.get(b.lineId) ?? 999));
+      const created = await api<Quote>("/quotes", {
+        method: "POST",
+        body: {
+          internalName,
+          customerId: customerId || null,
+          requestId: null,
+          isBuiltPc: true,
+          kind: "PC",
+          publicObservation: observation,
+          tradeIns: given.length
+            ? { showValues: tradeShowValues, items: given.map((row) => ({ name: row.name.trim(), valueCents: tradeInCents(row).toString() })) }
+            : null,
+          collectionIds: editing ? [] : collectionIds,
+          pdfOverrides: { showComponentPrices: "MOSTRAR" },
+          items: ordered.map((line, position) => ({
+            productId: line.productId || null,
+            name: line.name.trim(),
+            lineId: line.lineId || null,
+            quantity: Number(line.quantity),
+            costCents: parseArsToCents(line.costArs),
+            position,
+            observation: null,
+            ivaBps: ivaBpsFromPct(line.ivaPct),
+            ...itemPricePayload(line),
+          })),
+        },
+      });
+      if (refImage) {
+        try {
+          await api(`/quote-reference-image/${created.id}`, { method: "PUT", body: { image: refImage } });
+        } catch {
+          /* el aviso de abajo alcanza */
+        }
+      }
+      teachIva(ordered.filter((line) => !line.ivaAuto).map((line) => ({ name: line.name.trim(), ivaBps: ivaBpsFromPct(line.ivaPct) })));
+      let pdfNote = "";
+      try {
+        await downloadQuotePdf(created.id, created.visibleNumber, "SIMPLE");
+      } catch (err) {
+        pdfNote = ` El PDF no se pudo descargar: ${errorMessage(err)}.`;
+      }
+      setRefreshKey((key) => key + 1);
+      await startEdit(created);
+      setNotice(`Presupuesto web ${created.visibleNumber} creado.${pdfNote}${result.noticeSuffix}`);
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    } finally {
+      setWebBusy(false);
+    }
+  }
 
   return (
     <div className="lt-grid">
@@ -1414,6 +1530,9 @@ export function LiteQuoteCreator() {
             <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={startDetailed}>
               {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
             </button>
+            <button type="button" className="btn-web" disabled={!ready} onClick={openWebQuote} title="Precios finales de thegamershop.com.ar, costo de NODO, y el PDF con el precio de cada componente">
+              {webBusy ? "Buscando precios web…" : "Crear Presupuesto Web"}
+            </button>
             <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
               {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
             </button>
@@ -1429,6 +1548,14 @@ export function LiteQuoteCreator() {
       ) : null}
 
       <QuoteChatBubble context={chatContext} hasItems={chatContext !== ""} />
+
+      <WebQuoteModal
+        open={webOpen}
+        busy={webBusy}
+        components={lines.filter((line) => !isExtraLine(line.name)).map((line) => ({ name: line.name, quantity: line.quantity, saleArs: line.saleArs }))}
+        onClose={() => { if (!webBusy) setWebOpen(false); }}
+        onConfirm={applyWebQuote}
+      />
 
       <LiteQuoteList
         refreshKey={refreshKey}

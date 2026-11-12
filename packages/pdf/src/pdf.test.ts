@@ -488,7 +488,34 @@ describe('@tgs/pdf', () => {
     expect(renderPdfHtml({ ...base, kind: 'FORMAL' })).toContain('Cheque a 30 días');
   });
 
-  it('PC armada: cada componente muestra su precio y no sale la línea principal', () => {
+  it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {
+    const base = sample();
+    const simple = renderQuoteHtml({ ...base, kind: 'SIMPLE' });
+    const detailed = renderQuoteHtml({ ...base, kind: 'DETALLADO', items: [
+      {
+        name: 'Presupuesto de PC Armada',
+        quantity: 1,
+        unitCents: 114367500n,
+        subtotalCents: 114367500n,
+        isMainLine: true,
+      },
+      {
+        name: 'PROCESADOR AMD RYZEN 5',
+        quantity: 1,
+        unitCents: 25000000n,
+        subtotalCents: 25000000n,
+        isComponent: true,
+      },
+    ]});
+    // En SIMPLE el componente no lleva precio monetario (guión).
+    expect(simple).toContain('—');
+    expect(simple).toContain('$ 1.143.675');
+    // En DETALLADO el componente muestra su importe.
+    expect(detailed).toContain('PROCESADOR AMD RYZEN 5');
+    expect(detailed).toContain('$ 250.000');
+  });
+
+  it('Presupuesto Web: cada componente muestra su precio y no sale la línea principal', () => {
     const items = [
       {
         name: 'LINEA PRINCIPAL DE PRUEBA',
@@ -506,12 +533,10 @@ describe('@tgs/pdf', () => {
       },
     ];
     for (const template of ['CLASICO', 'MODERNO'] as const) {
-      for (const kind of ['SIMPLE', 'DETALLADO'] as const) {
-        const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, template, kind, items });
-        expect(html).toContain('PROCESADOR AMD RYZEN 5');
-        expect(html).toContain('$ 250.000');
-        expect(html).not.toContain('LINEA PRINCIPAL DE PRUEBA');
-      }
+      const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items });
+      expect(html).toContain('PROCESADOR AMD RYZEN 5');
+      expect(html).toContain('$ 250.000');
+      expect(html).not.toContain('LINEA PRINCIPAL DE PRUEBA');
     }
   });
 

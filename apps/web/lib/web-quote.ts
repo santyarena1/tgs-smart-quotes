@@ -28,12 +28,15 @@ export const isExtraLine = (name: string) => EXTRA_RE.test(name);
 export const hasGpu = (items: ComponentLike[]) => items.some((i) => GPU_RE.test(i.name) && !MOTHERBOARD_RE.test(i.name));
 export const hasLiquidCooling = (items: ComponentLike[]) => items.some((i) => LIQUID_RE.test(i.name));
 
-/** Valor del armado: básico, con placa de video, o con placa de video + refrigeración líquida. */
+/**
+ * Valor del armado: $45.000 básico (sin placa de video), $75.000 con placa de video,
+ * $90.000 con placa de video y refrigeración líquida. La líquida sola no sube el armado.
+ */
 export function assemblyCents(items: ComponentLike[]): bigint {
   const gpu = hasGpu(items);
   const liquid = hasLiquidCooling(items);
   if (gpu && liquid) return ASSEMBLY_GPU_LIQUID_CENTS;
-  if (gpu || liquid) return ASSEMBLY_GPU_CENTS;
+  if (gpu) return ASSEMBLY_GPU_CENTS;
   return ASSEMBLY_BASIC_CENTS;
 }
 
@@ -51,9 +54,18 @@ export const WIFI_NAME = "PLACA WIFI PCIE";
 export const WIFI_BASIC_CENTS = 1_820_000n;
 export const WIFI_OTHER_CENTS = 4_740_000n;
 
-/** Precio de la placa WiFi: el de la PC básica (sin placa de video ni refrigeración líquida) o el de las demás. */
+/** Precio de la placa WiFi: $18.200 en la PC básica (sin placa de video ni refrigeración líquida) y $47.400 en las demás. */
 export function wifiCents(items: ComponentLike[]): bigint {
-  return assemblyCents(items) === ASSEMBLY_BASIC_CENTS ? WIFI_BASIC_CENTS : WIFI_OTHER_CENTS;
+  return hasGpu(items) || hasLiquidCooling(items) ? WIFI_OTHER_CENTS : WIFI_BASIC_CENTS;
+}
+
+/** Cantidad entera de un ítem. Rechaza decimales para no perder unidades al pasarlas a centavos. */
+export function quantityUnits(quantity: string): bigint {
+  const raw = quantity.trim();
+  if (!/^\d+$/.test(raw)) throw new Error("Cantidad inválida");
+  const qty = BigInt(raw);
+  if (qty < 1n) throw new Error("Cantidad inválida");
+  return qty;
 }
 
 export type ExtraLine = { name: string; priceCents: bigint; costCents: bigint };
@@ -89,12 +101,18 @@ const normalize = (text: string) =>
     .trim();
 
 function tokens(text: string): string[] {
-  return normalize(text).split(" ").filter((t) => t.length > 1 && !STOP.has(t));
+  return normalize(text)
+    .split(" ")
+    .filter((t) => t.length > 0 && (t.length > 1 || /[a-z]/.test(t)) && !STOP.has(t));
 }
 
-/** Tokens que identifican el modelo (mezclan letras y números: "5600x", "b550m", "rtx", "4060"). */
+/** Capacidad, velocidad o potencia: 16gb, 2tb, 750w, 6000mhz. Tiene que coincidir tal cual. */
 const SPEC_RE = /^\d+(ghz|mhz|hz|gb|tb|mb|w|v|mm|cm|rpm)$/;
+/** Tokens que identifican el modelo (mezclan letras y números: "5600x", "b550m", "4060"). */
 const modelTokens = (list: string[]) => list.filter((t) => /\d/.test(t) && t.length >= 3 && !SPEC_RE.test(t));
+/** Sufijos que cambian el producto: 4060 Ti, 5600X, 7800 XT, 5700G. */
+const VARIANT_RE = /^(ti|super|xt|xtx|gre)$/;
+const variantTokens = (list: string[]) => list.filter((t) => VARIANT_RE.test(t) || (t.length === 1 && /[a-z]/.test(t)));
 
 /** Consultas para la tienda, de la más específica a la más amplia (WooCommerce busca por texto exacto). */
 export function searchQueries(name: string): string[] {
@@ -103,14 +121,25 @@ export function searchQueries(name: string): string[] {
   return [...new Set(out.filter((q) => q.length >= 2))];
 }
 
-/** Puntaje 0..1 de qué tanto se parece un producto de la tienda al ítem; 0 si no es el mismo modelo. */
+/**
+ * Puntaje 0..1 de qué tanto se parece un producto de la tienda al ítem.
+ * 0 si no es el mismo modelo, la misma capacidad o la misma variante (Ti, XT, X, G).
+ */
 export function matchScore(itemName: string, candidate: Pick<WebCandidate, "name" | "sku">): number {
   const item = tokens(itemName);
-  const cand = new Set(tokens(`${candidate.name} ${candidate.sku ?? ""}`));
+  const candName = tokens(candidate.name);
+  const cand = new Set([...candName, ...tokens(candidate.sku ?? "")]);
   if (item.length === 0 || cand.size === 0) return 0;
   const models = modelTokens(item);
   // El modelo manda: si el ítem dice "5600x" y el producto de la tienda no, no es el mismo.
   if (models.length > 0 && !models.every((m) => cand.has(m))) return 0;
+  // 16GB no es 32GB, y 750W no es 850W, aunque el resto del nombre coincida.
+  const specs = item.filter((t) => SPEC_RE.test(t));
+  if (specs.some((s) => !cand.has(s))) return 0;
+  // Una 4060 no es una 4060 Ti, ni un 5600 es un 5600X.
+  const itemVariants = variantTokens(item);
+  const candVariants = variantTokens(candName);
+  if (itemVariants.some((v) => !cand.has(v)) || candVariants.some((v) => !itemVariants.includes(v))) return 0;
   const hit = item.filter((t) => cand.has(t)).length;
   return hit / item.length;
 }
@@ -134,22 +163,75 @@ export type NodoCandidate = { name: string; sku: string | null; costIvaCents: st
 
 const skuKey = (sku: string | null | undefined) => normalize(sku ?? "").replace(/ /g, "");
 
+function compareOffers<T extends NodoCandidate>(a: T, b: T): number {
+  if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+  const costA = BigInt(a.costIvaCents);
+  const costB = BigInt(b.costIvaCents);
+  if (costA < costB) return -1;
+  if (costA > costB) return 1;
+  return 0;
+}
+
 /**
- * La oferta de NODO que corresponde a un producto de la tienda: mismo SKU, o el mismo modelo por nombre.
- * Entre las que coinciden (mejor puntaje) prefiere las que tienen stock y, a igualdad, la de menor costo.
+ * La oferta de NODO que corresponde a un producto de la tienda.
+ * El mismo SKU gana aunque no tenga stock. Si no hay SKU, el mismo modelo:
+ * con stock y, a igualdad, el de menor costo.
  */
 export function pickNodoMatch<T extends NodoCandidate>(web: { name: string; sku: string | null }, candidates: T[]): T | null {
   const webSku = skuKey(web.sku);
+  if (webSku) {
+    const exact = candidates.filter((c) => skuKey(c.sku) === webSku);
+    if (exact.length > 0) {
+      exact.sort(compareOffers);
+      return exact[0] ?? null;
+    }
+  }
   const scored = candidates
-    .map((c) => ({ c, score: webSku && skuKey(c.sku) === webSku ? 1 : matchScore(web.name, c) }))
+    .map((c) => ({ c, score: matchScore(web.name, c) }))
     .filter((x) => x.score >= MIN_SCORE);
   if (scored.length === 0) return null;
   const top = Math.max(...scored.map((x) => x.score));
   const best = scored.filter((x) => x.score >= top - 0.001).map((x) => x.c);
-  best.sort((a, b) => Number(b.inStock) - Number(a.inStock) || Number(BigInt(a.costIvaCents) - BigInt(b.costIvaCents)));
+  best.sort(compareOffers);
   return best[0] ?? null;
 }
 
-const WIFI_RE = /wi-?fi|wlan|wireless|inal[aá]mbric|\bax\d{3}\b|\bbe\d{3}\b/i;
-/** La PC ya trae WiFi (placa madre con WiFi, placa WiFi, adaptador): no se ofrece el agregado. */
-export const hasWifi = (items: ComponentLike[]) => items.some((i) => WIFI_RE.test(i.name) && !/^\s*placa wifi pcie/i.test(i.name));
+/**
+ * Busca el producto en la tienda y, si lo encuentra, su costo en NODO.
+ * Si la tienda o NODO no responden, la promesa falla: no se disfraza el error de "no encontrado".
+ */
+export async function matchWebComponent<W extends WebCandidate, N extends NodoCandidate>(
+  name: string,
+  searchWeb: (query: string) => Promise<W[]>,
+  searchNodo: (query: string) => Promise<N[]>,
+): Promise<{ web: W | null; nodo: N | null }> {
+  let web: W | null = null;
+  for (const q of searchQueries(name)) {
+    web = pickWebMatch(name, await searchWeb(q));
+    if (web) break;
+  }
+  if (!web) return { web: null, nodo: null };
+  let nodo: N | null = null;
+  for (const q of [web.sku, ...searchQueries(web.name)]) {
+    if (!q) continue;
+    nodo = pickNodoMatch(web, await searchNodo(q));
+    if (nodo) break;
+  }
+  return { web, nodo };
+}
+
+const PERIPHERAL_RE = /mouse|maus|teclado|keyboard|auricular|headset|auris\b|joystick|gamepad|parlante|speaker|micr[oó]fono|webcam/i;
+const MOTHER_WIFI_RE = /wi-?fi|wlan|\bax\b/i;
+const WIFI_DEVICE_RE = /wi-?fi|wlan|inal[aá]mbric|wireless|\bax\d{3,4}\b|\bbe\d{3,4}\b/i;
+
+/**
+ * La PC ya trae WiFi: placa madre con WiFi o AX, o un adaptador / placa de red inalámbrica.
+ * Un mouse o un teclado inalámbrico no cuentan.
+ */
+export function hasWifi(items: ComponentLike[]): boolean {
+  return items.some((i) => {
+    if (PERIPHERAL_RE.test(i.name) || /^\s*placa wifi pcie/i.test(i.name)) return false;
+    if (MOTHERBOARD_RE.test(i.name)) return MOTHER_WIFI_RE.test(i.name);
+    return WIFI_DEVICE_RE.test(i.name);
+  });
+}

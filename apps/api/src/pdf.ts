@@ -129,10 +129,40 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
 
   const rawItems = [...version.items].sort((a: any, b: any) => a.position - b.position);
   let items: PdfItem[];
+  // Solo el botón Presupuesto Web pide precios por componente. El resto de las PC armadas
+  // sigue con una línea principal (el total) y los componentes sin importe.
+  const componentPrices = (version.pdfOverrides as { showComponentPrices?: string } | null)?.showComponentPrices === 'MOSTRAR';
 
-  if (family.isBuiltPc) {
-    // PC armada: solo los componentes, cada uno con su precio; el total sale en los totales del PDF.
-    // Ya no se arma la línea "Presupuesto Armado TheGamerShop…".
+  if (family.isBuiltPc && !componentPrices) {
+    const totalSale = version.totalSaleCents as bigint;
+    const mainName = [
+      config.builtPcTitle || 'Presupuesto de PC Armada',
+      config.builtPcDescription || null,
+    ]
+      .filter(Boolean)
+      .join(' — ');
+    items = [
+      {
+        code: '001',
+        name: mainName,
+        quantity: 1,
+        unitCents: totalSale,
+        subtotalCents: totalSale,
+        isMainLine: true,
+        isComponent: false,
+      },
+      ...rawItems.map((item: any, index: number) => ({
+        code: String(index + 2).padStart(3, '0'),
+        name: item.frozenName,
+        quantity: item.quantity,
+        unitCents: item.frozenSalePriceCents,
+        subtotalCents: item.subtotalCents,
+        ivaBps: item.ivaBps ?? null,
+        isMainLine: false,
+        isComponent: true,
+      })),
+    ];
+  } else if (family.isBuiltPc) {
     items = rawItems.map((item: any, index: number) => ({
       code: String(index + 1).padStart(3, '0'),
       name: item.frozenName,
@@ -185,6 +215,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     // Los ajustes rápidos solo existen en el detallado y el formal.
     options: kind === 'SIMPLE' ? null : options ?? null,
     isBuiltPc: family.isBuiltPc,
+    ...(componentPrices ? { componentPrices: true } : {}),
     observation: version.publicObservation,
     ...(tradeIns ? { tradeIns } : {}),
     listTotalCents,

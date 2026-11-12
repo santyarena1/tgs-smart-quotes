@@ -68,6 +68,14 @@ describe("ajuste de total como en LITE", () => {
     expect(result!.lines[1]!.saleArs).toBe("75.000");
   });
 
+  it("cargar el costo de un ítem que estaba en $0 no borra la venta", () => {
+    const service = { costArs: "0", markupPct: "0", saleArs: "45.000", priceMode: "sale" as const };
+    const next = applyDraftCost(service, "8.500");
+    expect(next.saleArs).toBe("45.000");
+    expect(next.priceMode).toBe("sale");
+    expect(applyDraftMarkup(service, "30").saleArs).toBe("45.000");
+  });
+
   it("marca venta por debajo del costo", () => {
     expect(sellsBelowCost({costArs: "100.000", saleArs: "90.000"})).toBe(true);
     expect(sellsBelowCost({costArs: "100.000", saleArs: "130.000"})).toBe(false);

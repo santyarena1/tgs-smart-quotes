@@ -10,6 +10,7 @@ import {
   WIFI_BASIC_CENTS,
   WIFI_OTHER_CENTS,
   matchScore,
+  matchWebComponent,
   pickNodoMatch,
   pickWebMatch,
   searchQueries,
@@ -66,6 +67,16 @@ describe('matching con la tienda',()=>{
     expect(pickWebMatch('AMD Ryzen 7 7800X3D',web)).toBeNull();
     expect(matchScore('Gabinete Corsair 4000D',web[0]!)).toBe(0);
   });
+  it('no cambia la capacidad ni la variante',()=>{
+    const kits=[
+      {id:1,name:'Memoria Kingston Fury Beast 32GB DDR4',sku:null,priceCents:'8000000'},
+      {id:2,name:'Memoria Kingston Fury Beast 16GB DDR4',sku:null,priceCents:'4500000'},
+    ];
+    expect(pickWebMatch('Memoria Kingston Fury Beast 16GB DDR4',[kits[0]!])).toBeNull();
+    expect(pickWebMatch('Memoria Kingston Fury Beast 16GB DDR4',kits)?.id).toBe(2);
+    expect(pickWebMatch('Placa de Video RTX 4060 8GB',[{id:3,name:'Placa de Video RTX 4060 Ti 8GB',sku:null,priceCents:'1'}])).toBeNull();
+    expect(pickWebMatch('Ryzen 5 5600',[{id:4,name:'Ryzen 5 5600 X',sku:null,priceCents:'1'}])).toBeNull();
+  });
   it('arma consultas de la más específica a la más amplia',()=>{
     const queries=searchQueries('Procesador AMD Ryzen 5 5600X 4.6GHz AM4 Box');
     expect(queries[0]).toContain('ryzen');
@@ -81,8 +92,11 @@ describe('costo desde NODO',()=>{
     {name:'CPU AMD Ryzen 5 5600X AM4 Tray',sku:null,costIvaCents:'19000000',inStock:true},
     {name:'AMD Ryzen 5 5600 AM4',sku:null,costIvaCents:'15000000',inStock:true},
   ];
-  it('el mismo SKU manda, aunque no tenga stock',()=>{
-    expect(pickNodoMatch(web,offers)?.costIvaCents).toBe('20000000');
+  it('el mismo SKU manda, aunque no tenga stock y haya otro más barato con stock',()=>{
+    expect(pickNodoMatch(web,[
+      ...offers,
+      {name:'Procesador AMD Ryzen 5 5600X 4.6GHz AM4',sku:'OTRO',costIvaCents:'10000000',inStock:true},
+    ])?.costIvaCents).toBe('20000000');
   });
   it('sin SKU: con stock y más barata, y nunca otro modelo',()=>{
     expect(pickNodoMatch({name:web.name,sku:null},offers.slice(1))?.costIvaCents).toBe('19000000');
@@ -108,14 +122,31 @@ describe('costos de líneas fijas y placa WiFi',()=>{
     expect(wifiCents(names('Ryzen 5 5600G'))).toBe(WIFI_BASIC_CENTS);
     expect(wifiCents(names('Ryzen 5 5600','RTX 4060'))).toBe(WIFI_OTHER_CENTS);
   });
+  it('la refrigeración líquida sin placa de video deja el armado básico y el WiFi de las demás',()=>{
+    const items=names('Ryzen 5 5600G','Refrigeración líquida 240mm');
+    expect(assemblyCents(items)).toBe(ASSEMBLY_BASIC_CENTS);
+    expect(wifiCents(items)).toBe(WIFI_OTHER_CENTS);
+  });
+});
+
+describe('búsqueda web y NODO',()=>{
+  it('si la tienda falla, el error llega y no se toma como sin resultados',async()=>{
+    await expect(matchWebComponent('Ryzen 5 5600',async()=>{throw new Error('tienda caída');},async()=>[])).rejects.toThrow('tienda caída');
+  });
+  it('sin producto en la tienda no consulta un costo inventado',async()=>{
+    const nodo=async()=>[{name:'Otra cosa',sku:null,costIvaCents:'1',inStock:true}];
+    await expect(matchWebComponent('Gabinete Corsair 4000D',async()=>[],nodo)).resolves.toEqual({web:null,nodo:null});
+  });
 });
 
 describe('WiFi ya incluido',()=>{
-  it('detecta una placa madre con WiFi u otro adaptador',()=>{
+  it('detecta una placa madre con WiFi o AX, o un adaptador',()=>{
     expect(hasWifi(names('Mother ASUS B650M-A WIFI','Ryzen 5 7600'))).toBe(true);
+    expect(hasWifi(names('Mother Gigabyte B650 AORUS ELITE AX'))).toBe(true);
     expect(hasWifi(names('Placa de red inalámbrica TP-Link AX3000'))).toBe(true);
   });
-  it('sin WiFi en los componentes no lo detecta',()=>{
+  it('un periférico inalámbrico no cuenta como WiFi de la PC',()=>{
+    expect(hasWifi(names('Mouse Logitech inalámbrico','Mother ASUS A520M'))).toBe(false);
     expect(hasWifi(names('Mother ASUS A520M','Ryzen 5 5600G'))).toBe(false);
   });
 });

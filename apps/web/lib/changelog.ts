@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.24.0",
+    date: "2026-11-12",
+    title: "Presupuesto Web en LITE y en la versión común",
+    items: [
+      "Botón Crear Presupuesto Web en LITE y en Presupuestos: toma el precio de la tienda, el costo de NODO, y puede sumar armado, garantía extendida TGS, Windows y una placa WiFi opcional en las observaciones",
+      "Solo ese presupuesto muestra el precio de cada componente en el PDF. Una PC armada común sigue con la línea del total y los componentes sin importe",
+    ],
+  },
+  {
     version: "0.23.1",
     date: "2026-11-04",
     title: "Colecciones: nueva distribución y diseño según el tema",
