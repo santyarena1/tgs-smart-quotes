@@ -133,8 +133,8 @@ export function matchScore(itemName: string, candidate: Pick<WebCandidate, "name
   const models = modelTokens(item);
   // El modelo manda: si el ítem dice "5600x" y el producto de la tienda no, no es el mismo.
   if (models.length > 0 && !models.every((m) => cand.has(m))) return 0;
-  // 16GB no es 32GB, y 750W no es 850W, aunque el resto del nombre coincida.
-  const specs = item.filter((t) => SPEC_RE.test(t));
+  // 16GB no es 32GB, y 750W no es 850W. La velocidad (GHz, MHz) no se exige: la tienda y NODO no la escriben igual.
+  const specs = item.filter((t) => /^\d+(gb|tb|mb|w)$/.test(t));
   if (specs.some((s) => !cand.has(s))) return 0;
   // Una 4060 no es una 4060 Ti, ni un 5600 es un 5600X.
   const itemVariants = variantTokens(item);
