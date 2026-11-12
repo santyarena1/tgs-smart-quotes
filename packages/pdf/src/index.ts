@@ -1142,7 +1142,7 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     return formatArsFromCents((total + BigInt(plan.installments) / 2n) / BigInt(plan.installments));
   };
   const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string[]; stack?: boolean; big?: boolean; top?: boolean; strongFoot?: boolean } = {}) =>
-    `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i && !opts.strongFoot ? ' note' : ''}">${line}</div>`).join('')}</div>`;
+    `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i ? (opts.strongFoot ? ' soft' : ' note') : ''}">${line}</div>`).join('')}</div>`;
 
   // Cuotas compactas: las tarjetas van lado a lado en una sola fila y el dólar + la aclaración en una línea al pie.
   const cards: string[] = [];
@@ -1305,6 +1305,7 @@ export function renderQuoteModernoHtml(input: PdfRenderInput): string {
   .tile .t-amt { font-size: 14.5px; font-weight: 800; color: #151515; margin-left: 5px; }
   .fb-foot { flex-basis: 100%; margin-left: 164px; font-size: 9px; font-weight: 700; color: var(--bc); line-height: 1.5; }
   .fb-foot.note { margin-top: 0; font-weight: 500; color: #666; }
+  .fb-foot.soft { font-weight: 600; color: #7b93c4; }
   .fin-brand.top .fb-title { flex-basis: 100%; min-width: 0; margin-bottom: 2px; }
   .fin-brand.top .fb-foot { margin-left: 0; }
   .fin-brand.big { padding: 10px 14px; margin: 8px 0; }
