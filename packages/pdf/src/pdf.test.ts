@@ -488,12 +488,10 @@ describe('@tgs/pdf', () => {
     expect(renderPdfHtml({ ...base, kind: 'FORMAL' })).toContain('Cheque a 30 días');
   });
 
-  it('SIMPLE oculta precios individuales; DETALLADO los muestra', () => {
-    const base = sample();
-    const simple = renderQuoteHtml({ ...base, kind: 'SIMPLE' });
-    const detailed = renderQuoteHtml({ ...base, kind: 'DETALLADO', items: [
+  it('PC armada: cada componente muestra su precio y no sale la línea principal', () => {
+    const items = [
       {
-        name: 'Presupuesto de PC Armada',
+        name: 'LINEA PRINCIPAL DE PRUEBA',
         quantity: 1,
         unitCents: 114367500n,
         subtotalCents: 114367500n,
@@ -506,13 +504,15 @@ describe('@tgs/pdf', () => {
         subtotalCents: 25000000n,
         isComponent: true,
       },
-    ]});
-    // En SIMPLE el componente no lleva precio monetario (guión).
-    expect(simple).toContain('—');
-    expect(simple).toContain('$ 1.143.675');
-    // En DETALLADO el componente muestra su importe.
-    expect(detailed).toContain('PROCESADOR AMD RYZEN 5');
-    expect(detailed).toContain('$ 250.000');
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      for (const kind of ['SIMPLE', 'DETALLADO'] as const) {
+        const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, template, kind, items });
+        expect(html).toContain('PROCESADOR AMD RYZEN 5');
+        expect(html).toContain('$ 250.000');
+        expect(html).not.toContain('LINEA PRINCIPAL DE PRUEBA');
+      }
+    }
   });
 
   it('SIMPLE sin PC armada no muestra importes por fila', () => {

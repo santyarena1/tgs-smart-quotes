@@ -9,7 +9,7 @@ export const roundRatio=(numerator:bigint,denominator:bigint):bigint=>{if(denomi
 // comercial válida, p. ej. para cerrar un total redondo); lo único que no
 // existe es una venta negativa: -100 % es el piso.
 export function saleFromCost(costCents:bigint,markupBps:number):bigint{validBig(costCents);validInt(markupBps);if(markupBps<-10000)throw new PricingError('NEGATIVE_MARKUP','El markup no puede ser menor a -100 %');return roundRatio(costCents*BigInt(10000+markupBps),10000n)}
-export function markupFromPrices(costCents:bigint,saleCents:bigint):number{validBig(costCents);validBig(saleCents);if(costCents===0n)throw new PricingError('INVALID_INTEGER','El costo debe ser mayor a cero');const value=roundRatio((saleCents-costCents)*10000n,costCents);const n=Number(value);validInt(n);return n}
+export function markupFromPrices(costCents:bigint,saleCents:bigint):number{validBig(costCents);validBig(saleCents);if(costCents===0n)return 0;/* costo $0 (servicios): no hay margen porcentual; el precio de venta se guarda igual */const value=roundRatio((saleCents-costCents)*10000n,costCents);const n=Number(value);validInt(n);return n}
 export const profitCents=(costCents:bigint,saleCents:bigint)=>saleCents-costCents;
 export const applyCost=(item:PricingItem,costCents:bigint,generalMarkupBps?:number):PricingItem=>{const markupBps=generalMarkupBps??item.markupBps;return{...item,costCents,markupBps,salePriceCents:saleFromCost(costCents,markupBps)}};
 export const applyMarkup=(item:PricingItem,markupBps:number):PricingItem=>({...item,markupBps,salePriceCents:saleFromCost(item.costCents,markupBps)});

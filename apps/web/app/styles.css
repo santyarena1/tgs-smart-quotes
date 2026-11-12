@@ -4147,3 +4147,10 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 /* Valores del ítem editables con un click (fila de presupuesto) */
 .cell-click { cursor: text; border-radius: 4px; }
 .cell-click:hover { background: rgba(100, 116, 139, 0.14); box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.14); }
+
+/* Crear Presupuesto Web (rojo / blanco) */
+.btn-web { background: #dc2626; border: 1px solid #dc2626; color: #fff; font-weight: 700; }
+.btn-web:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.btn-web:focus-visible { outline-color: #dc2626; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.check-row input { margin-top: 3px; }
