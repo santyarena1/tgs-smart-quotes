@@ -236,8 +236,8 @@ const ADDON_CSS = `
   .addons { margin-top: 5px; }
   .addons .addon { display: flex; justify-content: space-between; padding: 2px 8px; font-size: 9.6px; color: #8a8a8a; }
   .addons .addon.windows { color: #0078d4; }
-  .wifi-addon { margin-top: 8px; padding: 6px 12px; font-size: 11.5px; font-weight: 700; color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; border-left: 4px solid #0d9488; border-radius: 4px; }
-  .wifi-addon b { color: #0d9488; font-weight: 900; }
+  .wifi-addon { margin-top: 8px; padding: 6px 12px; font-size: 11.5px; font-weight: 700; color: #9a3412; background: #fff7ed; border: 1px solid #fdba74; border-left: 4px solid #ea580c; border-radius: 4px; }
+  .wifi-addon b { color: #ea580c; font-weight: 900; }
   table.items tr.assembly td { font-weight: 800; background: #fdf2f4; border-bottom: 2px solid #800020; }
   table.items tr.assembly td.name, table.items tr.assembly .pname { font-size: 11.6px; color: #800020; letter-spacing: 0.01em; }
 `;
