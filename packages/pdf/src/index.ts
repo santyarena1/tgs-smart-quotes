@@ -1141,8 +1141,8 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     const total = applyInterest(input.cashTotalCents, plan.interestBps > 0 ? plan.interestBps : 800);
     return formatArsFromCents((total + BigInt(plan.installments) / 2n) / BigInt(plan.installments));
   };
-  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string[]; stack?: boolean; big?: boolean; top?: boolean } = {}) =>
-    `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i ? ' note' : ''}">${line}</div>`).join('')}</div>`;
+  const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string[]; stack?: boolean; big?: boolean; top?: boolean; strongFoot?: boolean } = {}) =>
+    `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i && !opts.strongFoot ? ' note' : ''}">${line}</div>`).join('')}</div>`;
 
   // Cuotas compactas: las tarjetas van lado a lado en una sola fila y el dólar + la aclaración en una línea al pie.
   const cards: string[] = [];
@@ -1160,7 +1160,7 @@ function buildFinancingModerno(input: PdfRenderInput): string {
     const foot = ['3 o 6 cuotas sin interés - Super precio BBVA'].map(escapeHtml);
     // Las fechas del BBVA (días y horarios) van dentro del bloque.
     if (input.financingBbvaNote) foot.push(renderRmaText(input.financingBbvaNote, ''));
-    if (tiles.length) cards.push(brandBlock('bbva', 'Cuotas exclusivas para clientes BBVA', '', tiles, { foot, top: true }));
+    if (tiles.length) cards.push(brandBlock('bbva', 'Cuotas exclusivas para clientes BBVA', '', tiles, { foot, top: true, strongFoot: true }));
   }
   if (go.length) {
     cards.push(brandBlock('go', 'GoCuotas', '', go.map((plan) => tile(plan.installments, plan.installments === 1 ? 'pago' : 'cuotas', money(plan))), { top: true }));
