@@ -13,6 +13,23 @@ export type QuoteItemPriceDraft = {
  * viejo (los ítems se cargan en modo "sale" para no perder redondeos).
  */
 export function applyDraftCost<T extends QuoteItemPriceDraft>(item: T, costArs: string): T {
+  // Un servicio o un precio de la tienda entran con costo $0 y una venta ya definida.
+  // Cargar el costo después no tiene que borrar esa venta.
+  try {
+    const previousCost = BigInt(parseArsToCents(item.costArs));
+    const sale = BigInt(parseArsToCents(item.saleArs));
+    if (previousCost === 0n && sale > 0n) {
+      return {
+        ...item,
+        costArs,
+        saleArs: item.saleArs,
+        priceMode: "sale",
+        markupPct: pctFromCostAndSale(costArs, item.saleArs),
+      };
+    }
+  } catch {
+    /* el importe todavía no está completo */
+  }
   return {
     ...item,
     costArs,
@@ -21,8 +38,13 @@ export function applyDraftCost<T extends QuoteItemPriceDraft>(item: T, costArs: 
   };
 }
 
-/** Al editar el % de ganancia se recalcula la venta. */
+/** Al editar el % de ganancia se recalcula la venta. Con costo $0 la venta queda como está. */
 export function applyDraftMarkup<T extends QuoteItemPriceDraft>(item: T, markupPct: string): T {
+  try {
+    if (BigInt(parseArsToCents(item.costArs)) === 0n && BigInt(parseArsToCents(item.saleArs)) > 0n) return item;
+  } catch {
+    /* se aplica el margen cuando el costo ya es un importe */
+  }
   return {
     ...item,
     markupPct,

@@ -40,6 +40,8 @@ import type {
   TimelineEvent,
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
+import { isExtraLine } from "../lib/web-quote";
+import { WebQuoteModal, type WebQuoteApply } from "./WebQuoteModal";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
 import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
@@ -407,6 +409,9 @@ export function QuotesView({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [webOpen, setWebOpen] = useState(false);
+  /** Ítems de otro presupuesto (vista previa de versión); null = los del editor. */
+  const [webSource, setWebSource] = useState<{ items: ItemDraft[]; name: string; customerId: string } | null>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2034,16 +2039,94 @@ export function QuotesView({
     }
   }
 
-  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL"; customerId: string; customerName?: string }) {
-    e?.preventDefault();
-    const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
-    const effectiveCustomerId = opts?.customerId ?? customerId;
-    // El botón de presupuesto formal no pasa por la validación del formulario: sin nombre interno usa el de la empresa.
-    const effectiveName = internalName.trim() || opts?.customerName || items[0]?.name?.trim() || "Presupuesto";
-    const invalid = validateItems(items) ?? tradeInError();
+  /** Abre el modal del Presupuesto Web: elegir qué líneas FIJAS lleva y sumar ítems libres. `source` = ítems de otro presupuesto (vista previa). */
+  function openWebQuote(source?: { items: ItemDraft[]; name: string; customerId: string }) {
+    if (busy) return;
+    const base = source?.items ?? items;
+    const invalid = validateItems(base);
     if (invalid) {
       setError(invalid);
       return;
+    }
+    setError(null);
+    setWebSource(source ?? null);
+    setWebOpen(true);
+  }
+
+  /** Arma el presupuesto nuevo con los precios que confirmó el modal. No toca el original si la creación falla. */
+  async function applyWebQuote(result: WebQuoteApply): Promise<string | null> {
+    const source = webSource;
+    const base = source?.items ?? items;
+    const components = filledItems(base).filter((item) => !isExtraLine(item.name));
+    const priced = components.map((item, index) => {
+      const next = result.components[index];
+      if (!next) return item;
+      return {
+        ...item,
+        productId: "",
+        name: next.name,
+        source: { label: "Web", color: WEB_COLOR },
+        imageUrl: next.imageUrl ?? item.imageUrl ?? null,
+        costArs: next.costArs,
+        saleArs: next.saleArs,
+        markupPct: next.markupPct,
+        priceMode: "sale" as const,
+        ...(next.ivaBps != null ? { ivaPct: ivaPctFromBps(next.ivaBps), ivaAuto: false } : {}),
+      };
+    });
+    const extraItems = result.extras.map((line) => ({
+      ...blankItem(),
+      name: line.name,
+      costArs: line.costArs,
+      saleArs: line.saleArs,
+      markupPct: line.markupPct,
+      priceMode: "sale" as const,
+      quantity: "1",
+    }));
+    const webItems = [...priced, ...extraItems];
+    const keepObservation = source ? "" : observation.trim();
+    const webObservation = [keepObservation, result.wifiNote].filter(Boolean).join("\n");
+    if (source) {
+      return createQuote(null, {
+        kind: "SIMPLE",
+        items: webItems,
+        isBuiltPc: true,
+        componentPrices: true,
+        noticeSuffix: result.noticeSuffix,
+        observation: webObservation,
+        customerId: source.customerId,
+        customerName: source.name,
+        requestId: "",
+        collectionIds: [],
+        detached: true,
+      });
+    }
+    return createQuote(null, {
+      kind: "SIMPLE",
+      items: webItems,
+      isBuiltPc: true,
+      componentPrices: true,
+      noticeSuffix: result.noticeSuffix,
+      observation: webObservation,
+      ...(detail ? { requestId: "", collectionIds: [] } : {}),
+    });
+  }
+
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
+    e?.preventDefault();
+    const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
+    const effectiveCustomerId = opts?.customerId ?? customerId;
+    // El presupuesto web trae sus propios ítems (precios de la tienda + armado, garantía y Windows) y es siempre PC armada.
+    const quoteItems = opts?.items ?? items;
+    const quoteIsBuiltPc = opts?.isBuiltPc ?? isBuiltPc;
+    const quoteRequestId = opts?.requestId ?? requestId;
+    const quoteCollectionIds = opts?.collectionIds ?? collectionIds;
+    // El botón de presupuesto formal no pasa por la validación del formulario: sin nombre interno usa el de la empresa.
+    const effectiveName = (opts?.detached ? "" : internalName.trim()) || opts?.customerName || quoteItems[0]?.name?.trim() || "Presupuesto";
+    const invalid = validateItems(quoteItems) ?? (opts?.detached ? null : tradeInError());
+    if (invalid) {
+      setError(invalid);
+      return invalid;
     }
     setBusy(true);
     // Si viene de crear la empresa en el modal, el navegador ya no deja abrir pestañas: se descarga el archivo.
@@ -2056,25 +2139,26 @@ export function QuotesView({
         body: {
           internalName: effectiveName,
           customerId: effectiveCustomerId || null,
-          requestId: requestId || null,
-          isBuiltPc,
-          kind: isCombo ? "COMBO" : "PC",
-          publicObservation: observation.trim() || null,
-          tradeIns: tradeInsPayload(),
-          collectionIds,
-          items: itemsToPayload(items),
+          requestId: quoteRequestId || null,
+          isBuiltPc: quoteIsBuiltPc,
+          kind: opts?.detached ? "PC" : isCombo ? "COMBO" : "PC",
+          publicObservation: (opts?.observation ?? (opts?.detached ? "" : observation.trim())) || null,
+          tradeIns: opts?.detached ? null : tradeInsPayload(),
+          collectionIds: quoteCollectionIds,
+          items: itemsToPayload(quoteItems),
+          ...(opts?.componentPrices ? { pdfOverrides: { showComponentPrices: "MOSTRAR" as const } } : {}),
         },
       });
-      const refNote = created.id ? await persistReferenceImage(created.id) : "";
-      teachIva(filledItems(items).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
+      const refNote = created.id && !opts?.detached ? await persistReferenceImage(created.id) : "";
+      teachIva(filledItems(quoteItems).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
       if (editorDraftKey) removeQuoteDraft(editorDraftKey);
       setDraftRecovered(false);
       setNotice(
-        refNote ? `Presupuesto creado.${refNote}` : requestId
+        (refNote ? `Presupuesto creado.${refNote}` : quoteRequestId
           ? "Presupuesto creado y solicitud marcada como Lista."
-          : collectionIds.length
-            ? `Presupuesto creado y agregado a ${collectionIds.length} colección(es).`
-            : "Presupuesto creado.",
+          : quoteCollectionIds.length
+            ? `Presupuesto creado y agregado a ${quoteCollectionIds.length} colección(es).`
+            : "Presupuesto creado.") + (opts?.noticeSuffix ?? ""),
       );
       if (created.id) {
         applyDetail(created, false);
@@ -2089,9 +2173,12 @@ export function QuotesView({
         else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
         void loadSideData(created.id);
       }
+      return null;
     } catch (err) {
       pdfTab?.close();
-      setError(errorMessage(err));
+      const message = errorMessage(err);
+      setError(message);
+      return message;
     } finally {
       setBusy(false);
     }
@@ -2525,6 +2612,9 @@ export function QuotesView({
             <button key={k} type="button" className={`qkind ${k.toLowerCase()}${kindFilter === k ? " on" : ""}`} aria-pressed={kindFilter === k} title={`Presupuestos con PDF ${label.toLowerCase()} generado`} onClick={() => setKindFilter(kindFilter === k ? "" : k)}>{label}</button>
           ))}
         </div>
+        <button type="button" className="btn-web btn-sm" onClick={openNew} title="Abre un presupuesto nuevo: cargá los componentes y tocá Crear Presupuesto Web">
+          Crear Presupuesto Web
+        </button>
         {filter || stateFilter || branchFilter || kindFilter || sort !== "created-desc" ? (
           <button type="button" className="btn-ghost btn-sm filter-clear" onClick={() => { setKindFilter(""); clearFilters(); }}>
             Limpiar filtros
@@ -2721,6 +2811,9 @@ export function QuotesView({
                 <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
                   {busy ? "Creando…" : "Crear presupuesto"}
                 </button>
+                <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Precios finales de thegamershop.com.ar + armado + garantía extendida TGS (7 %) + Windows 11 Pro">
+                  Crear Presupuesto Web
+                </button>
                 <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
                   Presupuesto Formal
                 </button>
@@ -2742,6 +2835,11 @@ export function QuotesView({
                 </button>
               </>
             ) : null}
+            {detail ? (
+              <button type="button" className="btn-web quote-foot-secondary" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios finales de la web (costo de NODO), armado, garantía extendida TGS y Windows 11 Pro">
+                Crear Presupuesto Web
+              </button>
+            ) : null}
             <span className="quote-foot-total">
               <span className="quote-foot-total-label">{tradeInTotal > 0n ? "A pagar" : "Total del presupuesto"}</span>
               <strong>{formatArs(tradeInTotal > 0n ? draftNet : draftTotal)}</strong>
@@ -2752,6 +2850,11 @@ export function QuotesView({
               ) : null}
             </span>
             <span className="spacer" />
+            {detail ? (
+              <button type="button" className="btn-ghost" disabled={busy} onClick={() => void duplicateQuote()} title="Crea un presupuesto nuevo con los mismos productos y precios">
+                Duplicar
+              </button>
+            ) : null}
             <button type="button" className="btn-ghost" onClick={() => setDrawerOpen(false)}>
               Cerrar
             </button>
@@ -4112,6 +4215,29 @@ export function QuotesView({
             </button>
             <button
               type="button"
+              className="btn-web"
+              disabled={busy || !previewVersion}
+              title="Crea un presupuesto nuevo con los precios finales de la web, armado, garantía extendida TGS y Windows 11 Pro"
+              onClick={() => {
+                if (!previewVersion) return;
+                const family = list.find((q) => q.id === previewFamilyId);
+                const fromVersion: ItemDraft[] = previewVersion.items.map((item) => ({
+                  ...blankItem(),
+                  name: item.name ?? item.frozenName ?? "",
+                  quantity: String(item.quantity),
+                  costArs: centsToInput(item.costCents ?? item.frozenCostCents ?? "0"),
+                  saleArs: centsToInput(item.salePriceCents ?? item.frozenSalePriceCents ?? "0"),
+                  priceMode: "sale",
+                  ivaPct: item.ivaBps != null ? ivaPctFromBps(item.ivaBps) : DEFAULT_IVA_PCT,
+                  ivaAuto: item.ivaBps == null,
+                }));
+                openWebQuote({ items: fromVersion, name: family?.internalName ?? "Presupuesto", customerId: family?.customerId ?? "" });
+              }}
+            >
+              Crear Presupuesto Web
+            </button>
+            <button
+              type="button"
               disabled={busy || !previewVersion || !previewFamilyId}
               onClick={() => previewVersion && previewFamilyId && void restoreVersion(previewFamilyId, previewVersion)}
             >
@@ -4140,6 +4266,17 @@ export function QuotesView({
         </div>
         <strong>Total: {formatArs(previewVersion?.totalSaleCents)}</strong>
       </Modal>
+
+      <WebQuoteModal
+        open={webOpen}
+        busy={busy}
+        components={filledItems(webSource?.items ?? items)
+          .filter((item) => !isExtraLine(item.name))
+          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs }))}
+        onClose={() => setWebOpen(false)}
+        onConfirm={applyWebQuote}
+      />
+
 
       <Modal
         open={newProdOpen}

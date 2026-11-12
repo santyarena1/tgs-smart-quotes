@@ -515,6 +515,31 @@ describe('@tgs/pdf', () => {
     expect(detailed).toContain('$ 250.000');
   });
 
+  it('Presupuesto Web: cada componente muestra su precio y no sale la línea principal', () => {
+    const items = [
+      {
+        name: 'LINEA PRINCIPAL DE PRUEBA',
+        quantity: 1,
+        unitCents: 114367500n,
+        subtotalCents: 114367500n,
+        isMainLine: true,
+      },
+      {
+        name: 'PROCESADOR AMD RYZEN 5',
+        quantity: 1,
+        unitCents: 25000000n,
+        subtotalCents: 25000000n,
+        isComponent: true,
+      },
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items });
+      expect(html).toContain('PROCESADOR AMD RYZEN 5');
+      expect(html).toContain('$ 250.000');
+      expect(html).not.toContain('LINEA PRINCIPAL DE PRUEBA');
+    }
+  });
+
   it('SIMPLE sin PC armada no muestra importes por fila', () => {
     const html = renderQuoteHtml({
       ...sample(),

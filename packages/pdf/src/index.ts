@@ -232,6 +232,8 @@ export type PdfRenderInput = {
   number: string;
   date: Date;
   isBuiltPc: boolean;
+  /** Presupuesto Web: cada componente lleva su precio y no se arma la línea "Presupuesto de PC Armada". */
+  componentPrices?: boolean;
   observation?: string | null;
   /** Productos que entrega el cliente. `showValues` = mostrar a cuánto se toman. */
   tradeIns?: PdfTradeIns | null;
@@ -305,6 +307,7 @@ export function pdfInputHash(input: PdfRenderInput): string {
     number: input.number,
     date: input.date.toISOString().slice(0, 10),
     isBuiltPc: input.isBuiltPc,
+    ...(input.componentPrices ? { componentPrices: true } : {}),
     observation: input.observation ?? null,
     listTotalCents: input.listTotalCents.toString(),
     cashTotalCents: input.cashTotalCents.toString(),
@@ -781,17 +784,21 @@ function ivaLabelOf(ivaBps: number): string {
   return `${(ivaBps / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`;
 }
 
+function showBuiltPcRowPrice(input: PdfRenderInput, item: PdfItem): boolean {
+  if (input.kind === 'DETALLADO') return true;
+  // Presupuesto Web: cada componente con su precio. Una PC armada común solo muestra la línea principal.
+  if (input.componentPrices) return true;
+  if (input.isBuiltPc) return Boolean(item.isMainLine);
+  return false;
+}
+
 function buildItemsRows(input: PdfRenderInput): string {
   // DETALLADO: siempre precios por ítem.
-  // SIMPLE: solo la línea principal de PC armada lleva importe; el resto va sin precio
-  // individual (componentes o ítems de presupuesto normal).
-  const showRowPrice = (item: PdfItem): boolean => {
-    if (input.kind === 'DETALLADO') return true;
-    if (input.isBuiltPc) return Boolean(item.isMainLine);
-    return false;
-  };
+  // SIMPLE de PC armada: solo la línea principal, salvo un Presupuesto Web.
+  const showRowPrice = (item: PdfItem): boolean => showBuiltPcRowPrice(input, item);
 
   return input.items
+    .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(itemDisplayName(item.name));
@@ -1103,12 +1110,9 @@ export function renderQuoteHtml(rawInput: PdfRenderInput): string {
 }
 
 function buildItemsRowsModerno(input: PdfRenderInput): string {
-  const showRowPrice = (item: PdfItem): boolean => {
-    if (input.kind === 'DETALLADO') return true;
-    if (input.isBuiltPc) return Boolean(item.isMainLine);
-    return false;
-  };
+  const showRowPrice = (item: PdfItem): boolean => showBuiltPcRowPrice(input, item);
   return input.items
+    .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(itemDisplayName(item.name));
