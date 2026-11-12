@@ -1219,3 +1219,14 @@
   .lite .lt-cv-list { position: static; max-height: none; grid-auto-flow: column; grid-auto-columns: minmax(250px, 80%); overflow-x: auto; padding-bottom: 6px; }
 }
 .lite .lt-cv-new-row .lt-icon-in { flex: none; width: 72px; text-align: center; }
+
+/* Presupuesto Web (rojo) y Duplicar (violeta) en las acciones del panel derecho */
+.lite .lt-act.dup, .lite .lt-act.web { background: var(--c); color: #fff; border-color: var(--c); }
+.lite .lt-act.dup:hover:not(:disabled), .lite .lt-act.web:hover:not(:disabled) { background: color-mix(in srgb, var(--c) 85%, #000); border-color: color-mix(in srgb, var(--c) 85%, #000); }
+.lite .lt-act.dup { --c: #7c3aed; }
+.lite .lt-act.web { --c: #dc2626; }
+:root[data-theme="dark"] .lite .lt-act.dup, :root[data-theme="dark"] .lite .lt-act.web { background: transparent; color: var(--c); border-color: var(--c); }
+.lite .lt-btn.web { background: #dc2626; color: #fff; border-color: #dc2626; }
+.lite .lt-btn.web:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+.lite .lt-modal-card.lt-web-modal { width: min(560px, 100%); max-height: 90vh; overflow: auto; }
+.lite .lt-modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 0.8rem; }

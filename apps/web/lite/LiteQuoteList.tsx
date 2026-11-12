@@ -24,12 +24,14 @@ function quoteKind(pdfs: Array<{ kind: PdfKind; createdAt: string }> | undefined
   return latest?.kind ?? "SIMPLE";
 }
 
-/** Todos los presupuestos, con búsqueda y filtros en la misma pantalla y acciones por presupuesto. */
-export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
+export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted, onDuplicated, onWeb }: {
   refreshKey: number;
   editingId: string | null;
   onEdit: (quote: Quote) => void;
   onDeleted: (quote: Quote) => void;
+  onDuplicated: (copy: Quote) => void;
+  /** Presupuesto Web: con un presupuesto crea uno nuevo a partir de él; sin presupuesto usa lo que hay en el creador. */
+  onWeb: (quote: Quote | null) => void;
 }) {
   const { branches, branchId: homeBranchId, locked } = useLite();
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -128,6 +130,20 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
     }
   }
 
+  async function duplicate(quote: Quote) {
+    setBusy(`${quote.id}:dup`);
+    setError(null);
+    try {
+      const copy = await api<Quote>(`/quotes/${quote.id}/duplicate`, { method: "POST" });
+      onDuplicated(copy);
+      await run();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function remove(quote: Quote) {
     if (!window.confirm(`¿Eliminar ${quote.visibleNumber} y todas sus versiones? No se puede deshacer.`)) return;
     setBusy(`${quote.id}:del`);
@@ -168,6 +184,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
           Estado y fechas{moreCount ? ` (${moreCount})` : ""} {showFilters ? "▴" : "▾"}
         </button>
         {anyFilter ? <button type="button" className="lt-link" onClick={clearAll}>Limpiar todo</button> : null}
+        <button type="button" className="lt-btn web sm" disabled={busy !== null} onClick={() => onWeb(null)} title="Precios finales de la web + armado, garantía extendida TGS y Windows 11 Pro">Crear Presupuesto Web</button>
       </div>
       {active.length ? (
         <div className="lt-active" aria-label="Filtros activos">
@@ -238,6 +255,10 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted }: {
                   <button type="button" className="lt-act detail" disabled={busy !== null} title="Ver el PDF detallado" onClick={() => void print(quote, "DETALLADO")}>
                     {b && busy === `${quote.id}:DETALLADO` ? "…" : "Detallado"}
                   </button>
+                  <button type="button" className="lt-act dup" disabled={busy !== null} title="Crea un presupuesto nuevo con los mismos productos y precios" onClick={() => void duplicate(quote)}>
+                    {b && busy === `${quote.id}:dup` ? "…" : "Duplicar"}
+                  </button>
+                  <button type="button" className="lt-act web" disabled={busy !== null} title="Crea un Presupuesto Web nuevo a partir de este" onClick={() => onWeb(quote)}>Web</button>
                   <button type="button" className="lt-act del" disabled={busy !== null} onClick={() => void remove(quote)}>
                     {b && busy === `${quote.id}:del` ? "…" : "Eliminar"}
                   </button>

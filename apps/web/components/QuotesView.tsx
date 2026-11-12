@@ -41,7 +41,9 @@ import type {
   TimelineEvent,
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
-import { isExtraLine, pickWebMatch, hasWifi, searchQueries, webQuoteExtras, wifiCents, WIFI_NAME, type FixedLines } from "../lib/web-quote";
+import { type FixedLines } from "../lib/web-quote";
+import { buildWebQuote, DEFAULT_WEB_FIXED, webNoticeSuffix, type WebFreeRow } from "../lib/web-quote-flow";
+import { WebQuoteOptions } from "./WebQuoteOptions";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
 import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
@@ -411,8 +413,8 @@ export function QuotesView({
   const [busy, setBusy] = useState(false);
   const [webBusy, setWebBusy] = useState(false);
   const [webOpen, setWebOpen] = useState(false);
-  const [webFixed, setWebFixed] = useState<FixedLines>({ assembly: true, warranty: true, windows: true, wifi: true });
-  const [webFree, setWebFree] = useState<Array<{ key: string; name: string; priceArs: string }>>([]);
+  const [webFixed, setWebFixed] = useState<FixedLines>(DEFAULT_WEB_FIXED);
+  const [webFree, setWebFree] = useState<WebFreeRow[]>([]);
   /** Ítems de otro presupuesto (vista previa de versión); null = los del editor. */
   const [webSource, setWebSource] = useState<{ items: ItemDraft[]; name: string; customerId: string } | null>(null);
 
@@ -2058,84 +2060,24 @@ export function QuotesView({
   }
 
   /**
-   * Presupuesto Web: cada componente pasa al precio final de thegamershop.com.ar (si el producto está en la tienda)
-   * y se suman las líneas FIJAS tildadas (armado según complejidad, garantía extendida TGS 7 % de los componentes,
-   * Windows 11 Pro) y los ítems libres. La búsqueda en la web va en paralelo para que sea rápida; lo que no se
-   * encuentra conserva el precio cargado y se avisa.
+   * Presupuesto Web: cada componente pasa al precio final de la web y se suman las líneas fijas tildadas y los ítems
+   * libres (ver `buildWebQuote`). Crea un presupuesto aparte: el editor queda como estaba.
    */
   async function createWebQuote() {
     if (busy || webBusy) return;
     const source = webSource;
-    const base = source?.items ?? items;
     setError(null);
     setNotice(null);
     setWebBusy(true);
     try {
-      // Si ya traía armado / garantía / Windows se descartan: se vuelven a calcular (o se quitan si se destildaron).
-      const components = filledItems(base).filter((i) => !isExtraLine(i.name));
-      if (components.length === 0) {
-        setError("Agregá al menos un componente al presupuesto.");
-        return;
-      }
-      const freeRows = webFree.filter((f) => f.name.trim() || f.priceArs.trim());
-      for (const f of freeRows) {
-        try {
-          if (!f.name.trim() || BigInt(parseArsToCents(f.priceArs)) <= 0n) throw new Error();
-        } catch {
-          setError("Cada ítem libre necesita un nombre y un precio válido.");
-          return;
-        }
-      }
-      const noWeb: string[] = [];
-      const priced = await Promise.all(components.map(async (item): Promise<ItemDraft> => {
-        let match: WebResult | null = null;
-        for (const q of searchQueries(item.name)) {
-          const found = await api<{ items: WebResult[] }>("/web-products/search", { query: { q } }).catch(() => ({ items: [] as WebResult[] }));
-          match = pickWebMatch(item.name, found.items);
-          if (match) break;
-        }
-        if (!match) {
-          noWeb.push(item.name.trim());
-          return item;
-        }
-        const price = centsToInput(match.priceCents);
-        // Sin productId: el precio de la tienda no debe pisar el costo del producto en la base.
-        return {
-          ...item,
-          productId: "",
-          name: match.name.toLocaleUpperCase("es-AR"),
-          costArs: price,
-          saleArs: price,
-          markupPct: "0",
-          priceMode: "markup",
-          source: { label: "Web", color: WEB_COLOR },
-          imageUrl: match.imageUrl ?? item.imageUrl ?? null,
-        };
-      }));
-      const extras = webQuoteExtras(priced.map((i) => ({
-        name: i.name,
-        totalCents: BigInt(parseArsToCents(i.saleArs)) * BigInt(Number(i.quantity) || 1),
-      })), webFixed);
-      const lineItem = (name: string, priceArs: string, costArs = priceArs): ItemDraft => ({
-        ...blankItem(), name, costArs, saleArs: priceArs, markupPct: pctFromCostAndSale(costArs, priceArs), priceMode: "sale", quantity: "1",
-      });
-      const extraItems = [
-        // Servicios a costo $0, Windows a $8.500: el costo real de cada línea fija.
-        ...extras.map((x) => lineItem(x.name, centsToInput(x.priceCents), centsToInput(x.costCents) || "0")),
-        ...freeRows.map((f) => lineItem(f.name.trim().toLocaleUpperCase("es-AR"), f.priceArs)),
-      ];
-      const webItems = [...priced, ...extraItems];
-      // La placa WiFi PCIe es un agregado: no suma al total, el PDF la muestra chica bajo el total efectivo / transferencia.
-      const wifiAddon = webFixed.wifi && !hasWifi(priced)
-        ? { name: WIFI_NAME, priceCents: wifiCents(priced).toString() }
-        : null;
-      const suffix = noWeb.length ? ` No encontré en la web (se dejó el precio cargado): ${noWeb.join("; ")}.` : "";
+      const built = await buildWebQuote(source?.items ?? items, blankItem, { fixed: webFixed, free: webFree });
+      const suffix = webNoticeSuffix(built.noWeb);
       setWebOpen(false);
       if (source) {
         // Desde la vista previa de otro presupuesto: queda como uno nuevo, sin heredar solicitud ni colecciones.
-        await createQuote(null, { kind: "SIMPLE", items: webItems, isBuiltPc: true, noticeSuffix: suffix, wifiAddon, customerId: source.customerId, customerName: source.name, requestId: "", collectionIds: [], detached: true, keepEditor: true });
+        await createQuote(null, { kind: "SIMPLE", items: built.items, isBuiltPc: true, noticeSuffix: suffix, wifiAddon: built.wifiAddon, customerId: source.customerId, customerName: source.name, requestId: "", collectionIds: [], detached: true, keepEditor: true });
       } else {
-        await createQuote(null, { kind: "SIMPLE", items: webItems, isBuiltPc: true, noticeSuffix: suffix, wifiAddon, keepEditor: true, ...(detail ? { requestId: "", collectionIds: [] } : {}) });
+        await createQuote(null, { kind: "SIMPLE", items: built.items, isBuiltPc: true, noticeSuffix: suffix, wifiAddon: built.wifiAddon, keepEditor: true, ...(detail ? { requestId: "", collectionIds: [] } : {}) });
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -4314,61 +4256,7 @@ export function QuotesView({
           </>
         }
       >
-        <p className="web-intro">
-          Cada componente se actualiza al precio final de thegamershop.com.ar. Elegí qué se suma al presupuesto:
-        </p>
-        <div className="web-opts">
-          <label className="web-opt">
-            <input type="checkbox" checked={webFixed.assembly} onChange={(e) => setWebFixed((f) => ({ ...f, assembly: e.target.checked }))} />
-            <span className="web-opt-body">
-              <strong>Armado de PC, configuración y pruebas de rendimiento</strong>
-              <small>$ 45.000 básica · $ 75.000 con placa de video · $ 90.000 con placa de video y refrigeración líquida</small>
-            </span>
-          </label>
-          <label className="web-opt">
-            <input type="checkbox" checked={webFixed.windows} onChange={(e) => setWebFixed((f) => ({ ...f, windows: e.target.checked }))} />
-            <span className="web-opt-body">
-              <strong>Licencia Windows 11 Pro</strong>
-              <small>$ 65.000 · suma al total</small>
-            </span>
-          </label>
-          <label className="web-opt">
-            <input type="checkbox" checked={webFixed.warranty} onChange={(e) => setWebFixed((f) => ({ ...f, warranty: e.target.checked }))} />
-            <span className="web-opt-body">
-              <strong>Garantía extendida TGS</strong>
-              <small>7 % del total de los componentes (sin armado ni licencia) · suma al total</small>
-            </span>
-          </label>
-          <label className="web-opt">
-            <input type="checkbox" checked={webFixed.wifi} onChange={(e) => setWebFixed((f) => ({ ...f, wifi: e.target.checked }))} />
-            <span className="web-opt-body">
-              <strong>Placa WiFi PCIe (opcional)</strong>
-              <small>$ 18.200 en la PC básica · $ 47.400 en las demás · no suma al total, sale chica debajo del precio. Se omite si la PC ya trae WiFi</small>
-            </span>
-          </label>
-        </div>
-        <h4 className="web-sub">Ítems libres</h4>
-        {webFree.map((f) => (
-          <div key={f.key} className="web-free">
-            <input
-              placeholder="Descripción (ej. Cable HDMI)"
-              value={f.name}
-              onChange={(e) => setWebFree((cur) => cur.map((x) => (x.key === f.key ? { ...x, name: e.target.value } : x)))}
-            />
-            <MoneyInput
-              className="money-input"
-              placeholder="Precio"
-              value={f.priceArs}
-              onChange={(v) => setWebFree((cur) => cur.map((x) => (x.key === f.key ? { ...x, priceArs: v } : x)))}
-            />
-            <button type="button" className="btn-danger btn-sm" onClick={() => setWebFree((cur) => cur.filter((x) => x.key !== f.key))}>
-              Quitar
-            </button>
-          </div>
-        ))}
-        <button type="button" className="btn-ghost btn-sm" onClick={() => setWebFree((cur) => [...cur, { key: crypto.randomUUID(), name: "", priceArs: "" }])}>
-          + Agregar ítem libre
-        </button>
+        <WebQuoteOptions fixed={webFixed} setFixed={setWebFixed} free={webFree} setFree={setWebFree} />
       </Modal>
 
       <Modal

@@ -27,6 +27,9 @@ import { currentProtectedCollections } from "../lib/collection-protection-api";
 import { LiteReferenceBubble, LiteReferenceModal, type ReferenceImage } from "./LiteReferenceImage";
 import { suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle } from "./useReferenceImageJob";
 import { LiteQuoteList } from "./LiteQuoteList";
+import { WebQuoteOptions } from "../components/WebQuoteOptions";
+import { buildWebQuote, DEFAULT_WEB_FIXED, webDraftsFromQuote, webNoticeSuffix, type WebFreeRow } from "../lib/web-quote-flow";
+import type { FixedLines } from "../lib/web-quote";
 import { downloadQuotePdf, type PdfKind } from "./lite-pdf";
 
 type Line = {
@@ -51,6 +54,7 @@ type Line = {
 };
 
 const DEFAULT_MARKUP = "30";
+/** Ítem vacío para las líneas que agrega el Presupuesto Web (armado, garantía, Windows, ítems libres). */const blankWebLine = (): Line => ({  key: crypto.randomUUID(), productId: "", lineId: "", name: "", quantity: "1", costArs: "", markupPct: DEFAULT_MARKUP,  saleArs: "", priceMode: "markup", ivaPct: DEFAULT_IVA_PCT, ivaAuto: true,});
 const ROUND_STEPS = ["100", "500", "1000", "5000"];
 
 const norm = (value: string) => value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -389,6 +393,12 @@ export function LiteQuoteCreator() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   /** Modal para crear la empresa cliente cuando se pide un presupuesto formal sin una empresa elegida. */
   const [formalCompanyOpen, setFormalCompanyOpen] = useState(false);
+  const [webOpen, setWebOpen] = useState(false);
+  const [webBusy, setWebBusy] = useState(false);
+  const [webFixed, setWebFixed] = useState<FixedLines>(DEFAULT_WEB_FIXED);
+  const [webFree, setWebFree] = useState<WebFreeRow[]>([]);
+  /** Líneas de otro presupuesto (desde el panel derecho); null = las del creador. */
+  const [webSource, setWebSource] = useState<{ lines: Line[]; name: string; customerId: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
   const { providers, error: providersError, setEnabled: setProvidersEnabled } = useNodoProviders();
@@ -877,6 +887,73 @@ export function LiteQuoteCreator() {
     }
   }
 
+  /** Abre el Presupuesto Web: con un presupuesto de la lista arma uno nuevo a partir de él; sin presupuesto usa lo que hay en el creador. */
+  function openWeb(quote: Quote | null) {
+    if (busy || webBusy) return;
+    if (quote) {
+      setWebSource({ lines: webDraftsFromQuote(quote) as Line[], name: quote.internalName, customerId: quote.customerId ?? "" });
+    } else {
+      const invalid = validate(lines);
+      if (invalid) { setError(invalid); return; }
+      setWebSource(null);
+    }
+    setError(null);
+    setWebFree([]);
+    setWebOpen(true);
+  }
+
+  /** Crea el Presupuesto Web aparte (precios de la web + armado, garantía, Windows, WiFi opcional); el creador queda como estaba. */
+  async function createWebQuote() {
+    if (busy || webBusy) return;
+    const source = webSource;
+    setWebBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const built = await buildWebQuote<Line>(source?.lines ?? lines, blankWebLine, { fixed: webFixed, free: webFree });
+      const customerName = customers.find((c) => c.id === (source?.customerId ?? customerId))?.name;
+      const internalName = source ? `${source.name} (Web)` : name.trim() || customerName || built.items[0]!.name;
+      setWebOpen(false);
+      const created = await api<Quote>("/quotes", {
+        method: "POST",
+        body: {
+          internalName,
+          customerId: (source ? source.customerId : customerId) || null,
+          requestId: null,
+          isBuiltPc: true,
+          kind: "PC",
+          publicObservation: null,
+          tradeIns: null,
+          collectionIds: [],
+          resolvedPdfConfig: built.wifiAddon ? { wifiAddon: built.wifiAddon } : {},
+          items: built.items.map((l, position) => ({
+            productId: null,
+            name: l.name.trim(),
+            lineId: null,
+            quantity: Number(l.quantity),
+            costCents: parseArsToCents(l.costArs),
+            position,
+            observation: null,
+            ivaBps: ivaBpsFromPct(l.ivaPct),
+            ...itemPricePayload(l),
+          })),
+        },
+      });
+      const suffix = webNoticeSuffix(built.noWeb);
+      try {
+        await downloadQuotePdf(created.id, created.visibleNumber, "SIMPLE");
+        setNotice(`${created.visibleNumber} creado como Presupuesto Web · PDF descargado.${suffix}`);
+      } catch (err) {
+        setNotice(`${created.visibleNumber} creado como Presupuesto Web, pero el PDF falló: ${errorMessage(err)}${suffix}`);
+      }
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setWebBusy(false);
+    }
+  }
+
   /** Presupuesto formal: pide una empresa como cliente. Si ya hay una elegida sigue directo; si no, abre el alta de la empresa. */
   function startFormal() {
     if (busy) return;
@@ -1094,6 +1171,20 @@ export function LiteQuoteCreator() {
           onClose={closeTradeIn}
           onClear={() => { setTradeIns([]); setTradeOpen(false); }}
         />
+      ) : null}
+      {webOpen ? (
+        <div className="lt-modal" role="dialog" aria-modal="true" aria-label="Crear Presupuesto Web" onMouseDown={(e) => { if (e.target === e.currentTarget) setWebOpen(false); }}>
+          <div className="lt-card lt-modal-card lt-web-modal" onKeyDown={(e) => { if (e.key === "Escape") setWebOpen(false); }}>
+            <h2>Crear Presupuesto Web</h2>
+            <WebQuoteOptions fixed={webFixed} setFixed={setWebFixed} free={webFree} setFree={setWebFree} />
+            <div className="lt-modal-actions">
+              <button type="button" className="lt-btn ghost" disabled={webBusy} onClick={() => setWebOpen(false)}>Cancelar</button>
+              <button type="button" className="lt-btn web" disabled={webBusy} onClick={() => void createWebQuote()}>
+                {webBusy ? "Buscando precios web…" : "Crear Presupuesto Web"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
       {totalEditOpen ? (
         <div className="lt-modal" role="dialog" aria-modal="true" aria-label="Total de la venta" onMouseDown={(e) => { if (e.target === e.currentTarget) setTotalEditOpen(false); }}>
@@ -1379,6 +1470,9 @@ export function LiteQuoteCreator() {
             <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={() => void submit("DETALLADO")}>
               {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
             </button>
+            <button type="button" className="lt-btn web" disabled={!ready || webBusy} onClick={() => openWeb(null)} title="Precios finales de la web + armado, garantía extendida TGS y Windows 11 Pro">
+              {webBusy ? "Buscando precios web…" : "Crear Presupuesto Web"}
+            </button>
             <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
               {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
             </button>
@@ -1400,6 +1494,8 @@ export function LiteQuoteCreator() {
         editingId={editing?.id ?? null}
         onEdit={(q) => void startEdit(q)}
         onDeleted={(q) => { if (editing?.id === q.id) resetForm(); setNotice(`${q.visibleNumber} eliminado.`); }}
+        onDuplicated={(copy) => setNotice(`Duplicado como ${copy.visibleNumber}: ${copy.internalName}.`)}
+        onWeb={openWeb}
       />
     </div>
   );
