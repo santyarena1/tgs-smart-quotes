@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.24.1",
+    date: "2026-11-16",
+    title: "LITE: Duplicar y Presupuesto Web desde el panel",
+    items: [
+      "En el panel de presupuestos de LITE, cada uno tiene Duplicar y Web. Web arma un presupuesto nuevo con el precio de la tienda y el costo de NODO, sin modificar el original",
+      "Crear Presupuesto Web también está en la barra de filtros de ese panel y usa lo que está cargado en el creador",
+    ],
+  },
+  {
     version: "0.24.0",
     date: "2026-11-12",
     title: "Presupuesto Web en LITE y en la versión común",

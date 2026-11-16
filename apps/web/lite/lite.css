@@ -1311,3 +1311,12 @@ html[data-skin="original"] .lite .lt-cv { --cv-r: 10px; --cv-r-lg: 14px; }
 .lite .lt-po-chip:hover { border-color: #f59e0b; }
 .lite .lt-po-chip.on { background: #f59e0b; border-color: #f59e0b; color: #1a1a1a; font-weight: 650; }
 .lite .lt-po-modal .lt-modal-foot { align-items: center; justify-content: space-between; padding-top: 0.2rem; }
+
+/* Presupuesto Web (rojo) y Duplicar (violeta) en el panel de presupuestos */
+.lite .lt-act.dup, .lite .lt-act.web { background: var(--c); color: #fff; border-color: var(--c); }
+.lite .lt-act.dup:hover:not(:disabled), .lite .lt-act.web:hover:not(:disabled) { background: color-mix(in srgb, var(--c) 85%, #000); border-color: color-mix(in srgb, var(--c) 85%, #000); }
+.lite .lt-act.dup { --c: #7c3aed; }
+.lite .lt-act.web { --c: #dc2626; }
+:root[data-theme="dark"] .lite .lt-act.dup, :root[data-theme="dark"] .lite .lt-act.web { background: transparent; color: var(--c); border-color: var(--c); }
+.lite .lt-btn.web { background: #dc2626; color: #fff; border-color: #dc2626; }
+.lite .lt-btn.web:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
