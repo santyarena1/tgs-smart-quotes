@@ -51,10 +51,10 @@ export const WINDOWS_LICENSE_COST_CENTS = 850_000n;
 
 /** Placa WiFi PCIe: agregado opcional que NO suma al total; el PDF lo ofrece en un bloque naranja debajo del precio efectivo / transferencia. */
 export const WIFI_NAME = "PLACA WIFI PCIE";
-export const WIFI_BASIC_CENTS = 1_870_000n;
-export const WIFI_OTHER_CENTS = 4_800_000n;
+export const WIFI_BASIC_CENTS = 1_820_000n;
+export const WIFI_OTHER_CENTS = 4_740_000n;
 
-/** Precio de la placa WiFi: $18.700 en la PC básica (sin placa de video ni refrigeración líquida) y $48.000 en las demás. */
+/** Precio de la placa WiFi: $18.200 en la PC básica (sin placa de video ni refrigeración líquida) y $47.400 en las demás. */
 export function wifiCents(items: ComponentLike[]): bigint {
   return hasGpu(items) || hasLiquidCooling(items) ? WIFI_OTHER_CENTS : WIFI_BASIC_CENTS;
 }

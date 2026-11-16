@@ -569,14 +569,14 @@ describe('@tgs/pdf', () => {
   it('Presupuesto Web: el bloque naranja del WiFi va con el precio y desaparece si no se ofrece', () => {
     const items = [{ name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true }];
     for (const template of ['CLASICO', 'MODERNO'] as const) {
-      const withWifi = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items, webWifi: { priceCents: 1870000n } });
-      expect(withWifi).toContain('Agregá una Placa WIFI PCIe por solo $ 18.700');
+      const withWifi = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items, webWifi: { priceCents: 1820000n } });
+      expect(withWifi).toContain('Agregá una Placa WIFI PCIe por solo $ 18.200');
       const without = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items });
       expect(without).not.toContain('Placa WIFI PCIe por solo');
     }
     // El WiFi cambia el PDF: tiene que cambiar el hash.
     const base = { ...sample(), isBuiltPc: true, componentPrices: true, kind: 'SIMPLE' as const, items };
-    expect(pdfInputHash({ ...base, webWifi: { priceCents: 1870000n } })).not.toBe(pdfInputHash(base));
+    expect(pdfInputHash({ ...base, webWifi: { priceCents: 1820000n } })).not.toBe(pdfInputHash(base));
   });
 
   it('un presupuesto común no se ve afectado por los nombres de armado, Windows o garantía', () => {

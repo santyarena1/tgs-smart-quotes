@@ -118,7 +118,7 @@ describe('costos de líneas fijas y placa WiFi',()=>{
     const extras=webQuoteExtras([{name:'Ryzen 5 5600G',totalCents:10_000_000n}]);
     expect(extras.map((e)=>e.costCents)).toEqual([0n,0n,850_000n]);
   });
-  it('WiFi: $18.700 en la básica, $48.000 en las demás',()=>{
+  it('WiFi: $18.200 en la básica, $47.400 en las demás',()=>{
     expect(wifiCents(names('Ryzen 5 5600G'))).toBe(WIFI_BASIC_CENTS);
     expect(wifiCents(names('Ryzen 5 5600','RTX 4060'))).toBe(WIFI_OTHER_CENTS);
   });

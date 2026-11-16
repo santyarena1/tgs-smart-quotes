@@ -243,7 +243,7 @@ export function WebQuoteModal({
         <label className="check-row">
           <input type="checkbox" checked={prefs.wifi} onChange={(e) => setPrefs((current) => ({ ...current, wifi: e.target.checked }))} />
           <span>
-            Placa WiFi PCIe <small>($ 18.700 en la PC básica · $ 48.000 en las demás; se ofrece en un bloque naranja y no suma al total)</small>
+            Placa WiFi PCIe <small>($ 18.200 en la PC básica · $ 47.400 en las demás; se ofrece en un bloque naranja y no suma al total)</small>
             {pcHasWifi ? <small> — Esta PC ya incluye WiFi: no se ofrece.</small> : null}
           </span>
         </label>

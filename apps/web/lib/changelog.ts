@@ -16,7 +16,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Al crearlo se abre una checklist (Windows 11 Pro, TGS Garantía Extendida y Placa WiFi PCIe) que recuerda lo que tildaste para los próximos presupuestos. El armado siempre va",
       "El costo sale solo de INVID, ELIT y NEW BYTES. Al crear, el aviso muestra la comparación entre el presupuesto común y el web",
       "PDF web: ARMADO, CONFIGURACIÓN Y PRUEBAS DE RENDIMIENTO en rojo primero; debajo del último ítem +Licencia Original Windows 11 Pro (azul) y +TGS Garantía Extendida (gris), sin importe; y un bloque naranja con la placa WiFi debajo del precio efectivo / transferencia",
-      "WiFi: $ 18.700 en la PC básica y $ 48.000 en las demás. Ya no se escribe en las observaciones",
+      "WiFi: $ 18.200 en la PC básica y $ 47.400 en las demás. Ya no se escribe en las observaciones",
       "El presupuesto web vence a los 2 días. Pasado ese plazo se revisan los productos en la tienda: si cambió un precio se actualiza (en borrador), y si algo quedó sin stock o dejó de publicarse aparece un ícono de aviso en los listados y la explicación en el detalle. Hay un botón para revisar ahora",
       "El margen por defecto de los presupuestos pasa de 30 % a 20 %. El presupuesto común no suma armado, garantía ni licencia: eso es solo del web, y solo si se tilda",
     ],
