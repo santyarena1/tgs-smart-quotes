@@ -41,7 +41,8 @@ import type {
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
 import { isExtraLine } from "../lib/web-quote";
-import { WebQuoteModal, type WebQuoteApply } from "./WebQuoteModal";
+import { WebQuoteModal, type WebPick, type WebQuoteApply } from "./WebQuoteModal";
+import { WebQuoteAlerts, WebQuoteWarning } from "./WebQuoteWarning";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
 import { SourceBar } from "./SourceBar";
 import { ProductBrowserModal, type BrowserItem } from "./ProductBrowserModal";
@@ -91,6 +92,8 @@ type ItemDraft = {
   ivaAuto: boolean;
   /** Foto del producto: sirve para la imagen de referencia de la PC. */
   imageUrl?: string | null;
+  /** Producto de la tienda elegido en el buscador: el Presupuesto Web lo usa directo y lo revalida a los 2 días. */
+  web?: WebPick | null;
 };
 
 /** Borradores guardados antes del IVA por ítem no traen el campo. */
@@ -193,7 +196,7 @@ const blankItem = (): ItemDraft => ({
   lineId: "",
   quantity: "1",
   costArs: "",
-  markupPct: "30",
+  markupPct: "20",
   saleArs: "",
   observation: "",
   priceMode: "markup",
@@ -228,7 +231,7 @@ function itemFromProduct(p: Product, quantity = "1", lineId = ""): ItemDraft {
 
 function itemFromCatalog(p: CatalogPickerItem, lineId = ""): ItemDraft {
   const costArs = centsToInput(p.priceCents);
-  const markupPct = "30";
+  const markupPct = "20";
   return {
     key: crypto.randomUUID(),
     productId: "",
@@ -501,7 +504,10 @@ export function QuotesView({
   const [catalogPickerLoading, setCatalogPickerLoading] = useState(false);
   /** Fuentes de búsqueda: productos propios (sistema y AcuStock) y los distribuidores de NODO que estén prendidos. */
   const { providers: nodoProviders, error: nodoProvidersError, setEnabled: setNodoProvidersEnabled } = useNodoProviders();
-  const sel = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
+  /** Modo "CREAR PRESUPUESTO WEB": el buscador solo trae productos publicados en la web, con su precio de venta. */
+  const [webMode, setWebMode] = useState(false);
+  const selBase = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
+  const sel = webMode ? { ...selBase, own: false, web: true, activeIds: [] as typeof selBase.activeIds } : selBase;
   const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
   const nodoWanted = sel.activeIds.length > 0 && pickerQuery.trim().length >= 2;
   const web = useWebSearch(pickerQuery, sel.web);
@@ -515,7 +521,7 @@ export function QuotesView({
   const initialOpenRef = useRef<string | null>(null);
 
   const [newProdOpen, setNewProdOpen] = useState(false);
-  const [newProd, setNewProd] = useState({ name: "", costArs: "", markupPct: "30" });
+  const [newProd, setNewProd] = useState({ name: "", costArs: "", markupPct: "20" });
   const [creatingProd, setCreatingProd] = useState(false);
 
   const familyFilterKey = onlyFamilyIds?.join(",") ?? "";
@@ -1315,7 +1321,7 @@ export function QuotesView({
   function addWebItem(r: WebResult) {
     addCatalogItem(
       { mpn: r.sku ?? String(r.id), title: r.name.toLocaleUpperCase("es-AR"), priceCents: r.priceCents, salePriceCents: r.priceCents, stockQuantity: 0, availability: "in_stock", brand: null, productType: null, imageUrl: null },
-      { costArs: centsToInput(r.priceCents), markupPct: "0", saleArs: centsToInput(r.priceCents), priceMode: "markup", source: { label: "Web", color: WEB_COLOR } },
+      { costArs: centsToInput(r.priceCents), markupPct: "0", saleArs: centsToInput(r.priceCents), priceMode: "markup", source: { label: "Web", color: WEB_COLOR }, web: { id: r.id, name: r.name, sku: r.sku, priceCents: r.priceCents, imageUrl: r.imageUrl } },
     );
     setNotice(`“${r.name}” agregado desde la web con costo = venta y margen 0 %.`);
   }
@@ -1909,7 +1915,7 @@ export function QuotesView({
   }, [pickerActive]);
 
   function openCreateProduct() {
-    setNewProd({ name: pickerQuery.trim(), costArs: "", markupPct: "30" });
+    setNewProd({ name: pickerQuery.trim(), costArs: "", markupPct: "20" });
     setPickerOpen(false);
     setNewProdOpen(true);
   }
@@ -2039,6 +2045,30 @@ export function QuotesView({
     }
   }
 
+  const [webChecking, setWebChecking] = useState(false);
+
+  /** Revisa ahora precios y stock contra la tienda (si no, lo hace solo a los 2 días). */
+  async function checkWebQuote() {
+    if (!detail || webChecking) return;
+    setWebChecking(true);
+    setError(null);
+    try {
+      const result = await api<{ checked: boolean; alerts: unknown[]; updatedPrices: boolean }>(`/quotes/${detail.id}/web-check`, { method: "POST" });
+      if (!result.checked) {
+        setError("No se pudo consultar la tienda web. Probá de nuevo en unos minutos.");
+      } else {
+        const fresh = await api<Quote>(`/quotes/${detail.id}`);
+        applyDetail(fresh, false);
+        setList((current) => current.map((row) => (row.id === fresh.id ? fresh : row)));
+        setNotice(result.alerts.length ? `Revisión lista: ${result.alerts.length} aviso(s).${result.updatedPrices ? " Se actualizaron los precios." : ""}` : "Revisión lista: sin cambios.");
+      }
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setWebChecking(false);
+    }
+  }
+
   /** Abre el modal del Presupuesto Web: elegir qué líneas FIJAS lleva y sumar ítems libres. `source` = ítems de otro presupuesto (vista previa). */
   function openWebQuote(source?: { items: ItemDraft[]; name: string; customerId: string }) {
     if (busy) return;
@@ -2085,13 +2115,14 @@ export function QuotesView({
     }));
     const webItems = [...priced, ...extraItems];
     const keepObservation = source ? "" : observation.trim();
-    const webObservation = [keepObservation, result.wifiNote].filter(Boolean).join("\n");
+    const webObservation = keepObservation;
     if (source) {
       return createQuote(null, {
         kind: "SIMPLE",
         items: webItems,
         isBuiltPc: true,
         componentPrices: true,
+        webMeta: result.webMeta,
         noticeSuffix: result.noticeSuffix,
         observation: webObservation,
         customerId: source.customerId,
@@ -2106,13 +2137,17 @@ export function QuotesView({
       items: webItems,
       isBuiltPc: true,
       componentPrices: true,
+      webMeta: result.webMeta,
       noticeSuffix: result.noticeSuffix,
       observation: webObservation,
       ...(detail ? { requestId: "", collectionIds: [] } : {}),
+    }).then((failure) => {
+      if (!failure) setWebMode(false);
+      return failure;
     });
   }
 
-  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; webMeta?: WebQuoteApply["webMeta"]; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
     e?.preventDefault();
     const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
     const effectiveCustomerId = opts?.customerId ?? customerId;
@@ -2147,6 +2182,7 @@ export function QuotesView({
           collectionIds: quoteCollectionIds,
           items: itemsToPayload(quoteItems),
           ...(opts?.componentPrices ? { pdfOverrides: { showComponentPrices: "MOSTRAR" as const } } : {}),
+          ...(opts?.webMeta ? { webMeta: opts.webMeta } : {}),
         },
       });
       const refNote = created.id && !opts?.detached ? await persistReferenceImage(created.id) : "";
@@ -2670,7 +2706,7 @@ export function QuotesView({
                   <Fragment key={quote.id}>
                     <tr className={`clickable quote-row-main qk-${quoteKind(version?.pdfs)}`} onClick={() => void openQuote(quote.id)}>
                       <td>
-                        <span className="cell-strong">{quote.visibleNumber}</span>
+                        <span className="cell-strong">{quote.visibleNumber}</span><WebQuoteWarning version={version} />
                         <span className="cell-sub">v{version?.version ?? quote.activeVersion}</span>
                       </td>
                       <td>{quote.internalName}</td>
@@ -2752,7 +2788,7 @@ export function QuotesView({
             return <article className={`mobile-list-card qk-card qk-${kind}`} key={quote.id} onClick={() => void openQuote(quote.id)}>
               <span className="qk-ribbon" title={`Presupuesto ${KIND_LABEL[kind].toLowerCase()}`}>{KIND_LABEL[kind]}</span>
               <div className="mobile-card-head">
-                <div><strong>{quote.visibleNumber}</strong><span className="cell-sub">v{version?.version ?? quote.activeVersion} · {cname}</span></div>
+                <div><strong>{quote.visibleNumber}</strong><WebQuoteWarning version={version} /><span className="cell-sub">v{version?.version ?? quote.activeVersion} · {cname}</span></div>
                 <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
                   <span
                     className="badge"
@@ -2808,18 +2844,25 @@ export function QuotesView({
           <>
             {!detail ? (
               <>
-                <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
-                  {busy ? "Creando…" : "Crear presupuesto"}
-                </button>
-                <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Precios finales de thegamershop.com.ar + armado + garantía extendida TGS (7 %) + Windows 11 Pro">
-                  Crear Presupuesto Web
-                </button>
-                <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
-                  Presupuesto Formal
-                </button>
-                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
-                  Generar presupuesto detallado
-                </button>
+                {webMode ? (
+                  <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
+                    CREAR PRESUPUESTO WEB
+                  </button>
+                ) : (
+                  <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
+                    {busy ? "Creando…" : "Crear presupuesto"}
+                  </button>
+                )}
+                {!webMode ? (
+                  <>
+                    <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+                      Presupuesto Formal
+                    </button>
+                    <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
+                      Generar presupuesto detallado
+                    </button>
+                  </>
+                ) : null}
               </>
             ) : null}
             {detail && isDraft ? (
@@ -2873,6 +2916,23 @@ export function QuotesView({
               Descartar y ver lo guardado
             </button>
           </div>
+        ) : null}
+
+        {detail && activeVersion?.webMeta ? (
+          <WebQuoteAlerts version={activeVersion} onCheck={() => void checkWebQuote()} checking={webChecking} />
+        ) : null}
+
+        {!detail ? (
+          <label className={`web-switch${webMode ? " on" : ""}`} title="Presupuesto con los precios de la tienda web">
+            <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />
+            <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
+            <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
+            {webMode ? (
+              <span className="web-switch-hint">
+                Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
+              </span>
+            ) : null}
+          </label>
         ) : null}
 
         <form
@@ -4272,7 +4332,7 @@ export function QuotesView({
         busy={busy}
         components={filledItems(webSource?.items ?? items)
           .filter((item) => !isExtraLine(item.name))
-          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs }))}
+          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null }))}
         onClose={() => setWebOpen(false)}
         onConfirm={applyWebQuote}
       />

@@ -1,6 +1,6 @@
 # TGS Smart Quotes
 
-Proyecto nuevo e independiente. Consultar Graphify antes de lecturas amplias. Idioma español, ARS, zona America/Argentina/Buenos_Aires. Nunca usar flotantes para dinero ni agregar vencimiento, stock, CRM, envio automatico o reglas no documentadas.
+Proyecto nuevo e independiente. Consultar Graphify antes de lecturas amplias. Idioma español, ARS, zona America/Argentina/Buenos_Aires. Nunca usar flotantes para dinero ni agregar CRM, envio automatico o reglas no documentadas. Excepcion pedida por el dueno: el Presupuesto Web vence a los 2 dias y se revisa contra la tienda (stock y precio); ver apps/api/src/web-quote-check.ts.
 
 ## graphify
 

@@ -527,6 +527,8 @@ export class QuotesController{
             :body.financingSnapshot===null
               ?Prisma.JsonNull
               :body.financingSnapshot as Prisma.InputJsonValue,
+          // Presupuesto Web: vence a los 2 días y guarda qué producto de la tienda es cada componente.
+          ...(body.webMeta?{webMeta:body.webMeta as Prisma.InputJsonValue,expiresAt:new Date(Date.now()+2*86400000)}:{}),
         }});
         await tx.quoteItem.createMany({data:itemRows.map(item=>({...item,versionId:version.id}))});
         await touchProductsLastUsed(tx,itemRows.map((item)=>item.productId));

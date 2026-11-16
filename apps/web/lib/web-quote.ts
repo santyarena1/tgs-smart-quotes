@@ -12,9 +12,9 @@ export const WINDOWS_LICENSE_CENTS = 6_500_000n;
 /** Garantía extendida TGS: 7 % del total de los componentes (sin armado ni licencias). */
 export const EXTENDED_WARRANTY_BPS = 700n;
 
-export const ASSEMBLY_NAME = "ARMADO Y TESTEO DE PC";
+export const ASSEMBLY_NAME = "ARMADO, CONFIGURACION Y PRUEBAS DE RENDIMIENTO";
 export const WARRANTY_NAME = "GARANTÍA EXTENDIDA TGS";
-export const WINDOWS_NAME = "LICENCIA WINDOWS 11 PRO";
+export const WINDOWS_NAME = "LICENCIA ORIGINAL WINDOWS 11 PRO";
 
 const GPU_RE = /placa de video|tarjeta de video|tarjeta gr[aá]fica|\bgpu\b|\bvga\b|geforce|\brtx\b|\bgtx\b|radeon|\brx\s?\d{3,4}\b|\barc\s?[ab]\d{3}\b/i;
 const MOTHERBOARD_RE = /motherboard|placa madre|mother\b|mainboard/i;
@@ -49,12 +49,12 @@ export function warrantyCents(componentsTotalCents: bigint): bigint {
 /** Costo de las líneas fijas: los servicios (armado, garantía) cuestan $0 y la licencia de Windows $8.500. */
 export const WINDOWS_LICENSE_COST_CENTS = 850_000n;
 
-/** Placa WiFi PCIe: agregado opcional que NO suma al total; va en las observaciones del PDF. */
+/** Placa WiFi PCIe: agregado opcional que NO suma al total; el PDF lo ofrece en un bloque naranja debajo del precio efectivo / transferencia. */
 export const WIFI_NAME = "PLACA WIFI PCIE";
-export const WIFI_BASIC_CENTS = 1_820_000n;
-export const WIFI_OTHER_CENTS = 4_740_000n;
+export const WIFI_BASIC_CENTS = 1_870_000n;
+export const WIFI_OTHER_CENTS = 4_800_000n;
 
-/** Precio de la placa WiFi: $18.200 en la PC básica (sin placa de video ni refrigeración líquida) y $47.400 en las demás. */
+/** Precio de la placa WiFi: $18.700 en la PC básica (sin placa de video ni refrigeración líquida) y $48.000 en las demás. */
 export function wifiCents(items: ComponentLike[]): bigint {
   return hasGpu(items) || hasLiquidCooling(items) ? WIFI_OTHER_CENTS : WIFI_BASIC_CENTS;
 }

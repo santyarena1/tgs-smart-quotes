@@ -34,7 +34,7 @@ type Draft = {
 const emptyDraft = (): Draft => ({
   name: "",
   costArs: "",
-  markupPct: "30",
+  markupPct: "20",
   saleArs: "",
   usesGeneralMarkup: true,
   active: true,
@@ -412,7 +412,7 @@ export function ProductsView() {
           return {
             name,
             costCents: parseArsToCents(cost),
-            markupBps: markup ? pctToBps(markup) : 3000,
+            markupBps: markup ? pctToBps(markup) : 2000,
             usesGeneralMarkup: !markup,
             active: true,
           };

@@ -45,7 +45,7 @@ const audit=(
 /** Markup general configurable; nunca hardcodeado en el código. */
 export async function generalMarkupBps(tx:any):Promise<number>{
   const settings=await tx.aiSettings.findUnique({where:{id:'singleton'}});
-  return settings?.generalMarkupBps??3000;
+  return settings?.generalMarkupBps??2000;
 }
 
 /**

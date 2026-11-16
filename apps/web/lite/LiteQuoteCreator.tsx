@@ -53,7 +53,7 @@ type Line = {
   source?: ItemSource;
 };
 
-const DEFAULT_MARKUP = "30";
+const DEFAULT_MARKUP = "20";
 const ROUND_STEPS = ["100", "500", "1000", "5000"];
 
 const norm = (value: string) => value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -1182,7 +1182,7 @@ export function LiteQuoteCreator() {
       const customerName = customers.find((customer) => customer.id === chosenCustomer)?.name;
       const internalName = source ? `${source.name} (Web)` : name.trim() || customerName || webLines[0]!.name;
       const given = source ? [] : tradeIns.filter((row) => row.name.trim() || row.valueArs.trim());
-      const observation = [source ? source.observation : editing?.observation?.trim() ?? "", result.wifiNote].filter(Boolean).join("\n") || null;
+      const observation = (source ? source.observation : editing?.observation?.trim() ?? "") || null;
       const lineOrder = new Map(pcLines.map((line, index) => [line.id, index]));
       const ordered = [...webLines].sort((a, b) => (lineOrder.get(a.lineId) ?? 999) - (lineOrder.get(b.lineId) ?? 999));
       const created = await api<Quote>("/quotes", {
@@ -1199,6 +1199,7 @@ export function LiteQuoteCreator() {
             : null,
           collectionIds: source || editing ? [] : collectionIds,
           pdfOverrides: { showComponentPrices: "MOSTRAR" },
+          webMeta: result.webMeta,
           items: ordered.map((line, position) => ({
             productId: line.productId || null,
             name: line.name.trim(),

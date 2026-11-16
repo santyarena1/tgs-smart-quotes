@@ -54,6 +54,22 @@ export type PdfItem = {
   ivaBps?: number | null;
 };
 
+/** Líneas propias del Presupuesto Web: el armado va primero en rojo; Windows y la garantía salen chicas, sin importe, debajo del último ítem. */
+export type WebLineRole = 'ASSEMBLY' | 'WINDOWS' | 'WARRANTY';
+
+export function webLineRole(name: string): WebLineRole | null {
+  if (/^\s*armado\b/i.test(name)) return 'ASSEMBLY';
+  if (/^\s*garant[ií]a extendida/i.test(name)) return 'WARRANTY';
+  if (/^\s*licencia\b.*windows|^\s*windows\s?11/i.test(name)) return 'WINDOWS';
+  return null;
+}
+
+export const WEB_ASSEMBLY_LABEL = 'ARMADO, CONFIGURACIÓN Y PRUEBAS DE RENDIMIENTO';
+const WEB_NOTE_LABEL: Record<'WINDOWS' | 'WARRANTY', string> = {
+  WINDOWS: '+Licencia Original Windows 11 Pro',
+  WARRANTY: '+TGS Garantía Extendida',
+};
+
 export type PdfResolvedConfig = {
   showListPrice: boolean;
   showCashTransfer: boolean;
@@ -234,6 +250,8 @@ export type PdfRenderInput = {
   isBuiltPc: boolean;
   /** Presupuesto Web: cada componente lleva su precio y no se arma la línea "Presupuesto de PC Armada". */
   componentPrices?: boolean;
+  /** Presupuesto Web: placa WiFi PCIe que se ofrece (no suma al total) en un bloque naranja debajo del precio efectivo / transferencia. */
+  webWifi?: { priceCents: bigint } | null;
   observation?: string | null;
   /** Productos que entrega el cliente. `showValues` = mostrar a cuánto se toman. */
   tradeIns?: PdfTradeIns | null;
@@ -297,7 +315,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-11-04.1';
+export const PDF_RENDER_VERSION = '2026-11-16.1';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -308,6 +326,7 @@ export function pdfInputHash(input: PdfRenderInput): string {
     date: input.date.toISOString().slice(0, 10),
     isBuiltPc: input.isBuiltPc,
     ...(input.componentPrices ? { componentPrices: true } : {}),
+    ...(input.webWifi ? { webWifi: input.webWifi.priceCents.toString() } : {}),
     observation: input.observation ?? null,
     listTotalCents: input.listTotalCents.toString(),
     cashTotalCents: input.cashTotalCents.toString(),
@@ -792,23 +811,60 @@ function showBuiltPcRowPrice(input: PdfRenderInput, item: PdfItem): boolean {
   return false;
 }
 
+/** Presupuesto Web: el armado primero, los componentes después y las líneas chicas (Windows, garantía) al final. */
+function orderWebItems(items: PdfItem[]): PdfItem[] {
+  const rank = (item: PdfItem) => {
+    const role = webLineRole(item.name);
+    return role === 'ASSEMBLY' ? 0 : role === 'WINDOWS' ? 2 : role === 'WARRANTY' ? 3 : 1;
+  };
+  return items.map((item, index) => ({ item, index })).sort((a, b) => rank(a.item) - rank(b.item) || a.index - b.index).map((x) => x.item);
+}
+
+/** Cantidad de columnas de la tabla de ítems, para las filas chicas que ocupan todo el ancho. */
+function itemsColumnCount(input: PdfRenderInput): number {
+  if (input.kind !== 'DETALLADO') return 4;
+  return 2 + (resolveQuickOptions(input).showIvaBreakdown ? 3 : 1) + 1;
+}
+
+function webNoteRow(role: 'WINDOWS' | 'WARRANTY', input: PdfRenderInput): string {
+  const cls = role === 'WINDOWS' ? 'win' : 'war';
+  return `<tr class="web-note ${cls}"><td colspan="${itemsColumnCount(input)}">${escapeHtml(WEB_NOTE_LABEL[role])}</td></tr>`;
+}
+
+const WEB_ROW_CSS = `
+  table.items tr.web-assembly td { color: #c62828; font-weight: 700; }
+  table.items tr.web-assembly .pname { color: #c62828; }
+  table.items tr.web-note td { border-bottom: none; padding: 2px 8px 2px 18px; font-size: 9.5px; font-weight: 600; }
+  table.items tr.web-note.win td { color: #1d4ed8; }
+  table.items tr.web-note.war td { color: #6b7280; }
+  .totals .row.wifi { display: block; margin-top: 6px; padding: 7px 10px; border: 1px solid #fdba74; border-radius: 6px; background: #fff7ed; color: #c2410c; font-size: 10.5px; font-weight: 700; text-align: center; }
+`;
+
+/** Bloque naranja con la oferta de la placa WiFi PCIe (Presupuesto Web). Vacío si no se ofrece. */
+function buildWifiOffer(input: PdfRenderInput): string {
+  if (!input.componentPrices || !input.webWifi) return '';
+  return `<div class="row wifi">Agregá una Placa WIFI PCIe por solo ${formatArsFromCents(input.webWifi.priceCents)}</div>`;
+}
+
 function buildItemsRows(input: PdfRenderInput): string {
   // DETALLADO: siempre precios por ítem.
   // SIMPLE de PC armada: solo la línea principal, salvo un Presupuesto Web.
   const showRowPrice = (item: PdfItem): boolean => showBuiltPcRowPrice(input, item);
 
-  return input.items
+  return (input.componentPrices ? orderWebItems(input.items) : input.items)
     .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
+      const role = input.componentPrices ? webLineRole(item.name) : null;
+      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input);
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
-      const name = escapeHtml(itemDisplayName(item.name));
+      const name = escapeHtml(role === 'ASSEMBLY' ? WEB_ASSEMBLY_LABEL : itemDisplayName(item.name));
       const qty = String(item.quantity);
       const amount = showRowPrice(item)
         ? formatArsFromCents(item.subtotalCents)
         : input.kind === 'SIMPLE'
           ? '—'
           : formatArsFromCents(0n);
-      const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      const cls = role === 'ASSEMBLY' ? 'web-assembly' : item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
         return `<tr class="${cls}"><td class="name">${name}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}${itemInstallmentsHtml(item, input)}</td></tr>`;
       }
@@ -967,6 +1023,7 @@ export function renderQuoteHtml(rawInput: PdfRenderInput): string {
   }
   table.items tr.main td { font-weight: 700; }
   table.items tr.component td.name { padding-left: 18px; color: #333; }
+${WEB_ROW_CSS}
   table.items .code { width: 48px; }
   table.items .qty { width: 48px; text-align: center; }
   table.items .amt { width: 110px; text-align: right; white-space: nowrap; }
@@ -1082,6 +1139,7 @@ export function renderQuoteHtml(rawInput: PdfRenderInput): string {
         : ''
     }
     ${buildTradeInsTotals(input, 'classic')}
+    ${buildWifiOffer(input)}
   </section>
 
   ${buildFinancing(input)}
@@ -1111,11 +1169,13 @@ export function renderQuoteHtml(rawInput: PdfRenderInput): string {
 
 function buildItemsRowsModerno(input: PdfRenderInput): string {
   const showRowPrice = (item: PdfItem): boolean => showBuiltPcRowPrice(input, item);
-  return input.items
+  return (input.componentPrices ? orderWebItems(input.items) : input.items)
     .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
+      const role = input.componentPrices ? webLineRole(item.name) : null;
+      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input);
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
-      const name = escapeHtml(itemDisplayName(item.name));
+      const name = escapeHtml(role === 'ASSEMBLY' ? WEB_ASSEMBLY_LABEL : itemDisplayName(item.name));
       const qty = String(item.quantity);
       // Solo se muestra importe en las filas que corresponde (línea principal en SIMPLE,
       // todas en DETALLADO). El resto queda vacío (no "$ 0").
@@ -1124,7 +1184,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
         item.isMainLine && input.config.builtPcDescription
           ? `<div class="sub">${escapeHtml(input.config.builtPcDescription)}</div>`
           : '';
-      const cls = item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
+      const cls = role === 'ASSEMBLY' ? 'web-assembly' : item.isMainLine ? 'main' : item.isComponent ? 'component' : '';
       if (input.kind === 'DETALLADO') {
         return `<tr class="${cls}"><td class="name"><span class="pname">${name}</span>${subtitle}</td><td class="qty">${qty}</td>${ivaCells(item, input)}<td class="amt">${amount}${itemInstallmentsHtml(item, input)}</td></tr>`;
       }
@@ -1297,6 +1357,7 @@ export function renderQuoteModernoHtml(rawInput: PdfRenderInput): string {
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
+${WEB_ROW_CSS}
   table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
   table.items .code { width: 50px; }
   table.items td.code { color: #555; }
@@ -1427,6 +1488,7 @@ export function renderQuoteModernoHtml(rawInput: PdfRenderInput): string {
       ${input.config.showListPrice ? `<div class="row list"><span class="lbl">Precio de lista</span><span class="val">${formatArsFromCents(input.listTotalCents)}</span></div>` : ''}
       ${input.config.showCashTransfer ? `<div class="row cash"><span class="lbl">${CASH_LABEL}</span><span class="val">${formatArsFromCents(input.cashTotalCents)}</span></div>` : ''}
       ${buildTradeInsTotals(input, 'modern')}
+      ${buildWifiOffer(input)}
     </section>
     ${financingHtml ? `<section data-pdf-block="financingBlock">${financingHtml}</section>` : ''}
   </div>

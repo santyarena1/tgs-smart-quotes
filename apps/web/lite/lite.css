@@ -1318,5 +1318,5 @@ html[data-skin="original"] .lite .lt-cv { --cv-r: 10px; --cv-r-lg: 14px; }
 .lite .lt-act.dup { --c: #7c3aed; }
 .lite .lt-act.web { --c: #dc2626; }
 :root[data-theme="dark"] .lite .lt-act.dup, :root[data-theme="dark"] .lite .lt-act.web { background: transparent; color: var(--c); border-color: var(--c); }
-.lite .lt-btn.web { background: #dc2626; color: #fff; border-color: #dc2626; }
-.lite .lt-btn.web:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+.lite .lt-btn.web { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+.lite .lt-btn.web:hover:not(:disabled) { background: #6d28d9; border-color: #6d28d9; }

@@ -35,6 +35,30 @@ async function searchStore(q: string): Promise<WebResult[]> {
   return items;
 }
 
+/** Productos puntuales por id, publicados o no, con su stock actual. Solo trae lo que la tienda todavía tiene cargado. */
+export async function fetchStoreProductsByIds(ids: number[]): Promise<WebResult[]> {
+  const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
+  const out: WebResult[] = [];
+  for (let i = 0; i < unique.length; i += 20) {
+    const url = new URL(`${STORE_URL}/wp-json/wc/store/v1/products`);
+    for (const id of unique.slice(i, i + 20)) url.searchParams.append("include[]", String(id));
+    url.searchParams.set("per_page", "20");
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
+    } catch {
+      throw new BadGatewayException("No se pudo conectar con la tienda web.");
+    }
+    if (!res.ok) throw new BadGatewayException(`La tienda web respondió ${res.status}.`);
+    const rows = (await res.json()) as WooProduct[];
+    for (const row of rows) {
+      const mapped = mapWooProduct(row);
+      if (mapped) out.push(mapped);
+    }
+  }
+  return out;
+}
+
 const searchSchema = z.object({ q: z.string().trim().min(2).max(120) }).strict();
 
 @Controller("web-products")
