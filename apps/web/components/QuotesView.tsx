@@ -506,6 +506,10 @@ export function QuotesView({
   const { providers: nodoProviders, error: nodoProvidersError, setEnabled: setNodoProvidersEnabled } = useNodoProviders();
   /** Modo "CREAR PRESUPUESTO WEB": el buscador solo trae productos publicados en la web, con su precio de venta. */
   const [webMode, setWebMode] = useState(false);
+  // El modo web vale para el presupuesto que se está mirando: al cerrar el cajón se apaga.
+  useEffect(() => {
+    if (!drawerOpen) setWebMode(false);
+  }, [drawerOpen]);
   const selBase = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
   const sel = webMode ? { ...selBase, own: false, web: true, activeIds: [] as typeof selBase.activeIds } : selBase;
   const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
@@ -2842,30 +2846,25 @@ export function QuotesView({
         }
         footer={
           <>
-            {!detail ? (
+            {webMode ? (
+              <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios de la tienda, el costo de INVID / ELIT / NEW BYTES, el armado y los extras a elección">
+                CREAR PRESUPUESTO WEB
+              </button>
+            ) : null}
+            {!detail && !webMode ? (
               <>
-                {webMode ? (
-                  <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
-                    CREAR PRESUPUESTO WEB
-                  </button>
-                ) : (
-                  <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
-                    {busy ? "Creando…" : "Crear presupuesto"}
-                  </button>
-                )}
-                {!webMode ? (
-                  <>
-                    <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
-                      Presupuesto Formal
-                    </button>
-                    <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
-                      Generar presupuesto detallado
-                    </button>
-                  </>
-                ) : null}
+                <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
+                  {busy ? "Creando…" : "Crear presupuesto"}
+                </button>
+                <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+                  Presupuesto Formal
+                </button>
+                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
+                  Generar presupuesto detallado
+                </button>
               </>
             ) : null}
-            {detail && isDraft ? (
+            {detail && isDraft && !webMode ? (
               <>
                 <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
                   {busy ? "Guardando…" : "Guardar y descargar PDF"}
@@ -2877,11 +2876,6 @@ export function QuotesView({
                   Generar presupuesto detallado
                 </button>
               </>
-            ) : null}
-            {detail ? (
-              <button type="button" className="btn-web quote-foot-secondary" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios finales de la web (costo de NODO), armado, garantía extendida TGS y Windows 11 Pro">
-                Crear Presupuesto Web
-              </button>
             ) : null}
             <span className="quote-foot-total">
               <span className="quote-foot-total-label">{tradeInTotal > 0n ? "A pagar" : "Total del presupuesto"}</span>
@@ -2922,18 +2916,16 @@ export function QuotesView({
           <WebQuoteAlerts version={activeVersion} onCheck={() => void checkWebQuote()} checking={webChecking} />
         ) : null}
 
-        {!detail ? (
-          <label className={`web-switch${webMode ? " on" : ""}`} title="Presupuesto con los precios de la tienda web">
-            <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />
-            <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
-            <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
-            {webMode ? (
-              <span className="web-switch-hint">
-                Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
-              </span>
-            ) : null}
-          </label>
-        ) : null}
+        <label className={`web-switch${webMode ? " on" : ""}`} title="Crea un presupuesto nuevo con los precios de la tienda web">
+          <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />
+          <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
+          <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
+          {webMode ? (
+            <span className="web-switch-hint">
+              Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
+            </span>
+          ) : null}
+        </label>
 
         <form
           id="quote-form"
