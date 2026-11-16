@@ -540,6 +540,37 @@ describe('@tgs/pdf', () => {
     }
   });
 
+  it('PC armada común: línea principal con el total y los componentes sin importe, sin nada del presupuesto web', () => {
+    const title = 'PC ARMADA THE GAMER SHOP';
+    const description = 'SERVICIO DE ARMADO, INSTALACION, CONFIGURACION Y PRUEBAS DEL EQUIPO POR NUESTROS TÉCNICOS.';
+    const items = [
+      { name: title + ' — ' + description, quantity: 1, unitCents: 114367500n, subtotalCents: 114367500n, isMainLine: true },
+      { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
+      { name: 'MEMORIA RAM 16GB', quantity: 1, unitCents: 5200000n, subtotalCents: 5200000n, isComponent: true },
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({
+        ...sample(),
+        isBuiltPc: true,
+        template,
+        kind: 'SIMPLE',
+        config: { ...baseConfig, builtPcTitle: title, builtPcDescription: description },
+        items,
+      });
+      expect(html).toContain('PC ARMADA THE GAMER SHOP');
+      expect(html).toContain('SERVICIO DE ARMADO, INSTALACION, CONFIGURACION Y PRUEBAS DEL EQUIPO POR NUESTROS TÉCNICOS.');
+      // El total de la PC va en la línea principal; los componentes no muestran su precio.
+      expect(html).toContain('$ 1.143.675');
+      expect(html).not.toContain('$ 250.000');
+      expect(html).not.toContain('$ 52.000');
+      expect(html).toContain('PROCESADOR AMD RYZEN 5');
+      // Nada del presupuesto web.
+      expect(html).not.toContain('class="web-assembly"');
+      expect(html).not.toContain('web-note');
+      expect(html).not.toContain('Placa WIFI PCIe por solo');
+    }
+  });
+
   it('Presupuesto Web: armado en rojo primero, Windows en azul y garantía en gris debajo, sin importe', () => {
     const items = [
       { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
