@@ -826,9 +826,10 @@ function itemsColumnCount(input: PdfRenderInput): number {
   return 2 + (resolveQuickOptions(input).showIvaBreakdown ? 3 : 1) + 1;
 }
 
-function webNoteRow(role: 'WINDOWS' | 'WARRANTY', input: PdfRenderInput): string {
+/** Línea chica de Windows o de la garantía: el nombre a la izquierda y su importe a la derecha. */
+function webNoteRow(role: 'WINDOWS' | 'WARRANTY', input: PdfRenderInput, item: PdfItem): string {
   const cls = role === 'WINDOWS' ? 'win' : 'war';
-  return `<tr class="web-note ${cls}"><td colspan="${itemsColumnCount(input)}">${escapeHtml(WEB_NOTE_LABEL[role])}</td></tr>`;
+  return `<tr class="web-note ${cls}"><td colspan="${itemsColumnCount(input) - 1}">${escapeHtml(WEB_NOTE_LABEL[role])}</td><td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`;
 }
 
 const WEB_ROW_CSS = `
@@ -855,7 +856,7 @@ function buildItemsRows(input: PdfRenderInput): string {
     .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
       const role = input.componentPrices ? webLineRole(item.name) : null;
-      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input);
+      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input, item);
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(role === 'ASSEMBLY' ? WEB_ASSEMBLY_LABEL : itemDisplayName(item.name));
       const qty = String(item.quantity);
@@ -1174,7 +1175,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
     .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
       const role = input.componentPrices ? webLineRole(item.name) : null;
-      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input);
+      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input, item);
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(role === 'ASSEMBLY' ? WEB_ASSEMBLY_LABEL : itemDisplayName(item.name));
       const qty = String(item.quantity);

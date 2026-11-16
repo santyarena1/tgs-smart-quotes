@@ -571,7 +571,7 @@ describe('@tgs/pdf', () => {
     }
   });
 
-  it('Presupuesto Web: armado en rojo primero, Windows en azul y garantía en gris debajo, sin importe', () => {
+  it('Presupuesto Web: armado en rojo primero, Windows en azul y garantía en gris debajo, cada una con su importe', () => {
     const items = [
       { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
       { name: 'GARANTÍA EXTENDIDA TGS', quantity: 1, unitCents: 1750000n, subtotalCents: 1750000n, isComponent: true },
@@ -591,9 +591,9 @@ describe('@tgs/pdf', () => {
       expect(windows).toBeLessThan(warranty);
       expect(html).toContain('web-note win');
       expect(html).toContain('web-note war');
-      // Windows y garantía no muestran importe propio.
-      expect(html).not.toContain('$ 65.000');
-      expect(html).not.toContain('$ 17.500');
+      // Windows y la garantía muestran su importe en la misma línea chica.
+      expect(html).toMatch(/web-note win[^]*?\$ 65\.000/);
+      expect(html).toMatch(/web-note war[^]*?\$ 17\.500/);
     }
   });
 
