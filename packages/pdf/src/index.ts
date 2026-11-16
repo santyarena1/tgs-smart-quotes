@@ -4,7 +4,7 @@ import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { HALLOWEEN_WEB_PNG } from './halloween-web.js';
 
-export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL';
+export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL' | 'WEB';
 
 export type PdfCompany = {
   name: string;
@@ -826,9 +826,10 @@ function itemsColumnCount(input: PdfRenderInput): number {
   return 2 + (resolveQuickOptions(input).showIvaBreakdown ? 3 : 1) + 1;
 }
 
-function webNoteRow(role: 'WINDOWS' | 'WARRANTY', input: PdfRenderInput): string {
+/** Línea chica de Windows o de la garantía: el nombre a la izquierda y su importe a la derecha. */
+function webNoteRow(role: 'WINDOWS' | 'WARRANTY', input: PdfRenderInput, item: PdfItem): string {
   const cls = role === 'WINDOWS' ? 'win' : 'war';
-  return `<tr class="web-note ${cls}"><td colspan="${itemsColumnCount(input)}">${escapeHtml(WEB_NOTE_LABEL[role])}</td></tr>`;
+  return `<tr class="web-note ${cls}"><td colspan="${itemsColumnCount(input) - 1}">${escapeHtml(WEB_NOTE_LABEL[role])}</td><td class="amt">${formatArsFromCents(item.subtotalCents)}</td></tr>`;
 }
 
 const WEB_ROW_CSS = `
@@ -855,7 +856,7 @@ function buildItemsRows(input: PdfRenderInput): string {
     .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
       const role = input.componentPrices ? webLineRole(item.name) : null;
-      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input);
+      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input, item);
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(role === 'ASSEMBLY' ? WEB_ASSEMBLY_LABEL : itemDisplayName(item.name));
       const qty = String(item.quantity);
@@ -932,7 +933,8 @@ function buildFinancing(input: PdfRenderInput): string {
 }
 
 export function renderQuoteHtml(rawInput: PdfRenderInput): string {
-  const input = withQuickConfig(rawInput);
+  // El tipo WEB se dibuja como el normal con precio por componente y las líneas propias del presupuesto web.
+  const input = withQuickConfig(rawInput.kind === 'WEB' ? { ...rawInput, kind: 'SIMPLE', componentPrices: true } : rawInput);
   if (input.kind === 'FORMAL') return renderQuoteFormalHtml(input);
   if (input.template === 'MODERNO') return renderQuoteModernoHtml(input);
   const date = formatDateAr(input.date);
@@ -1023,7 +1025,7 @@ export function renderQuoteHtml(rawInput: PdfRenderInput): string {
   }
   table.items tr.main td { font-weight: 700; }
   table.items tr.component td.name { padding-left: 18px; color: #333; }
-${WEB_ROW_CSS}
+${input.componentPrices ? WEB_ROW_CSS : ''}
   table.items .code { width: 48px; }
   table.items .qty { width: 48px; text-align: center; }
   table.items .amt { width: 110px; text-align: right; white-space: nowrap; }
@@ -1173,7 +1175,7 @@ function buildItemsRowsModerno(input: PdfRenderInput): string {
     .filter((item) => !(input.componentPrices && item.isMainLine))
     .map((item, index) => {
       const role = input.componentPrices ? webLineRole(item.name) : null;
-      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input);
+      if (role === 'WINDOWS' || role === 'WARRANTY') return webNoteRow(role, input, item);
       const code = escapeHtml(item.code ?? String(index + 1).padStart(3, '0'));
       const name = escapeHtml(role === 'ASSEMBLY' ? WEB_ASSEMBLY_LABEL : itemDisplayName(item.name));
       const qty = String(item.quantity);
@@ -1357,7 +1359,7 @@ export function renderQuoteModernoHtml(rawInput: PdfRenderInput): string {
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
-${WEB_ROW_CSS}
+${input.componentPrices ? WEB_ROW_CSS : ''}
   table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
   table.items .code { width: 50px; }
   table.items td.code { color: #555; }

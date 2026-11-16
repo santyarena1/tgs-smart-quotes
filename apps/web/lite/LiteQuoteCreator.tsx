@@ -1228,7 +1228,6 @@ export function LiteQuoteCreator() {
             ? { showValues: tradeShowValues, items: given.map((row) => ({ name: row.name.trim(), valueCents: tradeInCents(row).toString() })) }
             : null,
           collectionIds: [],
-          pdfOverrides: { showComponentPrices: "MOSTRAR" },
           webMeta: result.webMeta,
           items: ordered.map((line, position) => ({
             productId: line.productId || null,
@@ -1246,7 +1245,7 @@ export function LiteQuoteCreator() {
       teachIva(ordered.filter((line) => !line.ivaAuto).map((line) => ({ name: line.name.trim(), ivaBps: ivaBpsFromPct(line.ivaPct) })));
       let pdfNote = "";
       try {
-        await downloadQuotePdf(created.id, created.visibleNumber, "SIMPLE");
+        await downloadQuotePdf(created.id, created.visibleNumber, "WEB");
       } catch (err) {
         pdfNote = ` El PDF no se pudo descargar: ${errorMessage(err)}.`;
       }
@@ -1469,18 +1468,18 @@ export function LiteQuoteCreator() {
             <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={Boolean(busy) || webBusy} />
             <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
             <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
-            {webMode ? (
-              <span className="web-switch-hint">
-                Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear y descargar PDF sigue sacando el presupuesto común, sin armado, licencia ni garantía.
-              </span>
-            ) : null}
           </label>
+          {webMode ? (
+            <p className="web-switch-hint">
+              Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear y descargar PDF sigue sacando el presupuesto común, sin armado, licencia ni garantía.
+            </p>
+          ) : null}
           {editing?.version?.webMeta ? (
             <WebQuoteAlerts version={editing.version} onCheck={() => void checkWebQuote()} checking={webChecking} />
           ) : null}
-          <SourceBar providers={providers} sel={sel} error={providersError} />
+          {webMode ? null : <SourceBar providers={providers} sel={sel} error={providersError} />}
           {browserOpen ? (
-            <ProductBrowserModal items={browserItems} loading={nodo.loading || web.loading} query={query} sourceBar={<SourceBar providers={providers} sel={sel} error={providersError} />} onConfirm={addPicked} onClose={() => setBrowserOpen(false)} />
+            <ProductBrowserModal items={browserItems} loading={nodo.loading || web.loading} query={query} sourceBar={webMode ? undefined : <SourceBar providers={providers} sel={sel} error={providersError} />} onConfirm={addPicked} onClose={() => setBrowserOpen(false)} />
           ) : null}
           <div className="lt-search">
             <input

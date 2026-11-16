@@ -1,6 +1,6 @@
 import { api, downloadAuthenticated } from "../lib/api";
 
-export type PdfKind = "SIMPLE" | "DETALLADO" | "FORMAL";
+export type PdfKind = "SIMPLE" | "DETALLADO" | "FORMAL" | "WEB";
 
 /** Ajustes rápidos de un PDF detallado o formal (qué se muestra). Mismo contrato que el API. */
 export type PdfQuickOptions = {

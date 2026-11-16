@@ -45,6 +45,8 @@ enum PdfKind {
   DETALLADO
   /// Presupuesto formal para empresas: sin armado, demora, financiación ni textos de la tienda.
   FORMAL
+  /// Presupuesto web: precios de la tienda por componente, armado, licencia y garantía como líneas propias y oferta de WiFi.
+  WEB
 }
 
 enum CustomerKind {

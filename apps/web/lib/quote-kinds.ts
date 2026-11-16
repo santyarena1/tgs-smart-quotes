@@ -1,7 +1,7 @@
-/** Tipos de PDF de un presupuesto (Normal = SIMPLE) con sus colores: Normal rojo, Detallado amarillo, Formal azul. */
-export type PdfKind = "SIMPLE" | "DETALLADO" | "FORMAL";
+/** Tipos de presupuesto (Normal = SIMPLE) con sus colores: Normal rojo, Detallado amarillo, Formal azul, Web violeta. */
+export type PdfKind = "SIMPLE" | "DETALLADO" | "FORMAL" | "WEB";
 
-export const KINDS: Array<[PdfKind, string]> = [["SIMPLE", "Normal"], ["DETALLADO", "Detallado"], ["FORMAL", "Formal"]];
+export const KINDS: Array<[PdfKind, string]> = [["SIMPLE", "Normal"], ["DETALLADO", "Detallado"], ["FORMAL", "Formal"], ["WEB", "Web"]];
 export const KIND_LABEL = Object.fromEntries(KINDS) as Record<PdfKind, string>;
 
 type PdfLike = { kind: PdfKind; createdAt: string };

@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.2",
+    date: "2026-11-16",
+    title: "El presupuesto web es un tipo de presupuesto más",
+    items: [
+      "Igual que Detallado o Formal, el presupuesto web se guarda con su propio tipo (Web) y así se identifica: cinta y color violeta en las listas, filtro Web en LITE y archivo TGS-…-WEB.pdf",
+      "Un presupuesto web guardado tiene su botón Generar web / PDF web para volver a bajar su PDF",
+      "El switch CREAR PRESUPUESTO WEB es una píldora redonda violeta, como el resto de los switches, y el botón también es violeta. Al activarlo se ocultan los proveedores",
+    ],
+  },
+  {
     version: "0.25.1",
     date: "2026-11-16",
     title: "Presupuesto Web separado del común",

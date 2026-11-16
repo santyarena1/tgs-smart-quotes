@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {madeKinds, quoteKind} from "./quote-kinds";
+import {KIND_LABEL, madeKinds, quoteKind} from "./quote-kinds";
 import {getQuoteItems, type Quote} from "./types";
 
 describe("tipos de PDF en el listado", () => {
@@ -12,6 +12,16 @@ describe("tipos de PDF en el listado", () => {
         {kind: "FORMAL", createdAt: "2026-10-02T10:00:00.000Z"},
       ]),
     ).toBe("FORMAL");
+  });
+
+  it("un presupuesto web se identifica como Web, igual que Detallado o Formal", () => {
+    const pdfs = [
+      {kind: "SIMPLE" as const, createdAt: "2026-10-01T10:00:00.000Z"},
+      {kind: "WEB" as const, createdAt: "2026-10-02T10:00:00.000Z"},
+    ];
+    expect(quoteKind(pdfs)).toBe("WEB");
+    expect(KIND_LABEL.WEB).toBe("Web");
+    expect(madeKinds(pdfs).map(([kind]) => kind)).toEqual(["SIMPLE", "WEB"]);
   });
 
   it("lista todos los tipos generados aunque el payload sea el liviano de búsqueda", () => {
