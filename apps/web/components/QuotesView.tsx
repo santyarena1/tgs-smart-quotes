@@ -94,6 +94,8 @@ type ItemDraft = {
   imageUrl?: string | null;
   /** Producto de la tienda elegido en el buscador: el Presupuesto Web lo usa directo y lo revalida a los 2 días. */
   web?: WebPick | null;
+  /** Escrito a mano en esta sesión. El Presupuesto Web no lo busca en la tienda y deja su precio. */
+  manual?: boolean;
 };
 
 /** Borradores guardados antes del IVA por ítem no traen el campo. */
@@ -1890,7 +1892,7 @@ export function QuotesView({
       } else if (opt.kind === "catalog") {
         addCatalogItem(opt.product);
       } else if (opt.kind === "create") openCreateProduct();
-      else addItem({ ...blankItem(), name: pickerQuery.trim() }, true);
+      else addItem({ ...blankItem(), name: pickerQuery.trim(), manual: true }, true);
     },
     [pickerOptions, pickerQuery, pickingLineId, replaceItemKey],
   );
@@ -3185,7 +3187,7 @@ export function QuotesView({
                   <button
                     type="button"
                     className="btn-ghost"
-                    onClick={() => addItem(blankItem(), true)}
+                    onClick={() => addItem({ ...blankItem(), manual: true }, true)}
                   >
                     + Ítem libre
                   </button>
@@ -3445,7 +3447,7 @@ export function QuotesView({
                               className={`picker-option${pickerActive === freeIdx ? " is-active" : ""}`}
                               onMouseEnter={() => setPickerActive(freeIdx)}
                               onClick={() =>
-                                addItem({ ...blankItem(), name: pickerQuery.trim() }, true)
+                                addItem({ ...blankItem(), name: pickerQuery.trim(), manual: true }, true)
                               }
                             >
                               <span className="po-name">Agregar solo a este presupuesto</span>
@@ -4330,7 +4332,7 @@ export function QuotesView({
         busy={busy}
         components={filledItems(webSource?.items ?? items)
           .filter((item) => !isExtraLine(item.name))
-          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null, keep: !item.productId && !item.web && !item.source }))}
+          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null, keep: item.manual === true }))}
         onClose={() => setWebOpen(false)}
         onConfirm={applyWebQuote}
       />
