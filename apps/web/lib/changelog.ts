@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.1",
+    date: "2026-11-16",
+    title: "Presupuesto Web separado del común",
+    items: [
+      "En la versión común y en LITE el switch solo habilita el botón CREAR PRESUPUESTO WEB. Crear, Guardar, Formal y Detallado siguen armando el presupuesto común, sin armado, licencia ni garantía",
+      "El presupuesto web se crea y se descarga aparte: no reemplaza lo que estás armando, ni se lleva la imagen de referencia ni las colecciones",
+      "Un ítem escrito a mano en esta sesión conserva su precio. El resto se busca en la tienda, también al reabrir un presupuesto guardado",
+      "El switch usa los colores del tema. El recuadro de avisos aparece solo si hay un aviso o el presupuesto venció",
+    ],
+  },
+  {
     version: "0.25.0",
     date: "2026-11-16",
     title: "Presupuesto Web: modo propio, checklist y vencimiento a 2 días",

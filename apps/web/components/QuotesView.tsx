@@ -94,6 +94,8 @@ type ItemDraft = {
   imageUrl?: string | null;
   /** Producto de la tienda elegido en el buscador: el Presupuesto Web lo usa directo y lo revalida a los 2 días. */
   web?: WebPick | null;
+  /** Escrito a mano en esta sesión. El Presupuesto Web no lo busca en la tienda y deja su precio. */
+  manual?: boolean;
 };
 
 /** Borradores guardados antes del IVA por ítem no traen el campo. */
@@ -506,6 +508,10 @@ export function QuotesView({
   const { providers: nodoProviders, error: nodoProvidersError, setEnabled: setNodoProvidersEnabled } = useNodoProviders();
   /** Modo "CREAR PRESUPUESTO WEB": el buscador solo trae productos publicados en la web, con su precio de venta. */
   const [webMode, setWebMode] = useState(false);
+  // El modo web vale para el presupuesto que se está mirando: al cerrar el cajón se apaga.
+  useEffect(() => {
+    if (!drawerOpen) setWebMode(false);
+  }, [drawerOpen]);
   const selBase = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
   const sel = webMode ? { ...selBase, own: false, web: true, activeIds: [] as typeof selBase.activeIds } : selBase;
   const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
@@ -1886,7 +1892,7 @@ export function QuotesView({
       } else if (opt.kind === "catalog") {
         addCatalogItem(opt.product);
       } else if (opt.kind === "create") openCreateProduct();
-      else addItem({ ...blankItem(), name: pickerQuery.trim() }, true);
+      else addItem({ ...blankItem(), name: pickerQuery.trim(), manual: true }, true);
     },
     [pickerOptions, pickerQuery, pickingLineId, replaceItemKey],
   );
@@ -2122,6 +2128,7 @@ export function QuotesView({
         items: webItems,
         isBuiltPc: true,
         componentPrices: true,
+        keepEditor: true,
         webMeta: result.webMeta,
         noticeSuffix: result.noticeSuffix,
         observation: webObservation,
@@ -2137,17 +2144,17 @@ export function QuotesView({
       items: webItems,
       isBuiltPc: true,
       componentPrices: true,
+      keepEditor: true,
       webMeta: result.webMeta,
       noticeSuffix: result.noticeSuffix,
       observation: webObservation,
-      ...(detail ? { requestId: "", collectionIds: [] } : {}),
-    }).then((failure) => {
-      if (!failure) setWebMode(false);
-      return failure;
+      // La solicitud y las colecciones quedan para el presupuesto común.
+      requestId: "",
+      collectionIds: [],
     });
   }
 
-  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; webMeta?: WebQuoteApply["webMeta"]; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; webMeta?: WebQuoteApply["webMeta"]; keepEditor?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
     e?.preventDefault();
     const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
     const effectiveCustomerId = opts?.customerId ?? customerId;
@@ -2185,10 +2192,12 @@ export function QuotesView({
           ...(opts?.webMeta ? { webMeta: opts.webMeta } : {}),
         },
       });
-      const refNote = created.id && !opts?.detached ? await persistReferenceImage(created.id) : "";
+      const refNote = created.id && !opts?.detached && !opts?.keepEditor ? await persistReferenceImage(created.id) : "";
       teachIva(filledItems(quoteItems).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
-      if (editorDraftKey) removeQuoteDraft(editorDraftKey);
-      setDraftRecovered(false);
+      if (!opts?.keepEditor) {
+        if (editorDraftKey) removeQuoteDraft(editorDraftKey);
+        setDraftRecovered(false);
+      }
       setNotice(
         (refNote ? `Presupuesto creado.${refNote}` : quoteRequestId
           ? "Presupuesto creado y solicitud marcada como Lista."
@@ -2197,9 +2206,12 @@ export function QuotesView({
             : "Presupuesto creado.") + (opts?.noticeSuffix ?? ""),
       );
       if (created.id) {
-        applyDetail(created, false);
-        setSelectedId(created.id);
+        if (!opts?.keepEditor) {
+          applyDetail(created, false);
+          setSelectedId(created.id);
+        }
         setList((current) => [created, ...current.filter((row) => row.id !== created.id)]);
+        if (opts?.keepEditor) setNotice(`Presupuesto web ${created.visibleNumber} creado y descargado. El presupuesto común que estás armando sigue igual, sin armado, licencia ni garantía.${opts.noticeSuffix ?? ""}`);
         await api(`/quotes/${created.id}/pdf`, {
           method: "POST",
           body: { kind: pdfKind },
@@ -2207,7 +2219,7 @@ export function QuotesView({
         if (opts) await downloadAuthenticated(`/quotes/${created.id}/pdf/${pdfKind}`, `${created.visibleNumber}-${pdfKind}.pdf`);
         else if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
         else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
-        void loadSideData(created.id);
+        if (!opts?.keepEditor) void loadSideData(created.id);
       }
       return null;
     } catch (err) {
@@ -2844,25 +2856,15 @@ export function QuotesView({
           <>
             {!detail ? (
               <>
-                {webMode ? (
-                  <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
-                    CREAR PRESUPUESTO WEB
-                  </button>
-                ) : (
-                  <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
-                    {busy ? "Creando…" : "Crear presupuesto"}
-                  </button>
-                )}
-                {!webMode ? (
-                  <>
-                    <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
-                      Presupuesto Formal
-                    </button>
-                    <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
-                      Generar presupuesto detallado
-                    </button>
-                  </>
-                ) : null}
+                <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
+                  {busy ? "Creando…" : "Crear presupuesto"}
+                </button>
+                <button type="button" className="btn-formal quote-foot-secondary" disabled={busy} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+                  Presupuesto Formal
+                </button>
+                <button type="submit" form="quote-form" data-pdf-kind="DETALLADO" className="btn-detallado quote-foot-secondary" disabled={busy}>
+                  Generar presupuesto detallado
+                </button>
               </>
             ) : null}
             {detail && isDraft ? (
@@ -2878,9 +2880,9 @@ export function QuotesView({
                 </button>
               </>
             ) : null}
-            {detail ? (
-              <button type="button" className="btn-web quote-foot-secondary" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios finales de la web (costo de NODO), armado, garantía extendida TGS y Windows 11 Pro">
-                Crear Presupuesto Web
+            {webMode ? (
+              <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios de la tienda, el costo de INVID / ELIT / NEW BYTES, el armado y los extras a elección">
+                CREAR PRESUPUESTO WEB
               </button>
             ) : null}
             <span className="quote-foot-total">
@@ -2922,18 +2924,16 @@ export function QuotesView({
           <WebQuoteAlerts version={activeVersion} onCheck={() => void checkWebQuote()} checking={webChecking} />
         ) : null}
 
-        {!detail ? (
-          <label className={`web-switch${webMode ? " on" : ""}`} title="Presupuesto con los precios de la tienda web">
-            <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />
-            <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
-            <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
-            {webMode ? (
-              <span className="web-switch-hint">
-                Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
-              </span>
-            ) : null}
-          </label>
-        ) : null}
+        <label className={`web-switch${webMode ? " on" : ""}`} title="Crea un presupuesto nuevo con los precios de la tienda web">
+          <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />
+          <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
+          <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
+          {webMode ? (
+            <span className="web-switch-hint">
+              Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear presupuesto y los PDF siguen sacando el presupuesto común, sin armado, licencia ni garantía.
+            </span>
+          ) : null}
+        </label>
 
         <form
           id="quote-form"
@@ -3183,11 +3183,11 @@ export function QuotesView({
                   >
                     {pickingLineId ? "Cancelar línea" : "Cancelar cambio"}
                   </button>
-                ) : !isBuiltPc ? (
+                ) : !isBuiltPc || webMode ? (
                   <button
                     type="button"
                     className="btn-ghost"
-                    onClick={() => addItem(blankItem(), true)}
+                    onClick={() => addItem({ ...blankItem(), manual: true }, true)}
                   >
                     + Ítem libre
                   </button>
@@ -3447,7 +3447,7 @@ export function QuotesView({
                               className={`picker-option${pickerActive === freeIdx ? " is-active" : ""}`}
                               onMouseEnter={() => setPickerActive(freeIdx)}
                               onClick={() =>
-                                addItem({ ...blankItem(), name: pickerQuery.trim() }, true)
+                                addItem({ ...blankItem(), name: pickerQuery.trim(), manual: true }, true)
                               }
                             >
                               <span className="po-name">Agregar solo a este presupuesto</span>
@@ -4332,7 +4332,7 @@ export function QuotesView({
         busy={busy}
         components={filledItems(webSource?.items ?? items)
           .filter((item) => !isExtraLine(item.name))
-          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null }))}
+          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null, keep: item.manual === true }))}
         onClose={() => setWebOpen(false)}
         onConfirm={applyWebQuote}
       />

@@ -971,10 +971,11 @@ export function LiteQuoteCreator() {
 
   /** Foto del formulario para poder volver atrás después de limpiar. */
   function takeSnapshot() {
-    const snap = { lines, name, customerId, bulkMarkup, collectionIds, isBuiltPc, roundStep, tradeIns, tradeShowValues, refImage, refSavedKey, editing };
+    const snap = { lines, name, customerId, bulkMarkup, collectionIds, isBuiltPc, roundStep, tradeIns, tradeShowValues, refImage, refSavedKey, editing, webMode };
     return () => {
       setLines(snap.lines);
       setName(snap.name);
+      setWebMode(snap.webMode);
       setCustomerId(snap.customerId);
       setBulkMarkup(snap.bulkMarkup);
       setCollectionIds(snap.collectionIds);
@@ -995,6 +996,7 @@ export function LiteQuoteCreator() {
     const undo = takeSnapshot();
     setLines([]);
     setName("");
+    setWebMode(false);
     setBulkMarkup("");
     setCollectionIds([]);
     setIsBuiltPc(false);
@@ -1027,6 +1029,7 @@ export function LiteQuoteCreator() {
   function resetForm() {
     setLines([]);
     setName("");
+    setWebMode(false);
     setCustomerId("");
     setBulkMarkup("");
     setCollectionIds([]);
@@ -1224,7 +1227,7 @@ export function LiteQuoteCreator() {
           tradeIns: given.length
             ? { showValues: tradeShowValues, items: given.map((row) => ({ name: row.name.trim(), valueCents: tradeInCents(row).toString() })) }
             : null,
-          collectionIds: source || editing ? [] : collectionIds,
+          collectionIds: [],
           pdfOverrides: { showComponentPrices: "MOSTRAR" },
           webMeta: result.webMeta,
           items: ordered.map((line, position) => ({
@@ -1240,13 +1243,6 @@ export function LiteQuoteCreator() {
           })),
         },
       });
-      if (!source && refImage) {
-        try {
-          await api(`/quote-reference-image/${created.id}`, { method: "PUT", body: { image: refImage } });
-        } catch {
-          /* el aviso de abajo alcanza */
-        }
-      }
       teachIva(ordered.filter((line) => !line.ivaAuto).map((line) => ({ name: line.name.trim(), ivaBps: ivaBpsFromPct(line.ivaPct) })));
       let pdfNote = "";
       try {
@@ -1255,8 +1251,8 @@ export function LiteQuoteCreator() {
         pdfNote = ` El PDF no se pudo descargar: ${errorMessage(err)}.`;
       }
       setRefreshKey((key) => key + 1);
-      if (!source) await startEdit(created);
-      setNotice(`Presupuesto web ${created.visibleNumber} creado.${pdfNote}${result.noticeSuffix}`);
+      // El presupuesto web se descarga aparte: el común que se está armando no se toca.
+      setNotice(`Presupuesto web ${created.visibleNumber} creado. El presupuesto común sigue igual, sin armado, licencia ni garantía.${pdfNote}${result.noticeSuffix}`);
       return null;
     } catch (err) {
       return errorMessage(err);
@@ -1469,18 +1465,16 @@ export function LiteQuoteCreator() {
             </div>
           ) : null}
 
-          {!editing ? (
-            <label className={`web-switch${webMode ? " on" : ""}`} title="Presupuesto con los precios de la tienda web">
-              <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={Boolean(busy) || webBusy} />
-              <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
-              <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
-              {webMode ? (
-                <span className="web-switch-hint">
-                  Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
-                </span>
-              ) : null}
-            </label>
-          ) : null}
+          <label className={`web-switch${webMode ? " on" : ""}`} title="Crea un presupuesto nuevo con los precios de la tienda web">
+            <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={Boolean(busy) || webBusy} />
+            <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
+            <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
+            {webMode ? (
+              <span className="web-switch-hint">
+                Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear y descargar PDF sigue sacando el presupuesto común, sin armado, licencia ni garantía.
+              </span>
+            ) : null}
+          </label>
           {editing?.version?.webMeta ? (
             <WebQuoteAlerts version={editing.version} onCheck={() => void checkWebQuote()} checking={webChecking} />
           ) : null}
@@ -1612,26 +1606,20 @@ export function LiteQuoteCreator() {
               {lines.length ? <small className="lt-total-meta"><span className="lt-cost">Costo {formatArs(cost)}</span> · <span className="lt-gain">Ganancia {formatArs(total - cost)}</span></small> : null}
             </div>
             <span className="lt-spacer" />
-            {webMode && !editing ? (
-              <button type="button" className="btn-web" disabled={!ready || webBusy} onClick={openWebQuote} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
+            <button type="button" className="lt-textlink tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+              {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
+            </button>
+            <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={startDetailed}>
+              {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
+            </button>
+            {webMode ? (
+              <button type="button" className="btn-web" disabled={!ready || webBusy} onClick={openWebQuote} title="Crea un presupuesto nuevo con los precios de la tienda, el costo de INVID / ELIT / NEW BYTES, el armado y los extras a elección">
                 {webBusy ? "Buscando precios web…" : "CREAR PRESUPUESTO WEB"}
               </button>
-            ) : (
-              <>
-                <button type="button" className="lt-textlink tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
-                  {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
-                </button>
-                <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={startDetailed}>
-                  {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
-                </button>
-                <button type="button" className="btn-web" disabled={!ready} onClick={openWebQuote} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
-                  {webBusy ? "Buscando precios web…" : "Crear Presupuesto Web"}
-                </button>
-                <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
-                  {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
-                </button>
-              </>
-            )}
+            ) : null}
+            <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
+              {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
+            </button>
           </div>
         </div>
       </section>
