@@ -1228,8 +1228,8 @@ export function LiteQuoteCreator() {
         pdfNote = ` El PDF no se pudo descargar: ${errorMessage(err)}.`;
       }
       setRefreshKey((key) => key + 1);
-      if (!source) await startEdit(created);
-      setNotice(`Presupuesto web ${created.visibleNumber} creado.${pdfNote}${result.noticeSuffix}`);
+      // El presupuesto web se descarga aparte: el común que se está armando no se toca.
+      setNotice(`Presupuesto web ${created.visibleNumber} creado. El presupuesto común sigue igual, sin armado, licencia ni garantía.${pdfNote}${result.noticeSuffix}`);
       return null;
     } catch (err) {
       return errorMessage(err);

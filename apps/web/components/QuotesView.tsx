@@ -2126,6 +2126,7 @@ export function QuotesView({
         items: webItems,
         isBuiltPc: true,
         componentPrices: true,
+        keepEditor: true,
         webMeta: result.webMeta,
         noticeSuffix: result.noticeSuffix,
         observation: webObservation,
@@ -2141,17 +2142,17 @@ export function QuotesView({
       items: webItems,
       isBuiltPc: true,
       componentPrices: true,
+      keepEditor: true,
       webMeta: result.webMeta,
       noticeSuffix: result.noticeSuffix,
       observation: webObservation,
-      ...(detail ? { requestId: "", collectionIds: [] } : {}),
-    }).then((failure) => {
-      if (!failure) setWebMode(false);
-      return failure;
+      // La solicitud y las colecciones quedan para el presupuesto común.
+      requestId: "",
+      collectionIds: [],
     });
   }
 
-  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; webMeta?: WebQuoteApply["webMeta"]; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; webMeta?: WebQuoteApply["webMeta"]; keepEditor?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
     e?.preventDefault();
     const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
     const effectiveCustomerId = opts?.customerId ?? customerId;
@@ -2189,10 +2190,12 @@ export function QuotesView({
           ...(opts?.webMeta ? { webMeta: opts.webMeta } : {}),
         },
       });
-      const refNote = created.id && !opts?.detached ? await persistReferenceImage(created.id) : "";
+      const refNote = created.id && !opts?.detached && !opts?.keepEditor ? await persistReferenceImage(created.id) : "";
       teachIva(filledItems(quoteItems).filter((i) => i.ivaAuto === false).map((i) => ({ name: i.name.trim(), ivaBps: ivaBpsFromPct(ivaOf(i)) })));
-      if (editorDraftKey) removeQuoteDraft(editorDraftKey);
-      setDraftRecovered(false);
+      if (!opts?.keepEditor) {
+        if (editorDraftKey) removeQuoteDraft(editorDraftKey);
+        setDraftRecovered(false);
+      }
       setNotice(
         (refNote ? `Presupuesto creado.${refNote}` : quoteRequestId
           ? "Presupuesto creado y solicitud marcada como Lista."
@@ -2201,9 +2204,12 @@ export function QuotesView({
             : "Presupuesto creado.") + (opts?.noticeSuffix ?? ""),
       );
       if (created.id) {
-        applyDetail(created, false);
-        setSelectedId(created.id);
+        if (!opts?.keepEditor) {
+          applyDetail(created, false);
+          setSelectedId(created.id);
+        }
         setList((current) => [created, ...current.filter((row) => row.id !== created.id)]);
+        if (opts?.keepEditor) setNotice(`Presupuesto web ${created.visibleNumber} creado y descargado. El presupuesto común que estás armando sigue igual, sin armado, licencia ni garantía.${opts.noticeSuffix ?? ""}`);
         await api(`/quotes/${created.id}/pdf`, {
           method: "POST",
           body: { kind: pdfKind },
@@ -2211,7 +2217,7 @@ export function QuotesView({
         if (opts) await downloadAuthenticated(`/quotes/${created.id}/pdf/${pdfKind}`, `${created.visibleNumber}-${pdfKind}.pdf`);
         else if (pdfTab) pdfTab.location.href = `/api/quotes/${created.id}/pdf/${pdfKind}`;
         else window.open(`/api/quotes/${created.id}/pdf/${pdfKind}`, "_blank", "noopener");
-        void loadSideData(created.id);
+        if (!opts?.keepEditor) void loadSideData(created.id);
       }
       return null;
     } catch (err) {
@@ -3175,7 +3181,7 @@ export function QuotesView({
                   >
                     {pickingLineId ? "Cancelar línea" : "Cancelar cambio"}
                   </button>
-                ) : !isBuiltPc ? (
+                ) : !isBuiltPc || webMode ? (
                   <button
                     type="button"
                     className="btn-ghost"
@@ -4324,7 +4330,7 @@ export function QuotesView({
         busy={busy}
         components={filledItems(webSource?.items ?? items)
           .filter((item) => !isExtraLine(item.name))
-          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null }))}
+          .map((item) => ({ name: item.name, quantity: item.quantity, saleArs: item.saleArs, web: item.web ?? null, keep: !item.productId && !item.web && !item.source }))}
         onClose={() => setWebOpen(false)}
         onConfirm={applyWebQuote}
       />

@@ -17,7 +17,8 @@ import { Alert, errorMessage, MoneyInput, Modal } from "./shared";
 /** Producto de la tienda ya elegido en el buscador: no hace falta volver a buscarlo. */
 export type WebPick = { id: number; name: string; sku: string | null; priceCents: string; imageUrl: string | null };
 
-export type WebQuoteComponent = { name: string; quantity: string; saleArs: string; web?: WebPick | null };
+/** `keep` = ítem libre: se deja con su precio y su ganancia, sin buscarlo en la tienda. */
+export type WebQuoteComponent = { name: string; quantity: string; saleArs: string; web?: WebPick | null; keep?: boolean };
 
 export type WebLinePrice = {
   name: string;
@@ -136,6 +137,11 @@ export function WebQuoteModal({
       const metaItems: QuoteWebMeta["items"] = [];
       for (const item of components) {
         const qty = quantityUnits(item.quantity);
+        if (item.keep) {
+          priced.push(null);
+          names.push({ name: item.name, totalCents: BigInt(parseArsToCents(item.saleArs)) * qty });
+          continue;
+        }
         const found = item.web
           ? await matchWebComponent(
               item.name,
