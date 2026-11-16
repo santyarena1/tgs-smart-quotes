@@ -406,7 +406,7 @@ export type QuoteVersion = {
 
 export type QuotePdfRow = {
   id: string;
-  kind: "SIMPLE" | "DETALLADO" | "FORMAL";
+  kind: "SIMPLE" | "DETALLADO" | "FORMAL" | "WEB";
   versionId?: string;
   versionNumber?: number;
   versionState?: QuoteState;

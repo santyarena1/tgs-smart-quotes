@@ -597,6 +597,22 @@ describe('@tgs/pdf', () => {
     }
   });
 
+  it('el tipo de PDF WEB se dibuja como presupuesto web sin pedir componentPrices, y su hash es propio', () => {
+    const items = [
+      { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
+      { name: 'ARMADO, CONFIGURACION Y PRUEBAS DE RENDIMIENTO', quantity: 1, unitCents: 4500000n, subtotalCents: 4500000n, isComponent: true },
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, template, kind: 'WEB', items, webWifi: { priceCents: 1820000n } });
+      expect(html).toContain('class="web-assembly"');
+      expect(html).toContain('$ 250.000');
+      expect(html).toContain('Agregá una Placa WIFI PCIe por solo $ 18.200');
+    }
+    const base = { ...sample(), isBuiltPc: true, items };
+    expect(pdfInputHash({ ...base, kind: 'WEB' })).not.toBe(pdfInputHash({ ...base, kind: 'SIMPLE' }));
+    expect(pdfFileName('TGS-1', 2, 'WEB')).toBe('TGS-1-V2-WEB.pdf');
+  });
+
   it('Presupuesto Web: el bloque naranja del WiFi va con el precio y desaparece si no se ofrece', () => {
     const items = [{ name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true }];
     for (const template of ['CLASICO', 'MODERNO'] as const) {

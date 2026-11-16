@@ -865,17 +865,19 @@
 .lite .lt-coll-opt.on .lt-coll-mark { color: var(--red); }
 .lite .lt-coll-opt:focus-within { border-bottom-color: var(--red); }
 /* Filtros de la lista: tipo de presupuesto (Normal verde, Detallado amarillo, Formal azul), etiquetas activas y estados */
-.lite .lt-kinds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3rem; }
+.lite .lt-kinds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.3rem; }
 .lite .lt-kind { --k: var(--ink-2, #475569); padding: 0.38rem 0.3rem; border: 1px solid color-mix(in srgb, var(--k) 45%, var(--line)); border-radius: 8px; background: transparent; color: var(--k); font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 120ms, color 120ms; }
 .lite .lt-kind.simple { --k: #16a34a; }
 .lite .lt-kind.detallado { --k: #b45309; }
 .lite .lt-kind.formal { --k: #1d4ed8; }
+.lite .lt-kind.web { --k: #7c3aed; }
 .lite .lt-kind:hover { background: color-mix(in srgb, var(--k) 10%, transparent); }
 .lite .lt-kind.on { background: var(--k); border-color: var(--k); color: #fff; }
 .lite .lt-kind.all.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 :root[data-theme="dark"] .lite .lt-kind.simple { --k: #4ade80; }
 :root[data-theme="dark"] .lite .lt-kind.detallado { --k: #facc15; }
 :root[data-theme="dark"] .lite .lt-kind.formal { --k: #60a5fa; }
+:root[data-theme="dark"] .lite .lt-kind.web { --k: #a78bfa; }
 :root[data-theme="dark"] .lite .lt-kind.on { color: #0f1218; }
 :root[data-theme="dark"] .lite .lt-kind.all.on { background: #fff; border-color: #fff; color: #0f1218; }
 .lite .lt-active { display: flex; flex-wrap: wrap; gap: 0.3rem; }
@@ -906,6 +908,7 @@
 .lite .lt-recent li[data-kind] { --k: #dc2626; --k-ink: #fff; position: relative; overflow: hidden; }
 .lite .lt-recent li[data-kind="detallado"] { --k: #eab308; --k-ink: #422006; }
 .lite .lt-recent li[data-kind="formal"] { --k: #1d4ed8; --k-ink: #fff; }
+.lite .lt-recent li[data-kind="web"] { --k: #7c3aed; --k-ink: #fff; }
 :root[data-theme="dark"] .lite .lt-recent li[data-kind="simple"] { --k: #ef4444; }
 :root[data-theme="dark"] .lite .lt-recent li[data-kind="formal"] { --k: #3b82f6; }
 .lite .lt-recent li[data-kind]::before { background: var(--k); }

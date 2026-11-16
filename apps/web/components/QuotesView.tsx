@@ -335,6 +335,8 @@ const STATE_LABEL: Record<QuoteState, string> = {
   NO_CONCRETADO: "No concretado",
 };
 
+const PDF_KIND_WORD = { SIMPLE: "simple", DETALLADO: "detallado", FORMAL: "formal", WEB: "web" } as const;
+
 /** Tipo de PDF según el botón de submit que disparó el formulario (por defecto, simple). */
 function pdfKindFromSubmit(e: FormEvent): "SIMPLE" | "DETALLADO" | "FORMAL" {
   const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
@@ -459,7 +461,7 @@ export function QuotesView({
   const [filtersReady, setFiltersReady] = useState(Boolean(embedded || onlyFamilyIds));
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [, setPdfs] = useState<QuotePdfRow[]>([]);
-  const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | "FORMAL" | null>(null);
+  const [pdfBusy, setPdfBusy] = useState<"SIMPLE" | "DETALLADO" | "FORMAL" | "WEB" | null>(null);
   // Filtro por tipo de PDF generado (Normal / Detallado / Formal).
   const [kindFilter, setKindFilter] = useState<QuoteKind | "">("");
   // Imagen de referencia de la PC (opcional): la generación corre en segundo plano y un globo avisa el estado.
@@ -967,7 +969,7 @@ export function QuotesView({
     await loadSideData(id);
   }
 
-  async function generatePdf(kind: "SIMPLE" | "DETALLADO") {
+  async function generatePdf(kind: "SIMPLE" | "DETALLADO" | "WEB") {
     if (!selectedId || !detail) return;
     setPdfBusy(kind);
     setError(null);
@@ -1001,7 +1003,7 @@ export function QuotesView({
         `/quotes/${selectedId}/pdf/${kind}`,
         `${detail.visibleNumber}-V${version}-${kind}.pdf`,
       );
-      setNotice(`PDF ${kind === "SIMPLE" ? "simple" : "detallado"} listo.`);
+      setNotice(`PDF ${PDF_KIND_WORD[kind]} listo.`);
       void loadSideData(selectedId);
     } catch (err) {
       setError(errorMessage(err));
@@ -1010,7 +1012,7 @@ export function QuotesView({
     }
   }
 
-  async function downloadVersionPdf(version: QuoteVersion, kind: "SIMPLE" | "DETALLADO" = "SIMPLE") {
+  async function downloadVersionPdf(version: QuoteVersion, kind: "SIMPLE" | "DETALLADO" | "WEB" = "SIMPLE") {
     if (!selectedId || !detail) return;
     setPdfBusy(kind);
     setError(null);
@@ -1020,7 +1022,7 @@ export function QuotesView({
         `/quotes/${selectedId}/versions/${version.version}/pdf/${kind}`,
         `${detail.visibleNumber}-V${version.version}-${kind}.pdf`,
       );
-      setNotice(`PDF ${kind === "SIMPLE" ? "simple" : "detallado"} de la versión ${version.version} listo.`);
+      setNotice(`PDF ${PDF_KIND_WORD[kind]} de la versión ${version.version} listo.`);
       void loadSideData(selectedId);
     } catch (err) {
       setError(errorMessage(err));
@@ -2122,10 +2124,9 @@ export function QuotesView({
     const webObservation = keepObservation;
     if (source) {
       return createQuote(null, {
-        kind: "SIMPLE",
+        kind: "WEB",
         items: webItems,
         isBuiltPc: true,
-        componentPrices: true,
         keepEditor: true,
         webMeta: result.webMeta,
         noticeSuffix: result.noticeSuffix,
@@ -2138,10 +2139,9 @@ export function QuotesView({
       });
     }
     return createQuote(null, {
-      kind: "SIMPLE",
+      kind: "WEB",
       items: webItems,
       isBuiltPc: true,
-      componentPrices: true,
       keepEditor: true,
       webMeta: result.webMeta,
       noticeSuffix: result.noticeSuffix,
@@ -2152,7 +2152,7 @@ export function QuotesView({
     });
   }
 
-  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; componentPrices?: boolean; webMeta?: WebQuoteApply["webMeta"]; keepEditor?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
+  async function createQuote(e: FormEvent | null, opts?: { kind: "FORMAL" | "SIMPLE" | "WEB"; customerId?: string; customerName?: string; items?: ItemDraft[]; isBuiltPc?: boolean; webMeta?: WebQuoteApply["webMeta"]; keepEditor?: boolean; noticeSuffix?: string; requestId?: string; collectionIds?: string[]; detached?: boolean; observation?: string }): Promise<string | null> {
     e?.preventDefault();
     const pdfKind = opts?.kind ?? pdfKindFromSubmit(e!);
     const effectiveCustomerId = opts?.customerId ?? customerId;
@@ -2186,7 +2186,6 @@ export function QuotesView({
           tradeIns: opts?.detached ? null : tradeInsPayload(),
           collectionIds: quoteCollectionIds,
           items: itemsToPayload(quoteItems),
-          ...(opts?.componentPrices ? { pdfOverrides: { showComponentPrices: "MOSTRAR" as const } } : {}),
           ...(opts?.webMeta ? { webMeta: opts.webMeta } : {}),
         },
       });
@@ -2926,12 +2925,12 @@ export function QuotesView({
           <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />
           <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
           <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
-          {webMode ? (
-            <span className="web-switch-hint">
-              Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear presupuesto y los PDF siguen sacando el presupuesto común, sin armado, licencia ni garantía.
-            </span>
-          ) : null}
         </label>
+        {webMode ? (
+          <p className="web-switch-hint">
+            Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear presupuesto y los PDF siguen sacando el presupuesto común, sin armado, licencia ni garantía.
+          </p>
+        ) : null}
 
         <form
           id="quote-form"
@@ -3132,13 +3131,13 @@ export function QuotesView({
                   items={browserItems}
                   loading={nodo.loading || web.loading || catalogPickerLoading}
                   query={pickerQuery}
-                  sourceBar={<SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />}
+                  sourceBar={webMode ? undefined : <SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />}
                   single={Boolean(pickingLineId || replaceItemKey)}
                   onConfirm={addBrowserPicks}
                   onClose={() => setBrowserOpen(false)}
                 />
               ) : null}
-              <SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />
+              {webMode ? null : <SourceBar providers={nodoProviders} sel={sel} error={nodoProvidersError} />}
               <div className="picker-input">
                 <div className="search">
                   <span className="ico" aria-hidden="true">
@@ -3913,6 +3912,16 @@ export function QuotesView({
                     >
                       {pdfBusy === "DETALLADO" ? "Generando…" : "Generar detallado"}
                     </button>
+                    {activeVersion?.webMeta ? (
+                      <button
+                        type="button"
+                        className="btn-web"
+                        disabled={!!pdfBusy || !selectedId || !isDraft}
+                        onClick={() => void generatePdf("WEB")}
+                      >
+                        {pdfBusy === "WEB" ? "Generando…" : "Generar web"}
+                      </button>
+                    ) : null}
                   </div>
                   {!isDraft ? (
                     <p className="muted" style={{ marginTop: "0.5rem" }}>
@@ -4005,6 +4014,16 @@ export function QuotesView({
                             >
                               PDF detallado
                             </button>
+                            {version.webMeta ? (
+                              <button
+                                type="button"
+                                className="btn-ghost btn-sm"
+                                disabled={!!pdfBusy}
+                                onClick={() => void downloadVersionPdf(version, "WEB")}
+                              >
+                                PDF web
+                              </button>
+                            ) : null}
                             {version.version !== detail.activeVersion ? (
                               <button
                                 type="button"
