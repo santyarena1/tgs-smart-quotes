@@ -1023,7 +1023,7 @@ export function renderQuoteHtml(rawInput: PdfRenderInput): string {
   }
   table.items tr.main td { font-weight: 700; }
   table.items tr.component td.name { padding-left: 18px; color: #333; }
-${WEB_ROW_CSS}
+${input.componentPrices ? WEB_ROW_CSS : ''}
   table.items .code { width: 48px; }
   table.items .qty { width: 48px; text-align: center; }
   table.items .amt { width: 110px; text-align: right; white-space: nowrap; }
@@ -1357,7 +1357,7 @@ export function renderQuoteModernoHtml(rawInput: PdfRenderInput): string {
   table.items tr:last-child td { border-bottom: none; }
   table.items .pname { font-weight: 700; }
   table.items tr.component .pname { font-weight: 700; }
-${WEB_ROW_CSS}
+${input.componentPrices ? WEB_ROW_CSS : ''}
   table.items .sub { color: #888; font-size: 9.5px; margin-top: 1px; }
   table.items .code { width: 50px; }
   table.items td.code { color: #555; }
