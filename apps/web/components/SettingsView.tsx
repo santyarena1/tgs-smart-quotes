@@ -130,7 +130,7 @@ export function SettingsView() {
   const [company, setCompany] = useState<CompanySettings | null>(null);
   const [pdf, setPdf] = useState<PdfSettings | null>(null);
   const [ai, setAi] = useState<AiSettings | null>(null);
-  const [generalMarkupPct, setGeneralMarkupPct] = useState("30");
+  const [generalMarkupPct, setGeneralMarkupPct] = useState("20");
   const [aiKey, setAiKey] = useState("");
   const [clearKey, setClearKey] = useState(false);
   const [budgetDisplay, setBudgetDisplay] = useState("");

@@ -312,6 +312,8 @@ model User {
   uiSkin String?
   /// Preferencias de la interfaz LITE por usuario (hideFinancing, ...). Se guarda en su cuenta, no en el navegador.
   litePrefsJson Json?
+  /// Líneas del Presupuesto Web que el usuario tildó la última vez (armado, garantía, Windows, WiFi).
+  webQuotePrefsJson Json?
   /// Distribuidores de NODO que este usuario apagó para buscar. Por defecto las dos distribuidoras de demostración quedan apagadas.
   nodoOffProviders String[] @default(["prv_3A2i1P1LB6ERTmAz", "prv_jQVpXcxOxfNdphB5"])
   sessions      Session[]
@@ -671,6 +673,14 @@ model QuoteVersion {
   /// Última modificación del contenido (ítems, totales, observación). Sirve
   /// para saber si la tienda quedó con una copia vieja ("cambios sin publicar").
   updatedAt          DateTime           @default(now()) @updatedAt
+  /// Presupuesto Web: datos para revalidar contra la tienda y para el PDF. Null = presupuesto común.
+  webMeta            Json?
+  /// Presupuesto Web: vence a los 2 días de crearse o de la última revisión.
+  expiresAt          DateTime?
+  /// Última revisión de precios y stock contra la tienda.
+  checkedAt          DateTime?
+  /// Avisos de la última revisión: [{type, itemName, message, at}]. Vacío o null = sin avisos.
+  alertsJson         Json?
   items              QuoteItem[]
   pdfs               QuotePdf[]
   attempts           QuoteSendAttempt[]
@@ -684,6 +694,7 @@ model QuoteVersion {
   @@index([state, sentAt])
   @@index([state, lastActivityAt])
   @@index([reviewPending])
+  @@index([expiresAt])
 }
 
 model QuoteEnrichment {
@@ -1032,7 +1043,7 @@ model AiSettings {
   minIntentConfidence        Int            @default(70)
   defaultTone                SuggestionTone @default(INTERMEDIO)
   monthlyBudgetUsdCents      BigInt?
-  generalMarkupBps           Int            @default(3000)
+  generalMarkupBps           Int            @default(2000)
   productSimilarityThreshold Int            @default(70)
   frequentSupportThreshold   Int            @default(3)
   updatedAt                  DateTime       @updatedAt

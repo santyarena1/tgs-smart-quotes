@@ -23,7 +23,7 @@ export function LiteNewProduct({ product, initialName, lineId, onCreated, onCanc
   const [name, setName] = useState(initialName);
   const [price, setPrice] = useState(product
     ? { costArs: centsToInput(product.costCents), markupPct: bpsToPct(product.markupBps), saleArs: centsToInput(product.salePriceCents), priceMode: "sale" as "markup" | "sale" }
-    : { costArs: "", markupPct: "30", saleArs: "", priceMode: "markup" as "markup" | "sale" });
+    : { costArs: "", markupPct: "20", saleArs: "", priceMode: "markup" as "markup" | "sale" });
   const [ivaPct, setIvaPct] = useState(product?.ivaBps != null ? ivaPctFromBps(product.ivaBps) : DEFAULT_IVA_PCT);
   // Mientras no elijas vos el IVA, se va corrigiendo con lo que la memoria sabe de la categoría del nombre.
   const [ivaAuto, setIvaAuto] = useState(!product || product.ivaBps == null);

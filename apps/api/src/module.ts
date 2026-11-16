@@ -19,6 +19,7 @@ import {NodoController} from './nodo.js';
 import {IvaController} from './iva-memory.js';
 import {QuoteReferenceImageController} from './reference-image.js';
 import {WebStoreController} from './web-store.js';
+import {WebQuoteCheckController} from './web-quote-check.js';
 import {ChatbotController} from './chatbot.js';
 import {CrmRealtimeController} from './crm-realtime.js';
 import {CrmController} from './crm.js';
@@ -74,6 +75,7 @@ class HealthController {
     IvaController,
     QuoteReferenceImageController,
     WebStoreController,
+    WebQuoteCheckController,
     ChatbotController,
     CrmRealtimeController,
     CrmController,

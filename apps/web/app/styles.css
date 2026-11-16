@@ -4149,8 +4149,25 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .cell-click:hover { background: rgba(100, 116, 139, 0.14); box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.14); }
 
 /* Crear Presupuesto Web (rojo / blanco) */
-.btn-web { background: #dc2626; border: 1px solid #dc2626; color: #fff; font-weight: 700; }
-.btn-web:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; color: #fff; }
-.btn-web:focus-visible { outline-color: #dc2626; }
+.btn-web { background: #7c3aed; border: 1px solid #7c3aed; color: #fff; font-weight: 700; }
+.btn-web:hover:not(:disabled) { background: #6d28d9; border-color: #6d28d9; color: #fff; }
+.btn-web:focus-visible { outline-color: #7c3aed; }
+/* Switch violeta de "CREAR PRESUPUESTO WEB" en la parte superior del cajón. */
+.web-switch { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 14px; margin-bottom: 12px; border: 1px solid #c4b5fd; border-radius: 10px; background: #f5f3ff; color: #4c1d95; cursor: pointer; font-weight: 700; }
+.web-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.web-switch-track { position: relative; width: 42px; height: 24px; flex: none; border-radius: 999px; background: #c4b5fd; transition: background .15s; }
+.web-switch-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
+.web-switch.on { background: #ede9fe; border-color: #7c3aed; }
+.web-switch.on .web-switch-track { background: #7c3aed; }
+.web-switch.on .web-switch-thumb { transform: translateX(18px); }
+.web-switch input:focus-visible + .web-switch-track { outline: 2px solid #7c3aed; outline-offset: 2px; }
+.web-switch-hint { flex-basis: 100%; font-size: 12px; font-weight: 500; color: #5b21b6; }
+/* Aviso de revisión (sin stock, precio cambiado, vencido) en los listados de presupuestos. */
+.web-warn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-left: 6px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 12px; font-weight: 800; cursor: help; flex: none; }
+.web-warn.expired { background: #6b7280; }
+.web-alerts { margin: 8px 0; padding: 10px 12px; border: 1px solid #fcd34d; border-radius: 8px; background: #fffbeb; color: #78350f; font-size: 13px; }
+.web-alerts ul { margin: 6px 0 0; padding-left: 18px; }
+.web-checklist small { color: #6b7280; }
+.check-locked { cursor: default; opacity: .85; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .check-row input { margin-top: 3px; }

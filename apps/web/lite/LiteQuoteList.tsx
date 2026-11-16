@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { formatArs } from "../lib/money";
 import { getActiveVersion, type Collection, type Quote, type QuoteState } from "../lib/types";
 import { errorMessage } from "../components/shared";
+import { WebQuoteWarning } from "../components/WebQuoteWarning";
 import { useLite } from "./LiteContext";
 import { printQuotePdf, type PdfKind } from "./lite-pdf";
 
@@ -241,7 +242,7 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted, onDupl
               <li key={quote.id} className={editingId === quote.id ? "editing" : ""} data-kind={kind.toLowerCase()}>
                 <span className="lt-ribbon" title={`Presupuesto ${KIND_LABEL[kind].toLowerCase()}`}>{KIND_LABEL[kind]}</span>
                 <div className="lt-qrow">
-                  <strong className="lt-qnum">{quote.visibleNumber}</strong>
+                  <strong className="lt-qnum">{quote.visibleNumber}</strong><WebQuoteWarning version={v} />
                   <span className="lt-qname" title={quote.internalName}>{quote.internalName}</span>
                   <span className="lt-qmeta" title={`${quote.customer?.name ?? "Sin cliente"}${quote.branch ? ` · ${quote.branch.name}` : ""}`}>
                     {quote.customer?.name ?? "Sin cliente"}{quote.branch ? ` · ${quote.branch.name}` : ""}

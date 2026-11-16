@@ -38,7 +38,7 @@ describe('armado según complejidad',()=>{
 describe('garantía extendida y extras',()=>{
   it('7 % del total de componentes, sin armado ni licencias',()=>{
     const extras=webQuoteExtras([{name:'Ryzen 5 5600G',totalCents:20_000_000n},{name:'Mother A520M',totalCents:10_000_000n}]);
-    expect(extras.map((e)=>e.name)).toEqual(['ARMADO Y TESTEO DE PC','GARANTÍA EXTENDIDA TGS','LICENCIA WINDOWS 11 PRO']);
+    expect(extras.map((e)=>e.name)).toEqual(['ARMADO, CONFIGURACION Y PRUEBAS DE RENDIMIENTO','GARANTÍA EXTENDIDA TGS','LICENCIA ORIGINAL WINDOWS 11 PRO']);
     expect(extras[0]!.priceCents).toBe(4_500_000n);
     expect(extras[1]!.priceCents).toBe(2_100_000n);
     expect(extras[2]!.priceCents).toBe(6_500_000n);

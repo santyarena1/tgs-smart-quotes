@@ -1,5 +1,5 @@
 import {Body, Controller, Get, Put} from '@nestjs/common';
-import {navPreferencesSchema, type NavPreferences} from '@tgs/contracts';
+import {navPreferencesSchema, webQuotePrefsSchema, type NavPreferences, type WebQuotePrefs} from '@tgs/contracts';
 import {db, Prisma} from '@tgs/database';
 import {z} from 'zod';
 import {CurrentUser, type RequestUser, ZodPipe} from './infrastructure.js';
@@ -13,6 +13,13 @@ type LitePrefs = {hideFinancing: boolean};
 function readLitePrefs(raw: unknown): LitePrefs {
   const parsed = litePrefsSchema.safeParse(raw ?? {});
   return {hideFinancing: parsed.success ? parsed.data.hideFinancing === true : false};
+}
+
+const DEFAULT_WEB_QUOTE_PREFS: WebQuotePrefs = {assembly: true, warranty: true, windows: true, wifi: true};
+
+export function readWebQuotePrefs(raw: unknown): WebQuotePrefs {
+  const parsed = webQuotePrefsSchema.safeParse(raw);
+  return parsed.success ? parsed.data : DEFAULT_WEB_QUOTE_PREFS;
 }
 
 @Controller('me')
@@ -51,6 +58,19 @@ export class MePreferencesController {
     const next = {...readLitePrefs(row.litePrefsJson), ...body};
     await db.user.update({where: {id: user.id}, data: {litePrefsJson: next as Prisma.InputJsonValue}});
     return next;
+  }
+
+  /** Líneas del Presupuesto Web que el usuario tildó la última vez (se recuerdan para los próximos). */
+  @Get('web-quote-preferences')
+  async getWebQuotePreferences(@CurrentUser() user: RequestUser): Promise<WebQuotePrefs> {
+    const row = await db.user.findUniqueOrThrow({where: {id: user.id}, select: {webQuotePrefsJson: true}});
+    return readWebQuotePrefs(row.webQuotePrefsJson);
+  }
+
+  @Put('web-quote-preferences')
+  async putWebQuotePreferences(@Body(new ZodPipe(webQuotePrefsSchema)) body: WebQuotePrefs, @CurrentUser() user: RequestUser) {
+    await db.user.update({where: {id: user.id}, data: {webQuotePrefsJson: body as Prisma.InputJsonValue}});
+    return body;
   }
 
   @Put('nav-preferences')

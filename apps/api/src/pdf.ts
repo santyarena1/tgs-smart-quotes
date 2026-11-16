@@ -132,6 +132,9 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
   // Solo el botón Presupuesto Web pide precios por componente. El resto de las PC armadas
   // sigue con una línea principal (el total) y los componentes sin importe.
   const componentPrices = (version.pdfOverrides as { showComponentPrices?: string } | null)?.showComponentPrices === 'MOSTRAR';
+  // Presupuesto Web: la placa WiFi se ofrece en un bloque naranja (no suma al total).
+  const rawWifi = (version as any).webMeta?.wifiCents;
+  const webWifiCents = typeof rawWifi === 'string' && /^\d+$/.test(rawWifi) && BigInt(rawWifi) > 0n ? BigInt(rawWifi) : null;
 
   if (family.isBuiltPc && !componentPrices) {
     const totalSale = version.totalSaleCents as bigint;
@@ -208,14 +211,18 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     number: family.visibleNumber,
     date: version.createdAt,
     template: (pdfSettings.template ?? 'CLASICO') as PdfTemplate,
-    validUntil: pdfSettings.validityDays != null
-      ? new Date(version.createdAt.getTime() + pdfSettings.validityDays * 86400000)
-      : null,
+    // Presupuesto Web: vence a los 2 días (o de la última revisión). El resto usa los días de Configuración.
+    validUntil: (version as any).expiresAt
+      ? new Date((version as any).expiresAt)
+      : pdfSettings.validityDays != null
+        ? new Date(version.createdAt.getTime() + pdfSettings.validityDays * 86400000)
+        : null,
     financingBbvaNote: pdfSettings.financingBbvaNote ?? null,
     // Los ajustes rápidos solo existen en el detallado y el formal.
     options: kind === 'SIMPLE' ? null : options ?? null,
     isBuiltPc: family.isBuiltPc,
     ...(componentPrices ? { componentPrices: true } : {}),
+    ...(componentPrices && webWifiCents ? { webWifi: { priceCents: webWifiCents } } : {}),
     observation: version.publicObservation,
     ...(tradeIns ? { tradeIns } : {}),
     listTotalCents,

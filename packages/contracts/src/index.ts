@@ -1237,6 +1237,34 @@ export const quoteTradeInsSchema = z
   })
   .strict();
 
+/** Presupuesto Web: cada componente con su producto de la tienda (para revalidar precio y stock), el WiFi opcional y la comparación con el presupuesto común. */
+export const quoteWebMetaSchema = z
+  .object({
+    wifiCents: moneyCentsSchema.nullable().optional(),
+    compareSaleCents: moneyCentsSchema.nullable().optional(),
+    items: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(300),
+            webProductId: z.number().int().positive(),
+            sku: z.string().trim().max(120).nullable().optional(),
+            priceCents: moneyCentsSchema,
+            quantity: z.number().int().positive().optional(),
+          })
+          .strict(),
+      )
+      .max(60),
+  })
+  .strict();
+export type QuoteWebMeta = z.infer<typeof quoteWebMetaSchema>;
+
+/** Líneas del Presupuesto Web que se tildan al crearlo; se recuerdan por usuario. */
+export const webQuotePrefsSchema = z
+  .object({ assembly: z.boolean(), warranty: z.boolean(), windows: z.boolean(), wifi: z.boolean() })
+  .strict();
+export type WebQuotePrefs = z.infer<typeof webQuotePrefsSchema>;
+
 const quoteBaseShape = {
   internalName: text,
   requestId: nullableIdSchema,
@@ -1250,6 +1278,7 @@ const quoteBaseShape = {
   resolvedPdfConfig: z.record(z.unknown()).optional().default({}),
   financingSnapshot: z.record(z.unknown()).nullable().optional(),
   collectionIds: z.array(idSchema).optional().default([]),
+  webMeta: quoteWebMetaSchema.nullable().optional(),
   items: z.array(quoteItemCreateSchema).min(1),
 };
 export const quoteCreateSchema = z.object(quoteBaseShape).strict();

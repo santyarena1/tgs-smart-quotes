@@ -11,6 +11,7 @@ import {startResponder} from './whatsapp-responder.js';
 import {startTaskReminders} from './crm-pipeline.js';
 import {startFollowups} from './crm-followups.js';
 import {startQuoteDelivery} from './crm-requests.js';
+import {startWebQuoteWatcher} from './web-quote-check.js';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({logger: true});
@@ -81,6 +82,8 @@ async function bootstrap() {
   // Seguimiento automático de presupuestos sin respuesta (si está activado).
   startFollowups();
   startQuoteDelivery();
+  // Presupuestos web vencidos (2 días): revisa precios y stock contra la tienda.
+  startWebQuoteWatcher();
   Logger.log(
     JSON.stringify({event: 'api_started', port: Number(process.env.PORT ?? 3001)}),
     'Bootstrap',

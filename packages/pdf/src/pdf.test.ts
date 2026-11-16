@@ -540,6 +540,56 @@ describe('@tgs/pdf', () => {
     }
   });
 
+  it('Presupuesto Web: armado en rojo primero, Windows en azul y garantía en gris debajo, sin importe', () => {
+    const items = [
+      { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
+      { name: 'GARANTÍA EXTENDIDA TGS', quantity: 1, unitCents: 1750000n, subtotalCents: 1750000n, isComponent: true },
+      { name: 'LICENCIA ORIGINAL WINDOWS 11 PRO', quantity: 1, unitCents: 6500000n, subtotalCents: 6500000n, isComponent: true },
+      { name: 'ARMADO, CONFIGURACION Y PRUEBAS DE RENDIMIENTO', quantity: 1, unitCents: 4500000n, subtotalCents: 4500000n, isComponent: true },
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items });
+      const assembly = html.indexOf('class="web-assembly"');
+      const cpu = html.indexOf('PROCESADOR AMD RYZEN 5');
+      const windows = html.indexOf('+Licencia Original Windows 11 Pro');
+      const warranty = html.indexOf('+TGS Garantía Extendida');
+      expect(assembly).toBeGreaterThan(-1);
+      expect(html).toContain('ARMADO, CONFIGURACIÓN Y PRUEBAS DE RENDIMIENTO');
+      expect(assembly).toBeLessThan(cpu);
+      expect(cpu).toBeLessThan(windows);
+      expect(windows).toBeLessThan(warranty);
+      expect(html).toContain('web-note win');
+      expect(html).toContain('web-note war');
+      // Windows y garantía no muestran importe propio.
+      expect(html).not.toContain('$ 65.000');
+      expect(html).not.toContain('$ 17.500');
+    }
+  });
+
+  it('Presupuesto Web: el bloque naranja del WiFi va con el precio y desaparece si no se ofrece', () => {
+    const items = [{ name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true }];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const withWifi = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items, webWifi: { priceCents: 1820000n } });
+      expect(withWifi).toContain('Agregá una Placa WIFI PCIe por solo $ 18.200');
+      const without = renderQuoteHtml({ ...sample(), isBuiltPc: true, componentPrices: true, template, kind: 'SIMPLE', items });
+      expect(without).not.toContain('Placa WIFI PCIe por solo');
+    }
+    // El WiFi cambia el PDF: tiene que cambiar el hash.
+    const base = { ...sample(), isBuiltPc: true, componentPrices: true, kind: 'SIMPLE' as const, items };
+    expect(pdfInputHash({ ...base, webWifi: { priceCents: 1820000n } })).not.toBe(pdfInputHash(base));
+  });
+
+  it('un presupuesto común no se ve afectado por los nombres de armado, Windows o garantía', () => {
+    const html = renderQuoteHtml({
+      ...sample(),
+      isBuiltPc: false,
+      kind: 'SIMPLE',
+      items: [{ name: 'Armado de PC', quantity: 1, unitCents: 4500000n, subtotalCents: 4500000n }],
+    });
+    expect(html).not.toContain('class="web-assembly"');
+    expect(html).not.toContain('PRUEBAS DE RENDIMIENTO');
+  });
+
   it('SIMPLE sin PC armada no muestra importes por fila', () => {
     const html = renderQuoteHtml({
       ...sample(),
