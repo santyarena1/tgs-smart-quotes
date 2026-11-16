@@ -2846,12 +2846,7 @@ export function QuotesView({
         }
         footer={
           <>
-            {webMode ? (
-              <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios de la tienda, el costo de INVID / ELIT / NEW BYTES, el armado y los extras a elección">
-                CREAR PRESUPUESTO WEB
-              </button>
-            ) : null}
-            {!detail && !webMode ? (
+            {!detail ? (
               <>
                 <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
                   {busy ? "Creando…" : "Crear presupuesto"}
@@ -2864,7 +2859,7 @@ export function QuotesView({
                 </button>
               </>
             ) : null}
-            {detail && isDraft && !webMode ? (
+            {detail && isDraft ? (
               <>
                 <button type="submit" form="quote-form" data-pdf-kind="SIMPLE" disabled={busy}>
                   {busy ? "Guardando…" : "Guardar y descargar PDF"}
@@ -2876,6 +2871,11 @@ export function QuotesView({
                   Generar presupuesto detallado
                 </button>
               </>
+            ) : null}
+            {webMode ? (
+              <button type="button" className="btn-web" disabled={busy} onClick={() => openWebQuote()} title="Crea un presupuesto nuevo con los precios de la tienda, el costo de INVID / ELIT / NEW BYTES, el armado y los extras a elección">
+                CREAR PRESUPUESTO WEB
+              </button>
             ) : null}
             <span className="quote-foot-total">
               <span className="quote-foot-total-label">{tradeInTotal > 0n ? "A pagar" : "Total del presupuesto"}</span>
@@ -2922,7 +2922,7 @@ export function QuotesView({
           <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
           {webMode ? (
             <span className="web-switch-hint">
-              Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
+              Habilita el botón CREAR PRESUPUESTO WEB: productos publicados en la web a su precio de venta, con el costo de INVID, ELIT y NEW BYTES. Crear presupuesto y los PDF siguen sacando el presupuesto común, sin armado, licencia ni garantía.
             </span>
           ) : null}
         </label>
