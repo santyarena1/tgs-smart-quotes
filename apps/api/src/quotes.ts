@@ -13,6 +13,7 @@ import {
 import {db,Prisma,type QuoteState,type StatusEventType} from '@tgs/database';
 import {unpublishQuote} from '@tgs/providers';
 import {syncProductCostsFromQuoteItems,touchProductsLastUsed} from './products.js';
+import {WEB_QUOTE_TTL_MS} from './web-quote-check.js';
 import {
   collectionCreateSchema,
   collectionUpdateSchema,
@@ -58,6 +59,12 @@ export function jsonField(value:Record<string,unknown>|null|undefined){
   if(value===undefined)return undefined;
   if(value===null)return Prisma.JsonNull;
   return value as Prisma.InputJsonValue;
+}
+
+/** Presupuesto Web: el vencimiento es la fecha de alta o de la edición, más 2 días. */
+function webQuoteTiming(from: Date, webMeta: unknown): {webMeta: Prisma.InputJsonValue; expiresAt: Date} | Record<string, never> {
+  if (!webMeta || typeof webMeta !== 'object' || Array.isArray(webMeta)) return {};
+  return {webMeta: webMeta as Prisma.InputJsonValue, expiresAt: new Date(from.getTime() + WEB_QUOTE_TTL_MS)};
 }
 
 export const audit=(
@@ -528,7 +535,7 @@ export class QuotesController{
               ?Prisma.JsonNull
               :body.financingSnapshot as Prisma.InputJsonValue,
           // Presupuesto Web: vence a los 2 días y guarda qué producto de la tienda es cada componente.
-          ...(body.webMeta?{webMeta:body.webMeta as Prisma.InputJsonValue,expiresAt:new Date(Date.now()+2*86400000)}:{}),
+          ...webQuoteTiming(new Date(), body.webMeta),
         }});
         await tx.quoteItem.createMany({data:itemRows.map(item=>({...item,versionId:version.id}))});
         await touchProductsLastUsed(tx,itemRows.map((item)=>item.productId));
@@ -595,6 +602,7 @@ export class QuotesController{
           tradeIns:sourceVersion.tradeIns,
           resolvedPdfConfig:sourceVersion.resolvedPdfConfig,
           financingSnapshot:sourceVersion.financingSnapshot,
+          ...webQuoteTiming(new Date(), sourceVersion.webMeta),
         }});
         await tx.quoteItem.createMany({data:itemRows.map((item:any)=>({...item,versionId:version.id}))});
         await touchProductsLastUsed(tx,itemRows.map((item:any)=>item.productId));
@@ -721,6 +729,7 @@ export class QuotesController{
             resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):version.resolvedPdfConfig,
             financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):version.financingSnapshot,
             lastActivityAt:new Date(),
+            ...webQuoteTiming(new Date(), version.webMeta),
           }});
           items=await tx.quoteItem.findMany({where:{versionId:version.id},orderBy:{position:'asc'}});
         }else if(actuallyChanged){
@@ -741,6 +750,7 @@ export class QuotesController{
             tradeIns:body.tradeIns!==undefined?jsonField(body.tradeIns as Record<string,unknown>|null):version.tradeIns,
             resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):version.resolvedPdfConfig,
             financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):version.financingSnapshot,
+            ...webQuoteTiming(new Date(), version.webMeta),
           }});
           await tx.quoteItem.createMany({data:itemRows.map((item:any)=>({...item,versionId:nextVersion.id}))});
           await touchProductsLastUsed(tx,itemRows.map((item:any)=>item.productId));
@@ -854,6 +864,7 @@ export class QuotesController{
           tradeIns:body.tradeIns!==undefined?jsonField(body.tradeIns as Record<string,unknown>|null):source.tradeIns,
           resolvedPdfConfig:body.resolvedPdfConfig!==undefined?jsonField(body.resolvedPdfConfig):source.resolvedPdfConfig,
           financingSnapshot:body.financingSnapshot!==undefined?jsonField(body.financingSnapshot):source.financingSnapshot,
+          ...webQuoteTiming(new Date(), source.webMeta),
         }});
         await tx.quoteItem.createMany({data:sourceItems.map((item:any)=>({...item,versionId:version.id}))});
         await touchProductsLastUsed(tx,sourceItems.map((item:any)=>item.productId));
@@ -1233,6 +1244,7 @@ export class QuotesController{
         publicObservation:current.publicObservation,
         resolvedPdfConfig:current.resolvedPdfConfig,
         financingSnapshot:current.financingSnapshot,
+        ...webQuoteTiming(new Date(), current.webMeta),
       }});
       await tx.quoteItem.createMany({data:sourceItems.map((item:any)=>({...item,versionId:version.id}))});
       await touchProductsLastUsed(tx,sourceItems.map((item:any)=>item.productId));

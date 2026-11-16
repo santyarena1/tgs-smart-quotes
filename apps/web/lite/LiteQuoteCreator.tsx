@@ -14,7 +14,7 @@ import pcImageIcon from "./icons/pcimage.png";
 import wspIcon from "./icons/wsp.webp";
 import { DEFAULT_IVA_PCT, fetchIvaSuggestion, isValidIvaPct, ivaBpsFromPct, ivaPctFromBps, IVA_PRESETS, teachIva } from "../lib/iva";
 import { applyDraftCost, applyDraftMarkup, applyDraftSale, itemPricePayload, retargetSaleLines, sellsBelowCost } from "../lib/quote-item-pricing";
-import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState } from "../lib/types";
+import { getActiveVersion, getQuoteItems, type Collection, type CompanySettings, type Customer, type FinancingPlan, type PcLine, type Product, type Quote, type QuoteState, type QuoteVersion } from "../lib/types";
 import { errorMessage, MoneyInput } from "../components/shared";
 import { useLite } from "./LiteContext";
 import { QuoteChatBubble } from "../components/QuoteChatBubble";
@@ -31,6 +31,7 @@ import { downloadQuotePdf, type PdfKind, type PdfQuickOptions } from "./lite-pdf
 import { PdfOptionsModal } from "./PdfOptionsModal";
 import { isExtraLine } from "../lib/web-quote";
 import { WebQuoteModal, type WebLinePrice, type WebQuoteApply } from "../components/WebQuoteModal";
+import { WebQuoteAlerts } from "../components/WebQuoteWarning";
 
 type Line = {
   key: string;
@@ -355,7 +356,7 @@ export function LiteQuoteCreator() {
   const { writesElsewhere, hideFinancing, setHideFinancing, branches } = useLite();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [editing, setEditing] = useState<{ id: string; visibleNumber: string; observation: string | null } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; visibleNumber: string; observation: string | null; version: QuoteVersion | null } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [pcLines, setPcLines] = useState<PcLine[]>([]);
@@ -388,6 +389,9 @@ export function LiteQuoteCreator() {
   const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
   const [webOpen, setWebOpen] = useState(false);
   const [webBusy, setWebBusy] = useState(false);
+  const [webChecking, setWebChecking] = useState(false);
+  /** Igual que en la versión común: el buscador trae solo la tienda y el botón crea el presupuesto web. */
+  const [webMode, setWebMode] = useState(false);
   /** Presupuesto de la lista desde el que se arma un Presupuesto Web. Vacío: usa el creador. */
   const [webSource, setWebSource] = useState<{ lines: Line[]; name: string; customerId: string; observation: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -403,9 +407,10 @@ export function LiteQuoteCreator() {
   const [searchOpen, setSearchOpen] = useState(false);
   /** Fuentes de búsqueda: productos propios y los distribuidores que estén prendidos. */
   const { providers, error: providersError, setEnabled: setProvidersEnabled } = useNodoProviders();
-  const sel = useSourceSelection(providers, setProvidersEnabled);
-  const nodo = useNodoSearch(query, isBuiltPc ? [] : sel.activeIds, providers.length);
-  const web = useWebSearch(query, sel.web && !isBuiltPc);
+  const selBase = useSourceSelection(providers, setProvidersEnabled);
+  const sel = webMode ? { ...selBase, own: false, web: true, activeIds: [] as typeof selBase.activeIds } : selBase;
+  const nodo = useNodoSearch(query, webMode || isBuiltPc ? [] : sel.activeIds, providers.length);
+  const web = useWebSearch(query, webMode || (sel.web && !isBuiltPc));
   const [finPlans, setFinPlans] = useState<FinancingPlan[]>([]);
   const [listInterestBps, setListInterestBps] = useState(0);
   const [finLoaded, setFinLoaded] = useState(false);
@@ -1069,7 +1074,7 @@ export function LiteQuoteCreator() {
       setTradeShowValues(savedTrade?.showValues ?? true);
       setRefImage(quote.referenceImageUrl && quote.referenceImageKey ? { url: quote.referenceImageUrl, key: quote.referenceImageKey } : null);
       setRefSavedKey(quote.referenceImageKey ?? null);
-      setEditing({ id: quote.id, visibleNumber: quote.visibleNumber, observation: getActiveVersion(quote)?.publicObservation ?? null });
+      setEditing({ id: quote.id, visibleNumber: quote.visibleNumber, observation: getActiveVersion(quote)?.publicObservation ?? null, version: getActiveVersion(quote) ?? null });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(errorMessage(err));
@@ -1096,6 +1101,28 @@ export function LiteQuoteCreator() {
       ivaPct: item.ivaBps != null ? ivaPctFromBps(item.ivaBps) : DEFAULT_IVA_PCT,
       ivaAuto: item.ivaBps == null,
     }));
+  }
+
+  async function checkWebQuote() {
+    if (!editing || webChecking) return;
+    setWebChecking(true);
+    setError(null);
+    try {
+      const result = await api<{ checked: boolean; alerts: unknown[]; updatedPrices: boolean }>(`/quotes/${editing.id}/web-check`, { method: "POST" });
+        if (!result.checked) {
+        setError("No se pudo consultar la tienda web. Probá de nuevo en unos minutos.");
+      } else {
+        const fresh = await api<Quote>(`/quotes/${editing.id}`);
+        if (result.updatedPrices) await startEdit(fresh);
+        else setEditing((current) => current ? { ...current, version: getActiveVersion(fresh) ?? null } : current);
+        setRefreshKey((key) => key + 1);
+        setNotice(result.alerts.length ? `Revisión lista: ${result.alerts.length} aviso(s).${result.updatedPrices ? " Se actualizaron los precios." : ""}` : "Revisión lista: sin cambios.");
+      }
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setWebChecking(false);
+    }
   }
 
   function openWebQuote() {
@@ -1442,6 +1469,21 @@ export function LiteQuoteCreator() {
             </div>
           ) : null}
 
+          {!editing ? (
+            <label className={`web-switch${webMode ? " on" : ""}`} title="Presupuesto con los precios de la tienda web">
+              <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={Boolean(busy) || webBusy} />
+              <span className="web-switch-track" aria-hidden="true"><span className="web-switch-thumb" /></span>
+              <span className="web-switch-label">CREAR PRESUPUESTO WEB</span>
+              {webMode ? (
+                <span className="web-switch-hint">
+                  Solo productos publicados en la web, a su precio de venta. El costo sale de INVID, ELIT y NEW BYTES.
+                </span>
+              ) : null}
+            </label>
+          ) : null}
+          {editing?.version?.webMeta ? (
+            <WebQuoteAlerts version={editing.version} onCheck={() => void checkWebQuote()} checking={webChecking} />
+          ) : null}
           <SourceBar providers={providers} sel={sel} error={providersError} />
           {browserOpen ? (
             <ProductBrowserModal items={browserItems} loading={nodo.loading || web.loading} query={query} sourceBar={<SourceBar providers={providers} sel={sel} error={providersError} />} onConfirm={addPicked} onClose={() => setBrowserOpen(false)} />
@@ -1456,11 +1498,11 @@ export function LiteQuoteCreator() {
               onFocus={() => setSearchOpen(true)}
               onBlur={() => setSearchOpen(false)}
               onKeyDown={onSearchKey}
-              placeholder={isBuiltPc ? "PC armada: elegí el producto en cada componente" : "Buscar producto…  (↑↓ Enter)"}
-              disabled={isBuiltPc}
+              placeholder={webMode ? "Buscar en la tienda…  (↑↓ Enter)" : isBuiltPc ? "PC armada: elegí el producto en cada componente" : "Buscar producto…  (↑↓ Enter)"}
+              disabled={isBuiltPc && !webMode}
               aria-label="Buscar producto"
             />
-            {!isBuiltPc && searchOpen && (query.trim() || ownHits.length) ? (
+            {(!isBuiltPc || webMode) && searchOpen && (query.trim() || ownHits.length) ? (
               <ul className="lt-results" role="listbox">
                 <li className="pb-all" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); setBrowserOpen(true); }}>
                   <span className="pb-viewall">⊞ VER TODOS</span>
@@ -1483,7 +1525,7 @@ export function LiteQuoteCreator() {
                   <NodoRow key={en.r.offerId} r={en.r} providers={providers} active={i === active} onHover={() => setActive(i)} onPick={() => addNodo(en.r)} />
                 ))}
                 <NodoNotes loading={nodo.loading || web.loading} error={nodo.error ?? web.error} query={query} hasOther={entries.length > 0} />
-                {query.trim() ? (
+                {query.trim() && !webMode ? (
                   <li className="free" role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); startCreate(query.trim()); }}>
                     <span className="lt-res-name">+ Crear “{query.trim()}” como producto nuevo</span>
                   </li>
@@ -1570,18 +1612,26 @@ export function LiteQuoteCreator() {
               {lines.length ? <small className="lt-total-meta"><span className="lt-cost">Costo {formatArs(cost)}</span> · <span className="lt-gain">Ganancia {formatArs(total - cost)}</span></small> : null}
             </div>
             <span className="lt-spacer" />
-            <button type="button" className="lt-textlink tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
-              {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
-            </button>
-            <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={startDetailed}>
-              {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
-            </button>
-            <button type="button" className="btn-web" disabled={!ready} onClick={openWebQuote} title="Precios finales de thegamershop.com.ar, costo de NODO, y el PDF con el precio de cada componente">
-              {webBusy ? "Buscando precios web…" : "Crear Presupuesto Web"}
-            </button>
-            <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
-              {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
-            </button>
+            {webMode && !editing ? (
+              <button type="button" className="btn-web" disabled={!ready || webBusy} onClick={openWebQuote} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
+                {webBusy ? "Buscando precios web…" : "CREAR PRESUPUESTO WEB"}
+              </button>
+            ) : (
+              <>
+                <button type="button" className="lt-textlink tone-blue" disabled={!ready} onClick={startFormal} title="Presupuesto formal para empresas: a nombre de una empresa, con precio unitario y sin los textos de la tienda">
+                  {busy === "FORMAL" ? "Generando…" : "Presupuesto Formal"}
+                </button>
+                <button type="button" className="lt-textlink tone-amber" disabled={!ready} onClick={startDetailed}>
+                  {busy === "DETALLADO" ? "Generando…" : "PDF detallado"}
+                </button>
+                <button type="button" className="btn-web" disabled={!ready} onClick={openWebQuote} title="Precios de la tienda, costo de INVID / ELIT / NEW BYTES, armado y extras a elección">
+                  {webBusy ? "Buscando precios web…" : "Crear Presupuesto Web"}
+                </button>
+                <button type="button" className="lt-btn" disabled={!ready} onClick={() => void submit("SIMPLE")}>
+                  {busy === "SIMPLE" ? "Generando…" : editing ? "Guardar y descargar PDF" : "Crear y descargar PDF"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </section>

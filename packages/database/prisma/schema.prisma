@@ -1043,7 +1043,7 @@ model AiSettings {
   minIntentConfidence        Int            @default(70)
   defaultTone                SuggestionTone @default(INTERMEDIO)
   monthlyBudgetUsdCents      BigInt?
-  generalMarkupBps           Int            @default(3000)
+  generalMarkupBps           Int            @default(2000)
   productSimilarityThreshold Int            @default(70)
   frequentSupportThreshold   Int            @default(3)
   updatedAt                  DateTime       @updatedAt
