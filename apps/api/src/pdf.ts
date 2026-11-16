@@ -131,7 +131,8 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
   let items: PdfItem[];
   // Solo el botón Presupuesto Web pide precios por componente. El resto de las PC armadas
   // sigue con una línea principal (el total) y los componentes sin importe.
-  const componentPrices = (version.pdfOverrides as { showComponentPrices?: string } | null)?.showComponentPrices === 'MOSTRAR';
+  // El tipo de PDF WEB lleva precio por componente. Los presupuestos web viejos lo marcaban en pdfOverrides.
+  const componentPrices = kind === 'WEB' || (version.pdfOverrides as { showComponentPrices?: string } | null)?.showComponentPrices === 'MOSTRAR';
   // Presupuesto Web: la placa WiFi se ofrece en un bloque naranja (no suma al total).
   const rawWifi = (version as any).webMeta?.wifiCents;
   const webWifiCents = typeof rawWifi === 'string' && /^\d+$/.test(rawWifi) && BigInt(rawWifi) > 0n ? BigInt(rawWifi) : null;
@@ -219,7 +220,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
         : null,
     financingBbvaNote: pdfSettings.financingBbvaNote ?? null,
     // Los ajustes rápidos solo existen en el detallado y el formal.
-    options: kind === 'SIMPLE' ? null : options ?? null,
+    options: kind === 'SIMPLE' || kind === 'WEB' ? null : options ?? null,
     isBuiltPc: family.isBuiltPc,
     ...(componentPrices ? { componentPrices: true } : {}),
     ...(componentPrices && webWifiCents ? { webWifi: { priceCents: webWifiCents } } : {}),

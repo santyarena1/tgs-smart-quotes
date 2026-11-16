@@ -4,7 +4,7 @@ import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { HALLOWEEN_WEB_PNG } from './halloween-web.js';
 
-export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL';
+export type PdfKind = 'SIMPLE' | 'DETALLADO' | 'FORMAL' | 'WEB';
 
 export type PdfCompany = {
   name: string;
@@ -932,7 +932,8 @@ function buildFinancing(input: PdfRenderInput): string {
 }
 
 export function renderQuoteHtml(rawInput: PdfRenderInput): string {
-  const input = withQuickConfig(rawInput);
+  // El tipo WEB se dibuja como el normal con precio por componente y las líneas propias del presupuesto web.
+  const input = withQuickConfig(rawInput.kind === 'WEB' ? { ...rawInput, kind: 'SIMPLE', componentPrices: true } : rawInput);
   if (input.kind === 'FORMAL') return renderQuoteFormalHtml(input);
   if (input.template === 'MODERNO') return renderQuoteModernoHtml(input);
   const date = formatDateAr(input.date);

@@ -643,7 +643,7 @@ export const pcLineCreateSchema = z
 export const pcLineUpdateSchema = nonEmptyUpdate(pcLineCreateSchema.shape);
 
 export const fieldOverrideSchema = z.enum(['HEREDAR', 'MOSTRAR', 'OCULTAR']);
-export const pdfKindSchema = z.enum(['SIMPLE', 'DETALLADO', 'FORMAL']);
+export const pdfKindSchema = z.enum(['SIMPLE', 'DETALLADO', 'FORMAL', 'WEB']);
 export const quoteStateEnum = z.enum([
   'BORRADOR',
   'ENVIADO',
@@ -1493,8 +1493,8 @@ export const quoteSearchSchema = z
     productName: z.string().trim().max(300).optional(),
     visibleNumber: z.string().trim().max(100).optional(),
     isBuiltPc: queryFlagSchema.optional(),
-    /** Tipo de PDF ya generado para la versión activa: SIMPLE (normal), DETALLADO o FORMAL. */
-    pdfKind: z.enum(['SIMPLE', 'DETALLADO', 'FORMAL']).optional(),
+    /** Tipo de PDF ya generado para la versión activa: SIMPLE (normal), DETALLADO, FORMAL o WEB. */
+    pdfKind: z.enum(['SIMPLE', 'DETALLADO', 'FORMAL', 'WEB']).optional(),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     sort: z

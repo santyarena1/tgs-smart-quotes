@@ -16,7 +16,7 @@ const STATES: Array<[QuoteState, string]> = [
 ];
 const STATE_LABEL = Object.fromEntries(STATES) as Record<QuoteState, string>;
 /** Tipo de presupuesto = PDF ya generado de ese tipo. Colores = los de los botones de cada PDF. */
-const KINDS: Array<[PdfKind, string]> = [["SIMPLE", "Normal"], ["DETALLADO", "Detallado"], ["FORMAL", "Formal"]];
+const KINDS: Array<[PdfKind, string]> = [["SIMPLE", "Normal"], ["DETALLADO", "Detallado"], ["FORMAL", "Formal"], ["WEB", "Web"]];
 const KIND_LABEL = Object.fromEntries(KINDS) as Record<PdfKind, string>;
 
 /** Tipo con el que se ve un presupuesto: el del último PDF que se generó; si todavía no tiene, Normal. */
@@ -271,6 +271,11 @@ export function LiteQuoteList({ refreshKey, editingId, onEdit, onDeleted, onDupl
                   <button type="button" className="lt-act detail" disabled={busy !== null} title="Ver el PDF detallado" onClick={() => void print(quote, "DETALLADO")}>
                     {b && busy === `${quote.id}:DETALLADO` ? "…" : "Detallado"}
                   </button>
+                  {v?.webMeta ? (
+                    <button type="button" className="lt-act web" disabled={busy !== null} title="Ver el PDF del presupuesto web" onClick={() => void print(quote, "WEB")}>
+                      {b && busy === `${quote.id}:WEB` ? "…" : "PDF web"}
+                    </button>
+                  ) : null}
                   <button type="button" className="lt-act dup" disabled={busy !== null} title="Crea un presupuesto nuevo con los mismos productos y precios" onClick={() => void duplicate(quote)}>
                     {b && busy === `${quote.id}:dup` ? "…" : "Duplicar"}
                   </button>
