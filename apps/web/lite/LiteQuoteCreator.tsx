@@ -388,6 +388,8 @@ export function LiteQuoteCreator() {
   const [busy, setBusy] = useState<PdfKind | "row" | null>(null);
   const [webOpen, setWebOpen] = useState(false);
   const [webBusy, setWebBusy] = useState(false);
+  /** Presupuesto de la lista desde el que se arma un Presupuesto Web. Vacío: usa el creador. */
+  const [webSource, setWebSource] = useState<{ lines: Line[]; name: string; customerId: string; observation: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [waCopy, setWaCopy] = useState<"idle" | "copied" | "error">("idle");
@@ -1080,6 +1082,22 @@ export function LiteQuoteCreator() {
 
   const ready = lines.length > 0 && !busy && !webBusy;
 
+  function linesOf(quote: Quote): Line[] {
+    return getQuoteItems(quote).map((item) => ({
+      key: crypto.randomUUID(),
+      productId: item.productId ?? "",
+      lineId: item.lineId ?? "",
+      name: item.name,
+      quantity: String(item.quantity),
+      costArs: centsToInput(item.costCents),
+      markupPct: bpsToPct(item.markupBps),
+      saleArs: centsToInput(item.salePriceCents ?? "0"),
+      priceMode: "sale" as const,
+      ivaPct: item.ivaBps != null ? ivaPctFromBps(item.ivaBps) : DEFAULT_IVA_PCT,
+      ivaAuto: item.ivaBps == null,
+    }));
+  }
+
   function openWebQuote() {
     if (busy || webBusy) return;
     const components = lines.filter((line) => !isExtraLine(line.name));
@@ -1090,6 +1108,30 @@ export function LiteQuoteCreator() {
     const invalid = validate(components);
     if (invalid) { setError(invalid); return; }
     setError(null);
+    setWebSource(null);
+    setWebOpen(true);
+  }
+
+  /** Desde el panel: con un presupuesto arma el web a partir de él; sin presupuesto usa el creador. */
+  async function openWebFromPanel(quote: Quote | null) {
+    if (busy || webBusy) return;
+    if (!quote) {
+      openWebQuote();
+      return;
+    }
+    setError(null);
+    const full = await api<Quote>(`/quotes/${quote.id}`);
+    const sourceLines = linesOf(full);
+    const components = sourceLines.filter((line) => !isExtraLine(line.name));
+    if (components.length === 0) throw new Error("Ese presupuesto no tiene componentes para armar un Presupuesto Web.");
+    const invalid = validate(components);
+    if (invalid) throw new Error(invalid);
+    setWebSource({
+      lines: sourceLines,
+      name: full.internalName,
+      customerId: full.customerId ?? "",
+      observation: getActiveVersion(full)?.publicObservation?.trim() ?? "",
+    });
     setWebOpen(true);
   }
 
@@ -1122,7 +1164,9 @@ export function LiteQuoteCreator() {
 
   /** Presupuesto nuevo con precios de la tienda. El PDF de este presupuesto muestra el precio de cada componente. */
   async function applyWebQuote(result: WebQuoteApply): Promise<string | null> {
-    const components = lines.filter((line) => !isExtraLine(line.name));
+    const source = webSource;
+    const baseLines = source?.lines ?? lines;
+    const components = baseLines.filter((line) => !isExtraLine(line.name));
     const next = components.map((line, index) => {
       const price = result.components[index];
       return price ? lineFromPrice(price, line) : line;
@@ -1134,17 +1178,18 @@ export function LiteQuoteCreator() {
     setWebBusy(true);
     setError(null);
     try {
-      const customerName = customers.find((customer) => customer.id === customerId)?.name;
-      const internalName = name.trim() || customerName || webLines[0]!.name;
-      const given = tradeIns.filter((row) => row.name.trim() || row.valueArs.trim());
-      const observation = [editing?.observation?.trim() ?? "", result.wifiNote].filter(Boolean).join("\n") || null;
+      const chosenCustomer = source?.customerId ?? customerId;
+      const customerName = customers.find((customer) => customer.id === chosenCustomer)?.name;
+      const internalName = source ? `${source.name} (Web)` : name.trim() || customerName || webLines[0]!.name;
+      const given = source ? [] : tradeIns.filter((row) => row.name.trim() || row.valueArs.trim());
+      const observation = [source ? source.observation : editing?.observation?.trim() ?? "", result.wifiNote].filter(Boolean).join("\n") || null;
       const lineOrder = new Map(pcLines.map((line, index) => [line.id, index]));
       const ordered = [...webLines].sort((a, b) => (lineOrder.get(a.lineId) ?? 999) - (lineOrder.get(b.lineId) ?? 999));
       const created = await api<Quote>("/quotes", {
         method: "POST",
         body: {
           internalName,
-          customerId: customerId || null,
+          customerId: chosenCustomer || null,
           requestId: null,
           isBuiltPc: true,
           kind: "PC",
@@ -1152,7 +1197,7 @@ export function LiteQuoteCreator() {
           tradeIns: given.length
             ? { showValues: tradeShowValues, items: given.map((row) => ({ name: row.name.trim(), valueCents: tradeInCents(row).toString() })) }
             : null,
-          collectionIds: editing ? [] : collectionIds,
+          collectionIds: source || editing ? [] : collectionIds,
           pdfOverrides: { showComponentPrices: "MOSTRAR" },
           items: ordered.map((line, position) => ({
             productId: line.productId || null,
@@ -1167,7 +1212,7 @@ export function LiteQuoteCreator() {
           })),
         },
       });
-      if (refImage) {
+      if (!source && refImage) {
         try {
           await api(`/quote-reference-image/${created.id}`, { method: "PUT", body: { image: refImage } });
         } catch {
@@ -1182,7 +1227,7 @@ export function LiteQuoteCreator() {
         pdfNote = ` El PDF no se pudo descargar: ${errorMessage(err)}.`;
       }
       setRefreshKey((key) => key + 1);
-      await startEdit(created);
+      if (!source) await startEdit(created);
       setNotice(`Presupuesto web ${created.visibleNumber} creado.${pdfNote}${result.noticeSuffix}`);
       return null;
     } catch (err) {
@@ -1552,8 +1597,8 @@ export function LiteQuoteCreator() {
       <WebQuoteModal
         open={webOpen}
         busy={webBusy}
-        components={lines.filter((line) => !isExtraLine(line.name)).map((line) => ({ name: line.name, quantity: line.quantity, saleArs: line.saleArs }))}
-        onClose={() => { if (!webBusy) setWebOpen(false); }}
+        components={(webSource?.lines ?? lines).filter((line) => !isExtraLine(line.name)).map((line) => ({ name: line.name, quantity: line.quantity, saleArs: line.saleArs }))}
+        onClose={() => { if (!webBusy) { setWebOpen(false); setWebSource(null); } }}
         onConfirm={applyWebQuote}
       />
 
@@ -1562,6 +1607,8 @@ export function LiteQuoteCreator() {
         editingId={editing?.id ?? null}
         onEdit={(q) => void startEdit(q)}
         onDeleted={(q) => { if (editing?.id === q.id) resetForm(); setNotice(`${q.visibleNumber} eliminado.`); }}
+        onDuplicated={(copy) => setNotice(`Duplicado como ${copy.visibleNumber}: ${copy.internalName}.`)}
+        onWeb={openWebFromPanel}
       />
     </div>
   );
