@@ -1,7 +1,6 @@
 import {createServer} from "node:http";
 import {generateCaseModelWithTripo} from './handlers/case-model.js';
 import { db } from "@tgs/database";
-import { runAcustockSyncLoop } from "./catalog-sync.js";
 import { processPendingJobs, handlers } from "./jobs.js";
 import {removeProductAssetBackground} from "./handlers/product-asset.js";
 import {resyncEnvProblem, resyncStalePublications} from "./publications.js";
@@ -267,6 +266,7 @@ if (process.env.NODE_ENV !== "test") {
   const envProblem = resyncEnvProblem();
   if (envProblem) console.error(JSON.stringify({level: "error", task: "startup", error: `${envProblem}. La republicación automática queda desactivada hasta corregirlo.`}));
   startHealthServer();
-  void Promise.all([runLoop(), runJobsLoop(), runAcustockSyncLoop()]);
+  // El catálogo AcuStock ya no se sincroniza: no se llama más al feed.
+  void Promise.all([runLoop(), runJobsLoop()]);
 }
 

@@ -66,9 +66,7 @@ export function AcustockCatalogView() {
   const [sort, setSort] = useState("price_asc");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -110,26 +108,6 @@ export function AcustockCatalogView() {
     return () => controller.abort();
   }, [load]);
 
-  async function sync() {
-    setSyncing(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await api<{ synced: number; discontinued: number }>("/catalog/sync", {
-        method: "POST",
-      });
-      setNotice(
-        `Catálogo actualizado: ${result.synced} productos sincronizados y ${result.discontinued} discontinuados.`,
-      );
-      setPage(1);
-      await load(new AbortController().signal);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -138,15 +116,9 @@ export function AcustockCatalogView() {
         eyebrow="Catálogo externo"
         title="Catálogo AcuStock"
         subtitle={`Última actualización: ${formatTimestamp(lastSyncedAt)}`}
-        actions={
-          <button type="button" onClick={() => void sync()} disabled={syncing}>
-            {syncing ? "Actualizando…" : "↻ Recargar catálogo"}
-          </button>
-        }
       />
 
       {error ? <Alert>{error}</Alert> : null}
-      {notice ? <Alert tone="ok">{notice}</Alert> : null}
 
       <div className="toolbar">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nombre, descripción o MPN" />
@@ -217,7 +189,7 @@ export function AcustockCatalogView() {
         <EmptyState icon="⌕" title="Sin resultados">
           {lastSyncedAt
             ? "No encontramos productos con esos filtros."
-            : "Usá “Recargar catálogo” para hacer la primera sincronización."}
+            : "El catálogo de AcuStock ya no se actualiza: no hay productos guardados."}
         </EmptyState>
       ) : (
         <>

@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.2",
+    date: "2026-11-25",
+    title: "Catálogo AcuStock sin sincronizar con el feed viejo",
+    items: [
+      "El worker ya no descarga el feed de AcuStock cada 15 minutos: no se hace ninguna llamada al feed anterior",
+      "Se quitó el botón Recargar catálogo. La pantalla del catálogo sigue mostrando los productos que ya estaban guardados",
+    ],
+  },
+  {
     version: "0.25.1",
     date: "2026-11-16",
     title: "Presupuesto Web separado del común",
