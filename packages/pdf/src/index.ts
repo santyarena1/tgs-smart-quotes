@@ -842,7 +842,7 @@ const WEB_ROW_CSS = `
 
 /** Bloque naranja con la oferta de la placa WiFi PCIe (Presupuesto Web). Vacío si no se ofrece. */
 function buildWifiOffer(input: PdfRenderInput): string {
-  if (!input.componentPrices || !input.webWifi) return '';
+  if (!input.webWifi) return '';
   return `<div class="row wifi">Agregá una Placa WIFI PCIe por solo ${formatArsFromCents(input.webWifi.priceCents)}</div>`;
 }
 

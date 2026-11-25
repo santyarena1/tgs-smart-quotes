@@ -4177,3 +4177,9 @@ tr.quote-row-main > td:first-child { box-shadow: inset 3px 0 0 var(--k, transpar
 .check-locked { cursor: default; opacity: 0.8; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .check-row input { margin-top: 3px; }
+
+/* Nota de placa WiFi (presupuesto común): check naranja arriba del editor. */
+.wifi-note { display: flex; align-items: center; flex-wrap: wrap; gap: 0.55rem; padding: 0.5rem 0.85rem; margin-bottom: 0.6rem; border: 1px solid #fdba74; border-radius: var(--r-sm); background: rgba(249, 115, 22, 0.1); color: #c2410c; cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+.wifi-note input { accent-color: #f97316; width: 1.05rem; height: 1.05rem; margin: 0; }
+.wifi-note.on { background: rgba(249, 115, 22, 0.2); border-color: #f97316; }
+.wifi-note-hint { font-weight: 500; font-size: 0.8rem; opacity: 0.85; }

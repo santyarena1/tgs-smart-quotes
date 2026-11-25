@@ -392,6 +392,8 @@ export type QuoteVersion = {
   tradeIns?: { showValues: boolean; items: Array<{ name: string; valueCents: string }> } | null;
   /** Presupuesto Web: producto de la tienda de cada componente, WiFi ofrecido y total del presupuesto común. Null = presupuesto común. */
   webMeta?: import("@tgs/contracts").QuoteWebMeta | null;
+  /** Ajustes del PDF de esta versión (p. ej. `offerWifi: "MOSTRAR"` = nota de placa WiFi). */
+  pdfOverrides?: Record<string, "HEREDAR" | "MOSTRAR" | "OCULTAR"> | null;
   /** Presupuesto Web: vence a los 2 días de crearse o de la última revisión. */
   expiresAt?: string | null;
   checkedAt?: string | null;

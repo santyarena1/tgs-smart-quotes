@@ -1704,3 +1704,38 @@ export type ExpensesQuery = z.infer<typeof expensesQuerySchema>;
 export type ExpensesUnlockInput = z.infer<typeof expensesUnlockSchema>;
 export const expensePaidSchema = z.object({ paid: z.boolean() }).strict();
 export type ExpensePaidInput = z.infer<typeof expensePaidSchema>;
+
+/**
+ * Placa WiFi PCIe que se ofrece en el PDF (bloque naranja, no suma al total). Funciones puras sobre el nombre de cada línea:
+ * las usan el editor (web), el Presupuesto Web y el PDF (API) para decidir si se ofrece y a qué precio.
+ */
+export type WifiOfferLine = { name: string };
+export const WIFI_OFFER_BASIC_CENTS = 1_820_000n;
+export const WIFI_OFFER_OTHER_CENTS = 4_740_000n;
+
+const OFFER_GPU_RE = /placa de video|tarjeta de video|tarjeta gr[aá]fica|\bgpu\b|\bvga\b|geforce|\brtx\b|\bgtx\b|radeon|\brx\s?\d{3,4}\b|\barc\s?[ab]\d{3}\b/i;
+const OFFER_MOTHERBOARD_RE = /motherboard|placa madre|mother\b|mainboard/i;
+const OFFER_LIQUID_RE = /refrigeraci[oó]n l[ií]quida|l[ií]quid|\baio\b|water\s?cool|watercool|kraken/i;
+const OFFER_PERIPHERAL_RE = /mouse|maus|teclado|keyboard|auricular|headset|auris\b|joystick|gamepad|parlante|speaker|micr[oó]fono|webcam/i;
+const OFFER_MOTHER_WIFI_RE = /wi[-\s]?fi|\bwf\b|wlan|\bax\b/i;
+const OFFER_WIFI_DEVICE_RE = /wi[-\s]?fi|\bwf\b|wlan|inal[aá]mbric|wireless|\bax\d{3,4}\b|\bbe\d{3,4}\b/i;
+
+export const linesHaveGpu = (lines: WifiOfferLine[]) => lines.some((l) => OFFER_GPU_RE.test(l.name) && !OFFER_MOTHERBOARD_RE.test(l.name));
+export const linesHaveLiquidCooling = (lines: WifiOfferLine[]) => lines.some((l) => OFFER_LIQUID_RE.test(l.name));
+
+/**
+ * La PC ya trae WiFi: placa madre con WiFi / WF / AX, o un adaptador / placa de red inalámbrica.
+ * Un mouse o un teclado inalámbrico no cuentan.
+ */
+export function linesHaveWifi(lines: WifiOfferLine[]): boolean {
+  return lines.some((l) => {
+    if (OFFER_PERIPHERAL_RE.test(l.name) || /^\s*placa wifi pcie/i.test(l.name)) return false;
+    if (OFFER_MOTHERBOARD_RE.test(l.name)) return OFFER_MOTHER_WIFI_RE.test(l.name);
+    return OFFER_WIFI_DEVICE_RE.test(l.name);
+  });
+}
+
+/** $18.200 en la PC básica (sin placa de video ni refrigeración líquida) y $47.400 en las demás. */
+export function wifiOfferCents(lines: WifiOfferLine[]): bigint {
+  return linesHaveGpu(lines) || linesHaveLiquidCooling(lines) ? WIFI_OFFER_OTHER_CENTS : WIFI_OFFER_BASIC_CENTS;
+}

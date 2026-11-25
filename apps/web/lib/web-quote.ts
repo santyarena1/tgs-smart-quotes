@@ -221,8 +221,8 @@ export async function matchWebComponent<W extends WebCandidate, N extends NodoCa
 }
 
 const PERIPHERAL_RE = /mouse|maus|teclado|keyboard|auricular|headset|auris\b|joystick|gamepad|parlante|speaker|micr[oó]fono|webcam/i;
-const MOTHER_WIFI_RE = /wi-?fi|wlan|\bax\b/i;
-const WIFI_DEVICE_RE = /wi-?fi|wlan|inal[aá]mbric|wireless|\bax\d{3,4}\b|\bbe\d{3,4}\b/i;
+const MOTHER_WIFI_RE = /wi[-\s]?fi|\bwf\b|wlan|\bax\b/i;
+const WIFI_DEVICE_RE = /wi[-\s]?fi|\bwf\b|wlan|inal[aá]mbric|wireless|\bax\d{3,4}\b|\bbe\d{3,4}\b/i;
 
 /**
  * La PC ya trae WiFi: placa madre con WiFi o AX, o un adaptador / placa de red inalámbrica.
@@ -234,4 +234,15 @@ export function hasWifi(items: ComponentLike[]): boolean {
     if (MOTHERBOARD_RE.test(i.name)) return MOTHER_WIFI_RE.test(i.name);
     return WIFI_DEVICE_RE.test(i.name);
   });
+}
+
+/** Ajustes del PDF con la nota de placa WiFi prendida o apagada; el resto de los ajustes de la versión se conserva. */
+export function wifiOverrides(
+  current: Record<string, "HEREDAR" | "MOSTRAR" | "OCULTAR"> | null | undefined,
+  on: boolean,
+): Record<string, "HEREDAR" | "MOSTRAR" | "OCULTAR"> {
+  const next = { ...(current ?? {}) };
+  if (on) next.offerWifi = "MOSTRAR";
+  else delete next.offerWifi;
+  return next;
 }
