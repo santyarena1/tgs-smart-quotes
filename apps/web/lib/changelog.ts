@@ -13,7 +13,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "API de colecciones para AcuStock",
     items: [
       "AcuStock puede leer todas las colecciones con sus presupuestos: todas las versiones, ítems, costos, markup y ganancia",
-      "Se habilita cargando ACUSTOCK_API_TOKEN en la API y AcuStock lo manda en cada pedido. No incluye datos de clientes",
+      "En Configuración → AcuStock se genera la clave para AcuStock (se ve una sola vez), se revoca y se ve cuándo la usó por última vez. No incluye datos de clientes",
     ],
   },
   {

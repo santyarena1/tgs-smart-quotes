@@ -1,17 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { checkAcustockToken, mapItem, mapVersion } from "./acustock-export.js";
+import { checkAcustockToken, hashAcustockToken, mapItem, mapVersion, newAcustockToken } from "./acustock-export.js";
 
 describe("checkAcustockToken", () => {
-  it("sin token configurado la API queda apagada", () => {
+  it("sin clave generada la API queda apagada", () => {
+    expect(checkAcustockToken("Bearer algo", null)).toBe("not_configured");
     expect(checkAcustockToken("Bearer algo", undefined)).toBe("not_configured");
-    expect(checkAcustockToken("Bearer algo", "  ")).toBe("not_configured");
   });
-  it("acepta solo el token exacto como Bearer", () => {
-    expect(checkAcustockToken("Bearer secreto-123", "secreto-123")).toBe("ok");
-    expect(checkAcustockToken("bearer secreto-123", "secreto-123")).toBe("ok");
-    expect(checkAcustockToken("Bearer secreto-12", "secreto-123")).toBe("unauthorized");
-    expect(checkAcustockToken("secreto-123", "secreto-123")).toBe("unauthorized");
-    expect(checkAcustockToken(undefined, "secreto-123")).toBe("unauthorized");
+  it("acepta solo la clave exacta como Bearer", () => {
+    const stored = hashAcustockToken("secreto-123");
+    expect(checkAcustockToken("Bearer secreto-123", stored)).toBe("ok");
+    expect(checkAcustockToken("bearer secreto-123", stored)).toBe("ok");
+    expect(checkAcustockToken("Bearer secreto-12", stored)).toBe("unauthorized");
+    expect(checkAcustockToken("secreto-123", stored)).toBe("unauthorized");
+    expect(checkAcustockToken(undefined, stored)).toBe("unauthorized");
+  });
+});
+
+describe("newAcustockToken", () => {
+  it("genera claves distintas y guarda solo el hash y los últimos 4 caracteres", () => {
+    const a = newAcustockToken();
+    const b = newAcustockToken();
+    expect(a.token).not.toBe(b.token);
+    expect(a.token.startsWith("tgs_acu_")).toBe(true);
+    expect(a.hash).toBe(hashAcustockToken(a.token));
+    expect(a.hash).not.toContain(a.token);
+    expect(a.hint).toBe(a.token.slice(-4));
+    expect(checkAcustockToken(`Bearer ${a.token}`, a.hash)).toBe("ok");
+    expect(checkAcustockToken(`Bearer ${b.token}`, a.hash)).toBe("unauthorized");
   });
 });
 

@@ -36,7 +36,7 @@ import {EmployeePortalController} from './employee-portal.js';
 import {MePreferencesController} from './me-preferences.js';
 import {CalculatorController} from './calculator.js';
 import {WhatsappController} from './whatsapp.js';
-import {AcustockExportController} from './acustock-export.js';
+import {AcustockApiSettingsController, AcustockExportController} from './acustock-export.js';
 
 @Controller()
 class HealthController {
@@ -73,6 +73,7 @@ class HealthController {
     SimilarityController,
     CatalogController,
     AcustockExportController,
+    AcustockApiSettingsController,
     NodoController,
     IvaController,
     QuoteReferenceImageController,

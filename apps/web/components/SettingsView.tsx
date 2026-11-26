@@ -30,8 +30,9 @@ import {PdfThemePicker} from "./PdfThemePicker";
 import {WhatsappSettingsSection} from "./WhatsappSettingsSection";
 import {ThumbnailAiSettingsSection} from "./ThumbnailAiSettingsSection";
 import {NodoProvidersSettingsSection} from "./NodoProvidersSettingsSection";
+import {AcustockApiSettingsSection} from "./AcustockApiSettingsSection";
 
-type Tab = "empresa" | "temas" | "pdf" | "ia" | "miniaturas" | "chatbot" | "whatsapp" | "financiacion" | "distribuidores" | "extension" | "modulo-externo";
+type Tab = "empresa" | "temas" | "pdf" | "ia" | "miniaturas" | "chatbot" | "whatsapp" | "financiacion" | "distribuidores" | "extension" | "acustock" | "modulo-externo";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "empresa", label: "Empresa" },
@@ -44,6 +45,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "financiacion", label: "Financiación" },
   { id: "distribuidores", label: "Distribuidores" },
   { id: "extension", label: "Extensión Chrome" },
+  { id: "acustock", label: "AcuStock" },
   { id: "modulo-externo", label: "MÓDULO EXTERNO" },
 ];
 
@@ -109,7 +111,7 @@ const emptyFin = (): FinDraft => ({
   sortOrder: "0",
 });
 
-const TAB_IDS: Tab[] = ["empresa", "temas", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "distribuidores", "extension", "modulo-externo"];
+const TAB_IDS: Tab[] = ["empresa", "temas", "pdf", "ia", "miniaturas", "chatbot", "whatsapp", "financiacion", "distribuidores", "extension", "acustock", "modulo-externo"];
 
 /** `?tab=chatbot` abre esa pestaña directo (lo usa el botón "Bot" del CRM). */
 function initialTab(): Tab {
@@ -1135,6 +1137,8 @@ export function SettingsView() {
       {!loading && tab === "miniaturas" ? <ThumbnailAiSettingsSection /> : null}
 
       {!loading && tab === "distribuidores" ? <NodoProvidersSettingsSection /> : null}
+
+      {!loading && tab === "acustock" ? <AcustockApiSettingsSection /> : null}
 
       {!loading && tab === "extension" ? (
         <div className="form-grid" style={{ maxWidth: 900 }}>

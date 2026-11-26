@@ -1982,3 +1982,16 @@ model IvaCategoryStat {
   @@id([categoryKey, ivaBps])
   @@index([categoryKey])
 }
+
+/// Clave de la API de solo lectura para AcuStock (colecciones con sus presupuestos).
+/// Se genera y se revoca desde Configuración. Solo se guarda el hash SHA-256: la clave se muestra una vez.
+model AcustockApiSettings {
+  id         String    @id @default("singleton")
+  tokenHash  String?
+  /// Últimos 4 caracteres, para reconocer qué clave está activa.
+  tokenHint  String?
+  issuedAt   DateTime?
+  issuedById String?
+  lastUsedAt DateTime?
+  updatedAt  DateTime  @default(now()) @updatedAt
+}

@@ -6,7 +6,7 @@ OpenAPI esta en `/openapi`; health en `/api/health`. Modulos expuestos: auth, pr
 
 Expone las colecciones con sus presupuestos completos para que AcuStock los lea. Código: `apps/api/src/acustock-export.ts`.
 
-**Acceso.** Cada pedido lleva el header `Authorization: Bearer <token>`, donde el token es el valor de la variable `ACUSTOCK_API_TOKEN` del servicio de la API (Railway). Sin esa variable la API responde 503; con un token distinto, 401. Para generar uno: `openssl rand -hex 32`. Para cortar el acceso, se borra o se cambia la variable.
+**Acceso.** Cada pedido lleva el header `Authorization: Bearer <clave>`. La clave se genera en **Configuración → AcuStock** (solo administradores) y se muestra una sola vez; en la base queda solo su hash SHA-256 (tabla `AcustockApiSettings`). Generar una clave nueva invalida la anterior y **Revocar acceso** la borra. Sin clave generada la API responde 503; con una clave distinta, 401. La pantalla muestra cuándo la usó AcuStock por última vez. Rutas de administración: `GET /api/settings/acustock-api`, `POST /api/settings/acustock-api/token` (devuelve la clave) y `DELETE /api/settings/acustock-api/token`.
 
 **Rutas** (con el prefijo `/api` de la API):
 
