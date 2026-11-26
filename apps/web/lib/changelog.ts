@@ -9,13 +9,31 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     version: "0.26.0",
-    date: "2026-11-25",
+    date: "2026-11-26",
     title: "Nota de placa WiFi en el presupuesto común y margen por defecto 25 %",
     items: [
-      "Check naranja \"Agregar Nota de Placa Wifi\" arriba del editor (versión común y LITE): el PDF sale igual que siempre, con el bloque naranja que ofrece la placa WiFi PCIe sin sumarla al total",
+      "Check naranja \"Agregar Nota de Placa Wifi\" arriba del editor (versión común y LITE): el PDF sale igual que siempre, con el bloque naranja que ofrece la placa WiFi PCIe sin sumarla al total. El formal también lo muestra",
       "El precio es el del Presupuesto Web: $18.200 en la PC básica y $47.400 con placa de video o refrigeración líquida",
       "Si alguna línea ya trae WiFi (WIFI, WI-FI, WF, WLAN, inalámbrico, AX...) la nota no sale, para no ofrecerla dos veces",
       "El margen de ganancia por defecto de los productos nuevos pasa de 20 % a 25 %",
+    ],
+  },
+  {
+    version: "0.25.3",
+    date: "2026-11-26",
+    title: "API de colecciones para AcuStock",
+    items: [
+      "AcuStock puede leer todas las colecciones con sus presupuestos: todas las versiones, ítems, costos, markup y ganancia",
+      "En Configuración → AcuStock se genera la clave para AcuStock (se ve una sola vez), se revoca y se ve cuándo la usó por última vez. No incluye datos de clientes",
+    ],
+  },
+  {
+    version: "0.25.2",
+    date: "2026-11-25",
+    title: "Catálogo AcuStock sin sincronizar con el feed viejo",
+    items: [
+      "El worker ya no descarga el feed de AcuStock cada 15 minutos: no se hace ninguna llamada al feed anterior",
+      "Se quitó el botón Recargar catálogo. La pantalla del catálogo sigue mostrando los productos que ya estaban guardados",
     ],
   },
   {
