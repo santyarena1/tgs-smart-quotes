@@ -8,6 +8,19 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.26.1",
+    date: "2026-11-26",
+    title: "Financiación: BBVA sobre el efectivo, lista +23 % y sin Mercado Pago 3 sin interés",
+    items: [
+      "BBVA: 1 pago es efectivo / transferencia + 8 %; 3 y 6 cuotas son ese total dividido 3 y 6",
+      "Cualquier banco: 1 pago es efectivo / transferencia + 23 % (el precio de lista); 3 y 6 cuotas son la lista dividida 3 y 6",
+      "Se saca el \"3 cuotas sin interés\" de Mercado Pago",
+      "El rótulo \"20% de descuento\" pasa a \"Super descuento TGS solo en efectivo o transferencia\"",
+      "La misma cuenta en LITE, PDF, calculadora, tienda web y bot",
+      "El bot explica las formas de pago con estas reglas",
+    ],
+  },
+  {
     version: "0.26.0",
     date: "2026-11-26",
     title: "Nota de placa WiFi en el presupuesto común y margen por defecto 25 %",

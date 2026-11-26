@@ -315,7 +315,7 @@ export function sha256Hex(buffer: Buffer | string): string {
 /** Versión del diseño del PDF. Se sube cuando cambia cómo se dibuja: así los borradores ya generados
  *  se vuelven a generar con el diseño nuevo en vez de reutilizar el PDF viejo (las versiones ya emitidas
  *  siguen siendo inmutables). */
-export const PDF_RENDER_VERSION = '2026-11-16.1';
+export const PDF_RENDER_VERSION = '2026-11-26.1';
 
 export function pdfInputHash(input: PdfRenderInput): string {
   const canonical = {
@@ -382,6 +382,13 @@ function applyInterest(baseCents: bigint, interestBps: number): bigint {
 function installmentAmount(baseCents: bigint, plan: PdfFinancingPlan): bigint {
   const total = applyInterest(baseCents, plan.interestBps);
   return (total + BigInt(plan.installments) / 2n) / BigInt(plan.installments);
+}
+
+const isBbvaPlan = (plan: PdfFinancingPlan): boolean => /bbva|franc[eé]s/i.test(plan.bank ?? '');
+
+/** BBVA: efectivo / transferencia + 8 % (o el % del plan), no sobre el precio de lista. */
+function bbvaPlanOnCash(plan: PdfFinancingPlan): PdfFinancingPlan {
+  return { ...plan, interestBps: plan.interestBps > 0 ? plan.interestBps : 800 };
 }
 
 function renderRmaText(template: string, rmaUrl: string): string {
@@ -683,7 +690,7 @@ function applyLabelOverrides(html: string, labels: NonNullable<PdfLayoutConfig['
     next = swap(next, new RegExp(`(<th[^>]*data-pdf-block="itemsTable\\.${key}"[^>]*>)[^<]*(</th>)`), label);
   }
   next = swap(next, /(<span[^>]*>)Precio de lista(?: \(1 pago tarjeta\))?(<\/span>)/, labels.listPriceLabel);
-  next = swap(next, /(<span[^>]*>)Efectivo \/ Transferencia(?: · \d+% de descuento)?(<\/span>)/, labels.cashPriceLabel);
+  next = swap(next, /(<span[^>]*>)Super descuento TGS solo en efectivo o transferencia(<\/span>)/, labels.cashPriceLabel);
   next = swap(next, /(<(?:strong|b)>)Observación:(<\/(?:strong|b)>)/, labels.observationLabel ? `${labels.observationLabel}:` : undefined);
   return next;
 }
@@ -789,7 +796,8 @@ function referenceImageHtml(input: PdfRenderInput): string {
 function itemInstallmentsHtml(item: PdfItem, input: PdfRenderInput): string {
   const q = resolveQuickOptions(input);
   if (!q.active || q.itemInstallments.length === 0 || input.financing.length === 0) return '';
-  const plans = uniqueByInstallments(input.financing);
+  // Debajo de cada producto van las cuotas de cualquier banco: BBVA y GoCuotas tienen precio propio.
+  const plans = uniqueByInstallments(input.financing.filter((plan) => !isBbvaPlan(plan) && !/go\s*cuotas/i.test(plan.bank ?? '')));
   const itemList = input.cashTotalCents > 0n ? (item.subtotalCents * input.listTotalCents + input.cashTotalCents / 2n) / input.cashTotalCents : item.subtotalCents;
   const lines = q.itemInstallments
     .map((n) => plans.find((p) => p.installments === n))
@@ -895,8 +903,8 @@ function buildTradeInsTotals(input: PdfRenderInput, variant: 'classic' | 'modern
   return list + final;
 }
 
-/** Rótulo por defecto de la fila de efectivo / transferencia (incluye el descuento sobre el precio de lista). */
-const CASH_LABEL = 'Efectivo / Transferencia · 20% de descuento';
+/** Rótulo por defecto de la fila de efectivo / transferencia. */
+const CASH_LABEL = 'Super descuento TGS solo en efectivo o transferencia';
 /** Texto de las cuotas BBVA que antes decían "sin interés". */
 const BBVA_PROMO = 'Descuento exclusivo para clientes BBVA';
 
@@ -905,25 +913,29 @@ function buildFinancing(input: PdfRenderInput): string {
   const plans = [...input.financing].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
   );
-  const bbva = plans.filter((p) => /bbva/i.test(p.bank ?? ''));
+  const bbva = plans.filter(isBbvaPlan);
   const others = plans.filter((p) => !bbva.includes(p));
   const row = (plan: PdfFinancingPlan) => {
-    const cuota = installmentAmount(input.listTotalCents, plan);
+    const cuota = isBbvaPlan(plan)
+      ? installmentAmount(input.cashTotalCents, bbvaPlanOnCash(plan))
+      : installmentAmount(input.listTotalCents, plan);
     const bank = plan.bank ? `${escapeHtml(plan.bank)} · ` : '';
-    const interest = plan.interestBps === 0 ? ' sin interés' : '';
+    const interest = plan.interestBps === 0 && !isBbvaPlan(plan) ? ' sin interés' : '';
+    const count = plan.installments === 1 ? '1 pago' : `${plan.installments} cuotas`;
     const description = plan.description
       ? `<div class="note">${escapeHtml(plan.description)}</div>`
       : '';
-    return `<tr><td colspan="2">${bank}${plan.installments} cuotas${interest}${description}</td><td class="amt">de ${formatArsFromCents(cuota)}</td></tr>`;
+    return `<tr><td colspan="2">${bank}${count}${interest}${description}</td><td class="amt">de ${formatArsFromCents(cuota)}</td></tr>`;
   };
   const parts: string[] = [];
   if (input.config.showFinancingNote) {
     parts.push(
-      `<p class="note">Cuotas: los valores financiados se calculan sobre el precio de lista, no sobre el precio de efectivo/transferencia.</p>`,
+      `<p class="note">Cuotas: los valores financiados se calculan sobre el precio de lista, no sobre el precio de efectivo/transferencia (BBVA tiene precio especial).</p>`,
     );
   }
   if (input.config.showBbva && bbva.length) {
-    parts.push(`<table class="fin">${bbva.map(row).join('')}</table>`);
+    const single = { ...bbva[0]!, installments: 1, description: null };
+    parts.push(`<table class="fin">${[single, ...bbva.filter((p) => p.installments !== 1)].map(row).join('')}</table>`);
   }
   if (input.config.showOtherBanks && others.length) {
     parts.push(`<table class="fin">${others.map(row).join('')}</table>`);
@@ -1215,37 +1227,36 @@ function buildFinancingModerno(input: PdfRenderInput): string {
   if (!input.config.showFinancing || input.financing.length === 0) return '';
   const plans = [...input.financing].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const bankOf = (p: PdfFinancingPlan) => p.bank ?? '';
-  const bbva = uniqueByInstallments(plans.filter((p) => /bbva/i.test(bankOf(p))));
+  const bbva = uniqueByInstallments(plans.filter(isBbvaPlan));
   const go = uniqueByInstallments(plans.filter((p) => /go\s*cuotas|gocuotas/i.test(bankOf(p))));
   const base = (n: number): PdfFinancingPlan => ({ installments: n, interestBps: 0 });
   const money = (plan: PdfFinancingPlan) => formatArsFromCents(installmentAmount(input.listTotalCents, plan));
   const tile = (n: number | string, unit: string, amount: string) =>
     `<span class="tile"><b class="t-n">${n}</b><span class="t-u">${unit}</span><span class="t-amt">${amount}</span></span>`;
-  /** BBVA: el 8 % (el del plan, o 8 % si no tiene) va sobre el precio de efectivo/transferencia, no sobre el de lista. */
-  const bbvaMoney = (plan: PdfFinancingPlan) => {
-    const total = applyInterest(input.cashTotalCents, plan.interestBps > 0 ? plan.interestBps : 800);
-    return formatArsFromCents((total + BigInt(plan.installments) / 2n) / BigInt(plan.installments));
-  };
+  const bbvaMoney = (plan: PdfFinancingPlan) => formatArsFromCents(installmentAmount(input.cashTotalCents, bbvaPlanOnCash(plan)));
   const brandBlock = (style: keyof typeof BRAND_STYLES, title: string, sub: string, tiles: string[], opts: { foot?: string[]; stack?: boolean; big?: boolean; top?: boolean } = {}) =>
     `<div class="fin-brand${opts.stack ? ' stack' : ''}${opts.big ? ' big' : ''}${opts.top ? ' top' : ''}" style="${BRAND_STYLES[style]}"><div class="fb-title">${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</div><div class="tiles">${tiles.join('')}</div>${(opts.foot ?? []).map((line, i) => `<div class="fb-foot${i ? ' note' : ''}">${line}</div>`).join('')}</div>`;
 
   const parts: string[] = [];
   if (input.config.showFinancingNote) {
     parts.push(
-      `<p class="fin-note">Cuotas: los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia.</p>`,
+      `<p class="fin-note">Cuotas: los valores financiados se calculan sobre el <b>precio de lista</b>, no sobre el precio de efectivo/transferencia (BBVA tiene precio especial).</p>`,
     );
   }
   if (input.config.showOtherBanks) {
-    // 3 y 6 cuotas sin interés con cualquier banco: siempre las dos, sobre el precio de lista.
+    // Cualquier banco: 1 pago, 3 y 6 sin interés, siempre sobre el precio de lista.
     parts.push(
-      brandBlock('free', 'Cuotas sin interés con cualquier banco', '', [3, 6].map((n) => tile(n, 'cuotas<small>sin interés</small>', money(base(n)))), {
+      brandBlock('free', 'Cuotas sin interés con cualquier banco', '', [tile(1, 'pago', money(base(1))), ...[3, 6].map((n) => tile(n, 'cuotas<small>sin interés</small>', money(base(n))))], {
         top: true,
         foot: [escapeHtml('Pagos presenciales o por link de pago/QR')],
       }),
     );
   }
   if (input.config.showBbva && bbva.length) {
-    const tiles = bbva.filter((p) => p.installments === 3 || p.installments === 6).map((plan) => tile(plan.installments, 'cuotas', bbvaMoney(plan)));
+    const cuotas = bbva.filter((p) => p.installments === 3 || p.installments === 6);
+    const tiles = cuotas.length
+      ? [tile(1, 'pago', bbvaMoney({ ...cuotas[0]!, installments: 1 })), ...cuotas.map((plan) => tile(plan.installments, 'cuotas', bbvaMoney(plan)))]
+      : [];
     const foot = ['3 o 6 cuotas sin interés - Super precio BBVA'].map(escapeHtml);
     // Las fechas del BBVA (días y horarios) van dentro del bloque.
     if (input.financingBbvaNote) foot.push(renderRmaText(input.financingBbvaNote, ''));

@@ -19,8 +19,8 @@ export const PAYMENT_LIST = [
   '• Efectivo (Precio del presupuesto)',
   '• Transferencia (Precio del presupuesto)',
   '• Dolares Cara grande (Precio del presupuesto convertido a dolares)',
-  '• Tarjeta de Credito en cuotas (3 / 6 / 12 cuotas con interes)',
-  '• Tarjeta de Credito BBVA (3 Cuotas sin interes del precio del lista)',
+  '• Tarjeta de Credito en cuotas (3 / 6 cuotas sin interes del precio de lista, 12 con interes)',
+  '• Tarjeta de Credito BBVA (1, 3 o 6 cuotas con precio especial BBVA)',
   '• Tarjeta de Debito (Se cobra un recargo)',
   '• Criptomoneda (Se cobra un recargo)',
 ].join('\n');

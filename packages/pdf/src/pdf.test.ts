@@ -121,7 +121,7 @@ describe('@tgs/pdf', () => {
     expect(html.toLowerCase()).not.toContain('válido hasta');
     expect(html.toLowerCase()).not.toContain('valido hasta');
     expect(html).toContain('PRESUPUESTO');
-    expect(html).toContain('Efectivo / Transferencia');
+    expect(html).toContain('Super descuento TGS solo en efectivo o transferencia');
     expect(html).toContain('DATOS DEL PRESUPUESTO');
   });
 
@@ -189,7 +189,7 @@ describe('@tgs/pdf', () => {
       expect(withValues).toContain('Precio final con entrega de productos del cliente');
       expect(withValues).toContain(finalPrice);
       // Va después de Efectivo / Transferencia y dentro de los totales.
-      expect(withValues.indexOf('Efectivo / Transferencia')).toBeLessThan(withValues.indexOf('Precio final con entrega'));
+      expect(withValues.indexOf('Super descuento TGS solo en efectivo o transferencia')).toBeLessThan(withValues.indexOf('Precio final con entrega'));
       const namesOnly = renderQuoteHtml({...base, tradeIns: {showValues: false, items}});
       expect(namesOnly).toContain('Fuente 500W');
       expect(namesOnly).not.toContain('$ 15.000');
@@ -385,7 +385,7 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('Cheque a 30 días');
     expect(html).toContain(formatArsFromCents(1080000n));
     expect(html).toContain('Precio de lista');
-    expect(html).toContain('Efectivo / Transferencia');
+    expect(html).toContain('Super descuento TGS solo en efectivo o transferencia');
     // Columnas: producto | cantidad | precio unitario | IVA | importe.
     const order = ['>Producto<', '>Cant.<', '>Precio sin IVA<', '>IVA<', '>Precio con IVA<', '>Importe total<'].map((h) => html.indexOf(h));
     expect(order.every((i) => i >= 0)).toBe(true);
@@ -424,7 +424,7 @@ describe('@tgs/pdf', () => {
 
       const hidden = renderPdfHtml({ ...base, options: { showTotal: false, showCashTransfer: false, showFinancing: false, showIvaBreakdown: false } });
       expect(hidden).not.toContain('Precio de lista');
-      expect(hidden).not.toContain('Efectivo / Transferencia');
+      expect(hidden).not.toContain('Super descuento TGS solo en efectivo o transferencia');
       expect(hidden).not.toContain('Precio sin IVA');
       expect(hidden).toContain('Precio unitario');
       expect(hidden).not.toContain('cuotas');
@@ -624,7 +624,7 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('—');
     expect(html).not.toMatch(/MEMORIA RAM 16GB[\s\S]*\$ 100\.000/);
   });
-  it('MODERNO: BBVA solo 3 y 6 con 8 % sobre el efectivo/transferencia, fechas dentro del bloque', () => {
+  it('MODERNO: BBVA 1, 3 y 6 con 8 % sobre el efectivo/transferencia, fechas dentro del bloque', () => {
     const financing = [
       { bank: 'BBVA - Banco Francés', installments: 1, interestBps: 800, sortOrder: 1 },
       { bank: 'BBVA - Banco Francés', installments: 3, interestBps: 800, sortOrder: 2 },
@@ -639,9 +639,10 @@ describe('@tgs/pdf', () => {
     expect(html).toContain('Pagos presenciales o por link de pago/QR');
     expect(html).toContain('Cuotas exclusivas para clientes BBVA');
     expect(html).not.toContain('Descuento exclusivo para clientes BBVA');
-    expect(html).not.toContain('<span class="t-u">pago</span>');
     const bbvaBlock = html.split('--bc:#1d4ed8')[1]!.split('<div class="fin-row">')[0]!;
-    expect(bbvaBlock.match(/class="tile"/g)).toHaveLength(2);
+    expect(bbvaBlock.match(/class="tile"/g)).toHaveLength(3);
+    // 1 pago BBVA = efectivo + 8 %.
+    expect(bbvaBlock).toContain('1.074.060');
     // 8 % sobre el efectivo (994.500): 3 cuotas de 358.020 y 6 de 179.010.
     expect(bbvaBlock).toContain('358.020');
     expect(bbvaBlock).toContain('179.010');

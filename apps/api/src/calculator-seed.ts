@@ -179,7 +179,10 @@ export function seedCalculatorGroups(
     } else if (key === 'bbva') {
       plans = uniquePlans(FALLBACK_BBVA);
     } else {
-      plans = referencePlans.map((plan, sortOrder) => ({...plan, sortOrder}));
+      // Mercado Pago ya no ofrece 3 cuotas sin interés.
+      plans = referencePlans
+        .filter((plan) => !(key === 'mercadopago' && plan.installments === 3 && plan.interestBps === 0))
+        .map((plan, sortOrder) => ({...plan, sortOrder}));
     }
     groups.push({
       key,
