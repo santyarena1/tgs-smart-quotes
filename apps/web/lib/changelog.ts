@@ -8,6 +8,24 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.3",
+    date: "2026-11-26",
+    title: "API de colecciones para AcuStock",
+    items: [
+      "AcuStock puede leer todas las colecciones con sus presupuestos: todas las versiones, ítems, costos, markup y ganancia",
+      "En Configuración → AcuStock se genera la clave para AcuStock (se ve una sola vez), se revoca y se ve cuándo la usó por última vez. No incluye datos de clientes",
+    ],
+  },
+  {
+    version: "0.25.2",
+    date: "2026-11-25",
+    title: "Catálogo AcuStock sin sincronizar con el feed viejo",
+    items: [
+      "El worker ya no descarga el feed de AcuStock cada 15 minutos: no se hace ninguna llamada al feed anterior",
+      "Se quitó el botón Recargar catálogo. La pantalla del catálogo sigue mostrando los productos que ya estaban guardados",
+    ],
+  },
+  {
     version: "0.25.1",
     date: "2026-11-16",
     title: "Presupuesto Web separado del común",

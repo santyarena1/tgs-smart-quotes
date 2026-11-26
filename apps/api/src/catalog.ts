@@ -1,6 +1,6 @@
-import { BadGatewayException, Controller, Get, NotFoundException, Param, Post, Query, Res, StreamableFile } from "@nestjs/common";
+import { BadGatewayException, Controller, Get, NotFoundException, Param, Query, Res, StreamableFile } from "@nestjs/common";
 import { catalogQuerySchema, type CatalogQuery } from "@tgs/contracts";
-import { db, Prisma, syncAcustockCatalog } from "@tgs/database";
+import { db, Prisma } from "@tgs/database";
 import { jsonSafe, SkipRateLimit, ZodPipe } from "./infrastructure.js";
 import {z} from "zod";
 
@@ -131,10 +131,5 @@ export class CatalogController {
       },
       lastSyncedAt: latest._max.lastSyncedAt,
     });
-  }
-
-  @Post("sync")
-  async sync() {
-    return syncAcustockCatalog();
   }
 }

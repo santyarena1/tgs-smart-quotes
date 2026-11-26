@@ -1,5 +1,4 @@
 import { XMLParser } from "fast-xml-parser";
-import { db } from "./client.js";
 
 export type AcustockFeedProduct = {
   mpn: string;
@@ -128,39 +127,4 @@ export function parseAcustockFeed(xml: string): {
     throw new Error(`Feed AcuStock incompleto: esperaba ${expected} productos y recibió ${products.length}`);
   }
   return { products, generatedAt: optionalText(end.generated_at) };
-}
-
-export async function syncAcustockCatalog(feedUrl = process.env.ACUSTOCK_FEED_URL) {
-  if (!feedUrl) throw new Error("Falta configurar ACUSTOCK_FEED_URL");
-  const response = await fetch(feedUrl, { signal: AbortSignal.timeout(120_000) });
-  if (!response.ok) throw new Error(`AcuStock respondió HTTP ${response.status}`);
-  const { products, generatedAt } = parseAcustockFeed(await response.text());
-  const syncedAt = new Date();
-  const batchSize = 100;
-
-  for (let offset = 0; offset < products.length; offset += batchSize) {
-    const batch = products.slice(offset, offset + batchSize);
-    await db.$transaction(
-      batch.map((product) =>
-        db.acustockProduct.upsert({
-          where: { mpn: product.mpn },
-          create: { ...product, lastSyncedAt: syncedAt },
-          update: { ...product, lastSyncedAt: syncedAt },
-        }),
-      ),
-    );
-  }
-
-  const currentMpns = products.map((product) => product.mpn);
-  const discontinued = await db.acustockProduct.updateMany({
-    where: { mpn: { notIn: currentMpns }, lastSyncedAt: { lt: syncedAt } },
-    data: { stockQuantity: 0, availability: "discontinued" },
-  });
-
-  return {
-    synced: products.length,
-    discontinued: discontinued.count,
-    syncedAt: syncedAt.toISOString(),
-    generatedAt,
-  };
 }
