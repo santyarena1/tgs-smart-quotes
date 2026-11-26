@@ -1618,6 +1618,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
   .totals .cash .val { color: ${blue}; font-weight: 900; font-size: 18px; }
   .totals .cheque .lbl { color: #374151; font-weight: 700; }
   .totals .cheque .val { color: #111827; font-weight: 800; font-size: 14px; }
+  .wifi-offer { display: block; margin-top: 10px; padding: 7px 10px; border: 1px solid #fdba74; border-radius: 6px; background: #fff7ed; color: #c2410c; font-size: 10.5px; font-weight: 700; text-align: center; }
 </style>
 </head>
 <body>
@@ -1658,6 +1659,7 @@ export function renderQuoteFormalHtml(input: PdfRenderInput): string {
   </section>`
       : ''
   }
+  ${input.webWifi ? `<div class="wifi-offer">Agregá una Placa WIFI PCIe por solo ${formatArsFromCents(input.webWifi.priceCents)}</div>` : ''}
   ${referenceImageHtml(input)}
 </body>
 </html>`;

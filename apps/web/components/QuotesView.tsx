@@ -2176,6 +2176,11 @@ export function QuotesView({
       setError(invalid);
       return invalid;
     }
+    // El web trae su propia oferta (webMeta). El común, incluido el formal, guarda la nota si está tildada.
+    const pdfOverrides = {
+      ...(opts?.componentPrices ? { showComponentPrices: "MOSTRAR" as const } : {}),
+      ...(wifiNote && !opts?.webMeta && !opts?.componentPrices ? { offerWifi: "MOSTRAR" as const } : {}),
+    };
     setBusy(true);
     // Si viene de crear la empresa en el modal, el navegador ya no deja abrir pestañas: se descarga el archivo.
     const pdfTab = opts ? null : window.open("about:blank", "_blank");
@@ -2194,8 +2199,7 @@ export function QuotesView({
           tradeIns: opts?.detached ? null : tradeInsPayload(),
           collectionIds: quoteCollectionIds,
           items: itemsToPayload(quoteItems),
-          ...(opts?.componentPrices ? { pdfOverrides: { showComponentPrices: "MOSTRAR" as const } } : {}),
-          ...(!opts && wifiNote ? { pdfOverrides: { offerWifi: "MOSTRAR" as const } } : {}),
+          ...(Object.keys(pdfOverrides).length ? { pdfOverrides } : {}),
           ...(opts?.webMeta ? { webMeta: opts.webMeta } : {}),
         },
       });
