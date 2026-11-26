@@ -29,7 +29,7 @@ import { suggestReferenceStyle, useReferenceImageJob, type ReferenceStyle } from
 import { LiteQuoteList } from "./LiteQuoteList";
 import { downloadQuotePdf, type PdfKind, type PdfQuickOptions } from "./lite-pdf";
 import { PdfOptionsModal } from "./PdfOptionsModal";
-import { isExtraLine } from "../lib/web-quote";
+import { hasWifi, isExtraLine, wifiOverrides } from "../lib/web-quote";
 import { WebQuoteModal, type WebLinePrice, type WebQuoteApply } from "../components/WebQuoteModal";
 import { WebQuoteAlerts } from "../components/WebQuoteWarning";
 
@@ -54,7 +54,7 @@ type Line = {
   source?: ItemSource;
 };
 
-const DEFAULT_MARKUP = "20";
+const DEFAULT_MARKUP = "25";
 const ROUND_STEPS = ["100", "500", "1000", "5000"];
 
 const norm = (value: string) => value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -392,6 +392,8 @@ export function LiteQuoteCreator() {
   const [webChecking, setWebChecking] = useState(false);
   /** Igual que en la versión común: el buscador trae solo la tienda y el botón crea el presupuesto web. */
   const [webMode, setWebMode] = useState(false);
+  /** Nota de placa WiFi: el PDF ofrece la placa en un bloque naranja (no suma al total), salvo que la PC ya traiga WiFi. */
+  const [wifiNote, setWifiNote] = useState(false);
   /** Presupuesto de la lista desde el que se arma un Presupuesto Web. Vacío: usa el creador. */
   const [webSource, setWebSource] = useState<{ lines: Line[]; name: string; customerId: string; observation: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -852,6 +854,7 @@ export function LiteQuoteCreator() {
             : null,
           // La copia no entra a las colecciones protegidas (ahí queda el original).
           collectionIds: guarded.length ? collectionIds.filter((id) => !guarded.some((c) => c.id === id)) : collectionIds,
+          pdfOverrides: wifiOverrides(editing?.version?.pdfOverrides, wifiNote),
           items: ordered.map((l, position) => ({
             productId: l.productId || null,
             name: l.name.trim(),
@@ -1004,6 +1007,7 @@ export function LiteQuoteCreator() {
     setTradeOpen(false);
     setTradeIns([]);
     setTradeShowValues(true);
+    setWifiNote(false);
     refJob.discard();
     setRefImage(null);
     setRefOpen(false);
@@ -1038,6 +1042,7 @@ export function LiteQuoteCreator() {
     setTradeOpen(false);
     setTradeIns([]);
     setTradeShowValues(true);
+    setWifiNote(false);
     refJob.discard();
     setRefImage(null);
     setRefSavedKey(null);
@@ -1075,6 +1080,7 @@ export function LiteQuoteCreator() {
       const savedTrade = getActiveVersion(quote)?.tradeIns;
       setTradeIns(savedTrade?.items.map((i) => ({ key: crypto.randomUUID(), name: i.name, valueArs: centsToInput(i.valueCents) })) ?? []);
       setTradeShowValues(savedTrade?.showValues ?? true);
+      setWifiNote(getActiveVersion(quote)?.pdfOverrides?.offerWifi === "MOSTRAR");
       setRefImage(quote.referenceImageUrl && quote.referenceImageKey ? { url: quote.referenceImageUrl, key: quote.referenceImageKey } : null);
       setRefSavedKey(quote.referenceImageKey ?? null);
       setEditing({ id: quote.id, visibleNumber: quote.visibleNumber, observation: getActiveVersion(quote)?.publicObservation ?? null, version: getActiveVersion(quote) ?? null });
@@ -1464,6 +1470,14 @@ export function LiteQuoteCreator() {
               ))}
             </div>
           ) : null}
+
+          <label className={`wifi-note${wifiNote ? " on" : ""}`} title="El PDF ofrece una placa WiFi PCIe en un bloque naranja, sin sumarla al total">
+            <input type="checkbox" checked={wifiNote} onChange={(e) => setWifiNote(e.target.checked)} disabled={Boolean(busy) || webBusy} />
+            <span>Agregar Nota de Placa Wifi</span>
+            {wifiNote && hasWifi(lines.filter((l) => l.name.trim())) ? (
+              <span className="wifi-note-hint">La PC ya trae WiFi: la nota no va a salir en el PDF.</span>
+            ) : null}
+          </label>
 
           <label className={`web-switch${webMode ? " on" : ""}`} title="Crea un presupuesto nuevo con los precios de la tienda web">
             <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={Boolean(busy) || webBusy} />

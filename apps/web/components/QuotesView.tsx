@@ -40,7 +40,7 @@ import type {
   TimelineEvent,
 } from "../lib/types";
 import { useSuite } from "./SuiteContext";
-import { isExtraLine } from "../lib/web-quote";
+import { hasWifi, isExtraLine, wifiOverrides } from "../lib/web-quote";
 import { WebQuoteModal, type WebPick, type WebQuoteApply } from "./WebQuoteModal";
 import { WebQuoteAlerts, WebQuoteWarning } from "./WebQuoteWarning";
 import { providerColor, useNodoProviders, useNodoSearch, useSourceSelection, useWebSearch, WEB_COLOR, type NodoResult, type WebResult } from "../lib/nodo";
@@ -198,7 +198,7 @@ const blankItem = (): ItemDraft => ({
   lineId: "",
   quantity: "1",
   costArs: "",
-  markupPct: "20",
+  markupPct: "25",
   saleArs: "",
   observation: "",
   priceMode: "markup",
@@ -233,7 +233,7 @@ function itemFromProduct(p: Product, quantity = "1", lineId = ""): ItemDraft {
 
 function itemFromCatalog(p: CatalogPickerItem, lineId = ""): ItemDraft {
   const costArs = centsToInput(p.priceCents);
-  const markupPct = "20";
+  const markupPct = "25";
   return {
     key: crypto.randomUUID(),
     productId: "",
@@ -512,6 +512,11 @@ export function QuotesView({
   useEffect(() => {
     if (!drawerOpen) setWebMode(false);
   }, [drawerOpen]);
+  /** Nota de placa WiFi: el PDF ofrece la placa en un bloque naranja (no suma al total), salvo que la PC ya traiga WiFi. */
+  const [wifiNote, setWifiNote] = useState(false);
+  useEffect(() => {
+    if (!drawerOpen) setWifiNote(false);
+  }, [drawerOpen]);
   const selBase = useSourceSelection(nodoProviders, setNodoProvidersEnabled);
   const sel = webMode ? { ...selBase, own: false, web: true, activeIds: [] as typeof selBase.activeIds } : selBase;
   const nodo = useNodoSearch(pickerQuery, sel.activeIds, nodoProviders.length);
@@ -527,7 +532,7 @@ export function QuotesView({
   const initialOpenRef = useRef<string | null>(null);
 
   const [newProdOpen, setNewProdOpen] = useState(false);
-  const [newProd, setNewProd] = useState({ name: "", costArs: "", markupPct: "20" });
+  const [newProd, setNewProd] = useState({ name: "", costArs: "", markupPct: "25" });
   const [creatingProd, setCreatingProd] = useState(false);
 
   const familyFilterKey = onlyFamilyIds?.join(",") ?? "";
@@ -705,6 +710,7 @@ export function QuotesView({
       const savedTrade = getActiveVersion(quote)?.tradeIns;
       setTradeIns(savedTrade?.items.map((i) => ({ key: crypto.randomUUID(), name: i.name, valueArs: centsToInput(i.valueCents) })) ?? []);
       setTradeShowValues(savedTrade?.showValues ?? true);
+      setWifiNote(getActiveVersion(quote)?.pdfOverrides?.offerWifi === "MOSTRAR");
       setCollectionIds(
         (quote.collections ?? [])
           .map((row) => row.collectionId ?? row.collection?.id ?? "")
@@ -1921,7 +1927,7 @@ export function QuotesView({
   }, [pickerActive]);
 
   function openCreateProduct() {
-    setNewProd({ name: pickerQuery.trim(), costArs: "", markupPct: "20" });
+    setNewProd({ name: pickerQuery.trim(), costArs: "", markupPct: "25" });
     setPickerOpen(false);
     setNewProdOpen(true);
   }
@@ -2170,6 +2176,11 @@ export function QuotesView({
       setError(invalid);
       return invalid;
     }
+    // El web trae su propia oferta (webMeta). El común, incluido el formal, guarda la nota si está tildada.
+    const pdfOverrides = {
+      ...(opts?.componentPrices ? { showComponentPrices: "MOSTRAR" as const } : {}),
+      ...(wifiNote && !opts?.webMeta && !opts?.componentPrices ? { offerWifi: "MOSTRAR" as const } : {}),
+    };
     setBusy(true);
     // Si viene de crear la empresa en el modal, el navegador ya no deja abrir pestañas: se descarga el archivo.
     const pdfTab = opts ? null : window.open("about:blank", "_blank");
@@ -2188,7 +2199,7 @@ export function QuotesView({
           tradeIns: opts?.detached ? null : tradeInsPayload(),
           collectionIds: quoteCollectionIds,
           items: itemsToPayload(quoteItems),
-          ...(opts?.componentPrices ? { pdfOverrides: { showComponentPrices: "MOSTRAR" as const } } : {}),
+          ...(Object.keys(pdfOverrides).length ? { pdfOverrides } : {}),
           ...(opts?.webMeta ? { webMeta: opts.webMeta } : {}),
         },
       });
@@ -2263,6 +2274,7 @@ export function QuotesView({
           // La copia no entra a las colecciones protegidas (ahí queda el original).
           collectionIds: asCopy ? collectionIds.filter((id) => !guarded.some((c) => c.id === id)) : collectionIds,
           items: itemsToPayload(items),
+          pdfOverrides: wifiOverrides(activeVersion?.pdfOverrides, wifiNote),
         },
       });
       const targetId = asCopy ? saved.id : selectedId;
@@ -2923,6 +2935,14 @@ export function QuotesView({
         {detail && activeVersion?.webMeta ? (
           <WebQuoteAlerts version={activeVersion} onCheck={() => void checkWebQuote()} checking={webChecking} />
         ) : null}
+
+        <label className={`wifi-note${wifiNote ? " on" : ""}`} title="El PDF ofrece una placa WiFi PCIe en un bloque naranja, sin sumarla al total">
+          <input type="checkbox" checked={wifiNote} onChange={(e) => setWifiNote(e.target.checked)} disabled={busy} />
+          <span>Agregar Nota de Placa Wifi</span>
+          {wifiNote && hasWifi(filledItems(items)) ? (
+            <span className="wifi-note-hint">La PC ya trae WiFi: la nota no va a salir en el PDF.</span>
+          ) : null}
+        </label>
 
         <label className={`web-switch${webMode ? " on" : ""}`} title="Crea un presupuesto nuevo con los precios de la tienda web">
           <input type="checkbox" role="switch" checked={webMode} onChange={(e) => setWebMode(e.target.checked)} disabled={busy} />

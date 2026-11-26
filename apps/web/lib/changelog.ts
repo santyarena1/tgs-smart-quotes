@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.26.0",
+    date: "2026-11-26",
+    title: "Nota de placa WiFi en el presupuesto común y margen por defecto 25 %",
+    items: [
+      "Check naranja \"Agregar Nota de Placa Wifi\" arriba del editor (versión común y LITE): el PDF sale igual que siempre, con el bloque naranja que ofrece la placa WiFi PCIe sin sumarla al total. El formal también lo muestra",
+      "El precio es el del Presupuesto Web: $18.200 en la PC básica y $47.400 con placa de video o refrigeración líquida",
+      "Si alguna línea ya trae WiFi (WIFI, WI-FI, WF, WLAN, inalámbrico, AX...) la nota no sale, para no ofrecerla dos veces",
+      "El margen de ganancia por defecto de los productos nuevos pasa de 20 % a 25 %",
+    ],
+  },
+  {
     version: "0.25.3",
     date: "2026-11-26",
     title: "API de colecciones para AcuStock",

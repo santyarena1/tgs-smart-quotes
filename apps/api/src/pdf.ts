@@ -15,6 +15,8 @@ import {
   idSchema,
   pdfGenerateSchema,
   pdfKindSchema,
+  linesHaveWifi,
+  wifiOfferCents,
   type PdfGenerateInput,
 } from '@tgs/contracts';
 import {
@@ -134,7 +136,13 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
   const componentPrices = (version.pdfOverrides as { showComponentPrices?: string } | null)?.showComponentPrices === 'MOSTRAR';
   // Presupuesto Web: la placa WiFi se ofrece en un bloque naranja (no suma al total).
   const rawWifi = (version as any).webMeta?.wifiCents;
-  const webWifiCents = typeof rawWifi === 'string' && /^\d+$/.test(rawWifi) && BigInt(rawWifi) > 0n ? BigInt(rawWifi) : null;
+  let webWifiCents = typeof rawWifi === 'string' && /^\d+$/.test(rawWifi) && BigInt(rawWifi) > 0n ? BigInt(rawWifi) : null;
+
+  // Presupuesto común con la nota de placa WiFi tildada: se ofrece salvo que alguna línea ya traiga WiFi.
+  if (!componentPrices && (version.pdfOverrides as { offerWifi?: string } | null)?.offerWifi === 'MOSTRAR') {
+    const wifiLines = rawItems.map((i: any) => ({name: String(i.name ?? '')}));
+    webWifiCents = linesHaveWifi(wifiLines) ? null : wifiOfferCents(wifiLines);
+  }
 
   if (family.isBuiltPc && !componentPrices) {
     const totalSale = version.totalSaleCents as bigint;
@@ -222,7 +230,7 @@ async function buildRenderInput(tx: any, family: any, version: any, kind: PdfKin
     options: kind === 'SIMPLE' ? null : options ?? null,
     isBuiltPc: family.isBuiltPc,
     ...(componentPrices ? { componentPrices: true } : {}),
-    ...(componentPrices && webWifiCents ? { webWifi: { priceCents: webWifiCents } } : {}),
+    ...(webWifiCents ?{ webWifi: { priceCents: webWifiCents } } : {}),
     observation: version.publicObservation,
     ...(tradeIns ? { tradeIns } : {}),
     listTotalCents,

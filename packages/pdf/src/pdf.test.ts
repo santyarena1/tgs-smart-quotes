@@ -579,6 +579,22 @@ describe('@tgs/pdf', () => {
     expect(pdfInputHash({ ...base, webWifi: { priceCents: 1820000n } })).not.toBe(pdfInputHash(base));
   });
 
+  it('presupuesto común: la nota de WiFi sale en el simple y en el formal sin precios por componente', () => {
+    const items = [
+      { name: 'PC ARMADA THE GAMER SHOP', quantity: 1, unitCents: 100000000n, subtotalCents: 100000000n, isMainLine: true },
+      { name: 'PROCESADOR AMD RYZEN 5', quantity: 1, unitCents: 25000000n, subtotalCents: 25000000n, isComponent: true },
+    ];
+    for (const template of ['CLASICO', 'MODERNO'] as const) {
+      const html = renderQuoteHtml({ ...sample(), isBuiltPc: true, template, kind: 'SIMPLE', items, webWifi: { priceCents: 4740000n } });
+      expect(html).toContain('Agregá una Placa WIFI PCIe por solo $ 47.400');
+      expect(html).toContain('$ 1.000.000');
+      expect(html).not.toContain('$ 250.000');
+    }
+    const formal = renderQuoteHtml({ ...sample(), isBuiltPc: true, kind: 'FORMAL', items, webWifi: { priceCents: 1820000n } });
+    expect(formal).toContain('Agregá una Placa WIFI PCIe por solo $ 18.200');
+    expect(formal).not.toContain('class="web-assembly"');
+  });
+
   it('un presupuesto común no se ve afectado por los nombres de armado, Windows o garantía', () => {
     const html = renderQuoteHtml({
       ...sample(),
