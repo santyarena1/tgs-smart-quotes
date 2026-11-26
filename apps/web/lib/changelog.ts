@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 /** Historial de novedades de la app. La primera entrada es la versión actual. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.3",
+    date: "2026-11-26",
+    title: "API de colecciones para AcuStock",
+    items: [
+      "AcuStock puede leer todas las colecciones con sus presupuestos: todas las versiones, ítems, costos, markup y ganancia",
+      "Se habilita cargando ACUSTOCK_API_TOKEN en la API y AcuStock lo manda en cada pedido. No incluye datos de clientes",
+    ],
+  },
+  {
     version: "0.25.2",
     date: "2026-11-25",
     title: "Catálogo AcuStock sin sincronizar con el feed viejo",
