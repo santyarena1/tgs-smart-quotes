@@ -2,6 +2,7 @@
 
 import { memo, useMemo, useState } from "react";
 import Link from "next/link";
+import { BBVA_DEFAULT_BPS, financingTotalCents, isBbvaBank } from "@tgs/contracts";
 import { bpsToPct, formatArs, parseArsToCents } from "../lib/money";
 import { MoneyInput } from "../components/shared";
 import type { FinancingPlan } from "../lib/types";
@@ -38,14 +39,14 @@ type Block = {
 /** Grupo visual según el banco cargado en Configuración. */
 function kindOf(bank: string | null): Kind {
   const b = norm(bank ?? "");
-  if (b.includes("bbva") || b.includes("frances")) return "bbva";
+  if (isBbvaBank(bank)) return "bbva";
   if (b.includes("go") && b.includes("cuota")) return "go";
   if (b.includes("mercado")) return "mp";
   return "others";
 }
 
 function nameOf(kind: Kind, plan: FinancingPlan): string {
-  if (kind === "bbva") return plan.interestBps === 0 ? "BBVA - Descuento exclusivo clientes BBVA" : "BBVA";
+  if (kind === "bbva") return "BBVA";
   if (kind === "go") return "GoCuotas";
   if (kind === "mp") return "Mercado Pago";
   return /otros/i.test(plan.bank ?? "") || !plan.bank ? "Otros Bancos" : plan.bank;
@@ -55,7 +56,8 @@ const ORDER: Kind[] = ["bbva", "single", "others", "mp", "go"];
 
 /**
  * Cómo queda financiado lo que se está cargando. Misma cuenta que el PDF:
- * las cuotas salen del precio de lista (efectivo + interés de lista) más el interés de cada plan.
+ * BBVA sale del efectivo + 8 %; el resto, del precio de lista (efectivo + interés de lista).
+ * Cualquier banco en 1, 3 y 6 pagos vale lo mismo que la lista.
  */
 export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCents, plans, listInterestBps, loaded, onHide, settingsHref = "/lite/configuracion?tab=financiacion" }: {
   totalCents: bigint;
@@ -78,16 +80,34 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
   const listCents = useMemo(() => withInterest(totalCents, listInterestBps), [totalCents, listInterestBps]);
 
   const blocks = useMemo<Block[]>(() => {
-    const fromPlans = plans.map<Block>((plan) => {
+    const block = (id: string, kind: Kind, installments: number, interestBps: number, name: string, total: bigint): Block => {
+      const n = BigInt(installments);
+      return { id, kind, installments, interestBps, name, total, each: (total + n / 2n) / n };
+    };
+    // 3 y 6 de cualquier banco van siempre, a precio de lista; lo configurado para esas cantidades no suma.
+    const anyBank = [3, 6].map((n) => block(`any-${n}`, "others", n, 0, "Cualquier banco", listCents));
+    const bbvaSeen = new Set<number>();
+    const fromPlans: Block[] = [];
+    for (const plan of plans) {
       const kind = kindOf(plan.bank);
-      const total = withInterest(listCents, plan.interestBps);
-      const n = BigInt(plan.installments);
-      return { id: plan.id, kind, installments: plan.installments, interestBps: plan.interestBps, name: nameOf(kind, plan), total, each: (total + n / 2n) / n };
-    });
-    const single: Block = { id: "single", kind: "single", installments: 1, interestBps: listInterestBps, name: "1 pago · Tarjeta", total: listCents, each: listCents };
-    return [...fromPlans, single].sort((a, b) =>
+      if (kind === "others" && (plan.installments === 3 || plan.installments === 6)) continue;
+      if (kind === "bbva") {
+        if (plan.installments === 1 || bbvaSeen.has(plan.installments)) continue;
+        bbvaSeen.add(plan.installments);
+      }
+      const bps = kind === "bbva" && plan.interestBps <= 0 ? BBVA_DEFAULT_BPS : plan.interestBps;
+      fromPlans.push(block(plan.id, kind, plan.installments, bps, nameOf(kind, plan), financingTotalCents(totalCents, listCents, plan)));
+    }
+    // BBVA en 1 pago: mismo recargo que sus cuotas.
+    const bbvaPlan = plans.find((plan) => isBbvaBank(plan.bank));
+    if (bbvaPlan) {
+      const bps = bbvaPlan.interestBps > 0 ? bbvaPlan.interestBps : BBVA_DEFAULT_BPS;
+      fromPlans.push(block("bbva-1", "bbva", 1, bps, "BBVA", financingTotalCents(totalCents, listCents, bbvaPlan)));
+    }
+    const single = block("single", "single", 1, listInterestBps, "1 pago · Cualquier banco", listCents);
+    return [...fromPlans, ...anyBank, single].sort((a, b) =>
       ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.installments - b.installments);
-  }, [plans, listCents, listInterestBps]);
+  }, [plans, totalCents, listCents, listInterestBps]);
 
   return (
     <aside className="lt-fin" aria-label="Financiación">
@@ -108,7 +128,7 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
       </div>
 
       <div className="lt-fin-cash">
-        <span>{manualCents !== null ? "Efectivo / transf. (manual)" : "Efectivo / transferencia · 20% de descuento"}</span>
+        <span>{manualCents !== null ? "Efectivo / transf. (manual)" : "Super descuento TGS solo en efectivo o transferencia"}</span>
         <strong>{hasTotal ? formatArs(totalCents) : "—"}</strong>
       </div>
       <div className="lt-fin-manual">
@@ -126,7 +146,7 @@ export const LiteFinancing = memo(function LiteFinancing({ totalCents: quoteCent
               <div className="lt-fin-body">
                 <div className="lt-fin-top">
                   <span className="lt-fin-n">{b.installments === 1 ? "1 pago" : `${b.installments} cuotas`}</span>
-                  <span className={`lt-fin-tag${b.interestBps === 0 ? " free" : ""}`}>{b.interestBps === 0 ? (b.kind === "bbva" ? "Dto. clientes BBVA" : "Sin interés") : `+${bpsToPct(b.interestBps)}%`}</span>
+                  <span className={`lt-fin-tag${b.interestBps === 0 || b.kind === "bbva" ? " free" : ""}`}>{b.kind === "bbva" ? "Super precio BBVA" : b.interestBps === 0 ? "Sin interés" : `+${bpsToPct(b.interestBps)}%`}</span>
                 </div>
                 <strong className="lt-fin-amt">{hasTotal ? formatArs(b.each) : "—"}</strong>
                 <div className="lt-fin-bot">

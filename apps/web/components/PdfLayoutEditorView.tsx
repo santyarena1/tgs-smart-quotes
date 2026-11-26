@@ -51,7 +51,7 @@ const LABEL_FIELDS: Partial<Record<PdfLayoutBlockKey, Array<{ key: PdfLabelKey; 
   "itemsTable.colAmount": [{ key: "colAmount", label: "Encabezado", placeholder: "Importe" }],
   totalsBlock: [
     { key: "listPriceLabel", label: "Rótulo precio de lista", placeholder: "Precio de lista" },
-    { key: "cashPriceLabel", label: "Rótulo efectivo", placeholder: "Efectivo / Transferencia" },
+    { key: "cashPriceLabel", label: "Rótulo efectivo", placeholder: "Super descuento TGS solo en efectivo o transferencia" },
   ],
   observation: [{ key: "observationLabel", label: "Rótulo", placeholder: "Observación" }],
 };

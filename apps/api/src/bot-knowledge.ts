@@ -11,6 +11,7 @@
  */
 import {db} from '@tgs/database';
 import {normalizeText} from '@tgs/validation';
+import {financingTotalCents, isBbvaBank} from '@tgs/contracts';
 import {applyInterestBps} from './calculator-seed.js';
 
 const STOPWORDS = new Set(('hola buenas buen dia tardes noches quiero queria quisiera saber consulta consultar info informacion mas sobre ' +
@@ -43,10 +44,10 @@ function installmentsText(cashCents: bigint, fin: Awaited<ReturnType<typeof fina
   if (!fin.plans.length) return '';
   const list = applyInterestBps(cashCents, fin.listInterestBps);
   const parts = fin.plans.slice(0, 4).map((plan) => {
-    const total = applyInterestBps(list, plan.interestBps);
+    const total = financingTotalCents(cashCents, list, plan);
     const n = BigInt(Math.max(1, plan.installments));
     const each = (total + n / 2n) / n;
-    return `${plan.installments} cuotas de ${money(each)}${plan.interestBps === 0 ? ' sin interés' : ''}${plan.bank ? ` (${plan.bank})` : ''}`;
+    return `${plan.installments} cuotas de ${money(each)}${plan.interestBps === 0 || isBbvaBank(plan.bank) ? ' sin interés' : ''}${plan.bank ? ` (${plan.bank})` : ''}`;
   });
   return `precio de lista ${money(list)}; ${parts.join('; ')}`;
 }

@@ -46,7 +46,7 @@ describe('charlas de ejemplo', () => {
     expect(scriptedTurn('En efectivo tengo descuento?', later)?.bubbles).toEqual([CASH_PRICE_REPLY]);
     const payment = casualText(PAYMENT_LIST);
     expect(payment).toContain('• Efectivo');
-    expect(payment).toContain('precio del lista');
+    expect(payment).toContain('precio de lista');
     expect(payment).not.toMatch(/\$\s?\d/);
     expect(casualText(CASH_PRICE_REPLY)).toBe(CASH_PRICE_REPLY);
   });

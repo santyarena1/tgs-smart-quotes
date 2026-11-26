@@ -203,7 +203,10 @@ export async function buildPublishPayload(familyId: string, versionId?: string |
     priceCashCents: version.totalSaleCents.toString(),
     priceTransferCents: version.totalSaleCents.toString(),
     installments: plans.map((plan: any) => {
-      const total = installmentTotal(list, Number(plan.interestBps ?? 0));
+      // BBVA sale del efectivo + 8 % (o el % del plan); el resto, del precio de lista.
+      const bbva = /bbva|franc[eé]s/i.test(plan.bank ?? '');
+      const bps = Number(plan.interestBps ?? 0);
+      const total = bbva ? installmentTotal(version.totalSaleCents, bps > 0 ? bps : 800) : installmentTotal(list, bps);
       const count = BigInt(Number(plan.installments));
       return {
         bank: plan.bank ?? null,

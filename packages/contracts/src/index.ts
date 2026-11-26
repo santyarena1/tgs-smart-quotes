@@ -741,7 +741,7 @@ export const DEFAULT_SALES_RULES: string[] = [
   'No digas el precio de un producto, ni un monto en pesos, ni dos opciones con precio. Si podés responder sin un precio (pago, dirección, qué tipo de PC le sirve, un link de la categoría), respondé. Los precios de DATOS DEL SISTEMA no se copian al chat.',
   'Producto sin modelo: "cuales productos busca?", después "Viste alguna marca o modelo en especial?". Si dice que no y que le muestres, recomendá la línea sin precio y el link en su propia burbuja. En teclados: "Dale! Nosotros recomendamos mucho nuestra linea de productos Aula! Le dejo los teclados Aula disponible!" y https://thegamershop.com.ar/?s=teclado+aula&post_type=product. Si después dice "bueno": "Comentame cual te gusta mas!". Si después dice "Dale": "Cualquier cosa nos mandas un mensaje o podes venir a nuestro local! Estamos en Liniers, Av Lisandro de la Torre 373 - CABA" y el link de Google Maps.',
   'Si nombra un modelo concreto o pregunta si hay stock o disponibilidad: contestá exactamente "Ya te digo si tengo disponibilidad!" y shouldEscalate=true. No digas si hay o no hay, ni el precio.',
-  'Si pregunta formas de pago, mandá la lista FORMAS DE PAGO: efectivo y transferencia al precio del presupuesto, dólares cara grande con el presupuesto convertido, tarjeta de crédito en 3/6/12 cuotas con interés, BBVA 3 cuotas sin interés del precio de lista, débito con recargo y criptomoneda con recargo. Sin montos.',
+  'Si pregunta formas de pago, mandá la lista FORMAS DE PAGO: efectivo y transferencia al precio del presupuesto, dólares cara grande con el presupuesto convertido, tarjeta de crédito en 3/6 cuotas sin interés del precio de lista y 12 con interés, BBVA 1, 3 o 6 cuotas con precio especial, débito con recargo y criptomoneda con recargo. Sin montos.',
   'Si pregunta si en efectivo hay descuento: "El precio que te paso es el de efectivo o transferencia. Con tarjeta de credito, debito o cripto tiene un recargo!". No lo llames descuento: el precio publicado ya es el de efectivo o transferencia.',
   'Personalizá con lo que dijo: nombrá los juegos o programas que mencionó y decile cómo le van a andar.',
   'No des vueltas: si el cliente ya dijo que sí, que se lo sumes o que le mandes el presupuesto, no vuelvas a preguntar lo mismo.',
@@ -891,7 +891,7 @@ export const DEFAULT_STYLE_EXAMPLES: string[] = [
   'Cliente: "Dale" → Fede: "Cualquier cosa nos mandas un mensaje o podes venir a nuestro local! Estamos en Liniers, Av Lisandro de la Torre 373 - CABA - https://www.google.com/maps/place/The+Gamer+Shop/@-34.6431396,-58.5234052,17z"',
   'Cliente: "hola busco procesador" → Fede: "Hola! Soy Fede de The Gamer Shop!" | "Perfecto, viste alguno en nuestra web?"',
   'Cliente: "no, no vi busco el 5600ge" → Fede: "Ya te digo si tengo disponibilidad!"',
-  'Cliente: "formas de pago?" → Fede: "FORMAS DE PAGO\n• Efectivo (Precio del presupuesto)\n• Transferencia (Precio del presupuesto)\n• Dolares Cara grande (Precio del presupuesto convertido a dolares)\n• Tarjeta de Credito en cuotas (3 / 6 / 12 cuotas con interes)\n• Tarjeta de Credito BBVA (3 Cuotas sin interes del precio del lista)\n• Tarjeta de Debito (Se cobra un recargo)\n• Criptomoneda (Se cobra un recargo)"',
+  'Cliente: "formas de pago?" → Fede: "FORMAS DE PAGO\n• Efectivo (Precio del presupuesto)\n• Transferencia (Precio del presupuesto)\n• Dolares Cara grande (Precio del presupuesto convertido a dolares)\n• Tarjeta de Credito en cuotas (3 / 6 cuotas sin interes del precio de lista, 12 con interes)\n• Tarjeta de Credito BBVA (1, 3 o 6 cuotas con precio especial BBVA)\n• Tarjeta de Debito (Se cobra un recargo)\n• Criptomoneda (Se cobra un recargo)"',
   'Cliente: "En efectivo tengo descuento?" → Fede: "El precio que te paso es el de efectivo o transferencia. Con tarjeta de credito, debito o cripto tiene un recargo!"',
   'Cliente: "Busco una Pc completa" → Fede: "Comentame, buscas una Pc para juegos, diseño, trabajo, estudio?"',
   'Cliente: "para juegos" → Fede: "Perfecto, cuales juegos te gustaria jugar en tu Pc?"',
@@ -1738,4 +1738,27 @@ export function linesHaveWifi(lines: WifiOfferLine[]): boolean {
 /** $18.200 en la PC básica (sin placa de video ni refrigeración líquida) y $47.400 en las demás. */
 export function wifiOfferCents(lines: WifiOfferLine[]): bigint {
   return linesHaveGpu(lines) || linesHaveLiquidCooling(lines) ? WIFI_OFFER_OTHER_CENTS : WIFI_OFFER_BASIC_CENTS;
+}
+
+/** BBVA tiene precio propio: se calcula sobre efectivo / transferencia y no sobre el de lista. */
+export function isBbvaBank(bank: string | null | undefined): boolean {
+  return /bbva|franc[eé]s/i.test(bank ?? '');
+}
+
+/** Recargo de BBVA sobre el efectivo cuando el plan no trae uno cargado (8 %). */
+export const BBVA_DEFAULT_BPS = 800;
+
+/**
+ * Total financiado de un plan. BBVA: efectivo + 8 % (o el % del plan).
+ * El resto: precio de lista + el % del plan.
+ */
+export function financingTotalCents(
+  cashCents: bigint,
+  listCents: bigint,
+  plan: {bank?: string | null; interestBps: number},
+): bigint {
+  const bbva = isBbvaBank(plan.bank);
+  const base = bbva ? cashCents : listCents;
+  const bps = bbva && plan.interestBps <= 0 ? BBVA_DEFAULT_BPS : plan.interestBps;
+  return (base * BigInt(10000 + bps) + 5000n) / 10000n;
 }
